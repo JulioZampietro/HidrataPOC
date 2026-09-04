@@ -1,0 +1,493 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 63;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		00FFFB683C1484BEDAB9EB23 /* HidrataPOCApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1E20512978CBB3411673F86 /* HidrataPOCApp.swift */; };
+		044AFD6D58D9A11B3600EC06 /* WeatherContextService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 540637DEA5459F68897F943E /* WeatherContextService.swift */; };
+		08AC2D7CA5CCC1CF858BE1F6 /* NotificationEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = B97525FAC07C838AC2BFCF1F /* NotificationEvent.swift */; };
+		167F52D89A8D0855F585B65D /* NotificationDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71707F70B58A641E997517DB /* NotificationDelegate.swift */; };
+		1B94AE46986CCE914AAF2327 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = DB825039445C1E23D630B41F /* Assets.xcassets */; };
+		1C683163E637960E88058478 /* UserProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89E03889516701BE00C6A8E4 /* UserProfile.swift */; };
+		1E0E8D58D49CFBE72BD691A5 /* HydrationChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36AFA6358F8646D4CE01B474 /* HydrationChartView.swift */; };
+		267A40DE9CF3539833AEA14D /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9EDD10460D867692F1B0943 /* HomeView.swift */; };
+		8600636CF4C7AB64E4086DD8 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B2F6CFFFE98CCFF1B19B9D9 /* OnboardingView.swift */; };
+		8DE7FD7B97BBF583ACF51FDF /* IntakeLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4DF682424276EED691E73FE /* IntakeLog.swift */; };
+		8E5B4900F427BAEF3A7D9579 /* CloudKitSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CEB9412C32EF75ADC24DDFE /* CloudKitSyncService.swift */; };
+		9E0E56EBE65D19A248EAEE28 /* PermissionsCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70608375406AEFAB8FD9A05D /* PermissionsCoordinator.swift */; };
+		A3082F6D802FB359064B17EC /* NotificationScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C74A3F1511E9062686EF2C1 /* NotificationScheduler.swift */; };
+		BAD54F5B8B4D14D2F3D4E044 /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D3D07956D972BB7565F7450 /* ProfileView.swift */; };
+		C4D59AF23B75095AE1776740 /* PersistenceController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18681BFBE503481336FBEBD8 /* PersistenceController.swift */; };
+		C875CDDF311D834B8785DD94 /* ConsentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F93CA27F187823B29EA02167 /* ConsentView.swift */; };
+		CCF46130AF549FBA9BBDBAA8 /* ProfileFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44B579DB179F9F9A74296475 /* ProfileFormView.swift */; };
+		CD5C5622FF926BBA66F4899C /* BackgroundRefreshService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6A65931A21528481F595E29 /* BackgroundRefreshService.swift */; };
+		DCF58E734DC63F0D68382F0D /* SyncStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 575F9F9ED22AB3F667CCDDC7 /* SyncStatus.swift */; };
+		E4BDAB3AAF9B03FE1FFF4506 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4EEB6ACF929F31511C0BB13 /* RootView.swift */; };
+		ED310A2AD7021F64EFBB3C64 /* HydrationMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F84FE05B740FBD73D4C2851 /* HydrationMath.swift */; };
+		EDC339173D9E9DC4F7B1AD2C /* DailyCheckin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 686E273CA71813447AEE9531 /* DailyCheckin.swift */; };
+		F40ED5533A05C10C3ED5268A /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95F0050D87C688CD6A361091 /* Constants.swift */; };
+		F5152A0DD23858F46BDC80A1 /* CalendarContextService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0903AF7033243AFEED9405C0 /* CalendarContextService.swift */; };
+		F99497B27087F11E52C7A718 /* DailyCheckinView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F01AECA79736FB88B44FD80 /* DailyCheckinView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		0903AF7033243AFEED9405C0 /* CalendarContextService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarContextService.swift; sourceTree = "<group>"; };
+		18681BFBE503481336FBEBD8 /* PersistenceController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceController.swift; sourceTree = "<group>"; };
+		1F01AECA79736FB88B44FD80 /* DailyCheckinView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyCheckinView.swift; sourceTree = "<group>"; };
+		2B2F6CFFFE98CCFF1B19B9D9 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
+		2D3D07956D972BB7565F7450 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
+		2F84FE05B740FBD73D4C2851 /* HydrationMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HydrationMath.swift; sourceTree = "<group>"; };
+		36AFA6358F8646D4CE01B474 /* HydrationChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HydrationChartView.swift; sourceTree = "<group>"; };
+		3CEB9412C32EF75ADC24DDFE /* CloudKitSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitSyncService.swift; sourceTree = "<group>"; };
+		44B579DB179F9F9A74296475 /* ProfileFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileFormView.swift; sourceTree = "<group>"; };
+		4C74A3F1511E9062686EF2C1 /* NotificationScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationScheduler.swift; sourceTree = "<group>"; };
+		540637DEA5459F68897F943E /* WeatherContextService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherContextService.swift; sourceTree = "<group>"; };
+		575F9F9ED22AB3F667CCDDC7 /* SyncStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncStatus.swift; sourceTree = "<group>"; };
+		686E273CA71813447AEE9531 /* DailyCheckin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyCheckin.swift; sourceTree = "<group>"; };
+		70608375406AEFAB8FD9A05D /* PermissionsCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionsCoordinator.swift; sourceTree = "<group>"; };
+		71707F70B58A641E997517DB /* NotificationDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationDelegate.swift; sourceTree = "<group>"; };
+		89E03889516701BE00C6A8E4 /* UserProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserProfile.swift; sourceTree = "<group>"; };
+		95F0050D87C688CD6A361091 /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constants.swift; sourceTree = "<group>"; };
+		A9EDD10460D867692F1B0943 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		B6A65931A21528481F595E29 /* BackgroundRefreshService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundRefreshService.swift; sourceTree = "<group>"; };
+		B97525FAC07C838AC2BFCF1F /* NotificationEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationEvent.swift; sourceTree = "<group>"; };
+		BCD76832686E086EB393F6B1 /* HidrataPOC.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HidrataPOC.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D1E20512978CBB3411673F86 /* HidrataPOCApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HidrataPOCApp.swift; sourceTree = "<group>"; };
+		D4DF682424276EED691E73FE /* IntakeLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntakeLog.swift; sourceTree = "<group>"; };
+		D4EEB6ACF929F31511C0BB13 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		DB825039445C1E23D630B41F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		DEF14391DFF4F9227FB24BDF /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		E0CB3E3BA72A80075634FCBB /* HidrataPOC.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = HidrataPOC.entitlements; sourceTree = "<group>"; };
+		F93CA27F187823B29EA02167 /* ConsentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsentView.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		00C006579CA0523A2042261B /* Support */ = {
+			isa = PBXGroup;
+			children = (
+				95F0050D87C688CD6A361091 /* Constants.swift */,
+				E0CB3E3BA72A80075634FCBB /* HidrataPOC.entitlements */,
+				DEF14391DFF4F9227FB24BDF /* Info.plist */,
+			);
+			path = Support;
+			sourceTree = "<group>";
+		};
+		0AC26D074C35DB8A76627E5D /* Onboarding */ = {
+			isa = PBXGroup;
+			children = (
+				2B2F6CFFFE98CCFF1B19B9D9 /* OnboardingView.swift */,
+			);
+			path = Onboarding;
+			sourceTree = "<group>";
+		};
+		46ECE8838F4FE464DCC19DD6 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				BCD76832686E086EB393F6B1 /* HidrataPOC.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		4C12462E0EB83AA10E9243D6 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				D1E20512978CBB3411673F86 /* HidrataPOCApp.swift */,
+				D4EEB6ACF929F31511C0BB13 /* RootView.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		4D8E6949BA3CE8040B61AF73 = {
+			isa = PBXGroup;
+			children = (
+				B178BF9924B5451FF0F1CEA9 /* HidrataPOC */,
+				46ECE8838F4FE464DCC19DD6 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		6F4038C801CE7C95AEC7F2FA /* Home */ = {
+			isa = PBXGroup;
+			children = (
+				A9EDD10460D867692F1B0943 /* HomeView.swift */,
+			);
+			path = Home;
+			sourceTree = "<group>";
+		};
+		78CF66212BC72147109CD3A7 /* Checkin */ = {
+			isa = PBXGroup;
+			children = (
+				1F01AECA79736FB88B44FD80 /* DailyCheckinView.swift */,
+			);
+			path = Checkin;
+			sourceTree = "<group>";
+		};
+		7BD7A632BB06ABF66282B529 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				B6A65931A21528481F595E29 /* BackgroundRefreshService.swift */,
+				0903AF7033243AFEED9405C0 /* CalendarContextService.swift */,
+				3CEB9412C32EF75ADC24DDFE /* CloudKitSyncService.swift */,
+				2F84FE05B740FBD73D4C2851 /* HydrationMath.swift */,
+				71707F70B58A641E997517DB /* NotificationDelegate.swift */,
+				4C74A3F1511E9062686EF2C1 /* NotificationScheduler.swift */,
+				70608375406AEFAB8FD9A05D /* PermissionsCoordinator.swift */,
+				18681BFBE503481336FBEBD8 /* PersistenceController.swift */,
+				540637DEA5459F68897F943E /* WeatherContextService.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		94642EDCB3234964154B904E /* Consent */ = {
+			isa = PBXGroup;
+			children = (
+				F93CA27F187823B29EA02167 /* ConsentView.swift */,
+			);
+			path = Consent;
+			sourceTree = "<group>";
+		};
+		947D52ACEA55C75BA6DCC282 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				686E273CA71813447AEE9531 /* DailyCheckin.swift */,
+				D4DF682424276EED691E73FE /* IntakeLog.swift */,
+				B97525FAC07C838AC2BFCF1F /* NotificationEvent.swift */,
+				575F9F9ED22AB3F667CCDDC7 /* SyncStatus.swift */,
+				89E03889516701BE00C6A8E4 /* UserProfile.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		A206EE043D6AE3FFB51098F9 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				78CF66212BC72147109CD3A7 /* Checkin */,
+				94642EDCB3234964154B904E /* Consent */,
+				6F4038C801CE7C95AEC7F2FA /* Home */,
+				0AC26D074C35DB8A76627E5D /* Onboarding */,
+				B78035C9D92C22757422920D /* Profile */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		B178BF9924B5451FF0F1CEA9 /* HidrataPOC */ = {
+			isa = PBXGroup;
+			children = (
+				DB825039445C1E23D630B41F /* Assets.xcassets */,
+				4C12462E0EB83AA10E9243D6 /* App */,
+				947D52ACEA55C75BA6DCC282 /* Models */,
+				7BD7A632BB06ABF66282B529 /* Services */,
+				00C006579CA0523A2042261B /* Support */,
+				A206EE043D6AE3FFB51098F9 /* Views */,
+			);
+			path = HidrataPOC;
+			sourceTree = "<group>";
+		};
+		B78035C9D92C22757422920D /* Profile */ = {
+			isa = PBXGroup;
+			children = (
+				36AFA6358F8646D4CE01B474 /* HydrationChartView.swift */,
+				44B579DB179F9F9A74296475 /* ProfileFormView.swift */,
+				2D3D07956D972BB7565F7450 /* ProfileView.swift */,
+			);
+			path = Profile;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		D059628CDD0B06714A32DCDD /* HidrataPOC */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 309830A3871C0A051429D3ED /* Build configuration list for PBXNativeTarget "HidrataPOC" */;
+			buildPhases = (
+				A59820E9CF60AD59835A0AE5 /* Sources */,
+				EA84517282B07A7EBDE09AC0 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = HidrataPOC;
+			packageProductDependencies = (
+			);
+			productName = HidrataPOC;
+			productReference = BCD76832686E086EB393F6B1 /* HidrataPOC.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		50D82453194C47EF90B0C3E8 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					D059628CDD0B06714A32DCDD = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = FE264B2FF5B56F3F582DDD8C /* Build configuration list for PBXProject "HidrataPOC" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 4D8E6949BA3CE8040B61AF73;
+			minimizedProjectReferenceProxies = 1;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				D059628CDD0B06714A32DCDD /* HidrataPOC */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		EA84517282B07A7EBDE09AC0 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1B94AE46986CCE914AAF2327 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A59820E9CF60AD59835A0AE5 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CD5C5622FF926BBA66F4899C /* BackgroundRefreshService.swift in Sources */,
+				F5152A0DD23858F46BDC80A1 /* CalendarContextService.swift in Sources */,
+				8E5B4900F427BAEF3A7D9579 /* CloudKitSyncService.swift in Sources */,
+				C875CDDF311D834B8785DD94 /* ConsentView.swift in Sources */,
+				F40ED5533A05C10C3ED5268A /* Constants.swift in Sources */,
+				EDC339173D9E9DC4F7B1AD2C /* DailyCheckin.swift in Sources */,
+				F99497B27087F11E52C7A718 /* DailyCheckinView.swift in Sources */,
+				00FFFB683C1484BEDAB9EB23 /* HidrataPOCApp.swift in Sources */,
+				267A40DE9CF3539833AEA14D /* HomeView.swift in Sources */,
+				1E0E8D58D49CFBE72BD691A5 /* HydrationChartView.swift in Sources */,
+				ED310A2AD7021F64EFBB3C64 /* HydrationMath.swift in Sources */,
+				8DE7FD7B97BBF583ACF51FDF /* IntakeLog.swift in Sources */,
+				167F52D89A8D0855F585B65D /* NotificationDelegate.swift in Sources */,
+				08AC2D7CA5CCC1CF858BE1F6 /* NotificationEvent.swift in Sources */,
+				A3082F6D802FB359064B17EC /* NotificationScheduler.swift in Sources */,
+				8600636CF4C7AB64E4086DD8 /* OnboardingView.swift in Sources */,
+				9E0E56EBE65D19A248EAEE28 /* PermissionsCoordinator.swift in Sources */,
+				C4D59AF23B75095AE1776740 /* PersistenceController.swift in Sources */,
+				CCF46130AF549FBA9BBDBAA8 /* ProfileFormView.swift in Sources */,
+				BAD54F5B8B4D14D2F3D4E044 /* ProfileView.swift in Sources */,
+				E4BDAB3AAF9B03FE1FFF4506 /* RootView.swift in Sources */,
+				DCF58E734DC63F0D68382F0D /* SyncStatus.swift in Sources */,
+				1C683163E637960E88058478 /* UserProfile.swift in Sources */,
+				044AFD6D58D9A11B3600EC06 /* WeatherContextService.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		6110703AE0848AD986323813 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = L9XGFW9W5W;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.2;
+			};
+			name = Debug;
+		};
+		C2C78FE6AF6318AFB58A9E73 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = HidrataPOC/Support/HidrataPOC.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = J6WURQU382;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = HidrataPOC/Support/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hidratapoc;
+				PRODUCT_NAME = HidrataPOC;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		D12C6FBE1A65C2CAE35FD123 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = L9XGFW9W5W;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.2;
+			};
+			name = Release;
+		};
+		D747639791B52DAA2856AD6A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = HidrataPOC/Support/HidrataPOC.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = J6WURQU382;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = HidrataPOC/Support/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hidratapoc;
+				PRODUCT_NAME = HidrataPOC;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		309830A3871C0A051429D3ED /* Build configuration list for PBXNativeTarget "HidrataPOC" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C2C78FE6AF6318AFB58A9E73 /* Debug */,
+				D747639791B52DAA2856AD6A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		FE264B2FF5B56F3F582DDD8C /* Build configuration list for PBXProject "HidrataPOC" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6110703AE0848AD986323813 /* Debug */,
+				D12C6FBE1A65C2CAE35FD123 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 50D82453194C47EF90B0C3E8 /* Project object */;
+}

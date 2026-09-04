@@ -1,0 +1,54 @@
+name: HidrataPOC
+options:
+  bundleIdPrefix: com.hidratapoc
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "6.2"
+    SWIFT_STRICT_CONCURRENCY: complete
+    DEVELOPMENT_TEAM: L9XGFW9W5W
+    CODE_SIGN_STYLE: Automatic
+
+targets:
+  HidrataPOC:
+    type: application
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: HidrataPOC
+    info:
+      path: HidrataPOC/Support/Info.plist
+      properties:
+        UILaunchScreen: {}
+        NSLocationWhenInUseUsageDescription: "Usamos sua localização para consultar a temperatura e umidade no momento dos lembretes de hidratação."
+        NSCalendarsFullAccessUsageDescription: "Consultamos sua agenda apenas para saber se você está ocupado (sem ler título ou local dos eventos), para escolher melhores horários de lembrete."
+        UIBackgroundModes:
+          - fetch
+          - remote-notification
+          - processing
+        BGTaskSchedulerPermittedIdentifiers:
+          - com.hidratapoc.refresh
+        ITSAppUsesNonExemptEncryption: false
+    entitlements:
+      path: HidrataPOC/Support/HidrataPOC.entitlements
+      properties:
+        com.apple.developer.icloud-container-identifiers:
+          - iCloud.com.hidratapoc
+        com.apple.developer.icloud-services:
+          - CloudKit
+        com.apple.developer.weatherkit: true
+        aps-environment: development
+    capabilities:
+      - com.apple.developer.icloud-container-identifiers
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.hidratapoc
+        PRODUCT_NAME: HidrataPOC
+        TARGETED_DEVICE_FAMILY: "1"
+        GENERATE_INFOPLIST_FILE: true
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
