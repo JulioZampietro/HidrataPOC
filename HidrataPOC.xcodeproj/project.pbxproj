@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 63;
+	objectVersion = 77;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -55,7 +55,7 @@
 		A9EDD10460D867692F1B0943 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		B6A65931A21528481F595E29 /* BackgroundRefreshService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundRefreshService.swift; sourceTree = "<group>"; };
 		B97525FAC07C838AC2BFCF1F /* NotificationEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationEvent.swift; sourceTree = "<group>"; };
-		BCD76832686E086EB393F6B1 /* HidrataPOC.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HidrataPOC.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		BCD76832686E086EB393F6B1 /* HidrataPOC.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = HidrataPOC.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D1E20512978CBB3411673F86 /* HidrataPOCApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HidrataPOCApp.swift; sourceTree = "<group>"; };
 		D4DF682424276EED691E73FE /* IntakeLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntakeLog.swift; sourceTree = "<group>"; };
 		D4EEB6ACF929F31511C0BB13 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
@@ -227,6 +227,7 @@
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
 					D059628CDD0B06714A32DCDD = {
+						DevelopmentTeam = J6WURQU382;
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -241,6 +242,7 @@
 			);
 			mainGroup = 4D8E6949BA3CE8040B61AF73;
 			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -331,7 +333,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = L9XGFW9W5W;
+				DEVELOPMENT_TEAM = J6WURQU382;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -368,7 +370,6 @@
 				CODE_SIGN_ENTITLEMENTS = HidrataPOC/Support/HidrataPOC.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = J6WURQU382;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = HidrataPOC/Support/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
@@ -420,7 +421,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = L9XGFW9W5W;
+				DEVELOPMENT_TEAM = J6WURQU382;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -450,7 +451,6 @@
 				CODE_SIGN_ENTITLEMENTS = HidrataPOC/Support/HidrataPOC.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = J6WURQU382;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = HidrataPOC/Support/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;

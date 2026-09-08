@@ -9,15 +9,21 @@ struct HomeView: View {
     @State private var isLogging = false
     @State private var pendingPreset: Constants.IntakePreset?
     @State private var pendingDeleteLog: IntakeLog?
+    @State private var tempContext: TemperatureAdjustmentContext?
 
     private var todayLogs: [IntakeLog] {
         allLogs.filter { $0.userID == profile.userID && Calendar.current.isDateInToday($0.timestamp) }
     }
 
     private var consumedToday: Int { HydrationMath.totalML(todayLogs, on: .now) }
+
+    private var effectiveGoalML: Int {
+        profile.metaDiariaML + (tempContext?.adjustmentML ?? 0)
+    }
+
     private var progress: Double {
-        guard profile.metaDiariaML > 0 else { return 0 }
-        return min(1, Double(consumedToday) / Double(profile.metaDiariaML))
+        guard effectiveGoalML > 0 else { return 0 }
+        return min(1, Double(consumedToday) / Double(effectiveGoalML))
     }
 
     var body: some View {
@@ -40,6 +46,8 @@ struct HomeView: View {
                     }
                     .padding(.horizontal)
 
+                    temperatureDebugCard
+
                     if !todayLogs.isEmpty {
                         recentLogsList
                     }
@@ -47,6 +55,12 @@ struct HomeView: View {
                 .padding(.vertical)
             }
             .navigationTitle("Hidratação")
+            .onAppear {
+                guard tempContext == nil else { return }
+                Task {
+                    tempContext = await WeatherContextService.shared.temperatureAdjustmentContext()
+                }
+            }
             .alert(
                 pendingPreset.map { "Registrar \($0.label.lowercased())?" } ?? "",
                 isPresented: isPresentingPresetConfirm,
@@ -92,15 +106,20 @@ struct HomeView: View {
                 VStack(spacing: 4) {
                     Text("\(consumedToday) mL")
                         .font(.title.bold())
-                    Text("meta: \(profile.metaDiariaML) mL")
+                    Text("meta: \(effectiveGoalML) mL")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                    if let ctx = tempContext, ctx.adjustmentML > 0 {
+                        Text("+\(ctx.adjustmentML) mL por calor")
+                            .font(.caption2)
+                            .foregroundStyle(.orange)
+                    }
                 }
             }
             .frame(width: 180, height: 180)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(consumedToday) de \(profile.metaDiariaML) mililitros consumidos hoje")
+        .accessibilityLabel("\(consumedToday) de \(effectiveGoalML) mililitros consumidos hoje")
     }
 
     private func intakeButton(_ preset: Constants.IntakePreset) -> some View {
@@ -121,6 +140,40 @@ struct HomeView: View {
             .background(.blue.opacity(0.1), in: RoundedRectangle(cornerRadius: 14))
         }
         .disabled(isLogging)
+    }
+
+    private var temperatureDebugCard: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Temperatura (debug)")
+                .font(.caption.bold())
+                .foregroundStyle(.secondary)
+            if let ctx = tempContext {
+                Group {
+                    debugRow("Máxima hoje", String(format: "%.1f °C", ctx.todayMaxC))
+                    debugRow("Referência", String(format: "%.0f °C", ctx.baselineC))
+                    debugRow("Acréscimo", "\(ctx.adjustmentML) mL")
+                    debugRow("Meta base", "\(profile.metaDiariaML) mL")
+                    debugRow("Meta ajustada", "\(effectiveGoalML) mL")
+                }
+            } else {
+                Text("Carregando… (localização ou WeatherKit indisponível)")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.yellow.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
+        .padding(.horizontal)
+    }
+
+    private func debugRow(_ label: String, _ value: String) -> some View {
+        HStack {
+            Text(label).foregroundStyle(.secondary)
+            Spacer()
+            Text(value).monospacedDigit()
+        }
+        .font(.caption)
     }
 
     private func iconName(for preset: Constants.IntakePreset) -> String {
