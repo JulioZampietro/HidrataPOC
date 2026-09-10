@@ -110,6 +110,7 @@ targets:
     info:
       path: HydrationWidget/Info.plist
       properties:
+        CFBundleDisplayName: HydrationWidget
         ITSAppUsesNonExemptEncryption: false
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
