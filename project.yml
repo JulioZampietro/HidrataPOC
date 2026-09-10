@@ -79,6 +79,19 @@ targets:
         SKIP_INSTALL: true
         DEFINES_MODULE: true
 
+  HidrataPOCTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: HidrataPOCTests
+    dependencies:
+      - target: HidrataPOC
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.hidratapoc.Tests
+        GENERATE_INFOPLIST_FILE: true
+
   HydrationWidget:
     type: app-extension
     platform: iOS
@@ -89,6 +102,7 @@ targets:
       - path: HidrataPOC/Models
       - path: HidrataPOC/Services/PersistenceController.swift
       - path: HidrataPOC/Services/CloudKitSyncService.swift
+      - path: HidrataPOC/Services/WaterIntakeCalculator.swift
       - path: HidrataPOC/Support/Constants.swift
     dependencies:
       - target: HydrationKit

@@ -16,6 +16,14 @@ struct ProfileView: View {
         HydrationMath.dailyTotals(myLogs, days: 7)
     }
 
+    private var generoDisplay: String {
+        let genero = Genero(rawValue: profile.genero ?? Genero.naoInformar.rawValue) ?? .naoInformar
+        if genero == .autoDeclarado, let texto = profile.generoAutoDeclarado, !texto.isEmpty {
+            return texto
+        }
+        return genero.label
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -27,11 +35,10 @@ struct ProfileView: View {
 
                 Section("Dados") {
                     LabeledContent("Idade", value: "\(profile.idade) anos")
-                    LabeledContent("Gênero", value: Genero(rawValue: profile.genero ?? Genero.naoInformar.rawValue)?.label ?? "—")
+                    LabeledContent("Gênero", value: generoDisplay)
                     LabeledContent("Peso", value: "\(profile.pesoKg.formatted()) kg")
                     LabeledContent("Altura", value: "\(profile.alturaCm.formatted()) cm")
                     LabeledContent("Meta diária", value: "\(profile.metaDiariaML) mL")
-                    LabeledContent("Botão personalizado", value: "\(profile.customIntakeML) mL")
                 }
 
                 Section {
@@ -45,6 +52,7 @@ struct ProfileView: View {
                         title: "Editar perfil",
                         confirmLabel: "Salvar",
                         initialValues: .from(profile),
+                        showsCustomIntakeField: false,
                         onSave: save
                     )
                 }
@@ -55,10 +63,10 @@ struct ProfileView: View {
     private func save(_ values: ProfileFormValues) {
         profile.idade = values.idade
         profile.genero = values.genero == .naoInformar ? nil : values.genero.rawValue
+        profile.generoAutoDeclarado = values.normalizedGeneroAutoDeclarado
         profile.pesoKg = values.pesoKg
         profile.alturaCm = values.alturaCm
-        profile.metaDiariaML = values.metaDiariaML
-        profile.customIntakeML = values.customIntakeML
+        profile.metaDiariaML = UserProfile.suggestedGoalML(gender: values.genero.gender, idade: values.idade, pesoKg: values.pesoKg, alturaCm: values.alturaCm)
         profile.atualizadoEm = .now
         profile.syncStatus = .pending
         try? modelContext.save()
@@ -66,7 +74,6 @@ struct ProfileView: View {
         Task {
             await CloudKitSyncService.shared.push(profile)
             try? modelContext.save()
-            await LiveActivityManager.shared.updateCustomAmount(values.customIntakeML)
         }
     }
 }

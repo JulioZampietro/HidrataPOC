@@ -17,9 +17,11 @@
 		1C683163E637960E88058478 /* UserProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89E03889516701BE00C6A8E4 /* UserProfile.swift */; };
 		1E0E8D58D49CFBE72BD691A5 /* HydrationChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36AFA6358F8646D4CE01B474 /* HydrationChartView.swift */; };
 		267A40DE9CF3539833AEA14D /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9EDD10460D867692F1B0943 /* HomeView.swift */; };
+		2A1D8B0D2B76B6F3EA0A6273 /* WaterIntakeCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD611C7BACD349B4B8CBC129 /* WaterIntakeCalculator.swift */; };
 		322E3A00D8FD3C5C771E2221 /* WeatherContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3BCAACF78A9164EF7C57D86 /* WeatherContext.swift */; };
 		3CA2848723C8F162BFD85334 /* HydrationKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E25C2DCFF2A32A6FFCA18FE5 /* HydrationKit.framework */; };
 		4FA77BB80B7BFEFCD0CAC8AD /* LiveActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 646191BC23E0F875E444DFCF /* LiveActivityManager.swift */; };
+		50D08C3D5EA73F9F85F1EA6A /* WaterIntakeCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD611C7BACD349B4B8CBC129 /* WaterIntakeCalculator.swift */; };
 		5CA9B1161DAD92BD19B3E346 /* HydrationLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77D39C48CF3E7F2C6FADD5F4 /* HydrationLiveActivity.swift */; };
 		6B9F8313D8B9172C4DF3C1D0 /* IntakeLogService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FA657D469BE9DC8A54167C5 /* IntakeLogService.swift */; };
 		75ED8417F44DA378C2F7848E /* PersistenceController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18681BFBE503481336FBEBD8 /* PersistenceController.swift */; };
@@ -42,6 +44,7 @@
 		CCF46130AF549FBA9BBDBAA8 /* ProfileFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44B579DB179F9F9A74296475 /* ProfileFormView.swift */; };
 		CD5C5622FF926BBA66F4899C /* BackgroundRefreshService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6A65931A21528481F595E29 /* BackgroundRefreshService.swift */; };
 		D572116344EF1B76385B5E9B /* NotificationEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = B97525FAC07C838AC2BFCF1F /* NotificationEvent.swift */; };
+		D5CEFFA72BEE705454B64795 /* WaterIntakeCalculatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A751463FEB8FCD28AA160686 /* WaterIntakeCalculatorTests.swift */; };
 		DCF58E734DC63F0D68382F0D /* SyncStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 575F9F9ED22AB3F667CCDDC7 /* SyncStatus.swift */; };
 		E4BDAB3AAF9B03FE1FFF4506 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4EEB6ACF929F31511C0BB13 /* RootView.swift */; };
 		E67D981AC474B8B4BCBFE6F0 /* HydrationKit.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = E25C2DCFF2A32A6FFCA18FE5 /* HydrationKit.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -54,6 +57,7 @@
 		F5152A0DD23858F46BDC80A1 /* CalendarContextService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0903AF7033243AFEED9405C0 /* CalendarContextService.swift */; };
 		F99497B27087F11E52C7A718 /* DailyCheckinView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F01AECA79736FB88B44FD80 /* DailyCheckinView.swift */; };
 		FCC1324381344DB8DA982AE3 /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95F0050D87C688CD6A361091 /* Constants.swift */; };
+		FEF1E8A999A9841C843C2208 /* CustomIntakeEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20FA02344B32332B350BC11D /* CustomIntakeEditorView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -70,6 +74,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = F5AB7A73986C03CD5C66091E;
 			remoteInfo = HydrationKit;
+		};
+		81E4D2D6449178F0BA10735B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 50D82453194C47EF90B0C3E8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D059628CDD0B06714A32DCDD;
+			remoteInfo = HidrataPOC;
 		};
 		C89AB51A3C6D3D8FE34CE929 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -120,7 +131,9 @@
 		0903AF7033243AFEED9405C0 /* CalendarContextService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarContextService.swift; sourceTree = "<group>"; };
 		18681BFBE503481336FBEBD8 /* PersistenceController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceController.swift; sourceTree = "<group>"; };
 		1F01AECA79736FB88B44FD80 /* DailyCheckinView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyCheckinView.swift; sourceTree = "<group>"; };
+		20FA02344B32332B350BC11D /* CustomIntakeEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomIntakeEditorView.swift; sourceTree = "<group>"; };
 		2503669AFFB90410A6F12B75 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		28F1ED724B8B626A9128D39F /* HidrataPOCTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = HidrataPOCTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		2B2F6CFFFE98CCFF1B19B9D9 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		2D00F1695397E9C0BF034BAC /* HydrationWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = HydrationWidget.entitlements; sourceTree = "<group>"; };
 		2D3D07956D972BB7565F7450 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
@@ -140,6 +153,7 @@
 		89E03889516701BE00C6A8E4 /* UserProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserProfile.swift; sourceTree = "<group>"; };
 		8FA657D469BE9DC8A54167C5 /* IntakeLogService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntakeLogService.swift; sourceTree = "<group>"; };
 		95F0050D87C688CD6A361091 /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constants.swift; sourceTree = "<group>"; };
+		A751463FEB8FCD28AA160686 /* WaterIntakeCalculatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaterIntakeCalculatorTests.swift; sourceTree = "<group>"; };
 		A9EDD10460D867692F1B0943 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		B1F08A6A4544B6C3057E6B91 /* HydrationWidget.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = HydrationWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		B6A65931A21528481F595E29 /* BackgroundRefreshService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundRefreshService.swift; sourceTree = "<group>"; };
@@ -147,6 +161,7 @@
 		BCD76832686E086EB393F6B1 /* HidrataPOC.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = HidrataPOC.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C3BCAACF78A9164EF7C57D86 /* WeatherContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherContext.swift; sourceTree = "<group>"; };
 		C7A5DA61EDA45323AB04B6E6 /* HydrationWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HydrationWidgetBundle.swift; sourceTree = "<group>"; };
+		CD611C7BACD349B4B8CBC129 /* WaterIntakeCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaterIntakeCalculator.swift; sourceTree = "<group>"; };
 		D1E20512978CBB3411673F86 /* HidrataPOCApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HidrataPOCApp.swift; sourceTree = "<group>"; };
 		D4DF682424276EED691E73FE /* IntakeLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntakeLog.swift; sourceTree = "<group>"; };
 		D4EEB6ACF929F31511C0BB13 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
@@ -196,10 +211,19 @@
 			path = Onboarding;
 			sourceTree = "<group>";
 		};
+		37A7FBDE48AA63EF35F8635C /* HidrataPOCTests */ = {
+			isa = PBXGroup;
+			children = (
+				A751463FEB8FCD28AA160686 /* WaterIntakeCalculatorTests.swift */,
+			);
+			path = HidrataPOCTests;
+			sourceTree = "<group>";
+		};
 		46ECE8838F4FE464DCC19DD6 /* Products */ = {
 			isa = PBXGroup;
 			children = (
 				BCD76832686E086EB393F6B1 /* HidrataPOC.app */,
+				28F1ED724B8B626A9128D39F /* HidrataPOCTests.xctest */,
 				E25C2DCFF2A32A6FFCA18FE5 /* HydrationKit.framework */,
 				B1F08A6A4544B6C3057E6B91 /* HydrationWidget.appex */,
 			);
@@ -219,6 +243,7 @@
 			isa = PBXGroup;
 			children = (
 				B178BF9924B5451FF0F1CEA9 /* HidrataPOC */,
+				37A7FBDE48AA63EF35F8635C /* HidrataPOCTests */,
 				D75F7703392B61CB93FD3B8F /* HydrationKit */,
 				CCE68074A395D0577E56F79D /* HydrationWidget */,
 				46ECE8838F4FE464DCC19DD6 /* Products */,
@@ -237,6 +262,7 @@
 		6F4038C801CE7C95AEC7F2FA /* Home */ = {
 			isa = PBXGroup;
 			children = (
+				20FA02344B32332B350BC11D /* CustomIntakeEditorView.swift */,
 				A9EDD10460D867692F1B0943 /* HomeView.swift */,
 			);
 			path = Home;
@@ -262,6 +288,7 @@
 				4C74A3F1511E9062686EF2C1 /* NotificationScheduler.swift */,
 				70608375406AEFAB8FD9A05D /* PermissionsCoordinator.swift */,
 				18681BFBE503481336FBEBD8 /* PersistenceController.swift */,
+				CD611C7BACD349B4B8CBC129 /* WaterIntakeCalculator.swift */,
 				540637DEA5459F68897F943E /* WeatherContextService.swift */,
 			);
 			path = Services;
@@ -366,6 +393,24 @@
 			productReference = B1F08A6A4544B6C3057E6B91 /* HydrationWidget.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		2A1DB9C225724CD8FB057D6C /* HidrataPOCTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B3AD0A0DDDDEF95E15DB0F92 /* Build configuration list for PBXNativeTarget "HidrataPOCTests" */;
+			buildPhases = (
+				86340BA92EB3B6001A8BA5EE /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				DFFB62D2A210D050948A689B /* PBXTargetDependency */,
+			);
+			name = HidrataPOCTests;
+			packageProductDependencies = (
+			);
+			productName = HidrataPOCTests;
+			productReference = 28F1ED724B8B626A9128D39F /* HidrataPOCTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		D059628CDD0B06714A32DCDD /* HidrataPOC */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 309830A3871C0A051429D3ED /* Build configuration list for PBXNativeTarget "HidrataPOC" */;
@@ -419,6 +464,10 @@
 						DevelopmentTeam = L9XGFW9W5W;
 						ProvisioningStyle = Automatic;
 					};
+					2A1DB9C225724CD8FB057D6C = {
+						DevelopmentTeam = L9XGFW9W5W;
+						ProvisioningStyle = Automatic;
+					};
 					D059628CDD0B06714A32DCDD = {
 						DevelopmentTeam = L9XGFW9W5W;
 						ProvisioningStyle = Automatic;
@@ -444,6 +493,7 @@
 			projectRoot = "";
 			targets = (
 				D059628CDD0B06714A32DCDD /* HidrataPOC */,
+				2A1DB9C225724CD8FB057D6C /* HidrataPOCTests */,
 				F5AB7A73986C03CD5C66091E /* HydrationKit */,
 				18860CD4E122DAAE82B46D70 /* HydrationWidget */,
 			);
@@ -470,6 +520,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		86340BA92EB3B6001A8BA5EE /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D5CEFFA72BEE705454B64795 /* WaterIntakeCalculatorTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		A59820E9CF60AD59835A0AE5 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -479,6 +537,7 @@
 				8E5B4900F427BAEF3A7D9579 /* CloudKitSyncService.swift in Sources */,
 				C875CDDF311D834B8785DD94 /* ConsentView.swift in Sources */,
 				F40ED5533A05C10C3ED5268A /* Constants.swift in Sources */,
+				FEF1E8A999A9841C843C2208 /* CustomIntakeEditorView.swift in Sources */,
 				EDC339173D9E9DC4F7B1AD2C /* DailyCheckin.swift in Sources */,
 				F99497B27087F11E52C7A718 /* DailyCheckinView.swift in Sources */,
 				00FFFB683C1484BEDAB9EB23 /* HidrataPOCApp.swift in Sources */,
@@ -499,6 +558,7 @@
 				E4BDAB3AAF9B03FE1FFF4506 /* RootView.swift in Sources */,
 				DCF58E734DC63F0D68382F0D /* SyncStatus.swift in Sources */,
 				1C683163E637960E88058478 /* UserProfile.swift in Sources */,
+				50D08C3D5EA73F9F85F1EA6A /* WaterIntakeCalculator.swift in Sources */,
 				322E3A00D8FD3C5C771E2221 /* WeatherContext.swift in Sources */,
 				044AFD6D58D9A11B3600EC06 /* WeatherContextService.swift in Sources */,
 			);
@@ -520,6 +580,7 @@
 				75ED8417F44DA378C2F7848E /* PersistenceController.swift in Sources */,
 				10A05D5E80D99497B247289A /* SyncStatus.swift in Sources */,
 				82FE3E0466BBD8C5EF72ECE3 /* UserProfile.swift in Sources */,
+				2A1D8B0D2B76B6F3EA0A6273 /* WaterIntakeCalculator.swift in Sources */,
 				E99D10C4C6CAA04B92BBBBF7 /* WeatherContext.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -541,6 +602,11 @@
 			isa = PBXTargetDependency;
 			target = 18860CD4E122DAAE82B46D70 /* HydrationWidget */;
 			targetProxy = 3736BC9B2866147577493367 /* PBXContainerItemProxy */;
+		};
+		DFFB62D2A210D050948A689B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = D059628CDD0B06714A32DCDD /* HidrataPOC */;
+			targetProxy = 81E4D2D6449178F0BA10735B /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -611,6 +677,24 @@
 			};
 			name = Debug;
 		};
+		618871CB0D44E68B1791EEDD /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.hidratapoc.Tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/HidrataPOC.app/HidrataPOC";
+			};
+			name = Release;
+		};
 		6CB521CCAD8FD647C62071A7 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -632,6 +716,24 @@
 				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
+		};
+		81DF2423BC5133AC7893D277 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.hidratapoc.Tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/HidrataPOC.app/HidrataPOC";
+			};
+			name = Debug;
 		};
 		8E6EFEBC68512574F16CD869 /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -827,6 +929,15 @@
 			buildConfigurations = (
 				8E6EFEBC68512574F16CD869 /* Debug */,
 				6CB521CCAD8FD647C62071A7 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		B3AD0A0DDDDEF95E15DB0F92 /* Build configuration list for PBXNativeTarget "HidrataPOCTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				81DF2423BC5133AC7893D277 /* Debug */,
+				618871CB0D44E68B1791EEDD /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

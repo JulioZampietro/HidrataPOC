@@ -10,6 +10,7 @@ struct OnboardingView: View {
                 title: "Bem-vindo(a)",
                 confirmLabel: "Concluir",
                 initialValues: .new,
+                showsCustomIntakeField: true,
                 onSave: save
             )
         }
@@ -22,10 +23,11 @@ struct OnboardingView: View {
                 userID: userID,
                 idade: values.idade,
                 genero: values.genero == .naoInformar ? nil : values.genero.rawValue,
+                generoAutoDeclarado: values.normalizedGeneroAutoDeclarado,
                 pesoKg: values.pesoKg,
                 alturaCm: values.alturaCm,
                 fusoHorario: TimeZone.current.identifier,
-                metaDiariaML: values.metaDiariaML,
+                metaDiariaML: UserProfile.suggestedGoalML(gender: values.genero.gender, idade: values.idade, pesoKg: values.pesoKg, alturaCm: values.alturaCm),
                 customIntakeML: values.customIntakeML
             )
             modelContext.insert(profile)

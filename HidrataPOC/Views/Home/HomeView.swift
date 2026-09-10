@@ -7,8 +7,8 @@ struct HomeView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var allLogs: [IntakeLog]
     @State private var isLogging = false
-    @State private var pendingPreset: Constants.IntakePreset?
     @State private var pendingDeleteLog: IntakeLog?
+    @State private var isEditingCustomAmount = false
     @State private var weather: WeatherContext?
     @State private var isLoadingWeather = true
     @State private var tempContext: TemperatureAdjustmentContext?
@@ -44,12 +44,10 @@ struct HomeView: View {
                             intakeButton(.glass)
                             intakeButton(.bottle)
                             intakeButton(.gallon)
-                            intakeButton(.custom(volumeML: profile.customIntakeML))
+                            customIntakeButton
                         }
                     }
                     .padding(.horizontal)
-
-                    temperatureDebugCard
 
                     if !todayLogs.isEmpty {
                         recentLogsList
@@ -65,16 +63,6 @@ struct HomeView: View {
                     tempContext = await WeatherContextService.shared.temperatureAdjustmentContext()
                 }
             }
-            .alert(
-                pendingPreset.map { "Registrar \($0.label.lowercased())?" } ?? "",
-                isPresented: isPresentingPresetConfirm,
-                presenting: pendingPreset
-            ) { preset in
-                Button("Registrar") { logIntake(preset) }
-                Button("Cancelar", role: .cancel) {}
-            } message: { preset in
-                Text("\(preset.volumeML) mL serão adicionados ao seu consumo de hoje.")
-            }
             .confirmationDialog(
                 "Excluir este registro?",
                 isPresented: isPresentingDeleteConfirm,
@@ -85,11 +73,10 @@ struct HomeView: View {
             } message: { log in
                 Text("\(log.tipoEntrada.capitalized) · \(log.volumeML) mL será removido do seu histórico e da base de dados.")
             }
+            .sheet(isPresented: $isEditingCustomAmount) {
+                CustomIntakeEditorView(initialValueML: profile.customIntakeML, onSave: saveCustomAmount)
+            }
         }
-    }
-
-    private var isPresentingPresetConfirm: Binding<Bool> {
-        Binding(get: { pendingPreset != nil }, set: { if !$0 { pendingPreset = nil } })
     }
 
     private var isPresentingDeleteConfirm: Binding<Bool> {
@@ -152,7 +139,7 @@ struct HomeView: View {
 
     private func intakeButton(_ preset: Constants.IntakePreset) -> some View {
         Button {
-            pendingPreset = preset
+            logIntake(preset)
         } label: {
             VStack(spacing: 6) {
                 Image(systemName: iconName(for: preset))
@@ -170,38 +157,24 @@ struct HomeView: View {
         .disabled(isLogging)
     }
 
-    private var temperatureDebugCard: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Temperatura (debug)")
-                .font(.caption.bold())
-                .foregroundStyle(.secondary)
-            if let ctx = tempContext {
-                Group {
-                    debugRow("Máxima hoje", String(format: "%.1f °C", ctx.todayMaxC))
-                    debugRow("Referência", String(format: "%.0f °C", ctx.baselineC))
-                    debugRow("Acréscimo", "\(ctx.adjustmentML) mL")
-                    debugRow("Meta base", "\(profile.metaDiariaML) mL")
-                    debugRow("Meta ajustada", "\(effectiveGoalML) mL")
-                }
-            } else {
-                Text("Carregando… (localização ou WeatherKit indisponível)")
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-            }
-        }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.yellow.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
-        .padding(.horizontal)
-    }
+    /// The 4th quick-log tile, with a small pencil button overlaid in its top-trailing
+    /// corner (its own tap target) to open `CustomIntakeEditorView`. Editing this
+    /// volume now happens only here — it's no longer part of the profile form.
+    private var customIntakeButton: some View {
+        ZStack(alignment: .topTrailing) {
+            intakeButton(.custom(volumeML: profile.customIntakeML))
 
-    private func debugRow(_ label: String, _ value: String) -> some View {
-        HStack {
-            Text(label).foregroundStyle(.secondary)
-            Spacer()
-            Text(value).monospacedDigit()
+            Button {
+                isEditingCustomAmount = true
+            } label: {
+                Image(systemName: "pencil.circle.fill")
+                    .symbolRenderingMode(.hierarchical)
+                    .font(.title3)
+                    .background(Circle().fill(.white))
+            }
+            .padding(6)
+            .accessibilityLabel("Editar volume do botão personalizado")
         }
-        .font(.caption)
     }
 
     private func iconName(for preset: Constants.IntakePreset) -> String {
@@ -251,6 +224,18 @@ struct HomeView: View {
     private func deleteLog(_ log: IntakeLog) {
         Task {
             await NotificationScheduler.shared.deleteIntake(log, context: modelContext)
+        }
+    }
+
+    private func saveCustomAmount(_ newValue: Int) {
+        profile.customIntakeML = newValue
+        profile.atualizadoEm = .now
+        profile.syncStatus = .pending
+        try? modelContext.save()
+        Task {
+            await CloudKitSyncService.shared.push(profile)
+            try? modelContext.save()
+            await LiveActivityManager.shared.updateCustomAmount(newValue)
         }
     }
 }

@@ -11,26 +11,12 @@ struct DailyCheckinView: View {
     @State private var horarioAcordou: Date = {
         Calendar.current.date(bySettingHour: 7, minute: 0, second: 0, of: .now) ?? .now
     }()
-    @State private var treinou = false
-    @State private var intensidade: IntensidadeExercicio = .nenhuma
-
     var body: some View {
         NavigationStack {
             Form {
                 Section("Sono") {
                     Stepper("Horas dormidas: \(horasSono.formatted(.number.precision(.fractionLength(1))))", value: $horasSono, in: 0...14, step: 0.5)
                     DatePicker("Horário que acordou", selection: $horarioAcordou, displayedComponents: .hourAndMinute)
-                }
-
-                Section("Atividade física") {
-                    Toggle("Treinou hoje?", isOn: $treinou)
-                    if treinou {
-                        Picker("Intensidade", selection: $intensidade) {
-                            ForEach(IntensidadeExercicio.allCases) { level in
-                                Text(level.label).tag(level)
-                            }
-                        }
-                    }
                 }
 
                 Section {
@@ -48,9 +34,7 @@ struct DailyCheckinView: View {
             userID: userID,
             dataReferencia: .now,
             horasSono: horasSono,
-            horarioAcordou: horarioAcordou,
-            treinou: treinou,
-            intensidadeExercicio: treinou ? intensidade : .nenhuma
+            horarioAcordou: horarioAcordou
         )
         modelContext.insert(checkin)
         try? modelContext.save()

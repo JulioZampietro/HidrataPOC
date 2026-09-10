@@ -71,6 +71,7 @@ final class CloudKitSyncService {
         record["userID"] = profile.userID
         record["idade"] = profile.idade
         record["genero"] = profile.genero
+        record["generoAutoDeclarado"] = profile.generoAutoDeclarado
         record["pesoKg"] = profile.pesoKg
         record["alturaCm"] = profile.alturaCm
         record["fusoHorario"] = profile.fusoHorario
@@ -96,8 +97,6 @@ final class CloudKitSyncService {
         record["dataReferencia"] = checkin.dataReferencia
         record["horasSono"] = checkin.horasSono
         record["horarioAcordou"] = checkin.horarioAcordou
-        record["treinou"] = checkin.treinou
-        record["intensidadeExercicio"] = checkin.intensidadeExercicio
 
         do {
             _ = try await container.publicCloudDatabase.save(record)

@@ -9,6 +9,10 @@ final class UserProfile {
     var userID: String
     var idade: Int
     var genero: String?
+
+    /// Free-text label, set only when `genero == "autodeclarado"` ("self-identify").
+    var generoAutoDeclarado: String?
+
     var pesoKg: Double
     var alturaCm: Double
     var fusoHorario: String
@@ -36,6 +40,7 @@ final class UserProfile {
         userID: String,
         idade: Int,
         genero: String?,
+        generoAutoDeclarado: String? = nil,
         pesoKg: Double,
         alturaCm: Double,
         fusoHorario: String,
@@ -46,6 +51,7 @@ final class UserProfile {
         self.userID = userID
         self.idade = idade
         self.genero = genero
+        self.generoAutoDeclarado = generoAutoDeclarado
         self.pesoKg = pesoKg
         self.alturaCm = alturaCm
         self.fusoHorario = fusoHorario
@@ -56,12 +62,47 @@ final class UserProfile {
         self.syncStatusRaw = SyncStatus.pending.rawValue
     }
 
-    /// Suggested daily goal (mL) from body weight — the classic 35 mL/kg heuristic,
-    /// clamped to the commonly recommended 2000–3000 mL range so extreme weights
-    /// (very low or very high) don't produce an unrealistic suggestion. Only a
-    /// starting point; the user can edit it in the onboarding/profile form.
-    static func suggestedGoalML(pesoKg: Double) -> Int {
-        let raw = Int((pesoKg * 35).rounded())
-        return min(3000, max(2000, raw))
+    /// Suggested daily goal (mL) from `WaterIntakeCalculator` — baseline (gender +
+    /// weight) plus activity, per the model spec. Only a starting point; the user can
+    /// edit it in the onboarding/profile form.
+    ///
+    /// `gender` is `nil` for every `Genero` case other than male/female (nonbinary,
+    /// self-identify, decline to state) — averages the male/female baselines rather
+    /// than guessing, since there's no gender-neutral Adequate Intake figure in the
+    /// source model.
+    ///
+    /// `activityLevel` isn't collected yet (spec §6 open question), so this always
+    /// passes `.sedentary`. `tempC`/`rhPercent` are fixed at mild, unremarkable values
+    /// — comfortably below the Heat Index "caution" threshold — so the environment
+    /// increment is always 0 here; this is a profile-level baseline, not a live
+    /// forecast-driven target (that's `tempContext` in HomeView, computed separately
+    /// from today's actual weather).
+    static func suggestedGoalML(gender: Gender?, idade: Int, pesoKg: Double, alturaCm: Double) -> Int {
+        let neutralTempC = 20.0
+        let neutralRHPercent = 40.0
+
+        func totalL(_ gender: Gender) -> Double {
+            WaterIntakeCalculator.recommend(
+                gender: gender,
+                age: idade,
+                heightCm: alturaCm,
+                weightKg: pesoKg,
+                activityLevel: .sedentary,
+                tempC: neutralTempC,
+                rhPercent: neutralRHPercent
+            ).totalL
+        }
+
+        let liters: Double
+        switch gender {
+        case .male:
+            liters = totalL(.male)
+        case .female:
+            liters = totalL(.female)
+        case nil:
+            liters = (totalL(.male) + totalL(.female)) / 2
+        }
+
+        return Int((liters * 1000).rounded())
     }
 }
