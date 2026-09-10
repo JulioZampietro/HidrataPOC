@@ -66,6 +66,7 @@ struct ProfileView: View {
         Task {
             await CloudKitSyncService.shared.push(profile)
             try? modelContext.save()
+            await LiveActivityManager.shared.updateCustomAmount(values.customIntakeML)
         }
     }
 }

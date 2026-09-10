@@ -3,12 +3,6 @@ import Foundation
 import os
 import WeatherKit
 
-struct WeatherContext {
-    let temperaturaC: Double
-    let umidadeRelativa: Double
-    let sensacaoTermicaC: Double
-}
-
 private let logger = Logger(subsystem: "com.hidratapoc", category: "WeatherContextService")
 
 /// Wraps WeatherKit + a one-shot location fetch so NotificationScheduler can ask for

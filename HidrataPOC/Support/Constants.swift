@@ -9,6 +9,15 @@ enum Constants {
 
     static let cloudKitContainerID = "iCloud.com.hidratapoc"
 
+    /// Shared container so the HydrationWidget extension (Live Activity + Lock Screen
+    /// quick-log buttons) reads/writes the same local SwiftData store as the app —
+    /// there's no CloudKit pull-sync, so this is the only way a lock-screen tap shows
+    /// up on the Home screen without relaunching the app.
+    static let appGroupID = "group.com.hidratapoc"
+
+    /// Fixed per Constitution C-... of the Live Activity spec: not user-configurable in v1.
+    static let hydrationReminderThresholdSeconds: TimeInterval = 3600
+
     /// How long a cached `WeatherContext` reading stays valid for reuse — e.g. when
     /// tagging an `IntakeLog` at the instant a tester taps a quick-log button, where
     /// waiting on a fresh WeatherKit/location fetch would add noticeable latency.
@@ -60,6 +69,17 @@ enum Constants {
             case .bottle: return "Garrafa"
             case .gallon: return "Galão"
             case .custom: return "Personalizado"
+            }
+        }
+
+        /// Maps a raw volume back to the preset it represents — used by the Live
+        /// Activity's `LogIntakeIntent`, which only carries an `Int` across the
+        /// process boundary (see HYDRATE-LA-01 Decision D-2).
+        static func matching(volumeML: Int) -> IntakePreset {
+            switch volumeML {
+            case Constants.IntakePreset.glass.volumeML: return .glass
+            case Constants.IntakePreset.bottle.volumeML: return .bottle
+            default: return .custom(volumeML: volumeML)
             }
         }
     }

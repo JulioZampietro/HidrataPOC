@@ -1,6 +1,9 @@
 import CloudKit
 import Foundation
 import SwiftData
+import os
+
+private let logger = Logger(subsystem: "com.hidratapoc", category: "CloudKitSyncService")
 
 /// Pushes local SwiftData records to the CloudKit **public** database, one record type
 /// per method. SwiftData is the source of truth on-device; this service is a thin,
@@ -49,7 +52,11 @@ final class CloudKitSyncService {
     /// onboarding never blocks on CloudKit being reachable. Data tagged with the
     /// fallback ID still syncs once pushed — it just won't match a real iCloud user.
     func resolvedUserID() async -> String {
-        if let userID = try? await currentUserID() { return userID }
+        do {
+            return try await currentUserID()
+        } catch {
+            logger.error("currentUserID() failed, falling back to a local-only ID: \(String(describing: error), privacy: .public)")
+        }
         let key = "localFallbackUserID"
         if let existing = UserDefaults.standard.string(forKey: key) { return existing }
         let generated = UUID().uuidString
@@ -77,6 +84,7 @@ final class CloudKitSyncService {
             profile.ckSystemFields = archivedSystemFields(saved)
             profile.syncStatus = .synced
         } catch {
+            logger.error("Failed to push UserProfile \(profile.id, privacy: .public): \(String(describing: error), privacy: .public)")
             profile.syncStatus = .failed
         }
     }
@@ -95,6 +103,7 @@ final class CloudKitSyncService {
             _ = try await container.publicCloudDatabase.save(record)
             checkin.syncStatus = .synced
         } catch {
+            logger.error("Failed to push DailyCheckin \(checkin.id, privacy: .public): \(String(describing: error), privacy: .public)")
             checkin.syncStatus = .failed
         }
     }
@@ -111,11 +120,13 @@ final class CloudKitSyncService {
         record["temperaturaC"] = log.temperaturaC
         record["umidadeRelativa"] = log.umidadeRelativa
         record["sensacaoTermicaC"] = log.sensacaoTermicaC
+        record["source"] = log.source
 
         do {
             _ = try await container.publicCloudDatabase.save(record)
             log.syncStatus = .synced
         } catch {
+            logger.error("Failed to push IntakeLog \(log.id, privacy: .public): \(String(describing: error), privacy: .public)")
             log.syncStatus = .failed
         }
     }
@@ -143,6 +154,7 @@ final class CloudKitSyncService {
             event.ckSystemFields = archivedSystemFields(saved)
             event.syncStatus = .synced
         } catch {
+            logger.error("Failed to push NotificationEvent \(event.id, privacy: .public): \(String(describing: error), privacy: .public)")
             event.syncStatus = .failed
         }
     }
@@ -160,6 +172,7 @@ final class CloudKitSyncService {
             // Never made it to CloudKit in the first place (e.g. deleted before its
             // first push finished) — nothing to retry.
         } catch {
+            logger.error("Failed to delete \(recordType, privacy: .public) \(id, privacy: .public), queuing retry: \(String(describing: error), privacy: .public)")
             queuePendingDeletion(recordType: recordType, recordName: id.uuidString)
         }
     }
@@ -201,7 +214,12 @@ final class CloudKitSyncService {
     /// failed to reach CloudKit. Call on launch and whenever the scene becomes active
     /// — cheap no-op when everything is already synced.
     func flushPending(context: ModelContext) async {
-        if (try? await currentUserID()) == nil { return } // no iCloud account / offline
+        do {
+            _ = try await currentUserID()
+        } catch {
+            logger.notice("flushPending skipped — currentUserID() failed: \(String(describing: error), privacy: .public)")
+            return
+        }
 
         await flushPendingDeletions()
 

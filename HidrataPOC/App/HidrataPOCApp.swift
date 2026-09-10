@@ -45,6 +45,7 @@ struct HidrataPOCApp: App {
             Task {
                 await CloudKitSyncService.shared.flushPending(context: PersistenceController.context)
                 await NotificationScheduler.shared.tick()
+                await refreshLiveActivity()
             }
             startForegroundTimer()
         case .background:
@@ -53,6 +54,14 @@ struct HidrataPOCApp: App {
         default:
             break
         }
+    }
+
+    /// FR-9/FR-10 — only meaningful once onboarding has created a profile (mirrors
+    /// the guard in `NotificationScheduler.ensureTodayScheduled`).
+    private func refreshLiveActivity() async {
+        guard let profile = try? PersistenceController.context.fetch(FetchDescriptor<UserProfile>()).first else { return }
+        await LiveActivityManager.shared.startIfNeeded(profile: profile, context: PersistenceController.context)
+        await LiveActivityManager.shared.restartIfNearingLimit()
     }
 
     private func startForegroundTimer() {

@@ -109,6 +109,9 @@ final class NotificationScheduler {
         await WeatherContextService.shared.refreshCacheIfStale()
         await captureImminentSlots(context: context)
         await resolveTimedOutEvents(context: context)
+        if let profile = try? context.fetch(FetchDescriptor<UserProfile>()).first {
+            await LiveActivityManager.shared.touchIfNeeded(profile: profile, context: context)
+        }
     }
 
     /// Same as `tick(context:)`, but resolves the shared `ModelContext` itself —
@@ -198,6 +201,8 @@ final class NotificationScheduler {
         await CloudKitSyncService.shared.push(log)
         await CloudKitSyncService.shared.push(event)
         try? context.save()
+
+        await IntakeLogService.refreshLiveActivity(lastIntakeDate: log.timestamp)
     }
 
     /// Records a tap on one of the main screen's always-visible intake buttons. Per
@@ -207,33 +212,13 @@ final class NotificationScheduler {
     /// notification action) — this is what lets a future model tell "the notification
     /// caused this drink" apart from "the user would have drunk water anyway."
     func recordManualIntake(preset: Constants.IntakePreset, userID: String, context: ModelContext) async {
-        let cutoff = Date.now.addingTimeInterval(-Double(Constants.notificationResponseWindowMinutes) * 60)
-        let predicate = #Predicate<NotificationEvent> { $0.userID == userID && $0.sentAt >= cutoff }
-        let recentEvents = (try? context.fetch(FetchDescriptor(predicate: predicate)))?.sorted { $0.sentAt > $1.sentAt } ?? []
-        let matchedEvent = recentEvents.first
-
-        let log = IntakeLog(
-            userID: userID,
+        await IntakeLogService.record(
             preset: preset,
-            origem: matchedEvent == nil ? .manual : .notificacao,
-            notificationEventID: matchedEvent?.id.uuidString,
-            weather: WeatherContextService.shared.cachedContext
+            userID: userID,
+            source: "app",
+            weather: WeatherContextService.shared.cachedContext,
+            context: context
         )
-        context.insert(log)
-
-        if let matchedEvent {
-            matchedEvent.resultouEmConsumo = true
-            if matchedEvent.tempoAteAgirMin == nil {
-                matchedEvent.tempoAteAgirMin = max(0, Int(Date.now.timeIntervalSince(matchedEvent.sentAt) / 60))
-            }
-        }
-        try? context.save()
-
-        await CloudKitSyncService.shared.push(log)
-        if let matchedEvent {
-            await CloudKitSyncService.shared.push(matchedEvent)
-        }
-        try? context.save()
     }
 
     /// Removes an `IntakeLog` the tester logged by mistake. If it was linked to a

@@ -3,6 +3,7 @@ import SwiftUI
 
 struct RootView: View {
     @AppStorage("hasAcceptedConsent") private var hasAcceptedConsent = false
+    @Environment(\.modelContext) private var modelContext
     @Query private var profiles: [UserProfile]
     @Query private var checkins: [DailyCheckin]
 
@@ -27,8 +28,14 @@ struct RootView: View {
                 .sheet(isPresented: $showingCheckin) {
                     DailyCheckinView(userID: profile.userID, onDone: { showingCheckin = false })
                 }
-                .onAppear { evaluateCheckin(for: profile) }
-                .onChange(of: profile.userID) { evaluateCheckin(for: profile) }
+                .onAppear {
+                    evaluateCheckin(for: profile)
+                    startLiveActivityIfNeeded(for: profile)
+                }
+                .onChange(of: profile.userID) {
+                    evaluateCheckin(for: profile)
+                    startLiveActivityIfNeeded(for: profile)
+                }
             } else {
                 OnboardingView()
             }
@@ -40,6 +47,17 @@ struct RootView: View {
             $0.userID == profile.userID && Calendar.current.isDateInToday($0.dataReferencia)
         }
         showingCheckin = !hasToday
+    }
+
+    /// FR-9: this view only ever shows once a profile exists, so `onAppear`/
+    /// `onChange` here cover both a cold launch straight into the Home tab and the
+    /// moment onboarding just created the profile — `HidrataPOCApp`'s scenePhase
+    /// handler alone would miss both, since SwiftUI's `onChange(of: scenePhase)`
+    /// doesn't fire for the phase already active at launch.
+    private func startLiveActivityIfNeeded(for profile: UserProfile) {
+        Task {
+            await LiveActivityManager.shared.startIfNeeded(profile: profile, context: modelContext)
+        }
     }
 }
 

@@ -12,6 +12,11 @@ final class IntakeLog {
     var origem: String
     var notificationEventID: String?
 
+    /// Which surface logged this intake — "app" (in-app buttons, notification quick
+    /// actions) or "liveActivity" (Lock Screen / Dynamic Island). Orthogonal to
+    /// `origem`, which instead says whether a notification prompted the drink.
+    var source: String = "app"
+
     /// Weather at the moment of logging — reused from a recent cached reading (see
     /// `WeatherContextService.cachedContext`) rather than fetched fresh, so logging
     /// stays instant. Lets a future model use spontaneous ("manual") intakes as
@@ -34,7 +39,8 @@ final class IntakeLog {
         preset: Constants.IntakePreset,
         origem: OrigemRegistro,
         notificationEventID: String?,
-        weather: WeatherContext? = nil
+        weather: WeatherContext? = nil,
+        source: String = "app"
     ) {
         self.id = UUID()
         self.userID = userID
@@ -43,6 +49,7 @@ final class IntakeLog {
         self.tipoEntrada = preset.tipoEntrada
         self.origem = origem.rawValue
         self.notificationEventID = notificationEventID
+        self.source = source
         self.temperaturaC = weather?.temperaturaC
         self.umidadeRelativa = weather?.umidadeRelativa
         self.sensacaoTermicaC = weather?.sensacaoTermicaC

@@ -9,6 +9,8 @@ struct HomeView: View {
     @State private var isLogging = false
     @State private var pendingPreset: Constants.IntakePreset?
     @State private var pendingDeleteLog: IntakeLog?
+    @State private var weather: WeatherContext?
+    @State private var isLoadingWeather = true
 
     private var todayLogs: [IntakeLog] {
         allLogs.filter { $0.userID == profile.userID && Calendar.current.isDateInToday($0.timestamp) }
@@ -25,6 +27,7 @@ struct HomeView: View {
             ScrollView {
                 VStack(spacing: 28) {
                     progressRing
+                    weatherDiagnostic
 
                     VStack(spacing: 12) {
                         Text("Registrar consumo")
@@ -47,6 +50,7 @@ struct HomeView: View {
                 .padding(.vertical)
             }
             .navigationTitle("Hidratação")
+            .task { await loadWeather() }
             .alert(
                 pendingPreset.map { "Registrar \($0.label.lowercased())?" } ?? "",
                 isPresented: isPresentingPresetConfirm,
@@ -101,6 +105,30 @@ struct HomeView: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(consumedToday) de \(profile.metaDiariaML) mililitros consumidos hoje")
+    }
+
+    /// Diagnostic row so a tester can see at a glance whether WeatherKit is actually
+    /// returning data (vs. silently failing — see `WeatherContextService`'s
+    /// location/network error logging) — not part of the product spec, just a visible
+    /// health check.
+    private var weatherDiagnostic: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "thermometer.medium")
+            if isLoadingWeather {
+                Text("Consultando clima…")
+            } else if let weather {
+                Text("\(weather.temperaturaC.formatted(.number.precision(.fractionLength(1))))°C · \(Int(weather.umidadeRelativa * 100))% umidade")
+            } else {
+                Text("Clima indisponível (WeatherKit)")
+            }
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
+    }
+
+    private func loadWeather() async {
+        weather = await WeatherContextService.shared.currentContext()
+        isLoadingWeather = false
     }
 
     private func intakeButton(_ preset: Constants.IntakePreset) -> some View {
