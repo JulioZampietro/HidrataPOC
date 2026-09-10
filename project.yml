@@ -43,6 +43,7 @@ targets:
         aps-environment: development
     capabilities:
       - com.apple.developer.icloud-container-identifiers
+      - com.apple.developer.weatherkit
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.hidratapoc

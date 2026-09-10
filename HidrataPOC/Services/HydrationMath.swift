@@ -18,6 +18,13 @@ enum HydrationMath {
         return max(0, Int(now.timeIntervalSince(last) / 60))
     }
 
+    /// Extra mL to add when today's forecast high exceeds `Constants.baselineMaxTempC`.
+    /// Returns 0 when today is at or below the baseline.
+    static func temperatureAdjustmentML(todayMaxC: Double) -> Int {
+        let excess = max(0, todayMaxC - Constants.baselineMaxTempC)
+        return Int((excess * Double(Constants.tempAdjustmentMLPerDegree)).rounded())
+    }
+
     static func dailyTotals(_ logs: [IntakeLog], days: Int, calendar: Calendar = .current, now: Date = .now) -> [(day: Date, totalML: Int)] {
         let today = calendar.startOfDay(for: now)
         return (0..<days).reversed().map { offset in
