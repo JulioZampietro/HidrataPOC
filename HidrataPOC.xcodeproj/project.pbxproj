@@ -47,7 +47,6 @@
 		D5CEFFA72BEE705454B64795 /* WaterIntakeCalculatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A751463FEB8FCD28AA160686 /* WaterIntakeCalculatorTests.swift */; };
 		DCF58E734DC63F0D68382F0D /* SyncStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 575F9F9ED22AB3F667CCDDC7 /* SyncStatus.swift */; };
 		E4BDAB3AAF9B03FE1FFF4506 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4EEB6ACF929F31511C0BB13 /* RootView.swift */; };
-		E67D981AC474B8B4BCBFE6F0 /* HydrationKit.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = E25C2DCFF2A32A6FFCA18FE5 /* HydrationKit.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		E99D10C4C6CAA04B92BBBBF7 /* WeatherContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3BCAACF78A9164EF7C57D86 /* WeatherContext.swift */; };
 		EB788AF77AB02B3393EC1CC6 /* HydrationWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7A5DA61EDA45323AB04B6E6 /* HydrationWidgetBundle.swift */; };
 		ED310A2AD7021F64EFBB3C64 /* HydrationMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F84FE05B740FBD73D4C2851 /* HydrationMath.swift */; };
@@ -92,17 +91,6 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-		9B90C7C08082C08D4E617F1F /* Embed Frameworks */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 10;
-			files = (
-				E67D981AC474B8B4BCBFE6F0 /* HydrationKit.framework in Embed Frameworks */,
-			);
-			name = "Embed Frameworks";
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		C76E28BD278D70612EA714DB /* Embed Foundation Extensions */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -379,7 +367,6 @@
 			buildPhases = (
 				F5F167EAA8F111031CA002FA /* Sources */,
 				5108A204B4BB55CAD7920E43 /* Frameworks */,
-				9B90C7C08082C08D4E617F1F /* Embed Frameworks */,
 			);
 			buildRules = (
 			);

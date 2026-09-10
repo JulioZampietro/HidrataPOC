@@ -106,7 +106,7 @@ targets:
       - path: HidrataPOC/Support/Constants.swift
     dependencies:
       - target: HydrationKit
-        embed: true
+        embed: false
     info:
       path: HydrationWidget/Info.plist
       properties:
