@@ -24,6 +24,14 @@ enum Constants {
     /// Weather doesn't change fast enough for this to meaningfully hurt data quality.
     static let weatherCacheMaxAgeMinutes = 20
 
+    /// Extra hydration (mL) added per degree Celsius that today's forecast high
+    /// exceeds `baselineMaxTempC`.
+    static let tempAdjustmentMLPerDegree = 50
+
+    /// Reference "comfortable" maximum temperature (°C). Days hotter than this
+    /// trigger the +50 mL/°C adjustment. Adjust to match your region's typical climate.
+    static let baselineMaxTempC: Double = 26
+
     /// How many hydration reminders are scheduled per day, spread across
     /// `dailyWindowStartHour`..<`dailyWindowEndHour` with semi-random timing.
     static let notificationsPerDay = 5

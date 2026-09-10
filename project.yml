@@ -46,6 +46,7 @@ targets:
           - group.com.hidratapoc
     capabilities:
       - com.apple.developer.icloud-container-identifiers
+      - com.apple.developer.weatherkit
     dependencies:
       - target: HydrationWidget
         embed: true
