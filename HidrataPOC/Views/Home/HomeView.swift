@@ -9,6 +9,8 @@ struct HomeView: View {
     @State private var isLogging = false
     @State private var pendingDeleteLog: IntakeLog?
     @State private var isEditingCustomAmount = false
+    @State private var showSiriTutorial = false
+    @State private var showActionButtonTutorial = false
     @State private var weather: WeatherContext?
     @State private var isLoadingWeather = true
     @State private var tempContext: TemperatureAdjustmentContext?
@@ -49,6 +51,8 @@ struct HomeView: View {
                     }
                     .padding(.horizontal)
 
+                    shortcutsSection
+
                     if !todayLogs.isEmpty {
                         recentLogsList
                     }
@@ -75,6 +79,12 @@ struct HomeView: View {
             }
             .sheet(isPresented: $isEditingCustomAmount) {
                 CustomIntakeEditorView(initialValueML: profile.customIntakeML, onSave: saveCustomAmount)
+            }
+            .sheet(isPresented: $showSiriTutorial) {
+                SiriTutorialView()
+            }
+            .sheet(isPresented: $showActionButtonTutorial) {
+                ActionButtonTutorialView()
             }
         }
     }
@@ -186,6 +196,25 @@ struct HomeView: View {
         }
     }
 
+    private var shortcutsSection: some View {
+        VStack(spacing: 10) {
+            ShortcutHintButton(
+                icon: "waveform.circle.fill",
+                color: .purple,
+                title: "Configure a Siri",
+                subtitle: "\"Bebi um copo de HidrataPOC\" registra direto"
+            ) { showSiriTutorial = true }
+
+            ShortcutHintButton(
+                icon: "button.angledbottom.horizontal.right",
+                color: .orange,
+                title: "Botão de Ação",
+                subtitle: "Pressione o botão lateral para registrar água"
+            ) { showActionButtonTutorial = true }
+        }
+        .padding(.horizontal)
+    }
+
     private var recentLogsList: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Hoje")
@@ -237,6 +266,42 @@ struct HomeView: View {
             try? modelContext.save()
             await LiveActivityManager.shared.updateCustomAmount(newValue)
         }
+    }
+}
+
+// MARK: - Componentes
+
+struct ShortcutHintButton: View {
+    let icon: String
+    let color: Color
+    let title: String
+    let subtitle: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                Image(systemName: icon)
+                    .foregroundStyle(color)
+                    .font(.title3)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(color)
+                    Text(subtitle)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(color.opacity(0.07), in: RoundedRectangle(cornerRadius: 12))
+        }
+        .buttonStyle(.plain)
     }
 }
 
