@@ -3,11 +3,13 @@ import Foundation
 import HydrationKit
 import SwiftData
 
-/// Owns the hydration Live Activity's request/end lifecycle — the only place that
-/// calls `Activity<HydrationAttributes>.request`/`.end`, so NR-2/FR-8 ("at most one
-/// active at a time") has a single enforcement point. App-target only: the widget
-/// extension only ever reads/updates an already-running activity (see
-/// `IntakeLogService.refreshLiveActivity`).
+/// Owns the hydration Live Activity's request lifecycle and the "should one exist at
+/// all right now" decision — the only place that calls `Activity<HydrationAttributes>
+/// .request`, so NR-2/FR-8 ("at most one active at a time") has a single enforcement
+/// point. App-target only. `IntakeLogService.endLiveActivity`, compiled into both
+/// targets, independently calls `.end()` when an intake is logged — ending is safe to
+/// duplicate (a second `.end()` on an already-ended activity is a no-op) in a way
+/// requesting a fresh one is not, so that half doesn't need to funnel through here.
 @MainActor
 final class LiveActivityManager {
     static let shared = LiveActivityManager()
@@ -18,23 +20,20 @@ final class LiveActivityManager {
 
     private init() {}
 
-    /// FR-9: start a Live Activity if none is running. Seeds `lastIntakeDate` from
-    /// the most recent local `IntakeLog` — the same source of truth the Home screen
-    /// itself reads, since there's no CloudKit pull-sync to derive it from instead —
-    /// and `customAmountML` from the profile's persisted preference (FR-4c).
+    /// FR-9: start a Live Activity if none is running *and* the user is already
+    /// overdue. Seeds `lastIntakeDate` from the most recent local `IntakeLog` — the
+    /// same source of truth the Home screen itself reads, since there's no CloudKit
+    /// pull-sync to derive it from instead — and `customAmountML` from the profile's
+    /// persisted preference (FR-4c).
+    ///
+    /// Gating on `isOverdue` here (rather than requesting unconditionally and letting
+    /// the widget render a quiet placeholder) is deliberate: the Lock Screen/Dynamic
+    /// Island should never show up with nothing to act on, so the activity's very
+    /// existence is now the signal that quick-log buttons are available.
     func startIfNeeded(profile: UserProfile, context: ModelContext) async {
         guard await Self.currentActivities().isEmpty else { return } // NR-2/FR-8
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
-
-        let lastIntakeDate = lastKnownIntakeDate(userID: profile.userID, context: context)
-        let attributes = HydrationAttributes(startedAt: .now)
-        let state = HydrationAttributes.ContentState(
-            lastIntakeDate: lastIntakeDate,
-            reminderThreshold: Constants.hydrationReminderThresholdSeconds,
-            customAmountML: profile.customIntakeML
-        )
-        // A failed request is a best-effort UI feature (NR-1) — never block app startup on it.
-        _ = try? Activity.request(attributes: attributes, content: ActivityContent(state: state, staleDate: nil))
+        await requestIfOverdue(profile: profile, context: context)
     }
 
     /// FR-10: within 30 minutes of the OS's 8h cap, end the current activity and
@@ -75,12 +74,35 @@ final class LiveActivityManager {
     /// already runs every 60s in the foreground and opportunistically via
     /// `BackgroundRefreshService` — the same best-effort cadence this app already
     /// uses for notification timing, not a new mechanism.
+    ///
+    /// No activity currently running is the normal state for most of every hour
+    /// (see `startIfNeeded`'s doc comment) — that case now doubles as "check whether
+    /// we just crossed the overdue threshold and should start one", so the reminder
+    /// still appears within a tick of becoming due even though nothing requested it
+    /// at launch.
     func touchIfNeeded(profile: UserProfile, context: ModelContext) async {
-        guard let activity = Activity<HydrationAttributes>.activities.first else { return }
+        guard let activity = Activity<HydrationAttributes>.activities.first else {
+            guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+            await requestIfOverdue(profile: profile, context: context)
+            return
+        }
         var state = activity.content.state
         state.lastIntakeDate = lastKnownIntakeDate(userID: profile.userID, context: context)
         state.customAmountML = profile.customIntakeML
         await activity.update(ActivityContent(state: state, staleDate: nil))
+    }
+
+    private func requestIfOverdue(profile: UserProfile, context: ModelContext) async {
+        let state = HydrationAttributes.ContentState(
+            lastIntakeDate: lastKnownIntakeDate(userID: profile.userID, context: context),
+            reminderThreshold: Constants.hydrationReminderThresholdSeconds,
+            customAmountML: profile.customIntakeML
+        )
+        guard state.isOverdue else { return }
+
+        let attributes = HydrationAttributes(startedAt: .now)
+        // A failed request is a best-effort UI feature (NR-1) — never block app startup on it.
+        _ = try? Activity.request(attributes: attributes, content: ActivityContent(state: state, staleDate: nil))
     }
 
     /// NR-3: never fabricate `lastIntakeDate` — re-derive it from the last locally
@@ -99,7 +121,7 @@ final class LiveActivityManager {
     /// cold app launch, which is exactly when this NR-2/FR-8 guard runs. A false
     /// empty read here would let a second, duplicate activity get requested even
     /// though one is already running, so this rides out that startup race the same
-    /// way `IntakeLogService.refreshLiveActivity` does.
+    /// way `IntakeLogService.endLiveActivity` does.
     private static func currentActivities() async -> [Activity<HydrationAttributes>] {
         var activities = Activity<HydrationAttributes>.activities
         var attemptsRemaining = 5

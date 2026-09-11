@@ -202,7 +202,7 @@ final class NotificationScheduler {
         await CloudKitSyncService.shared.push(event)
         try? context.save()
 
-        await IntakeLogService.refreshLiveActivity(lastIntakeDate: log.timestamp)
+        await IntakeLogService.endLiveActivity()
     }
 
     /// Records a tap on one of the main screen's always-visible intake buttons. Per

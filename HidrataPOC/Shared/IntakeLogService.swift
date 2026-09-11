@@ -47,21 +47,28 @@ enum IntakeLogService {
         }
         try? context.save()
 
+        // Ends the Live Activity right after the local write, ahead of the CloudKit
+        // round trips below — those are already best-effort (NR-1) and can take a
+        // few seconds, and there's no reason the Lock Screen/Dynamic Island dismissal
+        // (the visible part of "this tap did something") should wait on them.
+        await endLiveActivity()
+
         await CloudKitSyncService.shared.push(log)
         if let matchedEvent {
             await CloudKitSyncService.shared.push(matchedEvent)
         }
         try? context.save()
 
-        await refreshLiveActivity(lastIntakeDate: log.timestamp)
         return log
     }
 
-    /// Resets the running Live Activity's elapsed-time display to zero (FR-7) after
-    /// any intake, regardless of which surface logged it — otherwise logging from the
-    /// in-app buttons would leave the ambient Lock Screen/Dynamic Island display
-    /// showing stale elapsed time. No-ops if no activity is running (NR-2 guards
-    /// against more than one ever existing).
+    /// Ends the running Live Activity (Lock Screen card and Dynamic Island water drop
+    /// both vanish immediately) the moment any intake is logged, regardless of which
+    /// surface logged it — the activity exists only to offer quick-log buttons while
+    /// overdue (see `LiveActivityManager.startIfNeeded`), and logging is exactly the
+    /// action that resolves that state, so there's nothing left for it to show.
+    /// `LiveActivityManager.touchIfNeeded` picks the reminder back up on its own once
+    /// the user is overdue again. No-ops if no activity is running.
     ///
     /// `LogIntakeIntent` runs in a freshly-spawned, short-lived widget extension
     /// process each time — its ActivityKit XPC subscription only just activated and
@@ -69,7 +76,7 @@ enum IntakeLogService {
     /// `Activity<HydrationAttributes>.activities` reads empty for a brief moment
     /// after launch. Retrying a few times over ~1s rides out that startup race
     /// without holding up the (already-committed) CloudKit write in `record(...)`.
-    static func refreshLiveActivity(lastIntakeDate: Date) async {
+    static func endLiveActivity() async {
         var activities = Activity<HydrationAttributes>.activities
         var attemptsRemaining = 5
         while activities.isEmpty, attemptsRemaining > 0 {
@@ -79,9 +86,7 @@ enum IntakeLogService {
         }
 
         for activity in activities {
-            var state = activity.content.state
-            state.lastIntakeDate = lastIntakeDate
-            await activity.update(ActivityContent(state: state, staleDate: nil))
+            await activity.end(nil, dismissalPolicy: .immediate)
         }
     }
 }

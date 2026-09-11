@@ -1,12 +1,17 @@
 import AppIntents
 import SwiftData
 
-/// Runs in the `HydrationWidget` extension process when a Lock Screen or Dynamic
-/// Island button is tapped. `LiveActivityIntent` executes in the background and
-/// cannot foreground the app — that's what makes logging without unlocking possible
-/// (HYDRATE-LA-01 §2.6). All three buttons (250 mL, 500 mL, and the Lock Screen's
-/// custom amount) share this one intent, parameterized by `amountML` (Decision D-2 /
-/// D-4).
+/// `LiveActivityIntent` (unlike a plain `AppIntent` used from a widget) runs its
+/// `perform()` in the *app's* process, launching it in the background if it isn't
+/// already running, rather than in the constrained `HydrationWidget` extension
+/// process — that's what makes logging without unlocking possible (HYDRATE-LA-01
+/// §2.6) while still getting a normal app-process execution budget for the
+/// CloudKit/SwiftData work `perform()` does. For that routing to happen this type
+/// must have source membership in *both* targets: the app target so the system has
+/// something to launch and run, the widget extension target so `HydrationLiveActivity`
+/// can reference it to build `Button(intent:)`. All three buttons (250 mL, 500 mL,
+/// and the Lock Screen's custom amount) share this one intent, parameterized by
+/// `amountML` (Decision D-2 / D-4).
 struct LogIntakeIntent: LiveActivityIntent {
     static var title: LocalizedStringResource { "Registrar consumo de água" }
 

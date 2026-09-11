@@ -32,3 +32,12 @@ public struct HydrationAttributes: ActivityAttributes {
         }
     }
 }
+
+extension HydrationAttributes.ContentState {
+    /// Shared by both targets: the app gates `Activity.request`/`.update` on this
+    /// (only ever run the activity while it's true) and the widget extension no
+    /// longer needs its own copy of the same check.
+    public var isOverdue: Bool {
+        Date.now.timeIntervalSince(lastIntakeDate) >= reminderThreshold
+    }
+}
