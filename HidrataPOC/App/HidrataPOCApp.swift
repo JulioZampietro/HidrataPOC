@@ -1,3 +1,4 @@
+import AppIntents
 import SwiftData
 import SwiftUI
 import UserNotifications
@@ -14,6 +15,7 @@ struct HidrataPOCApp: App {
         UNUserNotificationCenter.current().delegate = notificationDelegate
         NotificationScheduler.shared.registerCategories()
         BackgroundRefreshService.register()
+        HidrataPOCShortcuts.updateAppShortcutParameters()
     }
 
     var body: some Scene {

@@ -5,5 +5,8 @@ import WidgetKit
 struct HydrationWidgetBundle: WidgetBundle {
     var body: some Widget {
         HydrationLiveActivity()
+        GlassControl()
+        BottleControl()
+        GallonControl()
     }
 }
