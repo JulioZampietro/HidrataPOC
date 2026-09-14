@@ -24,6 +24,7 @@
 		50D08C3D5EA73F9F85F1EA6A /* WaterIntakeCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD611C7BACD349B4B8CBC129 /* WaterIntakeCalculator.swift */; };
 		5CA9B1161DAD92BD19B3E346 /* HydrationLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77D39C48CF3E7F2C6FADD5F4 /* HydrationLiveActivity.swift */; };
 		6B9F8313D8B9172C4DF3C1D0 /* IntakeLogService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FA657D469BE9DC8A54167C5 /* IntakeLogService.swift */; };
+		73C759A59FD446198468D604 /* HydrationControlWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 774252888FE898F0E8A81CAA /* HydrationControlWidgets.swift */; };
 		75ED8417F44DA378C2F7848E /* PersistenceController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18681BFBE503481336FBEBD8 /* PersistenceController.swift */; };
 		7694AC470F6944DD2661655F /* HydrationKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E25C2DCFF2A32A6FFCA18FE5 /* HydrationKit.framework */; };
 		7B3A8631EEFD43710CAA527E /* HydrationWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = B1F08A6A4544B6C3057E6B91 /* HydrationWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -141,6 +142,7 @@
 		6CBDEB26A3C91B6C2C231FD8 /* SiriTutorialView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiriTutorialView.swift; sourceTree = "<group>"; };
 		70608375406AEFAB8FD9A05D /* PermissionsCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionsCoordinator.swift; sourceTree = "<group>"; };
 		71707F70B58A641E997517DB /* NotificationDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationDelegate.swift; sourceTree = "<group>"; };
+		774252888FE898F0E8A81CAA /* HydrationControlWidgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HydrationControlWidgets.swift; sourceTree = "<group>"; };
 		77D39C48CF3E7F2C6FADD5F4 /* HydrationLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HydrationLiveActivity.swift; sourceTree = "<group>"; };
 		89E03889516701BE00C6A8E4 /* UserProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserProfile.swift; sourceTree = "<group>"; };
 		8FA657D469BE9DC8A54167C5 /* IntakeLogService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntakeLogService.swift; sourceTree = "<group>"; };
@@ -357,6 +359,7 @@
 		CCE68074A395D0577E56F79D /* HydrationWidget */ = {
 			isa = PBXGroup;
 			children = (
+				774252888FE898F0E8A81CAA /* HydrationControlWidgets.swift */,
 				77D39C48CF3E7F2C6FADD5F4 /* HydrationLiveActivity.swift */,
 				2D00F1695397E9C0BF034BAC /* HydrationWidget.entitlements */,
 				C7A5DA61EDA45323AB04B6E6 /* HydrationWidgetBundle.swift */,
@@ -586,6 +589,7 @@
 				BC59B3F0F5629C9B84554939 /* CloudKitSyncService.swift in Sources */,
 				FCC1324381344DB8DA982AE3 /* Constants.swift in Sources */,
 				C59668FF0E5C042594FF385C /* DailyCheckin.swift in Sources */,
+				73C759A59FD446198468D604 /* HydrationControlWidgets.swift in Sources */,
 				5CA9B1161DAD92BD19B3E346 /* HydrationLiveActivity.swift in Sources */,
 				EB788AF77AB02B3393EC1CC6 /* HydrationWidgetBundle.swift in Sources */,
 				AC52395F9A5B66242F66926D /* IntakeLog.swift in Sources */,
