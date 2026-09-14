@@ -32,13 +32,17 @@ struct LogGlassIntent: AppIntent {
         Summary("Registrar \(\.$quantity) copo(s)")
     }
 
-    @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let q = quantity.value
         let ml = q * Constants.IntakePreset.glass.volumeML
-        await logIntakes(count: q, preset: .glass)
-        let total = await totalConsumedToday()
+        let total = await Self.record(count: q, preset: .glass)
         return .result(dialog: "\(q) copo\(q > 1 ? "s" : "") registrado\(q > 1 ? "s" : "")! +\(ml) mL. Total hoje: \(total) mL.")
+    }
+
+    @MainActor
+    private static func record(count: Int, preset: Constants.IntakePreset) async -> Int {
+        await logIntakes(count: count, preset: preset)
+        return await totalConsumedToday()
     }
 }
 
@@ -53,13 +57,17 @@ struct LogBottleIntent: AppIntent {
         Summary("Registrar \(\.$quantity) garrafa(s)")
     }
 
-    @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let q = quantity.value
         let ml = q * Constants.IntakePreset.bottle.volumeML
-        await logIntakes(count: q, preset: .bottle)
-        let total = await totalConsumedToday()
+        let total = await Self.record(count: q, preset: .bottle)
         return .result(dialog: "\(q) garrafa\(q > 1 ? "s" : "") registrada\(q > 1 ? "s" : "")! +\(ml) mL. Total hoje: \(total) mL.")
+    }
+
+    @MainActor
+    private static func record(count: Int, preset: Constants.IntakePreset) async -> Int {
+        await logIntakes(count: count, preset: preset)
+        return await totalConsumedToday()
     }
 }
 
@@ -74,13 +82,17 @@ struct LogGallonIntent: AppIntent {
         Summary("Registrar \(\.$quantity) galão(ões)")
     }
 
-    @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let q = quantity.value
         let ml = q * Constants.IntakePreset.gallon.volumeML
-        await logIntakes(count: q, preset: .gallon)
-        let total = await totalConsumedToday()
+        let total = await Self.record(count: q, preset: .gallon)
         return .result(dialog: "\(q) galão\(q > 1 ? "ões" : "") registrado\(q > 1 ? "s" : "")! +\(ml) mL. Total hoje: \(total) mL.")
+    }
+
+    @MainActor
+    private static func record(count: Int, preset: Constants.IntakePreset) async -> Int {
+        await logIntakes(count: count, preset: preset)
+        return await totalConsumedToday()
     }
 }
 
