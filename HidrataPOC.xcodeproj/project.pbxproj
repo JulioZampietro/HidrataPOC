@@ -65,6 +65,9 @@
 		9D483DB1963534FD713AC013 /* Baloo2-ExtraBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = E2D3A02B4F45DACAE8A960EE /* Baloo2-ExtraBold.ttf */; };
 		58290BE45010DB3437347604 /* Nunito-ExtraBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 1058413E9DCECDC55E8ADE42 /* Nunito-ExtraBold.ttf */; };
 		06C46879FF254B37AC86F09C /* Nunito-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 87F6CEC61D0EB34F2C4E96D3 /* Nunito-Bold.ttf */; };
+		FF11223344556677889900FF /* AppFont.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD11223344556677889900DD /* AppFont.swift */; };
+		GG11223344556677889900GG /* Nunito.ttf in Resources */ = {isa = PBXBuildFile; fileRef = EE11223344556677889900EE /* Nunito.ttf */; };
+
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -175,6 +178,8 @@
 		E2D3A02B4F45DACAE8A960EE /* Baloo2-ExtraBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Baloo2-ExtraBold.ttf"; sourceTree = "<group>"; };
 		1058413E9DCECDC55E8ADE42 /* Nunito-ExtraBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Nunito-ExtraBold.ttf"; sourceTree = "<group>"; };
 		87F6CEC61D0EB34F2C4E96D3 /* Nunito-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Nunito-Bold.ttf"; sourceTree = "<group>"; };
+		DD11223344556677889900DD /* AppFont.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppFont.swift; sourceTree = "<group>"; };
+		EE11223344556677889900EE /* Nunito.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Nunito.ttf; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -200,8 +205,10 @@
 		00C006579CA0523A2042261B /* Support */ = {
 			isa = PBXGroup;
 			children = (
+				DD11223344556677889900DD /* AppFont.swift */,
 				95F0050D87C688CD6A361091 /* Constants.swift */,
 				E0CB3E3BA72A80075634FCBB /* HidrataPOC.entitlements */,
+				HH11223344556677889900HH /* Fonts */,
 				DEF14391DFF4F9227FB24BDF /* Info.plist */,
 				07906A779A28D5273E2D70DB /* Fonts */,
 			);
@@ -214,6 +221,7 @@
 				E2D3A02B4F45DACAE8A960EE /* Baloo2-ExtraBold.ttf */,
 				1058413E9DCECDC55E8ADE42 /* Nunito-ExtraBold.ttf */,
 				87F6CEC61D0EB34F2C4E96D3 /* Nunito-Bold.ttf */,
+				EE11223344556677889900EE /* Nunito.ttf */,
 			);
 			path = Fonts;
 			sourceTree = "<group>";
@@ -547,6 +555,7 @@
 				9D483DB1963534FD713AC013 /* Baloo2-ExtraBold.ttf in Resources */,
 				58290BE45010DB3437347604 /* Nunito-ExtraBold.ttf in Resources */,
 				06C46879FF254B37AC86F09C /* Nunito-Bold.ttf in Resources */,
+				GG11223344556677889900GG /* Nunito.ttf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -585,6 +594,7 @@
 				00FFFB683C1484BEDAB9EB23 /* HidrataPOCApp.swift in Sources */,
 				267A40DE9CF3539833AEA14D /* HomeView.swift in Sources */,
 				BB11223344556677889900BB /* HistoricoView.swift in Sources */,
+				FF11223344556677889900FF /* AppFont.swift in Sources */,
 				1E0E8D58D49CFBE72BD691A5 /* HydrationChartView.swift in Sources */,
 				ED310A2AD7021F64EFBB3C64 /* HydrationMath.swift in Sources */,
 				8DE7FD7B97BBF583ACF51FDF /* IntakeLog.swift in Sources */,

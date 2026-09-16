@@ -8,6 +8,7 @@ struct RootView: View {
     @Query private var checkins: [DailyCheckin]
 
     @State private var showingCheckin = false
+    @State private var selectedTab = 0
 
     private var profile: UserProfile? { profiles.first }
 
@@ -19,29 +20,42 @@ struct RootView: View {
                     Task { await PermissionsCoordinator.requestAll() }
                 })
             } else if let profile {
-                TabView {
-                    HomeView(profile: profile)
-                        .tabItem { Label("Home", systemImage: "drop.fill") }
-                    HistoricoView()
-                        .tabItem { Label("Histórico", systemImage: "calendar") }
-                    ProfileView(profile: profile)
-                        .tabItem { Label("Perfil", systemImage: "person.fill") }
-                }
-                .sheet(isPresented: $showingCheckin) {
-                    DailyCheckinView(userID: profile.userID, onDone: { showingCheckin = false })
-                }
-                .onAppear {
-                    evaluateCheckin(for: profile)
-                    startLiveActivityIfNeeded(for: profile)
-                }
-                .onChange(of: profile.userID) {
-                    evaluateCheckin(for: profile)
-                    startLiveActivityIfNeeded(for: profile)
-                }
+                mainContent(profile: profile)
+                    .sheet(isPresented: $showingCheckin) {
+                        DailyCheckinView(userID: profile.userID, onDone: { showingCheckin = false })
+                    }
+                    .onAppear {
+                        evaluateCheckin(for: profile)
+                        startLiveActivityIfNeeded(for: profile)
+                    }
+                    .onChange(of: profile.userID) {
+                        evaluateCheckin(for: profile)
+                        startLiveActivityIfNeeded(for: profile)
+                    }
             } else {
                 OnboardingView()
             }
         }
+    }
+
+    @ViewBuilder
+    private func mainContent(profile: UserProfile) -> some View {
+        ZStack(alignment: .bottom) {
+            Group {
+                switch selectedTab {
+                case 0: HomeView(profile: profile)
+                case 1: HistoricoView()
+                default: ProfileView(profile: profile)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .safeAreaInset(edge: .bottom) {
+                Color.clear.frame(height: 80)
+            }
+
+            AppTabBar(selectedTab: $selectedTab)
+        }
+        .ignoresSafeArea(edges: .bottom)
     }
 
     private func evaluateCheckin(for profile: UserProfile) {
@@ -51,15 +65,72 @@ struct RootView: View {
         showingCheckin = !hasToday
     }
 
-    /// FR-9: this view only ever shows once a profile exists, so `onAppear`/
-    /// `onChange` here cover both a cold launch straight into the Home tab and the
-    /// moment onboarding just created the profile — `HidrataPOCApp`'s scenePhase
-    /// handler alone would miss both, since SwiftUI's `onChange(of: scenePhase)`
-    /// doesn't fire for the phase already active at launch.
     private func startLiveActivityIfNeeded(for profile: UserProfile) {
         Task {
             await LiveActivityManager.shared.startIfNeeded(profile: profile, context: modelContext)
         }
+    }
+}
+
+// MARK: - AppTabBar
+
+private let tabBarBlue = Color(red: 0.286, green: 0.498, blue: 0.714)
+
+struct AppTabBar: View {
+    @Binding var selectedTab: Int
+
+    private let items: [(icon: String, label: String)] = [
+        ("drop.fill", "Home"),
+        ("square.grid.3x3.fill", "Histórico"),
+        ("person.fill", "Perfil"),
+    ]
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(items.indices, id: \.self) { index in
+                tabItem(index: index)
+                    .frame(maxWidth: .infinity)
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 8)
+        .background(.white, in: Capsule())
+        .shadow(color: .black.opacity(0.08), radius: 16, x: 0, y: 4)
+        .padding(.horizontal, 20)
+        .padding(.bottom, 24)
+    }
+
+    private func tabItem(index: Int) -> some View {
+        let item = items[index]
+        let isSelected = selectedTab == index
+
+        return Button {
+            selectedTab = index
+        } label: {
+            if isSelected {
+                VStack(spacing: 3) {
+                    Image(systemName: item.icon)
+                        .font(.system(size: 18, weight: .semibold))
+                    Text(item.label)
+                        .font(.custom("Nunito", size: 12).weight(.semibold))
+                }
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .background(tabBarBlue, in: RoundedRectangle(cornerRadius: 22))
+            } else {
+                VStack(spacing: 3) {
+                    Image(systemName: item.icon)
+                        .font(.system(size: 18))
+                    Text(item.label)
+                        .font(.custom("Nunito", size: 12))
+                }
+                .foregroundStyle(Color(red: 0.55, green: 0.58, blue: 0.63))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+            }
+        }
+        .buttonStyle(.plain)
     }
 }
 

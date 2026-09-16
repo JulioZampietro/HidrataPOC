@@ -12,6 +12,7 @@ struct HidrataPOCApp: App {
     private let notificationDelegate = NotificationDelegate()
 
     init() {
+        applyNunitoGlobally()
         UNUserNotificationCenter.current().delegate = notificationDelegate
         NotificationScheduler.shared.registerCategories()
         BackgroundRefreshService.register()
@@ -21,7 +22,7 @@ struct HidrataPOCApp: App {
     var body: some Scene {
         WindowGroup {
             RootView()
-                .task { await setUpOnLaunch() }
+                .task { await setUpOnLaunch() }l
         }
         .modelContainer(PersistenceController.container)
         .onChange(of: scenePhase) { _, newPhase in
