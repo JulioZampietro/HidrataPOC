@@ -1,6 +1,9 @@
 import SwiftData
 import SwiftUI
 
+private let accentBlue = Color(red: 0.286, green: 0.498, blue: 0.714)
+private let appBackground = Color(red: 0.906, green: 0.937, blue: 0.961)
+
 struct HomeView: View {
     let profile: UserProfile
 
@@ -30,149 +33,199 @@ struct HomeView: View {
         return min(1, Double(consumedToday) / Double(effectiveGoalML))
     }
 
-    var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 28) {
-                    progressRing
-                    weatherDiagnostic
-
-                    VStack(spacing: 12) {
-                        Text("Registrar consumo")
-                            .font(.headline)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-
-                        LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
-                            intakeButton(.glass)
-                            intakeButton(.bottle)
-                            intakeButton(.gallon)
-                            customIntakeButton
-                        }
-                    }
-                    .padding(.horizontal)
-
-                    shortcutsSection
-
-                    if !todayLogs.isEmpty {
-                        recentLogsList
-                    }
-                }
-                .padding(.vertical)
-            }
-            .navigationTitle("Hidratação")
-            .task { await loadWeather() }
-            .onAppear {
-                guard tempContext == nil else { return }
-                Task {
-                    tempContext = await WeatherContextService.shared.temperatureAdjustmentContext()
-                }
-            }
-            .confirmationDialog(
-                "Excluir este registro?",
-                isPresented: isPresentingDeleteConfirm,
-                presenting: pendingDeleteLog
-            ) { log in
-                Button("Excluir", role: .destructive) { deleteLog(log) }
-                Button("Cancelar", role: .cancel) {}
-            } message: { log in
-                Text("\(log.tipoEntrada.capitalized) · \(log.volumeML) mL será removido do seu histórico e da base de dados.")
-            }
-            .sheet(isPresented: $isEditingCustomAmount) {
-                CustomIntakeEditorView(initialValueML: profile.customIntakeML, onSave: saveCustomAmount)
-            }
-            .sheet(isPresented: $showSiriTutorial) {
-                SiriTutorialView()
-            }
-            .sheet(isPresented: $showActionButtonTutorial) {
-                ActionButtonTutorialView()
-            }
-        }
-    }
-
-    private var isPresentingDeleteConfirm: Binding<Bool> {
-        Binding(get: { pendingDeleteLog != nil }, set: { if !$0 { pendingDeleteLog = nil } })
-    }
-
-    private var progressRing: some View {
-        VStack(spacing: 8) {
-            ZStack {
-                Circle()
-                    .stroke(.blue.opacity(0.15), lineWidth: 18)
-                Circle()
-                    .trim(from: 0, to: progress)
-                    .stroke(.blue, style: StrokeStyle(lineWidth: 18, lineCap: .round))
-                    .rotationEffect(.degrees(-90))
-                    .animation(.easeOut, value: progress)
-
-                VStack(spacing: 4) {
-                    Text("\(consumedToday) mL")
-                        .font(.title.bold())
-                    Text("meta: \(effectiveGoalML) mL")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    if let ctx = tempContext, ctx.adjustmentML > 0 {
-                        Text("+\(ctx.adjustmentML) mL por calor")
-                            .font(.caption2)
-                            .foregroundStyle(.orange)
-                    }
-                }
-            }
-            .frame(width: 180, height: 180)
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(consumedToday) de \(effectiveGoalML) mililitros consumidos hoje")
-    }
-
-    /// Diagnostic row so a tester can see at a glance whether WeatherKit is actually
-    /// returning data (vs. silently failing — see `WeatherContextService`'s
-    /// location/network error logging) — not part of the product spec, just a visible
-    /// health check.
-    private var weatherDiagnostic: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "thermometer.medium")
-            if isLoadingWeather {
-                Text("Consultando clima…")
-            } else if let weather {
-                Text("\(weather.temperaturaC.formatted(.number.precision(.fractionLength(1))))°C · \(Int(weather.umidadeRelativa * 100))% umidade")
+    private var streak: Int {
+        let cal = Calendar.current
+        var count = 0
+        var checkDate = cal.startOfDay(for: .now)
+        for _ in 0..<365 {
+            let dayTotal = allLogs
+                .filter { $0.userID == profile.userID && cal.isDate($0.timestamp, inSameDayAs: checkDate) }
+                .reduce(0) { $0 + $1.volumeML }
+            if dayTotal >= profile.metaDiariaML {
+                count += 1
+                checkDate = cal.date(byAdding: .day, value: -1, to: checkDate) ?? checkDate
             } else {
-                Text("Clima indisponível (WeatherKit)")
+                break
             }
         }
-        .font(.caption)
-        .foregroundStyle(.secondary)
+        return count
     }
 
-    private func loadWeather() async {
-        weather = await WeatherContextService.shared.currentContext()
-        isLoadingWeather = false
-    }
+    var body: some View {
+        ZStack {
+            appBackground.ignoresSafeArea()
 
-    private func intakeButton(_ preset: Constants.IntakePreset) -> some View {
-        Button {
-            logIntake(preset)
-        } label: {
-            VStack(spacing: 6) {
-                Image(systemName: iconName(for: preset))
-                    .font(.title2)
-                Text(preset.label)
-                    .font(.caption.bold())
-                Text("\(preset.volumeML) mL")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+            ScrollView {
+                VStack(spacing: 20) {
+                    headerRow
+                        .padding(.horizontal, 20)
+                        .padding(.top, 8)
+
+                    mascotPlaceholder
+
+                    progressBar
+                        .padding(.horizontal, 20)
+
+                    intakeGrid
+                        .padding(.horizontal, 20)
+                }
+                .padding(.bottom, 24)
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 14)
-            .background(.blue.opacity(0.1), in: RoundedRectangle(cornerRadius: 14))
         }
+        .task { await loadWeather() }
+        .onAppear {
+            guard tempContext == nil else { return }
+            Task {
+                tempContext = await WeatherContextService.shared.temperatureAdjustmentContext()
+            }
+        }
+        .confirmationDialog(
+            "Excluir este registro?",
+            isPresented: isPresentingDeleteConfirm,
+            presenting: pendingDeleteLog
+        ) { log in
+            Button("Excluir", role: .destructive) { deleteLog(log) }
+            Button("Cancelar", role: .cancel) {}
+        } message: { log in
+            Text("\(log.tipoEntrada.capitalized) · \(log.volumeML) mL será removido do seu histórico e da base de dados.")
+        }
+        .sheet(isPresented: $isEditingCustomAmount) {
+            CustomIntakeEditorView(initialValueML: profile.customIntakeML, onSave: saveCustomAmount)
+        }
+        .sheet(isPresented: $showSiriTutorial) { SiriTutorialView() }
+        .sheet(isPresented: $showActionButtonTutorial) { ActionButtonTutorialView() }
+    }
+
+    // MARK: - Subviews
+
+    private var headerRow: some View {
+        HStack {
+            Button {
+                // TODO: ajuda / info
+            } label: {
+                Image(systemName: "questionmark")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(accentBlue)
+                    .frame(width: 40, height: 40)
+                    .background(.white, in: Circle())
+            }
+
+            Spacer()
+
+            HStack(spacing: 6) {
+                Image(systemName: "drop.fill")
+                    .font(.custom("Nunito", size: 12))
+                    .foregroundStyle(accentBlue)
+                Text("\(streak)")
+                    .font(.custom("Nunito", size: 15).bold())
+                Text("dias")
+                    .font(.custom("Nunito", size: 15))
+            }
+            .foregroundStyle(.primary)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(.white, in: Capsule())
+        }
+    }
+
+    private var mascotPlaceholder: some View {
+        ZStack {
+            Ellipse()
+                .fill(accentBlue.opacity(0.15))
+                .frame(width: 220, height: 150)
+
+            RoundedRectangle(cornerRadius: 20)
+                .fill(Color.secondary.opacity(0.1))
+                .frame(width: 120, height: 120)
+                .overlay {
+                    Image(systemName: "photo")
+                        .font(.largeTitle)
+                        .foregroundStyle(.secondary.opacity(0.5))
+                }
+        }
+        .frame(height: 190)
+    }
+
+    private var progressBar: some View {
+        GeometryReader { geo in
+            let barWidth = max(geo.size.width * progress, 56)
+            let borderDepth: CGFloat = 4
+
+            ZStack(alignment: .leading) {
+                // track afundado
+                Capsule()
+                    .fill(Color(red: 0.75, green: 0.78, blue: 0.82))
+                    .frame(height: 52)
+
+                // borda inferior do azul (efeito elevado)
+                Capsule()
+                    .fill(Color(red: 0.18, green: 0.35, blue: 0.56))
+                    .frame(width: barWidth, height: 52)
+                    .offset(y: borderDepth)
+                    .animation(.easeOut(duration: 0.4), value: progress)
+
+                // preenchimento azul
+                Capsule()
+                    .fill(accentBlue)
+                    .frame(width: barWidth, height: 52)
+                    .animation(.easeOut(duration: 0.4), value: progress)
+
+                Text("\(consumedToday) mL / \(effectiveGoalML) mL")
+                    .font(.custom("Nunito", size: 15).weight(.heavy))
+                    .foregroundStyle(.white)
+                    .padding(.leading, 18)
+            }
+        }
+        .frame(height: 52 + 4)
+    }
+
+    private var intakeGrid: some View {
+        LazyVGrid(
+            columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)],
+            spacing: 12
+        ) {
+            goleCard
+            intakeCard(.glass)
+            intakeCard(.bottle)
+            customIntakeCard
+        }
+    }
+
+    private var goleCard: some View {
+        Button { logIntake(.custom(volumeML: 40)) } label: {
+            IntakeCardContent(
+                icon: "drop.fill",
+                title: "Gole",
+                subtitle: "40 mL"
+            )
+        }
+        .buttonStyle(.plain)
         .disabled(isLogging)
     }
 
-    /// The 4th quick-log tile, with a small pencil button overlaid in its top-trailing
-    /// corner (its own tap target) to open `CustomIntakeEditorView`. Editing this
-    /// volume now happens only here — it's no longer part of the profile form.
-    private var customIntakeButton: some View {
+    private func intakeCard(_ preset: Constants.IntakePreset) -> some View {
+        Button { logIntake(preset) } label: {
+            IntakeCardContent(
+                icon: iconName(for: preset),
+                title: preset.label,
+                subtitle: "\(preset.volumeML) mL"
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(isLogging)
+    }
+
+    private var customIntakeCard: some View {
         ZStack(alignment: .topTrailing) {
-            intakeButton(.custom(volumeML: profile.customIntakeML))
+            Button { logIntake(.custom(volumeML: profile.customIntakeML)) } label: {
+                IntakeCardContent(
+                    icon: "plus",
+                    title: "Outro",
+                    subtitle: "\(profile.customIntakeML) mL"
+                )
+            }
+            .buttonStyle(.plain)
+            .disabled(isLogging)
 
             Button {
                 isEditingCustomAmount = true
@@ -187,59 +240,24 @@ struct HomeView: View {
         }
     }
 
+    // MARK: - Helpers
+
+    private var isPresentingDeleteConfirm: Binding<Bool> {
+        Binding(get: { pendingDeleteLog != nil }, set: { if !$0 { pendingDeleteLog = nil } })
+    }
+
     private func iconName(for preset: Constants.IntakePreset) -> String {
         switch preset {
         case .glass: return "waterbottle"
         case .bottle: return "waterbottle.fill"
         case .gallon: return "cylinder.fill"
-        case .custom: return "slider.horizontal.3"
+        case .custom: return "plus"
         }
     }
 
-    private var shortcutsSection: some View {
-        VStack(spacing: 10) {
-            ShortcutHintButton(
-                icon: "waveform.circle.fill",
-                color: .purple,
-                title: "Configure a Siri",
-                subtitle: "\"Bebi um copo de HidrataPOC\" registra direto"
-            ) { showSiriTutorial = true }
-
-            ShortcutHintButton(
-                icon: "button.angledbottom.horizontal.right",
-                color: .orange,
-                title: "Botão de Ação",
-                subtitle: "Pressione o botão lateral para registrar água"
-            ) { showActionButtonTutorial = true }
-        }
-        .padding(.horizontal)
-    }
-
-    private var recentLogsList: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Hoje")
-                .font(.headline)
-            ForEach(todayLogs.sorted { $0.timestamp > $1.timestamp }) { log in
-                HStack {
-                    Text(log.tipoEntrada.capitalized)
-                    Spacer()
-                    Text("\(log.volumeML) mL")
-                        .foregroundStyle(.secondary)
-                    Text(log.timestamp, style: .time)
-                        .foregroundStyle(.secondary)
-                    Button {
-                        pendingDeleteLog = log
-                    } label: {
-                        Image(systemName: "trash")
-                    }
-                    .buttonStyle(.borderless)
-                    .tint(.red)
-                    .accessibilityLabel("Excluir registro de \(log.tipoEntrada), \(log.volumeML) mililitros")
-                }
-                .font(.subheadline)
-            }
-        }
-        .padding(.horizontal)
+    private func loadWeather() async {
+        weather = await WeatherContextService.shared.currentContext()
+        isLoadingWeather = false
     }
 
     private func logIntake(_ preset: Constants.IntakePreset) {
@@ -251,9 +269,7 @@ struct HomeView: View {
     }
 
     private func deleteLog(_ log: IntakeLog) {
-        Task {
-            await NotificationScheduler.shared.deleteIntake(log, context: modelContext)
-        }
+        Task { await NotificationScheduler.shared.deleteIntake(log, context: modelContext) }
     }
 
     private func saveCustomAmount(_ newValue: Int) {
@@ -269,39 +285,32 @@ struct HomeView: View {
     }
 }
 
-// MARK: - Componentes
+// MARK: - IntakeCardContent
 
-struct ShortcutHintButton: View {
+struct IntakeCardContent: View {
     let icon: String
-    let color: Color
     let title: String
     let subtitle: String
-    let action: () -> Void
 
     var body: some View {
-        Button(action: action) {
-            HStack(spacing: 10) {
-                Image(systemName: icon)
-                    .foregroundStyle(color)
-                    .font(.title3)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(color)
-                    Text(subtitle)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-            }
-            .padding(12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(color.opacity(0.07), in: RoundedRectangle(cornerRadius: 12))
+        VStack(alignment: .leading, spacing: 0) {
+            Image(systemName: icon)
+                .font(.title2)
+                .foregroundStyle(accentBlue)
+                .padding(.bottom, 28)
+
+            Text(title)
+                .font(.custom("Nunito", size: 17).weight(.heavy))
+                .foregroundStyle(.primary)
+
+            Text(subtitle)
+                .font(.custom("Nunito", size: 15))
+                .foregroundStyle(.secondary)
         }
-        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(.white, in: RoundedRectangle(cornerRadius: 18))
+        .shadow(color: .black.opacity(0.07), radius: 6, x: 0, y: 2)
     }
 }
 

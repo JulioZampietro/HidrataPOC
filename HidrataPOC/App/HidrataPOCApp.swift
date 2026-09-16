@@ -12,6 +12,7 @@ struct HidrataPOCApp: App {
     private let notificationDelegate = NotificationDelegate()
 
     init() {
+        applyNunitoGlobally()
         UNUserNotificationCenter.current().delegate = notificationDelegate
         NotificationScheduler.shared.registerCategories()
         BackgroundRefreshService.register()
