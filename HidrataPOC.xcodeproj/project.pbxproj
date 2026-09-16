@@ -61,6 +61,7 @@
 		F99497B27087F11E52C7A718 /* DailyCheckinView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F01AECA79736FB88B44FD80 /* DailyCheckinView.swift */; };
 		FCC1324381344DB8DA982AE3 /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95F0050D87C688CD6A361091 /* Constants.swift */; };
 		FEF1E8A999A9841C843C2208 /* CustomIntakeEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20FA02344B32332B350BC11D /* CustomIntakeEditorView.swift */; };
+		BB11223344556677889900BB /* HistoricoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11223344556677889900AA /* HistoricoView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -167,6 +168,7 @@
 		E25C2DCFF2A32A6FFCA18FE5 /* HydrationKit.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = HydrationKit.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		E2CE5627BDF23AE7101D454A /* ActionButtonTutorialView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionButtonTutorialView.swift; sourceTree = "<group>"; };
 		F93CA27F187823B29EA02167 /* ConsentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsentView.swift; sourceTree = "<group>"; };
+		AA11223344556677889900AA /* HistoricoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoricoView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -310,12 +312,21 @@
 			path = Models;
 			sourceTree = "<group>";
 		};
+		CC11223344556677889900CC /* Historico */ = {
+			isa = PBXGroup;
+			children = (
+				AA11223344556677889900AA /* HistoricoView.swift */,
+			);
+			path = Historico;
+			sourceTree = "<group>";
+		};
 		A206EE043D6AE3FFB51098F9 /* Views */ = {
 			isa = PBXGroup;
 			children = (
 				78CF66212BC72147109CD3A7 /* Checkin */,
 				94642EDCB3234964154B904E /* Consent */,
 				6F4038C801CE7C95AEC7F2FA /* Home */,
+				CC11223344556677889900CC /* Historico */,
 				0AC26D074C35DB8A76627E5D /* Onboarding */,
 				B78035C9D92C22757422920D /* Profile */,
 				CFED0467C7709E3954606158 /* Tutorials */,
@@ -553,6 +564,7 @@
 				F99497B27087F11E52C7A718 /* DailyCheckinView.swift in Sources */,
 				00FFFB683C1484BEDAB9EB23 /* HidrataPOCApp.swift in Sources */,
 				267A40DE9CF3539833AEA14D /* HomeView.swift in Sources */,
+				BB11223344556677889900BB /* HistoricoView.swift in Sources */,
 				1E0E8D58D49CFBE72BD691A5 /* HydrationChartView.swift in Sources */,
 				ED310A2AD7021F64EFBB3C64 /* HydrationMath.swift in Sources */,
 				8DE7FD7B97BBF583ACF51FDF /* IntakeLog.swift in Sources */,

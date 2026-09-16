@@ -21,7 +21,9 @@ struct RootView: View {
             } else if let profile {
                 TabView {
                     HomeView(profile: profile)
-                        .tabItem { Label("Início", systemImage: "drop.fill") }
+                        .tabItem { Label("Home", systemImage: "drop.fill") }
+                    HistoricoView()
+                        .tabItem { Label("Histórico", systemImage: "calendar") }
                     ProfileView(profile: profile)
                         .tabItem { Label("Perfil", systemImage: "person.fill") }
                 }
