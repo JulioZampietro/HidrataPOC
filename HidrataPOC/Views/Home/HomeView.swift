@@ -53,7 +53,16 @@ struct HomeView: View {
 
     var body: some View {
         ZStack {
-            appBackground.ignoresSafeArea()
+            LinearGradient(
+                stops: [
+                    .init(color: appBackground, location: 0.0),
+                    .init(color: appBackground, location: 0.7),
+                    .init(color: .orange.opacity(0.4), location: 1.0),
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
 
             ScrollView {
                 VStack(spacing: 20) {
@@ -129,21 +138,10 @@ struct HomeView: View {
     }
 
     private var mascotPlaceholder: some View {
-        ZStack {
-            Ellipse()
-                .fill(accentBlue.opacity(0.15))
-                .frame(width: 220, height: 150)
-
-            RoundedRectangle(cornerRadius: 20)
-                .fill(Color.secondary.opacity(0.1))
-                .frame(width: 120, height: 120)
-                .overlay {
-                    Image(systemName: "photo")
-                        .font(.largeTitle)
-                        .foregroundStyle(.secondary.opacity(0.5))
-                }
-        }
-        .frame(height: 190)
+        Circle()
+            .fill(Color.orange.opacity(0.4))
+            .frame(width: 160, height: 160)
+            .frame(height: 190)
     }
 
     private var progressBar: some View {

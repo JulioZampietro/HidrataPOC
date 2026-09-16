@@ -22,7 +22,7 @@ struct HidrataPOCApp: App {
     var body: some Scene {
         WindowGroup {
             RootView()
-                .task { await setUpOnLaunch() }
+                .task { await setUpOnLaunch() }l
         }
         .modelContainer(PersistenceController.container)
         .onChange(of: scenePhase) { _, newPhase in
