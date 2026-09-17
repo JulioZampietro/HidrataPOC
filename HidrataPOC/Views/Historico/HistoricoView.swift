@@ -1,8 +1,14 @@
+import Charts
 import SwiftUI
 
 /// Azul de marca usado no calendário do histórico (preenchimento, anel do dia
 /// atual e contador de metas batidas).
 private let calendarBlue = Color(red: 0x3E / 255.0, green: 0x8F / 255.0, blue: 0xC7 / 255.0)
+
+/// Meta diária mockada usada para converter os percentuais do histórico em
+/// mL nos gráficos — substituir pelo `metaDiariaML` real do perfil quando o
+/// histórico estiver persistido.
+private let metaDiariaML = 2450
 
 private extension Font {
     static func baloo2ExtraBold(_ size: CGFloat) -> Font {
@@ -29,6 +35,17 @@ struct DiaHistorico: Identifiable {
     var bateuMeta: Bool { (percentualMeta ?? 0) >= 1.0 }
 }
 
+/// Um registro individual de consumo de água mockado, exibido na lista do
+/// sheet de detalhe do dia — permite ao usuário apagar um registro lançado
+/// errado, como faria com um `IntakeLog` real.
+struct MockIntake: Identifiable {
+    let id = UUID()
+    let hour: Int
+    let ml: Int
+
+    var timeLabel: String { String(format: "%02d:00", hour) }
+}
+
 /// Gera dados mockados de histórico por mês. Sem integração com banco de dados
 /// ainda — isto existe só para popular a tela enquanto o modelo real não chega.
 enum HistoricoMockData {
@@ -38,22 +55,59 @@ enum HistoricoMockData {
         1.0, 1.0, 0.45, 1.0, 1.0, 0.3, 1.0, 1.0, 1.0, 0.55, 1.0, 1.0, 1.0, 0.5,
     ]
 
+    /// Distribuição relativa de consumo ao longo do dia (soma 1.0), usada só
+    /// para desenhar o gráfico por horário no sheet de detalhe do dia — sem
+    /// logs reais de horário ainda, então o formato é fixo (mais consumo no
+    /// meio do dia) em vez de aleatório, para o gráfico ficar estável.
+    private static let distribuicaoPorHora: [(hour: Int, weight: Double)] = [
+        (8, 0.10), (10, 0.16), (12, 0.20), (14, 0.16), (16, 0.16), (18, 0.14), (20, 0.08),
+    ]
+
+    /// Mesmo cálculo usado tanto para popular o mês exibido quanto para os
+    /// "últimos 7 dias" — dias futuros (após hoje) não têm dado (`nil`).
+    static func percentual(for date: Date, calendar: Calendar) -> Double? {
+        let today = calendar.startOfDay(for: .now)
+        let dayStart = calendar.startOfDay(for: date)
+        guard dayStart <= today else { return nil }
+        let day = calendar.component(.day, from: dayStart)
+        return padraoPercentual[(day - 1) % padraoPercentual.count]
+    }
+
     static func generateMonth(for monthDate: Date, calendar: Calendar) -> [DiaHistorico] {
         guard let range = calendar.range(of: .day, in: .month, for: monthDate) else { return [] }
-        let today = calendar.startOfDay(for: .now)
 
         return range.compactMap { day in
             guard let date = calendar.date(bySetting: .day, value: day, of: monthDate) else { return nil }
             let dayStart = calendar.startOfDay(for: date)
-
-            let percentual: Double? = dayStart > today ? nil : padraoPercentual[(day - 1) % padraoPercentual.count]
-            return DiaHistorico(date: dayStart, percentualMeta: percentual)
+            return DiaHistorico(date: dayStart, percentualMeta: percentual(for: dayStart, calendar: calendar))
         }
     }
+
+    /// Últimos 7 dias corridos terminando hoje, independente do mês que o
+    /// calendário está exibindo — usado no gráfico semanal do card.
+    static func lastSevenDays(calendar: Calendar) -> [DiaHistorico] {
+        let today = calendar.startOfDay(for: .now)
+        return (0..<7).reversed().compactMap { offset in
+            guard let date = calendar.date(byAdding: .day, value: -offset, to: today) else { return nil }
+            return DiaHistorico(date: date, percentualMeta: percentual(for: date, calendar: calendar))
+        }
+    }
+
+    static func hourlyBreakdown(for dia: DiaHistorico, metaDiariaML: Int) -> [MockIntake] {
+        let totalML = Double(metaDiariaML) * (dia.percentualMeta ?? 0)
+        return distribuicaoPorHora.map { MockIntake(hour: $0.hour, ml: Int((totalML * $0.weight).rounded())) }
+    }
+}
+
+private enum HistoricoCardPage {
+    case calendario
+    case semana
 }
 
 struct HistoricoView: View {
     @State private var displayedMonth = Calendar.current.dateInterval(of: .month, for: .now)?.start ?? .now
+    @State private var cardPage: HistoricoCardPage = .calendario
+    @State private var selectedDay: DiaHistorico?
 
     // Mock: sequência de dias seguidos batendo a meta e dias perdidos no total.
     // Substituir por dados reais quando o histórico estiver persistido.
@@ -95,6 +149,12 @@ struct HistoricoView: View {
         return raw.prefix(1).uppercased() + raw.dropFirst()
     }
 
+    private var weeklyChartData: [(day: Date, totalML: Int)] {
+        HistoricoMockData.lastSevenDays(calendar: calendar).map {
+            (day: $0.date, totalML: Int(Double(metaDiariaML) * ($0.percentualMeta ?? 0)))
+        }
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -108,6 +168,9 @@ struct HistoricoView: View {
             }
             .appScreenBackground()
             .navigationBarHidden(true)
+        }
+        .sheet(item: $selectedDay) { dia in
+            DayDetailSheet(dia: dia)
         }
     }
 
@@ -194,7 +257,24 @@ struct HistoricoView: View {
         .frame(maxWidth: .infinity)
     }
 
+    /// Card com duas "páginas": o calendário do mês e um gráfico dos últimos
+    /// 7 dias. Troca de página pela setinha (`pageToggleButton`, presente nos
+    /// dois cabeçalhos) ou arrastando o card para o lado.
     private var calendarCard: some View {
+        VStack(spacing: 14) {
+            if cardPage == .calendario {
+                calendarPageContent
+            } else {
+                weeklyChartPageContent
+            }
+        }
+        .padding(20)
+        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 24))
+        .shadow(color: .black.opacity(0.05), radius: 10, y: 4)
+        .simultaneousGesture(cardSwipeGesture)
+    }
+
+    private var calendarPageContent: some View {
         VStack(spacing: 14) {
             monthHeader
             weekdayHeader
@@ -202,6 +282,11 @@ struct HistoricoView: View {
                 ForEach(Array(gridCells.enumerated()), id: \.offset) { _, cell in
                     if let cell {
                         DayCell(dia: cell, isToday: calendar.isDateInToday(cell.date))
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                guard !cell.isFuturo else { return }
+                                selectedDay = cell
+                            }
                     } else {
                         Color.clear.frame(height: 40)
                     }
@@ -210,9 +295,20 @@ struct HistoricoView: View {
             DashedDivider()
             legend
         }
-        .padding(20)
-        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 24))
-        .shadow(color: .black.opacity(0.05), radius: 10, y: 4)
+        .transition(.opacity)
+    }
+
+    private var weeklyChartPageContent: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Text("Últimos 7 dias")
+                    .font(.baloo2ExtraBold(21))
+                Spacer()
+                pageToggleButton
+            }
+            HydrationChartView(dailyTotals: weeklyChartData, metaDiariaML: metaDiariaML)
+        }
+        .transition(.opacity)
     }
 
     private var monthHeader: some View {
@@ -244,7 +340,39 @@ struct HistoricoView: View {
             Text("\(metasBatidasCount) metas batidas")
                 .font(.nunitoExtraBold(12.5))
                 .foregroundStyle(calendarBlue)
+
+            pageToggleButton
         }
+    }
+
+    /// Setinha que alterna entre o calendário e o gráfico semanal — a mesma
+    /// troca também acontece arrastando o card para o lado (`cardSwipeGesture`).
+    private var pageToggleButton: some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                cardPage = cardPage == .calendario ? .semana : .calendario
+            }
+        } label: {
+            Image(systemName: cardPage == .calendario ? "chevron.right" : "chevron.left")
+                .font(.caption.bold())
+                .foregroundStyle(calendarBlue)
+                .frame(width: 26, height: 26)
+                .background(calendarBlue.opacity(0.12), in: Circle())
+        }
+        .accessibilityLabel(cardPage == .calendario ? "Ver estatísticas dos últimos 7 dias" : "Voltar para o calendário")
+    }
+
+    private var cardSwipeGesture: some Gesture {
+        DragGesture(minimumDistance: 30)
+            .onEnded { value in
+                let horizontal = value.translation.width
+                let vertical = value.translation.height
+                guard abs(horizontal) > abs(vertical), abs(horizontal) > 50 else { return }
+
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    cardPage = horizontal < 0 ? .semana : .calendario
+                }
+            }
     }
 
     private var weekdayHeader: some View {
@@ -341,10 +469,7 @@ private struct DayCell: View {
     /// light mode o comportamento original (branco quando bateu a meta,
     /// azul de marca quando não) continua igual.
     private var todayRingColor: Color {
-        guard colorScheme == .dark else {
-            return dia.bateuMeta ? .white : calendarBlue
-        }
-        return AppTheme.screenBackgroundDark
+        return dia.bateuMeta ? .white : calendarBlue
     }
 
     private var fillTextColor: Color { .white }
@@ -390,6 +515,154 @@ private struct FillSwatch: View {
     private var trackColor: Color {
         guard percentual != nil else { return Color(.systemGray4) }
         return colorScheme == .dark ? calendarBlue.opacity(0.32) : calendarBlue.opacity(0.12)
+    }
+}
+
+/// Sheet aberto ao tocar em um dia do calendário: detalha quanto da meta
+/// diária foi bebido naquele dia, com um gráfico mockado por horário
+/// (`HistoricoMockData.hourlyBreakdown`, já que ainda não há logs reais com
+/// horário associados ao histórico).
+private struct DayDetailSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let dia: DiaHistorico
+
+    /// Cópia local e mutável dos registros mockados do dia — apagar aqui só
+    /// afeta esta sessão do sheet (não há persistência real ainda), mas o
+    /// total e o gráfico acima reagem imediatamente à remoção, como
+    /// aconteceria com um `IntakeLog` de verdade.
+    @State private var intakes: [MockIntake]
+
+    init(dia: DiaHistorico) {
+        self.dia = dia
+        _intakes = State(initialValue: HistoricoMockData.hourlyBreakdown(for: dia, metaDiariaML: metaDiariaML))
+    }
+
+    private var totalML: Int {
+        intakes.reduce(0) { $0 + $1.ml }
+    }
+
+    private var atingiuMeta: Bool {
+        totalML >= metaDiariaML
+    }
+
+    private var dateTitle: String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "pt_BR")
+        formatter.dateFormat = "EEEE, d 'de' MMMM"
+        let raw = formatter.string(from: dia.date)
+        return raw.prefix(1).uppercased() + raw.dropFirst()
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(dateTitle)
+                            .font(.baloo2ExtraBold(21))
+                        Text("\(totalML) mL de \(metaDiariaML) mL da meta")
+                            .font(.nunitoExtraBold(13))
+                            .foregroundStyle(atingiuMeta ? calendarBlue : .secondary)
+                    }
+
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Consumo ao longo do dia")
+                            .font(.nunitoExtraBold(12.5))
+                            .foregroundStyle(.secondary)
+
+                        Chart {
+                            ForEach(intakes) { entry in
+                                BarMark(
+                                    x: .value("Hora", entry.timeLabel),
+                                    y: .value("mL", entry.ml)
+                                )
+                                .foregroundStyle(calendarBlue)
+                                .cornerRadius(4)
+                            }
+                        }
+                        .frame(height: 200)
+                    }
+
+                    intakeList
+                }
+                .padding(20)
+            }
+            .appScreenBackground()
+            .navigationTitle("Detalhe do dia")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Fechar") { dismiss() }
+                }
+            }
+        }
+    }
+
+    private var intakeList: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Registros do dia")
+                .font(.nunitoExtraBold(12.5))
+                .foregroundStyle(.secondary)
+
+            if intakes.isEmpty {
+                Text("Nenhum registro — todos foram apagados.")
+                    .font(.nunitoBold(12.5))
+                    .foregroundStyle(.secondary)
+                    .padding(.vertical, 12)
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(intakes) { intake in
+                        IntakeRow(intake: intake) { deleteIntake(intake) }
+                        if intake.id != intakes.last?.id {
+                            Divider()
+                        }
+                    }
+                }
+                .padding(.horizontal, 14)
+                .background(Color(.tertiarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
+            }
+        }
+    }
+
+    private func deleteIntake(_ intake: MockIntake) {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            intakes.removeAll { $0.id == intake.id }
+        }
+    }
+}
+
+/// Uma linha de registro no sheet de detalhe do dia, com botão de apagar —
+/// para o usuário remover um consumo lançado errado.
+private struct IntakeRow: View {
+    let intake: MockIntake
+    let onDelete: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "drop.fill")
+                .font(.footnote)
+                .foregroundStyle(calendarBlue)
+                .frame(width: 30, height: 30)
+                .background(calendarBlue.opacity(0.12), in: Circle())
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(intake.timeLabel)
+                    .font(.nunitoExtraBold(13))
+                Text("\(intake.ml) mL")
+                    .font(.nunitoBold(12.5))
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            Button(role: .destructive, action: onDelete) {
+                Image(systemName: "trash")
+                    .foregroundStyle(.red)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Apagar registro das \(intake.timeLabel)")
+        }
+        .padding(.vertical, 10)
     }
 }
 
