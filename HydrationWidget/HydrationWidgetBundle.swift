@@ -7,6 +7,6 @@ struct HydrationWidgetBundle: WidgetBundle {
         HydrationLiveActivity()
         GlassControl()
         BottleControl()
-        GallonControl()
+        GoleControl()
     }
 }

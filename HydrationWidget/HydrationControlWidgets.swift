@@ -32,14 +32,14 @@ struct BottleControl: ControlWidget {
     }
 }
 
-struct GallonControl: ControlWidget {
+struct GoleControl: ControlWidget {
     var body: some ControlWidgetConfiguration {
-        StaticControlConfiguration(kind: "com.hidratapoc.control.gallon") {
-            ControlWidgetButton(action: LogIntakeIntent(amountML: 1000)) {
-                Label("Galão", systemImage: "cylinder.fill")
+        StaticControlConfiguration(kind: "com.hidratapoc.control.gole") {
+            ControlWidgetButton(action: LogIntakeIntent(amountML: 40)) {
+                Label("Gole", systemImage: "drop.fill")
             }
         }
-        .displayName("Galão de Água")
-        .description("Registra 1000 mL sem abrir o app")
+        .displayName("Gole de Água")
+        .description("Registra 40 mL sem abrir o app")
     }
 }

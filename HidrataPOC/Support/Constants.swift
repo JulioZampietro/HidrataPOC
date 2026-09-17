@@ -45,19 +45,19 @@ enum Constants {
     enum NotificationAction {
         static let glass = "INTAKE_GLASS"
         static let bottle = "INTAKE_BOTTLE"
-        static let gallon = "INTAKE_GALLON"
+        static let gole = "INTAKE_GOLE"
         static let snooze = "SNOOZE"
     }
 
     enum IntakePreset {
-        case glass, bottle, gallon
+        case glass, bottle, gole
         case custom(volumeML: Int)
 
         var volumeML: Int {
             switch self {
             case .glass: return 250
             case .bottle: return 500
-            case .gallon: return 1000
+            case .gole: return 40
             case .custom(let volumeML): return volumeML
             }
         }
@@ -66,7 +66,7 @@ enum Constants {
             switch self {
             case .glass: return "copo"
             case .bottle: return "garrafa"
-            case .gallon: return "galao"
+            case .gole: return "gole"
             case .custom: return "personalizado"
             }
         }
@@ -75,7 +75,7 @@ enum Constants {
             switch self {
             case .glass: return "Copo"
             case .bottle: return "Garrafa"
-            case .gallon: return "Galão"
+            case .gole: return "Gole"
             case .custom: return "Personalizado"
             }
         }
@@ -87,6 +87,7 @@ enum Constants {
             switch volumeML {
             case Constants.IntakePreset.glass.volumeML: return .glass
             case Constants.IntakePreset.bottle.volumeML: return .bottle
+            case Constants.IntakePreset.gole.volumeML: return .gole
             default: return .custom(volumeML: volumeML)
             }
         }

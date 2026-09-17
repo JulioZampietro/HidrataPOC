@@ -38,8 +38,8 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
             await scheduler.recordQuickAction(eventID: eventID, preset: .glass, context: context)
         case Constants.NotificationAction.bottle:
             await scheduler.recordQuickAction(eventID: eventID, preset: .bottle, context: context)
-        case Constants.NotificationAction.gallon:
-            await scheduler.recordQuickAction(eventID: eventID, preset: .gallon, context: context)
+        case Constants.NotificationAction.gole:
+            await scheduler.recordQuickAction(eventID: eventID, preset: .gole, context: context)
         case Constants.NotificationAction.snooze:
             await scheduler.resolveInteraction(eventID: eventID, status: .soneca, context: context)
             await scheduler.scheduleSnoozeSlot()
