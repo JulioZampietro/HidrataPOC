@@ -19,7 +19,7 @@ final class UserProfile {
     var metaDiariaML: Int
 
     /// Volume (mL) for the one user-editable quick-log button, alongside the fixed
-    /// Copo/Garrafa/Galão presets. Defaulted for lightweight migration on existing rows.
+    /// Gole/Copo/Garrafa presets. Defaulted for lightweight migration on existing rows.
     var customIntakeML: Int = 300
 
     var criadoEm: Date

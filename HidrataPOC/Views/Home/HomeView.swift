@@ -248,7 +248,7 @@ struct HomeView: View {
         switch preset {
         case .glass: return "waterbottle"
         case .bottle: return "waterbottle.fill"
-        case .gallon: return "cylinder.fill"
+        case .gole: return "drop.fill"
         case .custom: return "plus"
         }
     }
