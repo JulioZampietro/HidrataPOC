@@ -94,7 +94,7 @@ struct AppTabBar: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 8)
-        .background(.white, in: Capsule())
+        .background(Color(.secondarySystemBackground), in: Capsule())
         .shadow(color: .black.opacity(0.08), radius: 16, x: 0, y: 4)
         .padding(.horizontal, 20)
         .padding(.bottom, 24)

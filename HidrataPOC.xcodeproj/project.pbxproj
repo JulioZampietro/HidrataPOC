@@ -66,6 +66,7 @@
 		58290BE45010DB3437347604 /* Nunito-ExtraBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 1058413E9DCECDC55E8ADE42 /* Nunito-ExtraBold.ttf */; };
 		06C46879FF254B37AC86F09C /* Nunito-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 87F6CEC61D0EB34F2C4E96D3 /* Nunito-Bold.ttf */; };
 		FF11223344556677889900FF /* AppFont.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD11223344556677889900DD /* AppFont.swift */; };
+		F14DB73464BA11FAAA80A200 /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00E817B37463672B4A760387 /* AppTheme.swift */; };
 		GG11223344556677889900GG /* Nunito.ttf in Resources */ = {isa = PBXBuildFile; fileRef = EE11223344556677889900EE /* Nunito.ttf */; };
 
 /* End PBXBuildFile section */
@@ -179,6 +180,7 @@
 		1058413E9DCECDC55E8ADE42 /* Nunito-ExtraBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Nunito-ExtraBold.ttf"; sourceTree = "<group>"; };
 		87F6CEC61D0EB34F2C4E96D3 /* Nunito-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Nunito-Bold.ttf"; sourceTree = "<group>"; };
 		DD11223344556677889900DD /* AppFont.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppFont.swift; sourceTree = "<group>"; };
+		00E817B37463672B4A760387 /* AppTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTheme.swift; sourceTree = "<group>"; };
 		EE11223344556677889900EE /* Nunito.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Nunito.ttf; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -206,6 +208,7 @@
 			isa = PBXGroup;
 			children = (
 				DD11223344556677889900DD /* AppFont.swift */,
+				00E817B37463672B4A760387 /* AppTheme.swift */,
 				95F0050D87C688CD6A361091 /* Constants.swift */,
 				E0CB3E3BA72A80075634FCBB /* HidrataPOC.entitlements */,
 				HH11223344556677889900HH /* Fonts */,
@@ -595,6 +598,7 @@
 				267A40DE9CF3539833AEA14D /* HomeView.swift in Sources */,
 				BB11223344556677889900BB /* HistoricoView.swift in Sources */,
 				FF11223344556677889900FF /* AppFont.swift in Sources */,
+				F14DB73464BA11FAAA80A200 /* AppTheme.swift in Sources */,
 				1E0E8D58D49CFBE72BD691A5 /* HydrationChartView.swift in Sources */,
 				ED310A2AD7021F64EFBB3C64 /* HydrationMath.swift in Sources */,
 				8DE7FD7B97BBF583ACF51FDF /* IntakeLog.swift in Sources */,

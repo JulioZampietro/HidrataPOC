@@ -53,7 +53,6 @@ enum HistoricoMockData {
 }
 
 struct HistoricoView: View {
-    @Environment(\.colorScheme) private var colorScheme
     @State private var displayedMonth = Calendar.current.dateInterval(of: .month, for: .now)?.start ?? .now
 
     // Mock: sequência de dias seguidos batendo a meta e dias perdidos no total.
@@ -107,17 +106,9 @@ struct HistoricoView: View {
                 .padding(.horizontal)
                 .padding(.top, 8)
             }
-            .background(screenBackground.ignoresSafeArea())
+            .appScreenBackground()
             .navigationBarHidden(true)
         }
-    }
-
-    /// Tela hardcoded pra um único tom não fica certa nos dois modos — aqui
-    /// definimos explicitamente o tom de fundo para light e dark mode.
-    private var screenBackground: Color {
-        colorScheme == .dark
-            ? Color(red: 0.06, green: 0.08, blue: 0.13)
-            : Color(red: 0.90, green: 0.94, blue: 0.98)
     }
 
     private var topBar: some View {
@@ -345,8 +336,15 @@ private struct DayCell: View {
         Text("\(dayNumber)").font(.baloo2ExtraBold(14))
     }
 
+    /// No dark mode o anel do dia atual usa o mesmo azul escuro do fundo da
+    /// tela (em vez de branco/azul de marca), pedido explícito do time — no
+    /// light mode o comportamento original (branco quando bateu a meta,
+    /// azul de marca quando não) continua igual.
     private var todayRingColor: Color {
-        dia.bateuMeta ? .white : calendarBlue
+        guard colorScheme == .dark else {
+            return dia.bateuMeta ? .white : calendarBlue
+        }
+        return AppTheme.screenBackgroundDark
     }
 
     private var fillTextColor: Color { .white }

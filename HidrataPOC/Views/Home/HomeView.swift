@@ -2,11 +2,11 @@ import SwiftData
 import SwiftUI
 
 private let accentBlue = Color(red: 0.286, green: 0.498, blue: 0.714)
-private let appBackground = Color(red: 0.906, green: 0.937, blue: 0.961)
 
 struct HomeView: View {
     let profile: UserProfile
 
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.modelContext) private var modelContext
     @Query private var allLogs: [IntakeLog]
     @State private var isLogging = false
@@ -55,8 +55,8 @@ struct HomeView: View {
         ZStack {
             LinearGradient(
                 stops: [
-                    .init(color: appBackground, location: 0.0),
-                    .init(color: appBackground, location: 0.7),
+                    .init(color: AppTheme.screenBackground(for: colorScheme), location: 0.0),
+                    .init(color: AppTheme.screenBackground(for: colorScheme), location: 0.7),
                     .init(color: .orange.opacity(0.4), location: 1.0),
                 ],
                 startPoint: .top,
@@ -116,7 +116,7 @@ struct HomeView: View {
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(accentBlue)
                     .frame(width: 40, height: 40)
-                    .background(.white, in: Circle())
+                    .background(Color(.secondarySystemBackground), in: Circle())
             }
 
             Spacer()
@@ -133,7 +133,7 @@ struct HomeView: View {
             .foregroundStyle(.primary)
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
-            .background(.white, in: Capsule())
+            .background(Color(.secondarySystemBackground), in: Capsule())
         }
     }
 
@@ -231,7 +231,7 @@ struct HomeView: View {
                 Image(systemName: "pencil.circle.fill")
                     .symbolRenderingMode(.hierarchical)
                     .font(.title3)
-                    .background(Circle().fill(.white))
+                    .background(Circle().fill(Color(.secondarySystemBackground)))
             }
             .padding(6)
             .accessibilityLabel("Editar volume do botão personalizado")
@@ -307,7 +307,7 @@ struct IntakeCardContent: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
-        .background(.white, in: RoundedRectangle(cornerRadius: 18))
+        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 18))
         .shadow(color: .black.opacity(0.07), radius: 6, x: 0, y: 2)
     }
 }
