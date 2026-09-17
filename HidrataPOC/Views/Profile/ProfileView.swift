@@ -306,14 +306,16 @@ struct ProfileView: View {
             .padding(.vertical, 14)
 
             if !isLast {
-                Path { path in
-                    path.move(to: CGPoint(x: 0, y: 0))
-                    path.addLine(to: CGPoint(x: 10000, y: 0))
+                GeometryReader { geo in
+                    Path { path in
+                        path.move(to: CGPoint(x: 0, y: 0))
+                        path.addLine(to: CGPoint(x: geo.size.width, y: 0))
+                    }
+                    .stroke(
+                        Color(red: 0.75, green: 0.78, blue: 0.82).opacity(0.6),
+                        style: StrokeStyle(lineWidth: 1, dash: [6, 4])
+                    )
                 }
-                .stroke(
-                    Color(red: 0.75, green: 0.78, blue: 0.82).opacity(0.6),
-                    style: StrokeStyle(lineWidth: 1, dash: [6, 4])
-                )
                 .frame(height: 1)
                 .padding(.horizontal, 18)
             }
