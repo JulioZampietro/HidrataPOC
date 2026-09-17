@@ -44,12 +44,12 @@ final class NotificationScheduler {
     func registerCategories() {
         let glass = UNNotificationAction(identifier: Constants.NotificationAction.glass, title: Constants.IntakePreset.glass.label, options: [])
         let bottle = UNNotificationAction(identifier: Constants.NotificationAction.bottle, title: Constants.IntakePreset.bottle.label, options: [])
-        let gallon = UNNotificationAction(identifier: Constants.NotificationAction.gallon, title: Constants.IntakePreset.gallon.label, options: [])
+        let gole = UNNotificationAction(identifier: Constants.NotificationAction.gole, title: Constants.IntakePreset.gole.label, options: [])
         let snooze = UNNotificationAction(identifier: Constants.NotificationAction.snooze, title: "Lembrar mais tarde", options: [])
 
         let category = UNNotificationCategory(
             identifier: Constants.NotificationCategory.hydrationReminder,
-            actions: [glass, bottle, gallon, snooze],
+            actions: [glass, bottle, gole, snooze],
             intentIdentifiers: [],
             options: [.customDismissAction]
         )
@@ -183,7 +183,7 @@ final class NotificationScheduler {
         try? context.save()
     }
 
-    /// Quick-action taps (Copo/Garrafa/Galão) both log the intake and resolve the
+    /// Quick-action taps (Gole/Copo/Garrafa) both log the intake and resolve the
     /// notification's outcome in one step, so `tempoAteAgirMin` reflects the near-zero
     /// gap between the reminder firing and the tester tapping it.
     func recordQuickAction(eventID: UUID, preset: Constants.IntakePreset, context: ModelContext) async {

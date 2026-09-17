@@ -21,6 +21,31 @@ enum DrinkQuantity: Int, AppEnum, CaseIterable {
 
 // MARK: - Intents
 
+struct LogGoleIntent: AppIntent {
+    static var title: LocalizedStringResource { "Registrar Gole" }
+    static var openAppWhenRun: Bool { false }
+
+    @Parameter(title: "Quantidade", default: DrinkQuantity.one)
+    var quantity: DrinkQuantity
+
+    static var parameterSummary: some ParameterSummary {
+        Summary("Registrar \(\.$quantity) gole(s)")
+    }
+
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        let q = quantity.value
+        let ml = q * Constants.IntakePreset.gole.volumeML
+        let total = await Self.record(count: q)
+        return .result(dialog: "\(q) gole\(q > 1 ? "s" : "") registrado\(q > 1 ? "s" : "")! +\(ml) mL. Total hoje: \(total) mL.")
+    }
+
+    @MainActor
+    private static func record(count: Int) async -> Int {
+        await logIntakes(count: count, preset: .gole)
+        return await totalConsumedToday()
+    }
+}
+
 struct LogGlassIntent: AppIntent {
     static var title: LocalizedStringResource { "Registrar Copo" }
     static var openAppWhenRun: Bool { false }
@@ -71,35 +96,23 @@ struct LogBottleIntent: AppIntent {
     }
 }
 
-struct LogGallonIntent: AppIntent {
-    static var title: LocalizedStringResource { "Registrar Galão" }
-    static var openAppWhenRun: Bool { false }
-
-    @Parameter(title: "Quantidade", default: DrinkQuantity.one)
-    var quantity: DrinkQuantity
-
-    static var parameterSummary: some ParameterSummary {
-        Summary("Registrar \(\.$quantity) galão(ões)")
-    }
-
-    func perform() async throws -> some IntentResult & ProvidesDialog {
-        let q = quantity.value
-        let ml = q * Constants.IntakePreset.gallon.volumeML
-        let total = await Self.record(count: q, preset: .gallon)
-        return .result(dialog: "\(q) galão\(q > 1 ? "ões" : "") registrado\(q > 1 ? "s" : "")! +\(ml) mL. Total hoje: \(total) mL.")
-    }
-
-    @MainActor
-    private static func record(count: Int, preset: Constants.IntakePreset) async -> Int {
-        await logIntakes(count: count, preset: preset)
-        return await totalConsumedToday()
-    }
-}
-
 // MARK: - Shortcuts Siri
 
 struct HidrataPOCShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
+        AppShortcut(
+            intent: LogGoleIntent(),
+            phrases: [
+                "Bebi \(\.$quantity) goles de \(.applicationName)",
+                "Tomei \(\.$quantity) goles de \(.applicationName)",
+                "Dei \(\.$quantity) goles de \(.applicationName)",
+                "Bebi um gole de \(.applicationName)",
+                "Tomei um gole de \(.applicationName)",
+                "Dei um gole de \(.applicationName)",
+            ],
+            shortTitle: "Registrar Gole",
+            systemImageName: "drop.fill"
+        )
         AppShortcut(
             intent: LogGlassIntent(),
             phrases: [
@@ -107,6 +120,10 @@ struct HidrataPOCShortcuts: AppShortcutsProvider {
                 "Tomei \(\.$quantity) copos de \(.applicationName)",
                 "Bebi um copo de \(.applicationName)",
                 "Tomei um copo de \(.applicationName)",
+                "Acabei de tomar um copo de \(.applicationName)",
+                "Registra um copo no \(.applicationName)",
+                "Bebi um copo d'água no \(.applicationName)",
+                "Tomei um copo d'água no \(.applicationName)",
             ],
             shortTitle: "Registrar Copo",
             systemImageName: "cup.and.saucer.fill"
@@ -118,20 +135,13 @@ struct HidrataPOCShortcuts: AppShortcutsProvider {
                 "Tomei \(\.$quantity) garrafas de \(.applicationName)",
                 "Bebi uma garrafa de \(.applicationName)",
                 "Tomei uma garrafa de \(.applicationName)",
+                "Acabei minha garrafa no \(.applicationName)",
+                "Terminei uma garrafa de \(.applicationName)",
+                "Registra uma garrafa no \(.applicationName)",
+                "Bebi uma garrafa d'água no \(.applicationName)",
             ],
             shortTitle: "Registrar Garrafa",
             systemImageName: "waterbottle.fill"
-        )
-        AppShortcut(
-            intent: LogGallonIntent(),
-            phrases: [
-                "Bebi \(\.$quantity) galões de \(.applicationName)",
-                "Tomei \(\.$quantity) galões de \(.applicationName)",
-                "Bebi um galão de \(.applicationName)",
-                "Tomei um galão de \(.applicationName)",
-            ],
-            shortTitle: "Registrar Galão",
-            systemImageName: "cylinder.fill"
         )
     }
 }
