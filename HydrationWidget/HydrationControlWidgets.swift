@@ -4,14 +4,16 @@ import WidgetKit
 // MARK: - Control Center controls (Botão de Ação / iOS 18+)
 //
 // Each ControlWidget shows up in Settings → Action Button → Control Center and
-// in the Control Center customisation screen. Tapping one fires LogIntakeIntent,
-// which writes directly to the shared SwiftData store via the App Group — exactly
-// the same path as the Live Activity quick-log buttons.
+// in the Control Center customisation screen. Tapping one fires
+// LogIntakeControlIntent, which writes directly to the shared SwiftData store via
+// the App Group — the same path as the Live Activity quick-log buttons, just
+// tagged with a different `source` ("actionButton" vs "liveActivity") so the two
+// surfaces are distinguishable in the dataset.
 
 struct GlassControl: ControlWidget {
     var body: some ControlWidgetConfiguration {
         StaticControlConfiguration(kind: "com.hidratapoc.control.glass") {
-            ControlWidgetButton(action: LogIntakeIntent(amountML: 250)) {
+            ControlWidgetButton(action: LogIntakeControlIntent(amountML: 250)) {
                 Label("Copo", systemImage: "cup.and.saucer.fill")
             }
         }
@@ -23,7 +25,7 @@ struct GlassControl: ControlWidget {
 struct BottleControl: ControlWidget {
     var body: some ControlWidgetConfiguration {
         StaticControlConfiguration(kind: "com.hidratapoc.control.bottle") {
-            ControlWidgetButton(action: LogIntakeIntent(amountML: 500)) {
+            ControlWidgetButton(action: LogIntakeControlIntent(amountML: 500)) {
                 Label("Garrafa", systemImage: "waterbottle.fill")
             }
         }
@@ -35,7 +37,7 @@ struct BottleControl: ControlWidget {
 struct GoleControl: ControlWidget {
     var body: some ControlWidgetConfiguration {
         StaticControlConfiguration(kind: "com.hidratapoc.control.gole") {
-            ControlWidgetButton(action: LogIntakeIntent(amountML: 40)) {
+            ControlWidgetButton(action: LogIntakeControlIntent(amountML: 40)) {
                 Label("Gole", systemImage: "drop.fill")
             }
         }

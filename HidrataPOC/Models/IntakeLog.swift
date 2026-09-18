@@ -13,8 +13,10 @@ final class IntakeLog {
     var notificationEventID: String?
 
     /// Which surface logged this intake — "app" (in-app buttons, notification quick
-    /// actions) or "liveActivity" (Lock Screen / Dynamic Island). Orthogonal to
-    /// `origem`, which instead says whether a notification prompted the drink.
+    /// actions), "siri" (Siri/Shortcuts phrase), "liveActivity" (Lock Screen /
+    /// Dynamic Island quick-log buttons), or "actionButton" (Control Center /
+    /// hardware Action Button controls). Orthogonal to `origem`, which instead says
+    /// whether a notification prompted the drink.
     var source: String = "app"
 
     /// Weather at the moment of logging — reused from a recent cached reading (see

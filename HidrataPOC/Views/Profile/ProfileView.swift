@@ -9,6 +9,7 @@ struct ProfileView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.modelContext) private var modelContext
     @State private var isEditing = false
+    @State private var isEditingGoal = false
     @State private var showGoalExplainer = false
     @State private var showReminders = false
     @State private var showLiveActivities = false
@@ -57,6 +58,9 @@ struct ProfileView: View {
         }
         .sheet(isPresented: $showGoalExplainer) {
             GoalExplainerView(goalML: profile.metaDiariaML)
+        }
+        .sheet(isPresented: $isEditingGoal) {
+            EditGoalView(initialValueML: profile.metaDiariaML, onSave: saveGoal)
         }
     }
 
@@ -113,7 +117,7 @@ struct ProfileView: View {
                 .buttonStyle(.plain)
 
                 Button {
-                    isEditing = true
+                    isEditingGoal = true
                 } label: {
                     Text("Editar")
                         .font(.custom("Nunito", size: 15).weight(.semibold))
@@ -335,6 +339,17 @@ struct ProfileView: View {
         profile.syncStatus = .pending
         try? modelContext.save()
         isEditing = false
+        Task {
+            await CloudKitSyncService.shared.push(profile)
+            try? modelContext.save()
+        }
+    }
+
+    private func saveGoal(_ newValue: Int) {
+        profile.metaDiariaML = newValue
+        profile.atualizadoEm = .now
+        profile.syncStatus = .pending
+        try? modelContext.save()
         Task {
             await CloudKitSyncService.shared.push(profile)
             try? modelContext.save()

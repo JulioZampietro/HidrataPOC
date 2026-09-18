@@ -44,7 +44,7 @@ struct RootView: View {
             Group {
                 switch selectedTab {
                 case 0: HomeView(profile: profile)
-                case 1: HistoricoView()
+                case 1: HistoricoView(profile: profile)
                 default: ProfileView(profile: profile)
                 }
             }

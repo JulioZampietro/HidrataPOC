@@ -34,21 +34,7 @@ struct HomeView: View {
     }
 
     private var streak: Int {
-        let cal = Calendar.current
-        var count = 0
-        var checkDate = cal.startOfDay(for: .now)
-        for _ in 0..<365 {
-            let dayTotal = allLogs
-                .filter { $0.userID == profile.userID && cal.isDate($0.timestamp, inSameDayAs: checkDate) }
-                .reduce(0) { $0 + $1.volumeML }
-            if dayTotal >= profile.metaDiariaML {
-                count += 1
-                checkDate = cal.date(byAdding: .day, value: -1, to: checkDate) ?? checkDate
-            } else {
-                break
-            }
-        }
-        return count
+        HydrationMath.currentStreak(allLogs.filter { $0.userID == profile.userID }, metaDiariaML: profile.metaDiariaML)
     }
 
     var body: some View {

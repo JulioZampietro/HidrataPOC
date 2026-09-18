@@ -33,4 +33,20 @@ enum HydrationMath {
             return (day, total)
         }
     }
+
+    /// Consecutive days, walking backward from today, whose total intake met or
+    /// exceeded `metaDiariaML` — breaks at the first day (today included) that fell
+    /// short. `logs` should already be filtered to the target user.
+    static func currentStreak(_ logs: [IntakeLog], metaDiariaML: Int, calendar: Calendar = .current, now: Date = .now, maxDays: Int = 365) -> Int {
+        guard metaDiariaML > 0 else { return 0 }
+        var count = 0
+        var checkDate = calendar.startOfDay(for: now)
+        for _ in 0..<maxDays {
+            guard totalML(logs, on: checkDate, calendar: calendar) >= metaDiariaML else { break }
+            count += 1
+            guard let previous = calendar.date(byAdding: .day, value: -1, to: checkDate) else { break }
+            checkDate = previous
+        }
+        return count
+    }
 }
