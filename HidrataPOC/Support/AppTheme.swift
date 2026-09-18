@@ -11,6 +11,19 @@ enum AppTheme {
     static func screenBackground(for colorScheme: ColorScheme) -> Color {
         colorScheme == .dark ? screenBackgroundDark : screenBackgroundLight
     }
+
+    /// Retorna o nome do asset do mascote correspondente ao progresso diário.
+    /// 0–25% → mascote5, 25–50% → mascote4, 50–75% → mascote3,
+    /// 75–<100% → mascote2, 100% → mascote1 (meta batida).
+    static func mascotImageName(for progress: Double) -> String {
+        switch progress {
+        case ..<0.25: return "mascote5"
+        case ..<0.50: return "mascote4"
+        case ..<0.75: return "mascote3"
+        case ..<1.0:  return "mascote2"
+        default:      return "mascote1"
+        }
+    }
 }
 
 private struct AppScreenBackgroundModifier: ViewModifier {

@@ -6,6 +6,9 @@ import SwiftUI
 /// atual e contador de metas batidas).
 private let calendarBlue = Color(red: 0x3E / 255.0, green: 0x8F / 255.0, blue: 0xC7 / 255.0)
 
+/// Mesmo azul de accent da HomeView — usado na topBar para manter os botões idênticos.
+private let accentBlue = Color(red: 0.286, green: 0.498, blue: 0.714)
+
 private extension Font {
     static func baloo2ExtraBold(_ size: CGFloat) -> Font {
         .custom("Baloo2-ExtraBold", size: size)
@@ -109,6 +112,12 @@ struct HistoricoView: View {
         HydrationMath.currentStreak(userLogs, metaDiariaML: profile.metaDiariaML, calendar: calendar)
     }
 
+    private var todayProgress: Double {
+        guard profile.metaDiariaML > 0 else { return 0 }
+        let total = HydrationMath.totalML(userLogs, on: .now, calendar: calendar)
+        return min(1, Double(total) / Double(profile.metaDiariaML))
+    }
+
     private var monthTitle: String {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "pt_BR")
@@ -146,11 +155,10 @@ struct HistoricoView: View {
                 // Placeholder: abrir ajuda/tutorial do histórico no futuro.
             } label: {
                 Image(systemName: "questionmark")
-                    .font(.headline)
-                    .foregroundStyle(.blue)
-                    .frame(width: 44, height: 44)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(accentBlue)
+                    .frame(width: 40, height: 40)
                     .background(Color(.secondarySystemBackground), in: Circle())
-                    .shadow(color: .black.opacity(0.06), radius: 4, y: 2)
             }
             .accessibilityLabel("Ajuda")
 
@@ -158,14 +166,17 @@ struct HistoricoView: View {
 
             HStack(spacing: 6) {
                 Image(systemName: "drop.fill")
-                    .foregroundStyle(.blue)
-                Text("\(streakDias)").font(.baloo2ExtraBold(20))
-                    + Text(" dias").font(.nunitoBold(12.5))
+                    .font(.custom("Nunito", size: 12))
+                    .foregroundStyle(accentBlue)
+                Text("\(streakDias)")
+                    .font(.custom("Nunito", size: 15).bold())
+                Text("dias")
+                    .font(.custom("Nunito", size: 15))
             }
+            .foregroundStyle(.primary)
             .padding(.horizontal, 14)
-            .padding(.vertical, 10)
+            .padding(.vertical, 8)
             .background(Color(.secondarySystemBackground), in: Capsule())
-            .shadow(color: .black.opacity(0.06), radius: 4, y: 2)
         }
     }
 
@@ -195,32 +206,12 @@ struct HistoricoView: View {
             .shadow(color: .black.opacity(0.06), radius: 4, y: 2)
     }
 
-    /// Placeholder do mascote — design final ainda não definido pelo time.
     private var mascotPlaceholder: some View {
-        ZStack {
-            Ellipse()
-                .fill(Color.blue.opacity(0.08))
-                .frame(width: 190, height: 105)
-
-            Circle()
-                .fill(
-                    LinearGradient(
-                        colors: [Color.brown.opacity(0.7), Color.brown],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-                .frame(width: 120, height: 120)
-                .overlay(
-                    // ".inverse" fixa o desenho preenchido — sem ela, o sistema
-                    // troca entre contorno/preenchido dependendo do light/dark mode.
-                    Image(systemName: "face.smiling.inverse")
-                        .font(.system(size: 46))
-                        .foregroundStyle(.white)
-                )
-                .shadow(color: .black.opacity(0.12), radius: 8, y: 4)
-        }
-        .frame(maxWidth: .infinity)
+        Image(AppTheme.mascotImageName(for: todayProgress))
+            .resizable()
+            .scaledToFit()
+            .frame(height: 190)
+            .frame(maxWidth: .infinity)
     }
 
     /// Card com duas "páginas": o calendário do mês e um gráfico dos últimos

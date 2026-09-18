@@ -8,6 +8,7 @@ struct ProfileView: View {
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.modelContext) private var modelContext
+    @Query private var allLogs: [IntakeLog]
     @State private var isEditing = false
     @State private var isEditingGoal = false
     @State private var showGoalExplainer = false
@@ -15,6 +16,13 @@ struct ProfileView: View {
     @State private var showLiveActivities = false
     @State private var showSiriTutorial = false
     @State private var showHealthConnect = false
+
+    private var todayProgress: Double {
+        guard profile.metaDiariaML > 0 else { return 0 }
+        let userLogs = allLogs.filter { $0.userID == profile.userID }
+        let total = HydrationMath.totalML(userLogs, on: .now)
+        return min(1, Double(total) / Double(profile.metaDiariaML))
+    }
 
     private var generoDisplay: String {
         let genero = Genero(rawValue: profile.genero ?? Genero.naoInformar.rawValue) ?? .naoInformar
@@ -86,14 +94,10 @@ struct ProfileView: View {
 
                 Spacer()
 
-                // Monster mascot placeholder
-                ZStack {
-                    Circle()
-                        .fill(Color.orange.opacity(0.15))
-                        .frame(width: 72, height: 72)
-                    Text("🪨")
-                        .font(.system(size: 40))
-                }
+                Image(AppTheme.mascotImageName(for: todayProgress))
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 72, height: 72)
             }
 
             HStack(spacing: 10) {
