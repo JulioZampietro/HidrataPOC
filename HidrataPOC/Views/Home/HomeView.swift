@@ -124,9 +124,9 @@ struct HomeView: View {
     }
 
     private var mascotPlaceholder: some View {
-        Circle()
-            .fill(Color.orange.opacity(0.4))
-            .frame(width: 160, height: 160)
+        Image(AppTheme.mascotImageName(for: progress))
+            .resizable()
+            .scaledToFit()
             .frame(height: 190)
     }
 
