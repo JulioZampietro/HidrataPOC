@@ -158,6 +158,24 @@ final class CloudKitSyncService {
         }
     }
 
+    func push(_ event: UIInteractionEvent) async {
+        let record = existingOrNewRecord(type: "UIInteractionEvent", id: event.id, systemFields: event.ckSystemFields)
+        record["userID"] = event.userID
+        record["timestamp"] = event.timestamp
+        record["eventName"] = event.eventName
+        record["screen"] = event.screen
+        record["metadataJSON"] = event.metadataJSON
+
+        do {
+            let saved = try await container.publicCloudDatabase.save(record)
+            event.ckSystemFields = archivedSystemFields(saved)
+            event.syncStatus = .synced
+        } catch {
+            logger.error("Failed to push UIInteractionEvent \(event.id, privacy: .public): \(String(describing: error), privacy: .public)")
+            event.syncStatus = .failed
+        }
+    }
+
     // MARK: - Deletion
 
     /// Deletes one record from the public database — used when a tester removes an
@@ -239,6 +257,11 @@ final class CloudKitSyncService {
         }
         if let events = try? context.fetch(FetchDescriptor<NotificationEvent>()) {
             for event in events where event.syncStatus != .synced {
+                await push(event)
+            }
+        }
+        if let interactionEvents = try? context.fetch(FetchDescriptor<UIInteractionEvent>()) {
+            for event in interactionEvents where event.syncStatus != .synced {
                 await push(event)
             }
         }
