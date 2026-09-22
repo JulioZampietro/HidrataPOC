@@ -16,6 +16,9 @@ struct ProfileView: View {
     @State private var showLiveActivities = false
     @State private var showSiriTutorial = false
     @State private var showHealthConnect = false
+    #if DEBUG
+    @State private var isSendingDebugNotification = false
+    #endif
 
     private var todayProgress: Double {
         guard profile.metaDiariaML > 0 else { return 0 }
@@ -47,6 +50,9 @@ struct ProfileView: View {
                 siriRow
                 healthRow
                 personalDataSection
+                #if DEBUG
+                debugNotificationButton
+                #endif
             }
             .padding(.horizontal, 20)
             .padding(.top, 16)
@@ -335,6 +341,33 @@ struct ProfileView: View {
             }
         }
     }
+
+    // MARK: - Debug
+
+    #if DEBUG
+    private var debugNotificationButton: some View {
+        Button {
+            guard !isSendingDebugNotification else { return }
+            isSendingDebugNotification = true
+            Task {
+                await NotificationScheduler.shared.sendDebugRandomNotification(context: modelContext)
+                isSendingDebugNotification = false
+            }
+        } label: {
+            HStack {
+                Image(systemName: "ladybug.fill")
+                Text(isSendingDebugNotification ? "Enviando..." : "[DEBUG] Enviar notificação aleatória")
+                    .font(.custom("Nunito", size: 15).weight(.semibold))
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .foregroundStyle(.white)
+            .background(Color.orange, in: RoundedRectangle(cornerRadius: 16))
+        }
+        .buttonStyle(.plain)
+        .disabled(isSendingDebugNotification)
+    }
+    #endif
 
     // MARK: - Save
 

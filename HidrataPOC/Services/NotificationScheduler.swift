@@ -1,5 +1,7 @@
 import Foundation
+import Intents
 import SwiftData
+import UIKit
 import UserNotifications
 
 /// A slot the app has committed to firing a local notification at, but hasn't yet
@@ -67,7 +69,7 @@ final class NotificationScheduler {
         // No point scheduling reminders (or capturing context for them) before
         // onboarding has created a profile — there's no goal/timezone to reason about
         // yet, and `captureContext` would silently no-op without one.
-        guard (try? PersistenceController.context.fetch(FetchDescriptor<UserProfile>()))?.first != nil else { return }
+        guard let profile = (try? PersistenceController.context.fetch(FetchDescriptor<UserProfile>()))?.first else { return }
 
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: .now)
@@ -88,6 +90,10 @@ final class NotificationScheduler {
         let totalSeconds = windowEnd.timeIntervalSince(earliestAllowed)
         let strataLength = totalSeconds / Double(slotCount)
 
+        let targetUserID = profile.userID
+        let logs = (try? PersistenceController.context.fetch(FetchDescriptor<IntakeLog>(predicate: #Predicate { $0.userID == targetUserID }))) ?? []
+        let consumidoHoje = HydrationMath.totalML(logs, on: .now)
+
         var slots: [PendingSlot] = []
         for i in 0..<slotCount {
             let strataStart = earliestAllowed.addingTimeInterval(strataLength * Double(i))
@@ -98,7 +104,8 @@ final class NotificationScheduler {
                 id: slots[i].id,
                 firesAt: firesAt,
                 title: NotificationVariant.fallbackGeneric.title,
-                body: NotificationVariant.fallbackGeneric.body
+                body: NotificationVariant.fallbackGeneric.body,
+                sender: mascotSender(title: NotificationVariant.fallbackGeneric.title, consumidoHojeML: consumidoHoje, metaDiariaML: profile.metaDiariaML)
             )
         }
 
@@ -183,7 +190,8 @@ final class NotificationScheduler {
         // and there's nothing left to swap; the event still records which variant
         // *would* have been shown, so no data is lost.
         if firesAt > .now {
-            scheduleSystemNotification(id: id, firesAt: firesAt, title: variant.title, body: variant.body)
+            let sender = mascotSender(title: variant.title, consumidoHojeML: consumidoHoje, metaDiariaML: profile.metaDiariaML)
+            scheduleSystemNotification(id: id, firesAt: firesAt, title: variant.title, body: variant.body, sender: sender)
         }
     }
 
@@ -308,7 +316,8 @@ final class NotificationScheduler {
             id: slot.id,
             firesAt: firesAt,
             title: NotificationVariant.fallbackGeneric.title,
-            body: NotificationVariant.fallbackGeneric.body
+            body: NotificationVariant.fallbackGeneric.body,
+            sender: currentMascotSender(title: NotificationVariant.fallbackGeneric.title)
         )
     }
 
@@ -332,7 +341,7 @@ final class NotificationScheduler {
 
     // MARK: - System notification + local bookkeeping
 
-    private func scheduleSystemNotification(id: UUID, firesAt: Date, title: String, body: String) {
+    private func scheduleSystemNotification(id: UUID, firesAt: Date, title: String, body: String, sender: INPerson? = nil) {
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
@@ -340,11 +349,78 @@ final class NotificationScheduler {
         content.userInfo = ["eventID": id.uuidString]
         content.sound = .default
 
+        // Communication Notifications (requires the entitlement in
+        // HidrataPOC.entitlements): donating an `INSendMessageIntent` whose sender
+        // carries the mascot's photo makes the system render that photo as the leading
+        // avatar — with the app's own icon as a small badge next to it, à la
+        // Messages/WhatsApp — instead of the plain app icon. Falls back to the
+        // undecorated content if building the intent fails for any reason.
+        var finalContent: UNNotificationContent = content
+        if let sender {
+            let intent = INSendMessageIntent(
+                recipients: nil,
+                outgoingMessageType: .outgoingMessageText,
+                content: body,
+                speakableGroupName: nil,
+                conversationIdentifier: id.uuidString,
+                serviceName: nil,
+                sender: sender,
+                attachments: nil
+            )
+            finalContent = (try? content.updating(from: intent)) ?? content
+        }
+
         let components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute, .second], from: firesAt)
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
-        let request = UNNotificationRequest(identifier: id.uuidString, content: content, trigger: trigger)
+        let request = UNNotificationRequest(identifier: id.uuidString, content: finalContent, trigger: trigger)
         center.add(request)
     }
+
+    /// Builds the `INPerson` "sender" behind the mascot avatar treatment — its photo
+    /// is whichever mascot asset matches today's hydration progress (same
+    /// `AppTheme.mascotImageName` used on Home/Profile), and `title` (the persona
+    /// copy's own title, e.g. "Vai desidratar nesse calor?") doubles as the "contact
+    /// name" the system shows in bold, since these notifications already read as the
+    /// mascot needling the tester. Returns nil (silently) on any image-loading
+    /// failure, since falling back to a plain notification is better than not firing.
+    private func mascotSender(title: String, consumidoHojeML: Int, metaDiariaML: Int) -> INPerson? {
+        let progress = metaDiariaML > 0 ? min(1, Double(consumidoHojeML) / Double(metaDiariaML)) : 0
+        let imageName = AppTheme.mascotImageName(for: progress)
+        guard let image = UIImage(named: imageName), let data = image.pngData() else { return nil }
+
+        return INPerson(
+            personHandle: INPersonHandle(value: "hidratapoc.mascot", type: .unknown),
+            nameComponents: nil,
+            displayName: title,
+            image: INImage(imageData: data),
+            contactIdentifier: nil,
+            customIdentifier: "hidratapoc.mascot"
+        )
+    }
+
+    /// Same as `mascotSender(title:consumidoHojeML:metaDiariaML:)`, but fetches
+    /// whatever profile/intake data is on hand right now — used where the caller
+    /// doesn't already have a `ModelContext`/profile in scope (initial scheduling,
+    /// snooze).
+    private func currentMascotSender(title: String) -> INPerson? {
+        guard let profile = (try? PersistenceController.context.fetch(FetchDescriptor<UserProfile>()))?.first else { return nil }
+        let targetUserID = profile.userID
+        let logs = (try? PersistenceController.context.fetch(FetchDescriptor<IntakeLog>(predicate: #Predicate { $0.userID == targetUserID }))) ?? []
+        let consumidoHoje = HydrationMath.totalML(logs, on: .now)
+        return mascotSender(title: title, consumidoHojeML: consumidoHoje, metaDiariaML: profile.metaDiariaML)
+    }
+
+    #if DEBUG
+    /// Debug-only: fires a real system notification a few seconds from now with a
+    /// randomly-selected persona variant and the mascot matching today's progress —
+    /// lets a tester eyeball copy/mascot combinations without waiting for a real slot.
+    /// Reuses `captureContext` so the resulting `NotificationEvent` and scheduled
+    /// notification go through the exact same pipeline as a real reminder.
+    func sendDebugRandomNotification(context: ModelContext) async {
+        let firesAt = Date.now.addingTimeInterval(5)
+        await captureContext(id: UUID(), firesAt: firesAt, context: context)
+    }
+    #endif
 
     private func loadPendingSlots() -> [PendingSlot] {
         guard let data = UserDefaults.standard.data(forKey: defaultsKey) else { return [] }
