@@ -13,7 +13,6 @@ enum PersistenceController {
     static let container: ModelContainer = {
         let schema = Schema([
             UserProfile.self,
-            DailyCheckin.self,
             IntakeLog.self,
             NotificationEvent.self,
             UIInteractionEvent.self,

@@ -34,6 +34,13 @@ struct OnboardingView: View {
             try? modelContext.save()
             await CloudKitSyncService.shared.push(profile)
             try? modelContext.save()
+
+            // Garante autorização de água (no-op se já autorizado via "Preencher com
+            // dados do Saúde"; mostra o dialog de água se o usuário foi direto em Concluir).
+            _ = await HealthKitService.shared.requestAuthorization()
+            if HealthKitService.shared.isAuthorized {
+                await HealthKitService.shared.syncFromHealthKit(userID: userID, context: modelContext)
+            }
         }
     }
 }

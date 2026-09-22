@@ -24,6 +24,10 @@
 	<string>1</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Lemos seus registros de água do app Saúde para sincronizá-los com seu histórico de hidratação.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Salvamos cada gole registrado aqui diretamente no app Saúde, para que seu histórico fique centralizado.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
 	<string>Consultamos sua agenda apenas para saber se você está ocupado (sem ler título ou local dos eventos), para escolher melhores horários de lembrete.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>

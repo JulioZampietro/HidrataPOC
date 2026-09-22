@@ -90,23 +90,6 @@ final class CloudKitSyncService {
         }
     }
 
-    func push(_ checkin: DailyCheckin) async {
-        guard checkin.syncStatus != .synced else { return }
-        let record = CKRecord(recordType: "DailyCheckin", recordID: recordID(for: checkin.id))
-        record["userID"] = checkin.userID
-        record["dataReferencia"] = checkin.dataReferencia
-        record["horasSono"] = checkin.horasSono
-        record["horarioAcordou"] = checkin.horarioAcordou
-
-        do {
-            _ = try await container.publicCloudDatabase.save(record)
-            checkin.syncStatus = .synced
-        } catch {
-            logger.error("Failed to push DailyCheckin \(checkin.id, privacy: .public): \(String(describing: error), privacy: .public)")
-            checkin.syncStatus = .failed
-        }
-    }
-
     func push(_ log: IntakeLog) async {
         guard log.syncStatus != .synced else { return }
         let record = CKRecord(recordType: "IntakeLog", recordID: recordID(for: log.id))
@@ -123,6 +106,10 @@ final class CloudKitSyncService {
 
         do {
             _ = try await container.publicCloudDatabase.save(record)
+            log.syncStatus = .synced
+        } catch let error as CKError where error.code == .serverRecordChanged {
+            // O registro já existe no servidor com este ID — outro push chegou antes.
+            // Para IntakeLog (imutável após criação), isso equivale a "sincronizado".
             log.syncStatus = .synced
         } catch {
             logger.error("Failed to push IntakeLog \(log.id, privacy: .public): \(String(describing: error), privacy: .public)")
@@ -243,11 +230,6 @@ final class CloudKitSyncService {
         if let profiles = try? context.fetch(FetchDescriptor<UserProfile>()) {
             for profile in profiles where profile.syncStatus != .synced {
                 await push(profile)
-            }
-        }
-        if let checkins = try? context.fetch(FetchDescriptor<DailyCheckin>()) {
-            for checkin in checkins where checkin.syncStatus != .synced {
-                await push(checkin)
             }
         }
         if let logs = try? context.fetch(FetchDescriptor<IntakeLog>()) {

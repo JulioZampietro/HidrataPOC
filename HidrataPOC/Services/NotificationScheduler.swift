@@ -203,6 +203,7 @@ final class NotificationScheduler {
         try? context.save()
 
         await IntakeLogService.endLiveActivity()
+        await HealthKitService.shared.save(volumeML: log.volumeML, timestamp: log.timestamp, logID: log.id)
     }
 
     /// Records a tap on one of the main screen's always-visible intake buttons. Per
@@ -212,13 +213,14 @@ final class NotificationScheduler {
     /// notification action) — this is what lets a future model tell "the notification
     /// caused this drink" apart from "the user would have drunk water anyway."
     func recordManualIntake(preset: Constants.IntakePreset, userID: String, context: ModelContext) async {
-        await IntakeLogService.record(
+        let log = await IntakeLogService.record(
             preset: preset,
             userID: userID,
             source: "app",
             weather: WeatherContextService.shared.cachedContext,
             context: context
         )
+        await HealthKitService.shared.save(volumeML: log.volumeML, timestamp: log.timestamp, logID: log.id)
     }
 
     /// Removes an `IntakeLog` the tester logged by mistake. If it was linked to a
@@ -234,6 +236,7 @@ final class NotificationScheduler {
         context.delete(log)
         try? context.save()
 
+        await HealthKitService.shared.delete(logID: logID)
         await CloudKitSyncService.shared.delete(recordType: "IntakeLog", id: logID)
 
         guard let notificationEventID, let eventID = UUID(uuidString: notificationEventID),
