@@ -38,6 +38,18 @@ enum Constants {
     static let dailyWindowStartHour = 8
     static let dailyWindowEndHour = 22
 
+    /// Thresholds for `hot_day`/`cold_day` notification persona variants — based on
+    /// `WeatherContext.temperaturaC` (current reading), not the forecast high used for
+    /// `baselineMaxTempC`. Adjust to match your region's typical climate.
+    static let notificationHotThresholdC: Double = 30
+    static let notificationColdThresholdC: Double = 15
+
+    /// Hour-of-day boundaries used to pick a notification persona variant: fires
+    /// before `notificationMorningEndHour` => morning, at/after
+    /// `notificationEveningStartHour` => evening, otherwise midday.
+    static let notificationMorningEndHour = 11
+    static let notificationEveningStartHour = 19
+
     enum NotificationCategory {
         static let hydrationReminder = "HYDRATION_REMINDER"
     }

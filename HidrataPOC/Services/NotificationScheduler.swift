@@ -94,7 +94,12 @@ final class NotificationScheduler {
             let offset = Double.random(in: 0..<strataLength)
             let firesAt = strataStart.addingTimeInterval(offset)
             slots.append(PendingSlot(id: UUID(), firesAt: firesAt, captured: false))
-            scheduleSystemNotification(id: slots[i].id, firesAt: firesAt)
+            scheduleSystemNotification(
+                id: slots[i].id,
+                firesAt: firesAt,
+                title: NotificationVariant.fallbackGeneric.title,
+                body: NotificationVariant.fallbackGeneric.body
+            )
         }
 
         savePendingSlots(slots)
@@ -152,6 +157,7 @@ final class NotificationScheduler {
         let consumidoHoje = HydrationMath.totalML(logs, on: firesAt)
         let deficit = HydrationMath.deficitML(metaDiariaML: profile.metaDiariaML, consumidoHojeML: consumidoHoje)
         let minutesSinceLast = HydrationMath.minutesSinceLastIntake(logs, now: firesAt)
+        let variant = Self.selectVariant(firesAt: firesAt, weather: weather, profile: profile, logs: logs)
 
         let event = NotificationEvent(
             id: id,
@@ -163,12 +169,50 @@ final class NotificationScheduler {
             ocupadoNoMomento: calendarContext?.ocupadoNoMomento ?? false,
             densidadeEventosDia: calendarContext?.densidadeEventosDia ?? 0,
             deficitAcumuladoML: deficit,
-            tempoDesdeUltimoRegistroMin: minutesSinceLast
+            tempoDesdeUltimoRegistroMin: minutesSinceLast,
+            notificationVariant: variant
         )
         context.insert(event)
         try? context.save()
         await CloudKitSyncService.shared.push(event)
         try? context.save()
+
+        // Reschedule with the chosen persona copy, in place, only if the notification
+        // hasn't fired yet — if it already fired (last-resort fallback capture from
+        // `NotificationDelegate`), the tester already saw the generic fallback text
+        // and there's nothing left to swap; the event still records which variant
+        // *would* have been shown, so no data is lost.
+        if firesAt > .now {
+            scheduleSystemNotification(id: id, firesAt: firesAt, title: variant.title, body: variant.body)
+        }
+    }
+
+    /// Picks which persona-flavored copy variant to show for a reminder firing at
+    /// `firesAt` — see HYDRATE-NP-01 §7. Pure aside from `randomElement()`, so it's
+    /// easy to unit test with fixed inputs. `static`/non-private so
+    /// `NotificationSchedulerVariantSelectionTests` can call it without going through
+    /// the whole scheduling pipeline.
+    static func selectVariant(
+        firesAt: Date,
+        weather: WeatherContext?,
+        profile: UserProfile,
+        logs: [IntakeLog],
+        calendar: Calendar = .current
+    ) -> NotificationVariant {
+        let hour = calendar.component(.hour, from: firesAt)
+        let isEvening = hour >= Constants.notificationEveningStartHour
+        let isMorning = hour < Constants.notificationMorningEndHour
+
+        if isEvening, HydrationMath.isStreakAtRisk(logs, metaDiariaML: profile.metaDiariaML, calendar: calendar, firesAt: firesAt) {
+            return .streakRiskEvening
+        }
+        if let temp = weather?.temperaturaC {
+            if temp >= Constants.notificationHotThresholdC { return .hotDay }
+            if temp <= Constants.notificationColdThresholdC { return .coldDay }
+        }
+        if isMorning { return .mildMorning }
+        if isEvening { return .symptomIrritabilityEvening }
+        return [.middayNeutral, .symptomHeadacheMidday, .symptomConcentrationMidday].randomElement()!
     }
 
     // MARK: - Interaction resolution
@@ -260,7 +304,12 @@ final class NotificationScheduler {
         var slots = loadPendingSlots()
         slots.append(slot)
         savePendingSlots(slots)
-        scheduleSystemNotification(id: slot.id, firesAt: firesAt)
+        scheduleSystemNotification(
+            id: slot.id,
+            firesAt: firesAt,
+            title: NotificationVariant.fallbackGeneric.title,
+            body: NotificationVariant.fallbackGeneric.body
+        )
     }
 
     private func resolveTimedOutEvents(context: ModelContext) async {
@@ -283,10 +332,10 @@ final class NotificationScheduler {
 
     // MARK: - System notification + local bookkeeping
 
-    private func scheduleSystemNotification(id: UUID, firesAt: Date) {
+    private func scheduleSystemNotification(id: UUID, firesAt: Date, title: String, body: String) {
         let content = UNMutableNotificationContent()
-        content.title = "Hora de beber água 💧"
-        content.body = "Um gole agora ajuda a manter sua meta do dia."
+        content.title = title
+        content.body = body
         content.categoryIdentifier = Constants.NotificationCategory.hydrationReminder
         content.userInfo = ["eventID": id.uuidString]
         content.sound = .default

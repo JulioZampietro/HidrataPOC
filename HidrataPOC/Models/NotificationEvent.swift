@@ -26,6 +26,11 @@ final class NotificationEvent {
     var tempoAteAgirMin: Int?
     var resultouEmConsumo: Bool
 
+    /// Qual variante de copy foi (ou seria) mostrada — ver HYDRATE-NP-01. Default
+    /// aponta pro fallback genérico, pro mesmo motivo de `IntakeLog.customIntakeML` ter
+    /// default: migração leve de linhas antigas sem quebrar o schema.
+    var notificationVariant: String = NotificationVariant.fallbackGeneric.rawValue
+
     var syncStatusRaw: String
     var syncStatus: SyncStatus {
         get { SyncStatus(rawValue: syncStatusRaw) ?? .pending }
@@ -44,7 +49,8 @@ final class NotificationEvent {
         ocupadoNoMomento: Bool,
         densidadeEventosDia: Int,
         deficitAcumuladoML: Int,
-        tempoDesdeUltimoRegistroMin: Int?
+        tempoDesdeUltimoRegistroMin: Int?,
+        notificationVariant: NotificationVariant
     ) {
         self.id = id
         self.userID = userID
@@ -64,6 +70,7 @@ final class NotificationEvent {
         self.statusInteracao = nil
         self.tempoAteAgirMin = nil
         self.resultouEmConsumo = false
+        self.notificationVariant = notificationVariant.rawValue
         self.syncStatusRaw = SyncStatus.pending.rawValue
     }
 }

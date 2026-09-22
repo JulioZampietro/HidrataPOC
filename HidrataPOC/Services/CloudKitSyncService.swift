@@ -147,6 +147,7 @@ final class CloudKitSyncService {
         record["statusInteracao"] = event.statusInteracao
         record["tempoAteAgirMin"] = event.tempoAteAgirMin
         record["resultouEmConsumo"] = event.resultouEmConsumo
+        record["notificationVariant"] = event.notificationVariant
 
         do {
             let saved = try await container.publicCloudDatabase.save(record)

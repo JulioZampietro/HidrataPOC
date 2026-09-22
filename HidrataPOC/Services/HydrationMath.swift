@@ -53,4 +53,14 @@ enum HydrationMath {
         }
         return count
     }
+
+    /// Há uma sequência ativa vinda de antes de hoje (`currentStreak` contando só até
+    /// ontem é > 0) e hoje ainda não bateu a meta — ou seja, ela quebra se o dia acabar
+    /// assim. Usa `firesAt` (não `.now`) pra ser puro e testável com qualquer horário.
+    static func isStreakAtRisk(_ logs: [IntakeLog], metaDiariaML: Int, calendar: Calendar = .current, firesAt: Date) -> Bool {
+        guard metaDiariaML > 0 else { return false }
+        guard totalML(logs, on: firesAt, calendar: calendar) < metaDiariaML else { return false }
+        guard let yesterday = calendar.date(byAdding: .day, value: -1, to: calendar.startOfDay(for: firesAt)) else { return false }
+        return currentStreak(logs, metaDiariaML: metaDiariaML, calendar: calendar, now: yesterday) > 0
+    }
 }

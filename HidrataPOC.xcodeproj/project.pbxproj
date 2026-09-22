@@ -17,6 +17,7 @@
 		CBD8A418B4AC4862A62DEBDA /* InteractionTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D36EF2EADD04FF7B2EE0E4F /* InteractionTracker.swift */; };
 		82F7A6648C3644F5B285BFE6 /* SheetLifecycleTracking.swift in Sources */ = {isa = PBXBuildFile; fileRef = 796A17516BBF466280B87A1B /* SheetLifecycleTracking.swift */; };
 		F08622324B2A40469FE2AC5D /* InteractionTrackerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0589AAEA6C294F99934668E1 /* InteractionTrackerTests.swift */; };
+		15A0FC549FFA47EEA262A4FA /* NotificationVariantSelectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 949353F3A50444289F1B24C6 /* NotificationVariantSelectionTests.swift */; };
 		10A05D5E80D99497B247289A /* SyncStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 575F9F9ED22AB3F667CCDDC7 /* SyncStatus.swift */; };
 		12120E76924A8652F17F74B0 /* HydrationKit.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = E25C2DCFF2A32A6FFCA18FE5 /* HydrationKit.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		1296A932E1117A61AB227D6C /* LogIntakeControlIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27DADD46B8ED63F7B4C704B4 /* LogIntakeControlIntent.swift */; };
@@ -71,6 +72,8 @@
 		EF078C5CBDCA5F26C2F9D5F8 /* LogIntakeIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE421AF8596C6FF6DD295ED6 /* LogIntakeIntent.swift */; };
 		F02FD10035B817EFD60727C6 /* SiriIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1076794D01AED95AA12B4A0 /* SiriIntents.swift */; };
 		F14DB73464BA11FAAA80A200 /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00E817B37463672B4A760387 /* AppTheme.swift */; };
+		F38FE2580C5C436E820BA2A8 /* NotificationVariant.swift in Sources */ = {isa = PBXBuildFile; fileRef = 064BE38709D54C95B06FC813 /* NotificationVariant.swift */; };
+		A21C9E6F5B8E4E2D9C7A3F10 /* NotificationVariant.swift in Sources */ = {isa = PBXBuildFile; fileRef = 064BE38709D54C95B06FC813 /* NotificationVariant.swift */; };
 		F40ED5533A05C10C3ED5268A /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95F0050D87C688CD6A361091 /* Constants.swift */; };
 		F5152A0DD23858F46BDC80A1 /* CalendarContextService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0903AF7033243AFEED9405C0 /* CalendarContextService.swift */; };
 		F99497B27087F11E52C7A718 /* DailyCheckinView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F01AECA79736FB88B44FD80 /* DailyCheckinView.swift */; };
@@ -138,6 +141,7 @@
 
 /* Begin PBXFileReference section */
 		00E817B37463672B4A760387 /* AppTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTheme.swift; sourceTree = "<group>"; };
+		064BE38709D54C95B06FC813 /* NotificationVariant.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationVariant.swift; sourceTree = "<group>"; };
 		0903AF7033243AFEED9405C0 /* CalendarContextService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarContextService.swift; sourceTree = "<group>"; };
 		1058413E9DCECDC55E8ADE42 /* Nunito-ExtraBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Nunito-ExtraBold.ttf"; sourceTree = "<group>"; };
 		18681BFBE503481336FBEBD8 /* PersistenceController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceController.swift; sourceTree = "<group>"; };
@@ -180,6 +184,7 @@
 		6D36EF2EADD04FF7B2EE0E4F /* InteractionTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractionTracker.swift; sourceTree = "<group>"; };
 		796A17516BBF466280B87A1B /* SheetLifecycleTracking.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetLifecycleTracking.swift; sourceTree = "<group>"; };
 		0589AAEA6C294F99934668E1 /* InteractionTrackerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractionTrackerTests.swift; sourceTree = "<group>"; };
+		949353F3A50444289F1B24C6 /* NotificationVariantSelectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationVariantSelectionTests.swift; sourceTree = "<group>"; };
 		BCD76832686E086EB393F6B1 /* HidrataPOC.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HidrataPOC.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C3BCAACF78A9164EF7C57D86 /* WeatherContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherContext.swift; sourceTree = "<group>"; };
 		C7A5DA61EDA45323AB04B6E6 /* HydrationWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HydrationWidgetBundle.swift; sourceTree = "<group>"; };
@@ -231,6 +236,7 @@
 				07906A779A28D5273E2D70DB /* Fonts */,
 				4C35D54511A64C96A460EAB1 /* TrackedEvent.swift */,
 				796A17516BBF466280B87A1B /* SheetLifecycleTracking.swift */,
+				064BE38709D54C95B06FC813 /* NotificationVariant.swift */,
 			);
 			path = Support;
 			sourceTree = "<group>";
@@ -259,6 +265,7 @@
 			children = (
 				A751463FEB8FCD28AA160686 /* WaterIntakeCalculatorTests.swift */,
 				0589AAEA6C294F99934668E1 /* InteractionTrackerTests.swift */,
+				949353F3A50444289F1B24C6 /* NotificationVariantSelectionTests.swift */,
 			);
 			path = HidrataPOCTests;
 			sourceTree = "<group>";
@@ -594,6 +601,7 @@
 			files = (
 				D5CEFFA72BEE705454B64795 /* WaterIntakeCalculatorTests.swift in Sources */,
 				F08622324B2A40469FE2AC5D /* InteractionTrackerTests.swift in Sources */,
+				15A0FC549FFA47EEA262A4FA /* NotificationVariantSelectionTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -615,6 +623,7 @@
 				BB11223344556677889900BB /* HistoricoView.swift in Sources */,
 				FF11223344556677889900FF /* AppFont.swift in Sources */,
 				F14DB73464BA11FAAA80A200 /* AppTheme.swift in Sources */,
+				F38FE2580C5C436E820BA2A8 /* NotificationVariant.swift in Sources */,
 				1E0E8D58D49CFBE72BD691A5 /* HydrationChartView.swift in Sources */,
 				ED310A2AD7021F64EFBB3C64 /* HydrationMath.swift in Sources */,
 				8DE7FD7B97BBF583ACF51FDF /* IntakeLog.swift in Sources */,
@@ -660,6 +669,7 @@
 				6B9F8313D8B9172C4DF3C1D0 /* IntakeLogService.swift in Sources */,
 				EF078C5CBDCA5F26C2F9D5F8 /* LogIntakeIntent.swift in Sources */,
 				D572116344EF1B76385B5E9B /* NotificationEvent.swift in Sources */,
+				A21C9E6F5B8E4E2D9C7A3F10 /* NotificationVariant.swift in Sources */,
 				75ED8417F44DA378C2F7848E /* PersistenceController.swift in Sources */,
 				7096EB9CD8E24648B9AC6B2B /* UIInteractionEvent.swift in Sources */,
 				10A05D5E80D99497B247289A /* SyncStatus.swift in Sources */,
