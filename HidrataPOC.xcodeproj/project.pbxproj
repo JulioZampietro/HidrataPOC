@@ -49,7 +49,6 @@
 		BC59B3F0F5629C9B84554939 /* CloudKitSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CEB9412C32EF75ADC24DDFE /* CloudKitSyncService.swift */; };
 		C390E2FE5A235D47F6B6B6B0 /* HydrationAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39B01B3E715DF9C6090B73F0 /* HydrationAttributes.swift */; };
 		C4D59AF23B75095AE1776740 /* PersistenceController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18681BFBE503481336FBEBD8 /* PersistenceController.swift */; };
-		C59668FF0E5C042594FF385C /* DailyCheckin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 686E273CA71813447AEE9531 /* DailyCheckin.swift */; };
 		C875CDDF311D834B8785DD94 /* ConsentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F93CA27F187823B29EA02167 /* ConsentView.swift */; };
 		CCF46130AF549FBA9BBDBAA8 /* ProfileFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44B579DB179F9F9A74296475 /* ProfileFormView.swift */; };
 		CD5C5622FF926BBA66F4899C /* BackgroundRefreshService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6A65931A21528481F595E29 /* BackgroundRefreshService.swift */; };
@@ -61,17 +60,17 @@
 		EB788AF77AB02B3393EC1CC6 /* HydrationWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7A5DA61EDA45323AB04B6E6 /* HydrationWidgetBundle.swift */; };
 		EBC0EBC796903DC0ED04F719 /* ActionButtonTutorialView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2CE5627BDF23AE7101D454A /* ActionButtonTutorialView.swift */; };
 		ED310A2AD7021F64EFBB3C64 /* HydrationMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F84FE05B740FBD73D4C2851 /* HydrationMath.swift */; };
-		EDC339173D9E9DC4F7B1AD2C /* DailyCheckin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 686E273CA71813447AEE9531 /* DailyCheckin.swift */; };
 		EF078C5CBDCA5F26C2F9D5F8 /* LogIntakeIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE421AF8596C6FF6DD295ED6 /* LogIntakeIntent.swift */; };
 		F02FD10035B817EFD60727C6 /* SiriIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1076794D01AED95AA12B4A0 /* SiriIntents.swift */; };
 		F14DB73464BA11FAAA80A200 /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00E817B37463672B4A760387 /* AppTheme.swift */; };
 		F40ED5533A05C10C3ED5268A /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95F0050D87C688CD6A361091 /* Constants.swift */; };
 		F5152A0DD23858F46BDC80A1 /* CalendarContextService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0903AF7033243AFEED9405C0 /* CalendarContextService.swift */; };
-		F99497B27087F11E52C7A718 /* DailyCheckinView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F01AECA79736FB88B44FD80 /* DailyCheckinView.swift */; };
 		FCC1324381344DB8DA982AE3 /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95F0050D87C688CD6A361091 /* Constants.swift */; };
 		FEF1E8A999A9841C843C2208 /* CustomIntakeEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20FA02344B32332B350BC11D /* CustomIntakeEditorView.swift */; };
 		FF11223344556677889900FF /* AppFont.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD11223344556677889900DD /* AppFont.swift */; };
 		GG11223344556677889900GG /* Nunito.ttf in Resources */ = {isa = PBXBuildFile; fileRef = EE11223344556677889900EE /* Nunito.ttf */; };
+		HH11223344556677889900HH /* HealthKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = II11223344556677889900II /* HealthKitService.swift */; };
+		JJ11223344556677889900JJ /* HealthConnectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = KK11223344556677889900KK /* HealthConnectView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -135,7 +134,6 @@
 		0903AF7033243AFEED9405C0 /* CalendarContextService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarContextService.swift; sourceTree = "<group>"; };
 		1058413E9DCECDC55E8ADE42 /* Nunito-ExtraBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Nunito-ExtraBold.ttf"; sourceTree = "<group>"; };
 		18681BFBE503481336FBEBD8 /* PersistenceController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceController.swift; sourceTree = "<group>"; };
-		1F01AECA79736FB88B44FD80 /* DailyCheckinView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyCheckinView.swift; sourceTree = "<group>"; };
 		20FA02344B32332B350BC11D /* CustomIntakeEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomIntakeEditorView.swift; sourceTree = "<group>"; };
 		2503669AFFB90410A6F12B75 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		27DADD46B8ED63F7B4C704B4 /* LogIntakeControlIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogIntakeControlIntent.swift; sourceTree = "<group>"; };
@@ -152,7 +150,6 @@
 		540637DEA5459F68897F943E /* WeatherContextService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherContextService.swift; sourceTree = "<group>"; };
 		575F9F9ED22AB3F667CCDDC7 /* SyncStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncStatus.swift; sourceTree = "<group>"; };
 		646191BC23E0F875E444DFCF /* LiveActivityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityManager.swift; sourceTree = "<group>"; };
-		686E273CA71813447AEE9531 /* DailyCheckin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyCheckin.swift; sourceTree = "<group>"; };
 		6CBDEB26A3C91B6C2C231FD8 /* SiriTutorialView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiriTutorialView.swift; sourceTree = "<group>"; };
 		6FD7F3234633C2BD519D6504 /* EditGoalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditGoalView.swift; sourceTree = "<group>"; };
 		70608375406AEFAB8FD9A05D /* PermissionsCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionsCoordinator.swift; sourceTree = "<group>"; };
@@ -187,6 +184,8 @@
 		E2D3A02B4F45DACAE8A960EE /* Baloo2-ExtraBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Baloo2-ExtraBold.ttf"; sourceTree = "<group>"; };
 		EE11223344556677889900EE /* Nunito.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Nunito.ttf; sourceTree = "<group>"; };
 		F93CA27F187823B29EA02167 /* ConsentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsentView.swift; sourceTree = "<group>"; };
+		II11223344556677889900II /* HealthKitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitService.swift; sourceTree = "<group>"; };
+		KK11223344556677889900KK /* HealthConnectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthConnectView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -298,20 +297,13 @@
 			path = Home;
 			sourceTree = "<group>";
 		};
-		78CF66212BC72147109CD3A7 /* Checkin */ = {
-			isa = PBXGroup;
-			children = (
-				1F01AECA79736FB88B44FD80 /* DailyCheckinView.swift */,
-			);
-			path = Checkin;
-			sourceTree = "<group>";
-		};
 		7BD7A632BB06ABF66282B529 /* Services */ = {
 			isa = PBXGroup;
 			children = (
 				B6A65931A21528481F595E29 /* BackgroundRefreshService.swift */,
 				0903AF7033243AFEED9405C0 /* CalendarContextService.swift */,
 				3CEB9412C32EF75ADC24DDFE /* CloudKitSyncService.swift */,
+				II11223344556677889900II /* HealthKitService.swift */,
 				2F84FE05B740FBD73D4C2851 /* HydrationMath.swift */,
 				646191BC23E0F875E444DFCF /* LiveActivityManager.swift */,
 				71707F70B58A641E997517DB /* NotificationDelegate.swift */,
@@ -335,7 +327,6 @@
 		947D52ACEA55C75BA6DCC282 /* Models */ = {
 			isa = PBXGroup;
 			children = (
-				686E273CA71813447AEE9531 /* DailyCheckin.swift */,
 				D4DF682424276EED691E73FE /* IntakeLog.swift */,
 				B97525FAC07C838AC2BFCF1F /* NotificationEvent.swift */,
 				575F9F9ED22AB3F667CCDDC7 /* SyncStatus.swift */,
@@ -347,7 +338,6 @@
 		A206EE043D6AE3FFB51098F9 /* Views */ = {
 			isa = PBXGroup;
 			children = (
-				78CF66212BC72147109CD3A7 /* Checkin */,
 				94642EDCB3234964154B904E /* Consent */,
 				6F4038C801CE7C95AEC7F2FA /* Home */,
 				CC11223344556677889900CC /* Historico */,
@@ -385,6 +375,7 @@
 			isa = PBXGroup;
 			children = (
 				36AFA6358F8646D4CE01B474 /* HydrationChartView.swift */,
+				KK11223344556677889900KK /* HealthConnectView.swift */,
 				44B579DB179F9F9A74296475 /* ProfileFormView.swift */,
 				2D3D07956D972BB7565F7450 /* ProfileView.swift */,
 				6FD7F3234633C2BD519D6504 /* EditGoalView.swift */,
@@ -591,8 +582,6 @@
 				C875CDDF311D834B8785DD94 /* ConsentView.swift in Sources */,
 				F40ED5533A05C10C3ED5268A /* Constants.swift in Sources */,
 				FEF1E8A999A9841C843C2208 /* CustomIntakeEditorView.swift in Sources */,
-				EDC339173D9E9DC4F7B1AD2C /* DailyCheckin.swift in Sources */,
-				F99497B27087F11E52C7A718 /* DailyCheckinView.swift in Sources */,
 				00FFFB683C1484BEDAB9EB23 /* HidrataPOCApp.swift in Sources */,
 				267A40DE9CF3539833AEA14D /* HomeView.swift in Sources */,
 				BB11223344556677889900BB /* HistoricoView.swift in Sources */,
@@ -611,6 +600,8 @@
 				C4D59AF23B75095AE1776740 /* PersistenceController.swift in Sources */,
 				CCF46130AF549FBA9BBDBAA8 /* ProfileFormView.swift in Sources */,
 				BAD54F5B8B4D14D2F3D4E044 /* ProfileView.swift in Sources */,
+				HH11223344556677889900HH /* HealthKitService.swift in Sources */,
+				JJ11223344556677889900JJ /* HealthConnectView.swift in Sources */,
 				E4BDAB3AAF9B03FE1FFF4506 /* RootView.swift in Sources */,
 				F02FD10035B817EFD60727C6 /* SiriIntents.swift in Sources */,
 				A8D10111F22B609AB5FA8266 /* SiriTutorialView.swift in Sources */,
@@ -631,7 +622,6 @@
 			files = (
 				BC59B3F0F5629C9B84554939 /* CloudKitSyncService.swift in Sources */,
 				FCC1324381344DB8DA982AE3 /* Constants.swift in Sources */,
-				C59668FF0E5C042594FF385C /* DailyCheckin.swift in Sources */,
 				73C759A59FD446198468D604 /* HydrationControlWidgets.swift in Sources */,
 				5CA9B1161DAD92BD19B3E346 /* HydrationLiveActivity.swift in Sources */,
 				EB788AF77AB02B3393EC1CC6 /* HydrationWidgetBundle.swift in Sources */,

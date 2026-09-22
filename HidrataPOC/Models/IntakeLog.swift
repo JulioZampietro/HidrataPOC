@@ -19,6 +19,10 @@ final class IntakeLog {
     /// whether a notification prompted the drink.
     var source: String = "app"
 
+    /// UUID da amostra no HealthKit correspondente a este registro — usado para
+    /// deduplicar importações do Health e para deletar a amostra ao apagar o log.
+    var healthKitUUID: String?
+
     /// Weather at the moment of logging — reused from a recent cached reading (see
     /// `WeatherContextService.cachedContext`) rather than fetched fresh, so logging
     /// stays instant. Lets a future model use spontaneous ("manual") intakes as
@@ -55,6 +59,20 @@ final class IntakeLog {
         self.temperaturaC = weather?.temperaturaC
         self.umidadeRelativa = weather?.umidadeRelativa
         self.sensacaoTermicaC = weather?.sensacaoTermicaC
+        self.syncStatusRaw = SyncStatus.pending.rawValue
+    }
+
+    /// Inicializador para registros importados do HealthKit — volume livre (não por preset).
+    init(userID: String, timestamp: Date, volumeML: Int, tipoEntrada: String, origem: OrigemRegistro, source: String, healthKitUUID: String) {
+        self.id = UUID()
+        self.userID = userID
+        self.timestamp = timestamp
+        self.volumeML = volumeML
+        self.tipoEntrada = tipoEntrada
+        self.origem = origem.rawValue
+        self.notificationEventID = nil
+        self.source = source
+        self.healthKitUUID = healthKitUUID
         self.syncStatusRaw = SyncStatus.pending.rawValue
     }
 }
