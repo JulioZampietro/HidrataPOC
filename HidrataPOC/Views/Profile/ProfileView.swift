@@ -68,12 +68,15 @@ struct ProfileView: View {
                     onSave: save
                 )
             }
+            .trackSheetLifecycle(.editPersonalData, screen: .profile, userID: profile.userID)
         }
         .sheet(isPresented: $showGoalExplainer) {
             GoalExplainerView(goalML: profile.metaDiariaML, adjustmentML: tempContext?.adjustmentML ?? 0)
+                .trackSheetLifecycle(.goalExplainer, screen: .profile, userID: profile.userID)
         }
         .sheet(isPresented: $isEditingGoal) {
             EditGoalView(initialValueML: profile.metaDiariaML, onSave: saveGoal)
+                .trackSheetLifecycle(.editGoal, screen: .profile, userID: profile.userID)
         }
         .sheet(isPresented: $showHealthConnect) {
             HealthConnectView(profile: profile)
@@ -219,6 +222,7 @@ struct ProfileView: View {
         .buttonStyle(.plain)
         .sheet(isPresented: $showLiveActivities) {
             ActionButtonTutorialView()
+                .trackSheetLifecycle(.actionButtonTutorial, screen: .profile, userID: profile.userID)
         }
     }
 
@@ -247,6 +251,7 @@ struct ProfileView: View {
         .buttonStyle(.plain)
         .sheet(isPresented: $showSiriTutorial) {
             SiriTutorialView()
+                .trackSheetLifecycle(.siriTutorial, screen: .profile, userID: profile.userID)
         }
     }
 
@@ -254,6 +259,7 @@ struct ProfileView: View {
 
     private var healthRow: some View {
         Button {
+            InteractionTracker.log("health_connect_row_tap", screen: .profile, userID: profile.userID, context: modelContext)
             showHealthConnect = true
         } label: {
             HStack {
@@ -356,6 +362,7 @@ struct ProfileView: View {
         profile.syncStatus = .pending
         try? modelContext.save()
         isEditing = false
+        InteractionTracker.log("edit_personal_data_save", screen: .profile, userID: profile.userID, context: modelContext)
         Task {
             await CloudKitSyncService.shared.push(profile)
             try? modelContext.save()
@@ -367,6 +374,7 @@ struct ProfileView: View {
         profile.atualizadoEm = .now
         profile.syncStatus = .pending
         try? modelContext.save()
+        InteractionTracker.log("edit_goal_save", screen: .profile, userID: profile.userID, metadata: ["newGoalML": "\(newValue)"], context: modelContext)
         Task {
             await CloudKitSyncService.shared.push(profile)
             try? modelContext.save()

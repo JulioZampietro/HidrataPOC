@@ -67,6 +67,7 @@ struct HistoricoView: View {
     let profile: UserProfile
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.modelContext) private var modelContext
     @Query private var allLogs: [IntakeLog]
     @State private var displayedMonth = Calendar.current.dateInterval(of: .month, for: .now)?.start ?? .now
     @State private var cardPage: HistoricoCardPage = .calendario
@@ -146,12 +147,14 @@ struct HistoricoView: View {
         }
         .sheet(item: $selectedDay) { dia in
             DayDetailSheet(dia: dia, metaDiariaML: profile.metaDiariaML, userID: profile.userID, calendar: calendar)
+                .trackSheetLifecycle(.historicoDayDetail, screen: .historico, userID: profile.userID, metadata: ["date": isoDate(dia.date)])
         }
     }
 
     private var topBar: some View {
         HStack {
             Button {
+                InteractionTracker.log("historico_help_tap", screen: .historico, userID: profile.userID, context: modelContext)
                 // Placeholder: abrir ajuda/tutorial do histórico no futuro.
             } label: {
                 Image(systemName: "questionmark")
@@ -242,6 +245,17 @@ struct HistoricoView: View {
                             .contentShape(Rectangle())
                             .onTapGesture {
                                 guard !cell.isFuturo else { return }
+                                InteractionTracker.log(
+                                    "historico_day_tap",
+                                    screen: .historico,
+                                    userID: profile.userID,
+                                    metadata: [
+                                        "date": isoDate(cell.date),
+                                        "metGoal": "\(cell.bateuMeta)",
+                                        "isToday": "\(calendar.isDateInToday(cell.date))",
+                                    ],
+                                    context: modelContext
+                                )
                                 selectedDay = cell
                             }
                     } else {
@@ -306,6 +320,8 @@ struct HistoricoView: View {
     /// troca também acontece arrastando o card para o lado (`cardSwipeGesture`).
     private var pageToggleButton: some View {
         Button {
+            let toPage = cardPage == .calendario ? "semana" : "calendario"
+            InteractionTracker.log("historico_page_toggle", screen: .historico, userID: profile.userID, metadata: ["method": "tap", "toPage": toPage], context: modelContext)
             withAnimation(.easeInOut(duration: 0.2)) {
                 cardPage = cardPage == .calendario ? .semana : .calendario
             }
@@ -326,6 +342,8 @@ struct HistoricoView: View {
                 let vertical = value.translation.height
                 guard abs(horizontal) > abs(vertical), abs(horizontal) > 50 else { return }
 
+                let toPage = horizontal < 0 ? "semana" : "calendario"
+                InteractionTracker.log("historico_page_toggle", screen: .historico, userID: profile.userID, metadata: ["method": "swipe", "toPage": toPage], context: modelContext)
                 withAnimation(.easeInOut(duration: 0.2)) {
                     cardPage = horizontal < 0 ? .semana : .calendario
                 }
@@ -362,8 +380,16 @@ struct HistoricoView: View {
     }
 
     private func changeMonth(by value: Int) {
+        InteractionTracker.log("historico_month_nav", screen: .historico, userID: profile.userID, metadata: ["direction": value < 0 ? "prev" : "next"], context: modelContext)
         guard let newDate = calendar.date(byAdding: .month, value: value, to: displayedMonth) else { return }
         displayedMonth = newDate
+    }
+
+    private func isoDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.timeZone = calendar.timeZone
+        return formatter.string(from: date)
     }
 }
 

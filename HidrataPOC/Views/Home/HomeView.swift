@@ -86,6 +86,7 @@ struct HomeView: View {
         }
         .sheet(isPresented: $isEditingCustomAmount) {
             CustomIntakeEditorView(initialValueML: profile.customIntakeML, onSave: saveCustomAmount)
+                .trackSheetLifecycle(.customAmountEditor, screen: .home, userID: profile.userID)
         }
         .sheet(isPresented: $showSiriTutorial) { SiriTutorialView() }
         .sheet(isPresented: $showActionButtonTutorial) { ActionButtonTutorialView() }
@@ -96,6 +97,7 @@ struct HomeView: View {
     private var headerRow: some View {
         HStack {
             Button {
+                InteractionTracker.log("home_help_tap", screen: .home, userID: profile.userID, context: modelContext)
                 // TODO: ajuda / info
             } label: {
                 Image(systemName: "questionmark")
@@ -261,6 +263,7 @@ struct HomeView: View {
         profile.atualizadoEm = .now
         profile.syncStatus = .pending
         try? modelContext.save()
+        InteractionTracker.log("custom_amount_editor_save", screen: .home, userID: profile.userID, metadata: ["amountML": "\(newValue)"], context: modelContext)
         Task {
             await CloudKitSyncService.shared.push(profile)
             try? modelContext.save()
