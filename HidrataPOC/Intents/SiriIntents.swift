@@ -129,6 +129,17 @@ struct LogCustomIntent: AppIntent {
 struct HidrataPOCShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(
+            intent: LogCustomIntent(),
+            phrases: [
+                "Registra minha quantidade personalizada no \(.applicationName)",
+                "Bebi minha quantidade personalizada no \(.applicationName)",
+                "Tomei minha quantidade personalizada no \(.applicationName)",
+                "Registra personalizado no \(.applicationName)",
+            ],
+            shortTitle: "Personalizado",
+            systemImageName: "slider.horizontal.3"
+        )
+        AppShortcut(
             intent: LogGoleIntent(),
             phrases: [
                 "Bebi \(\.$quantity) goles de \(.applicationName)",
