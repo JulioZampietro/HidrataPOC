@@ -72,6 +72,7 @@ struct HistoricoView: View {
     @State private var displayedMonth = Calendar.current.dateInterval(of: .month, for: .now)?.start ?? .now
     @State private var cardPage: HistoricoCardPage = .calendario
     @State private var selectedDay: DiaHistorico?
+    @State private var showHelp = false
 
     private var calendar: Calendar {
         var cal = Calendar(identifier: .gregorian)
@@ -145,6 +146,7 @@ struct HistoricoView: View {
             .appScreenBackground()
             .navigationBarHidden(true)
         }
+        .sheet(isPresented: $showHelp) { HistoricoHelpView() }
         .sheet(item: $selectedDay) { dia in
             DayDetailSheet(dia: dia, metaDiariaML: profile.metaDiariaML, userID: profile.userID, calendar: calendar)
                 .trackSheetLifecycle(.historicoDayDetail, screen: .historico, userID: profile.userID, metadata: ["date": isoDate(dia.date)])
@@ -155,7 +157,7 @@ struct HistoricoView: View {
         HStack {
             Button {
                 InteractionTracker.log("historico_help_tap", screen: .historico, userID: profile.userID, context: modelContext)
-                // Placeholder: abrir ajuda/tutorial do histórico no futuro.
+                showHelp = true
             } label: {
                 Image(systemName: "questionmark")
                     .font(.system(size: 15, weight: .semibold))

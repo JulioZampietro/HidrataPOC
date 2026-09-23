@@ -12,6 +12,7 @@ struct HomeView: View {
     @State private var isLogging = false
     @State private var pendingDeleteLog: IntakeLog?
     @State private var isEditingCustomAmount = false
+    @State private var showHelp = false
     @State private var showSiriTutorial = false
     @State private var showActionButtonTutorial = false
     @State private var weather: WeatherContext?
@@ -88,6 +89,7 @@ struct HomeView: View {
             CustomIntakeEditorView(initialValueML: profile.customIntakeML, onSave: saveCustomAmount)
                 .trackSheetLifecycle(.customAmountEditor, screen: .home, userID: profile.userID)
         }
+        .sheet(isPresented: $showHelp) { HomeHelpView() }
         .sheet(isPresented: $showSiriTutorial) { SiriTutorialView() }
         .sheet(isPresented: $showActionButtonTutorial) { ActionButtonTutorialView() }
     }
@@ -98,7 +100,7 @@ struct HomeView: View {
         HStack {
             Button {
                 InteractionTracker.log("home_help_tap", screen: .home, userID: profile.userID, context: modelContext)
-                // TODO: ajuda / info
+                showHelp = true
             } label: {
                 Image(systemName: "questionmark")
                     .font(.system(size: 15, weight: .semibold))
