@@ -45,3 +45,15 @@ struct GoleControl: ControlWidget {
         .description("Registra 40 mL sem abrir o app")
     }
 }
+
+struct CustomControl: ControlWidget {
+    var body: some ControlWidgetConfiguration {
+        StaticControlConfiguration(kind: "com.hidratapoc.control.custom") {
+            ControlWidgetButton(action: LogCustomControlIntent()) {
+                Label("Personalizado", systemImage: "slider.horizontal.3")
+            }
+        }
+        .displayName("Quantidade Personalizada")
+        .description("Registra sua quantidade personalizada de água sem abrir o app")
+    }
+}

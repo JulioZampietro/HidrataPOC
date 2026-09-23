@@ -96,6 +96,34 @@ struct LogBottleIntent: AppIntent {
     }
 }
 
+struct LogCustomIntent: AppIntent {
+    static var title: LocalizedStringResource { "Registrar Quantidade Personalizada" }
+    static var openAppWhenRun: Bool { false }
+
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        let (ml, total) = await Self.record()
+        return .result(dialog: "+\(ml) mL registrado! Total hoje: \(total) mL.")
+    }
+
+    @MainActor
+    private static func record() async -> (ml: Int, total: Int) {
+        let context = PersistenceController.context
+        guard let profile = try? context.fetch(FetchDescriptor<UserProfile>()).first else {
+            return (0, 0)
+        }
+        let ml = profile.customIntakeML
+        await IntakeLogService.record(
+            preset: .custom(volumeML: ml),
+            userID: profile.userID,
+            source: "siri",
+            weather: nil,
+            context: context
+        )
+        let total = await totalConsumedToday()
+        return (ml, total)
+    }
+}
+
 // MARK: - Shortcuts Siri
 
 struct HidrataPOCShortcuts: AppShortcutsProvider {

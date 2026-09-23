@@ -41,6 +41,7 @@
 		7BF46EBBAC10831198475513 /* LogIntakeControlIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27DADD46B8ED63F7B4C704B4 /* LogIntakeControlIntent.swift */; };
 		82FE3E0466BBD8C5EF72ECE3 /* UserProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89E03889516701BE00C6A8E4 /* UserProfile.swift */; };
 		8600636CF4C7AB64E4086DD8 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B2F6CFFFE98CCFF1B19B9D9 /* OnboardingView.swift */; };
+		FA12B3C9D0E74A8B1C2D5F6E /* FeatureOnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA12B3C9D0E74A8B1C2D5F6F /* FeatureOnboardingView.swift */; };
 		8DE7FD7B97BBF583ACF51FDF /* IntakeLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4DF682424276EED691E73FE /* IntakeLog.swift */; };
 		8E5B4900F427BAEF3A7D9579 /* CloudKitSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CEB9412C32EF75ADC24DDFE /* CloudKitSyncService.swift */; };
 		953A56756B889D9D4A320FDC /* LogIntakeIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE421AF8596C6FF6DD295ED6 /* LogIntakeIntent.swift */; };
@@ -145,6 +146,7 @@
 		27DADD46B8ED63F7B4C704B4 /* LogIntakeControlIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogIntakeControlIntent.swift; sourceTree = "<group>"; };
 		28F1ED724B8B626A9128D39F /* HidrataPOCTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HidrataPOCTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		2B2F6CFFFE98CCFF1B19B9D9 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
+		FA12B3C9D0E74A8B1C2D5F6F /* FeatureOnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeatureOnboardingView.swift; sourceTree = "<group>"; };
 		2D00F1695397E9C0BF034BAC /* HydrationWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = HydrationWidget.entitlements; sourceTree = "<group>"; };
 		2D3D07956D972BB7565F7450 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
 		2F84FE05B740FBD73D4C2851 /* HydrationMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HydrationMath.swift; sourceTree = "<group>"; };
@@ -249,6 +251,7 @@
 			isa = PBXGroup;
 			children = (
 				2B2F6CFFFE98CCFF1B19B9D9 /* OnboardingView.swift */,
+				FA12B3C9D0E74A8B1C2D5F6F /* FeatureOnboardingView.swift */,
 			);
 			path = Onboarding;
 			sourceTree = "<group>";
@@ -617,6 +620,7 @@
 				CBD8A418B4AC4862A62DEBDA /* InteractionTracker.swift in Sources */,
 				82F7A6648C3644F5B285BFE6 /* SheetLifecycleTracking.swift in Sources */,
 				8600636CF4C7AB64E4086DD8 /* OnboardingView.swift in Sources */,
+				FA12B3C9D0E74A8B1C2D5F6E /* FeatureOnboardingView.swift in Sources */,
 				9E0E56EBE65D19A248EAEE28 /* PermissionsCoordinator.swift in Sources */,
 				C4D59AF23B75095AE1776740 /* PersistenceController.swift in Sources */,
 				CCF46130AF549FBA9BBDBAA8 /* ProfileFormView.swift in Sources */,

@@ -10,6 +10,31 @@ import SwiftData
 /// through as a parameter — so `source: "actionButton"` never has to survive
 /// cross-process intent serialization; it's baked into which type ran, not into a
 /// value carried by it.
+/// Versão do botão de ação personalizado para o Control Center / Botão de Ação (Controles).
+/// Lê o `customIntakeML` do perfil em tempo de execução, então sempre usa o valor atual
+/// sem precisar de parâmetros fixos.
+struct LogCustomControlIntent: LiveActivityIntent {
+    static var title: LocalizedStringResource { "Registrar Quantidade Personalizada" }
+
+    func perform() async throws -> some IntentResult {
+        await Self.log()
+        return .result()
+    }
+
+    @MainActor
+    private static func log() async {
+        let context = PersistenceController.context
+        guard let profile = try? context.fetch(FetchDescriptor<UserProfile>()).first else { return }
+        await IntakeLogService.record(
+            preset: .custom(volumeML: profile.customIntakeML),
+            userID: profile.userID,
+            source: "actionButton",
+            weather: nil,
+            context: context
+        )
+    }
+}
+
 struct LogIntakeControlIntent: LiveActivityIntent {
     static var title: LocalizedStringResource { "Registrar consumo de água (Botão de Ação)" }
 
