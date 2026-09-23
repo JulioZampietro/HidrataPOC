@@ -52,11 +52,7 @@ struct HomeView: View {
 
             ScrollView {
                 VStack(spacing: 20) {
-                    headerRow
-                        .padding(.horizontal, 20)
-                        .padding(.top, 8)
-
-                    mascotPlaceholder
+                    topSection
 
                     progressBar
                         .padding(.horizontal, 20)
@@ -125,11 +121,25 @@ struct HomeView: View {
         }
     }
 
+    private let mascotHeight: CGFloat = 190
+
+    private var topSection: some View {
+        VStack(spacing: 20) {
+            headerRow
+                .padding(.horizontal, 20)
+                .padding(.top, 8)
+            ZStack {
+                mascotPlaceholder
+                LiquidBubbleView(tint: .clear)
+            }
+        }
+    }
+
     private var mascotPlaceholder: some View {
         Image(AppTheme.mascotImageName(for: progress))
             .resizable()
             .scaledToFit()
-            .frame(height: 190)
+            .frame(height: mascotHeight)
     }
 
     private var progressBar: some View {
