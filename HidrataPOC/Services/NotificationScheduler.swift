@@ -65,7 +65,7 @@ final class NotificationScheduler {
     /// Generates today's semi-random reminder times the first time this is called on a
     /// given day, then schedules a system notification for each one. Safe to call
     /// repeatedly — no-ops once today's slots already exist.
-    func ensureTodayScheduled() {
+    func ensureTodayScheduled() async {
         // No point scheduling reminders (or capturing context for them) before
         // onboarding has created a profile — there's no goal/timezone to reason about
         // yet, and `captureContext` would silently no-op without one.
@@ -100,7 +100,7 @@ final class NotificationScheduler {
             let offset = Double.random(in: 0..<strataLength)
             let firesAt = strataStart.addingTimeInterval(offset)
             slots.append(PendingSlot(id: UUID(), firesAt: firesAt, captured: false))
-            scheduleSystemNotification(
+            await scheduleSystemNotification(
                 id: slots[i].id,
                 firesAt: firesAt,
                 title: NotificationVariant.fallbackGeneric.title,
@@ -191,7 +191,7 @@ final class NotificationScheduler {
         // *would* have been shown, so no data is lost.
         if firesAt > .now {
             let sender = mascotSender(title: variant.title, consumidoHojeML: consumidoHoje, metaDiariaML: profile.metaDiariaML)
-            scheduleSystemNotification(id: id, firesAt: firesAt, title: variant.title, body: variant.body, sender: sender)
+            await scheduleSystemNotification(id: id, firesAt: firesAt, title: variant.title, body: variant.body, sender: sender)
         }
     }
 
@@ -306,13 +306,13 @@ final class NotificationScheduler {
 
     /// "Lembrar mais tarde": inserts one ad-hoc slot ~15 minutes out, outside the
     /// day's regular random schedule.
-    func scheduleSnoozeSlot() {
+    func scheduleSnoozeSlot() async {
         let firesAt = Date.now.addingTimeInterval(15 * 60)
         let slot = PendingSlot(id: UUID(), firesAt: firesAt, captured: false)
         var slots = loadPendingSlots()
         slots.append(slot)
         savePendingSlots(slots)
-        scheduleSystemNotification(
+        await scheduleSystemNotification(
             id: slot.id,
             firesAt: firesAt,
             title: NotificationVariant.fallbackGeneric.title,
@@ -341,7 +341,23 @@ final class NotificationScheduler {
 
     // MARK: - System notification + local bookkeeping
 
-    private func scheduleSystemNotification(id: UUID, firesAt: Date, title: String, body: String, sender: INPerson? = nil) {
+    /// The device owner, as the intent's `recipients` entry — `isMe: true` is what
+    /// lets the system recognize this as an *incoming* message addressed to the
+    /// tester rather than an outgoing one, which in practice turned out to matter for
+    /// whether the avatar treatment actually renders (found via community reports;
+    /// not spelled out in Apple's own docs).
+    private static let selfPerson = INPerson(
+        personHandle: INPersonHandle(value: "hidratapoc.owner", type: .unknown),
+        nameComponents: nil,
+        displayName: nil,
+        image: nil,
+        contactIdentifier: nil,
+        customIdentifier: nil,
+        isMe: true,
+        suggestionType: .none
+    )
+
+    private func scheduleSystemNotification(id: UUID, firesAt: Date, title: String, body: String, sender: MascotSender? = nil) async {
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
@@ -358,22 +374,70 @@ final class NotificationScheduler {
         var finalContent: UNNotificationContent = content
         if let sender {
             let intent = INSendMessageIntent(
-                recipients: nil,
+                recipients: [Self.selfPerson],
                 outgoingMessageType: .outgoingMessageText,
                 content: body,
                 speakableGroupName: nil,
                 conversationIdentifier: id.uuidString,
                 serviceName: nil,
-                sender: sender,
+                sender: sender.person,
                 attachments: nil
             )
-            finalContent = (try? content.updating(from: intent)) ?? content
+            // Redundant with passing `image:` into the INPerson above, but community
+            // reports (see the chat-notification StackOverflow thread this mirrors)
+            // found the avatar silently fails to render without also setting it
+            // explicitly on the intent's `sender` parameter this way.
+            intent.setImage(sender.image, forParameterNamed: \.sender)
+
+            // Per Apple's docs for `updating(from:)`: the system only renders the
+            // sender's photo as the leading avatar once it has "learned" that person
+            // via a donated interaction — and that donation must complete *before*
+            // `updating(from:)` runs, or the content gets built too early and silently
+            // keeps showing the plain app icon.
+            let interaction = INInteraction(intent: intent, response: nil)
+            interaction.direction = .incoming
+            await donate(interaction)
+
+            do {
+                finalContent = try content.updating(from: intent)
+                print("✅ NotificationScheduler: built communication notification content for sender \(sender.person.displayName ?? "?")")
+            } catch {
+                print("⚠️ NotificationScheduler: failed to build communication notification content: \(error)")
+            }
         }
 
         let components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute, .second], from: firesAt)
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
         let request = UNNotificationRequest(identifier: id.uuidString, content: finalContent, trigger: trigger)
-        center.add(request)
+        center.add(request) { error in
+            if let error {
+                print("⚠️ NotificationScheduler: failed to schedule notification: \(error)")
+            }
+        }
+    }
+
+    /// Donates an `INInteraction` and suspends until the system confirms it's been
+    /// recorded — `donate(completion:)` is itself async/callback-based, and Apple's
+    /// docs call for the donation to finish before `updating(from:)` builds the
+    /// notification content around the same intent.
+    private func donate(_ interaction: INInteraction) async {
+        await withCheckedContinuation { continuation in
+            interaction.donate { error in
+                if let error {
+                    print("⚠️ NotificationScheduler: failed to donate mascot sender interaction: \(error)")
+                }
+                continuation.resume()
+            }
+        }
+    }
+
+    /// Pairs the mascot `INPerson` with the raw `INImage`, since the image needs to be
+    /// set twice — once inside the `INPerson` and once again via
+    /// `INSendMessageIntent.setImage(_:forParameterNamed:)` — see
+    /// `scheduleSystemNotification`.
+    private struct MascotSender {
+        let person: INPerson
+        let image: INImage
     }
 
     /// Builds the `INPerson` "sender" behind the mascot avatar treatment — its photo
@@ -383,44 +447,36 @@ final class NotificationScheduler {
     /// name" the system shows in bold, since these notifications already read as the
     /// mascot needling the tester. Returns nil (silently) on any image-loading
     /// failure, since falling back to a plain notification is better than not firing.
-    private func mascotSender(title: String, consumidoHojeML: Int, metaDiariaML: Int) -> INPerson? {
+    private func mascotSender(title: String, consumidoHojeML: Int, metaDiariaML: Int) -> MascotSender? {
         let progress = metaDiariaML > 0 ? min(1, Double(consumidoHojeML) / Double(metaDiariaML)) : 0
         let imageName = AppTheme.mascotImageName(for: progress)
         guard let image = UIImage(named: imageName), let data = image.pngData() else { return nil }
 
-        return INPerson(
+        let avatar = INImage(imageData: data)
+        let person = INPerson(
             personHandle: INPersonHandle(value: "hidratapoc.mascot", type: .unknown),
             nameComponents: nil,
             displayName: title,
-            image: INImage(imageData: data),
+            image: avatar,
             contactIdentifier: nil,
-            customIdentifier: "hidratapoc.mascot"
+            customIdentifier: "hidratapoc.mascot",
+            isMe: false,
+            suggestionType: .none
         )
+        return MascotSender(person: person, image: avatar)
     }
 
     /// Same as `mascotSender(title:consumidoHojeML:metaDiariaML:)`, but fetches
     /// whatever profile/intake data is on hand right now — used where the caller
     /// doesn't already have a `ModelContext`/profile in scope (initial scheduling,
     /// snooze).
-    private func currentMascotSender(title: String) -> INPerson? {
+    private func currentMascotSender(title: String) -> MascotSender? {
         guard let profile = (try? PersistenceController.context.fetch(FetchDescriptor<UserProfile>()))?.first else { return nil }
         let targetUserID = profile.userID
         let logs = (try? PersistenceController.context.fetch(FetchDescriptor<IntakeLog>(predicate: #Predicate { $0.userID == targetUserID }))) ?? []
         let consumidoHoje = HydrationMath.totalML(logs, on: .now)
         return mascotSender(title: title, consumidoHojeML: consumidoHoje, metaDiariaML: profile.metaDiariaML)
     }
-
-    #if DEBUG
-    /// Debug-only: fires a real system notification a few seconds from now with a
-    /// randomly-selected persona variant and the mascot matching today's progress —
-    /// lets a tester eyeball copy/mascot combinations without waiting for a real slot.
-    /// Reuses `captureContext` so the resulting `NotificationEvent` and scheduled
-    /// notification go through the exact same pipeline as a real reminder.
-    func sendDebugRandomNotification(context: ModelContext) async {
-        let firesAt = Date.now.addingTimeInterval(5)
-        await captureContext(id: UUID(), firesAt: firesAt, context: context)
-    }
-    #endif
 
     private func loadPendingSlots() -> [PendingSlot] {
         guard let data = UserDefaults.standard.data(forKey: defaultsKey) else { return [] }

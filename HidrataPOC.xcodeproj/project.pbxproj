@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 63;
+	objectVersion = 70;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -11,16 +11,10 @@
 		044AFD6D58D9A11B3600EC06 /* WeatherContextService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 540637DEA5459F68897F943E /* WeatherContextService.swift */; };
 		06C46879FF254B37AC86F09C /* Nunito-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 87F6CEC61D0EB34F2C4E96D3 /* Nunito-Bold.ttf */; };
 		08AC2D7CA5CCC1CF858BE1F6 /* NotificationEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = B97525FAC07C838AC2BFCF1F /* NotificationEvent.swift */; };
-		5F256BC9AF4E497BB9D96E6C /* UIInteractionEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = F51BAE834F7A497D9A17644C /* UIInteractionEvent.swift */; };
-		7096EB9CD8E24648B9AC6B2B /* UIInteractionEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = F51BAE834F7A497D9A17644C /* UIInteractionEvent.swift */; };
-		CBB98B79D311408A851A2BB8 /* TrackedEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C35D54511A64C96A460EAB1 /* TrackedEvent.swift */; };
-		CBD8A418B4AC4862A62DEBDA /* InteractionTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D36EF2EADD04FF7B2EE0E4F /* InteractionTracker.swift */; };
-		82F7A6648C3644F5B285BFE6 /* SheetLifecycleTracking.swift in Sources */ = {isa = PBXBuildFile; fileRef = 796A17516BBF466280B87A1B /* SheetLifecycleTracking.swift */; };
-		F08622324B2A40469FE2AC5D /* InteractionTrackerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0589AAEA6C294F99934668E1 /* InteractionTrackerTests.swift */; };
-		15A0FC549FFA47EEA262A4FA /* NotificationVariantSelectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 949353F3A50444289F1B24C6 /* NotificationVariantSelectionTests.swift */; };
 		10A05D5E80D99497B247289A /* SyncStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 575F9F9ED22AB3F667CCDDC7 /* SyncStatus.swift */; };
 		12120E76924A8652F17F74B0 /* HydrationKit.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = E25C2DCFF2A32A6FFCA18FE5 /* HydrationKit.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		1296A932E1117A61AB227D6C /* LogIntakeControlIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27DADD46B8ED63F7B4C704B4 /* LogIntakeControlIntent.swift */; };
+		15A0FC549FFA47EEA262A4FA /* NotificationVariantSelectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 949353F3A50444289F1B24C6 /* NotificationVariantSelectionTests.swift */; };
 		167F52D89A8D0855F585B65D /* NotificationDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71707F70B58A641E997517DB /* NotificationDelegate.swift */; };
 		1B94AE46986CCE914AAF2327 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = DB825039445C1E23D630B41F /* Assets.xcassets */; };
 		1C683163E637960E88058478 /* UserProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89E03889516701BE00C6A8E4 /* UserProfile.swift */; };
@@ -33,13 +27,16 @@
 		50D08C3D5EA73F9F85F1EA6A /* WaterIntakeCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD611C7BACD349B4B8CBC129 /* WaterIntakeCalculator.swift */; };
 		58290BE45010DB3437347604 /* Nunito-ExtraBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 1058413E9DCECDC55E8ADE42 /* Nunito-ExtraBold.ttf */; };
 		5CA9B1161DAD92BD19B3E346 /* HydrationLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77D39C48CF3E7F2C6FADD5F4 /* HydrationLiveActivity.swift */; };
+		5F256BC9AF4E497BB9D96E6C /* UIInteractionEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = F51BAE834F7A497D9A17644C /* UIInteractionEvent.swift */; };
 		6972D75383481BBDAD2D6345 /* EditGoalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FD7F3234633C2BD519D6504 /* EditGoalView.swift */; };
 		6B9F8313D8B9172C4DF3C1D0 /* IntakeLogService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FA657D469BE9DC8A54167C5 /* IntakeLogService.swift */; };
+		7096EB9CD8E24648B9AC6B2B /* UIInteractionEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = F51BAE834F7A497D9A17644C /* UIInteractionEvent.swift */; };
 		73C759A59FD446198468D604 /* HydrationControlWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 774252888FE898F0E8A81CAA /* HydrationControlWidgets.swift */; };
 		75ED8417F44DA378C2F7848E /* PersistenceController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18681BFBE503481336FBEBD8 /* PersistenceController.swift */; };
 		7694AC470F6944DD2661655F /* HydrationKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E25C2DCFF2A32A6FFCA18FE5 /* HydrationKit.framework */; };
 		7B3A8631EEFD43710CAA527E /* HydrationWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = B1F08A6A4544B6C3057E6B91 /* HydrationWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		7BF46EBBAC10831198475513 /* LogIntakeControlIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27DADD46B8ED63F7B4C704B4 /* LogIntakeControlIntent.swift */; };
+		82F7A6648C3644F5B285BFE6 /* SheetLifecycleTracking.swift in Sources */ = {isa = PBXBuildFile; fileRef = 796A17516BBF466280B87A1B /* SheetLifecycleTracking.swift */; };
 		82FE3E0466BBD8C5EF72ECE3 /* UserProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89E03889516701BE00C6A8E4 /* UserProfile.swift */; };
 		8600636CF4C7AB64E4086DD8 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B2F6CFFFE98CCFF1B19B9D9 /* OnboardingView.swift */; };
 		8DE7FD7B97BBF583ACF51FDF /* IntakeLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4DF682424276EED691E73FE /* IntakeLog.swift */; };
@@ -47,6 +44,7 @@
 		953A56756B889D9D4A320FDC /* LogIntakeIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE421AF8596C6FF6DD295ED6 /* LogIntakeIntent.swift */; };
 		9D483DB1963534FD713AC013 /* Baloo2-ExtraBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = E2D3A02B4F45DACAE8A960EE /* Baloo2-ExtraBold.ttf */; };
 		9E0E56EBE65D19A248EAEE28 /* PermissionsCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70608375406AEFAB8FD9A05D /* PermissionsCoordinator.swift */; };
+		A21C9E6F5B8E4E2D9C7A3F10 /* NotificationVariant.swift in Sources */ = {isa = PBXBuildFile; fileRef = 064BE38709D54C95B06FC813 /* NotificationVariant.swift */; };
 		A3082F6D802FB359064B17EC /* NotificationScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C74A3F1511E9062686EF2C1 /* NotificationScheduler.swift */; };
 		A6F8E0F841F2C32C7DA91AF1 /* IntakeLogService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FA657D469BE9DC8A54167C5 /* IntakeLogService.swift */; };
 		A8D10111F22B609AB5FA8266 /* SiriTutorialView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CBDEB26A3C91B6C2C231FD8 /* SiriTutorialView.swift */; };
@@ -58,6 +56,8 @@
 		C4D59AF23B75095AE1776740 /* PersistenceController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18681BFBE503481336FBEBD8 /* PersistenceController.swift */; };
 		C59668FF0E5C042594FF385C /* DailyCheckin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 686E273CA71813447AEE9531 /* DailyCheckin.swift */; };
 		C875CDDF311D834B8785DD94 /* ConsentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F93CA27F187823B29EA02167 /* ConsentView.swift */; };
+		CBB98B79D311408A851A2BB8 /* TrackedEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C35D54511A64C96A460EAB1 /* TrackedEvent.swift */; };
+		CBD8A418B4AC4862A62DEBDA /* InteractionTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D36EF2EADD04FF7B2EE0E4F /* InteractionTracker.swift */; };
 		CCF46130AF549FBA9BBDBAA8 /* ProfileFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44B579DB179F9F9A74296475 /* ProfileFormView.swift */; };
 		CD5C5622FF926BBA66F4899C /* BackgroundRefreshService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6A65931A21528481F595E29 /* BackgroundRefreshService.swift */; };
 		D572116344EF1B76385B5E9B /* NotificationEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = B97525FAC07C838AC2BFCF1F /* NotificationEvent.swift */; };
@@ -71,9 +71,9 @@
 		EDC339173D9E9DC4F7B1AD2C /* DailyCheckin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 686E273CA71813447AEE9531 /* DailyCheckin.swift */; };
 		EF078C5CBDCA5F26C2F9D5F8 /* LogIntakeIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE421AF8596C6FF6DD295ED6 /* LogIntakeIntent.swift */; };
 		F02FD10035B817EFD60727C6 /* SiriIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1076794D01AED95AA12B4A0 /* SiriIntents.swift */; };
+		F08622324B2A40469FE2AC5D /* InteractionTrackerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0589AAEA6C294F99934668E1 /* InteractionTrackerTests.swift */; };
 		F14DB73464BA11FAAA80A200 /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00E817B37463672B4A760387 /* AppTheme.swift */; };
 		F38FE2580C5C436E820BA2A8 /* NotificationVariant.swift in Sources */ = {isa = PBXBuildFile; fileRef = 064BE38709D54C95B06FC813 /* NotificationVariant.swift */; };
-		A21C9E6F5B8E4E2D9C7A3F10 /* NotificationVariant.swift in Sources */ = {isa = PBXBuildFile; fileRef = 064BE38709D54C95B06FC813 /* NotificationVariant.swift */; };
 		F40ED5533A05C10C3ED5268A /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95F0050D87C688CD6A361091 /* Constants.swift */; };
 		F5152A0DD23858F46BDC80A1 /* CalendarContextService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0903AF7033243AFEED9405C0 /* CalendarContextService.swift */; };
 		F99497B27087F11E52C7A718 /* DailyCheckinView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F01AECA79736FB88B44FD80 /* DailyCheckinView.swift */; };
@@ -141,6 +141,7 @@
 
 /* Begin PBXFileReference section */
 		00E817B37463672B4A760387 /* AppTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTheme.swift; sourceTree = "<group>"; };
+		0589AAEA6C294F99934668E1 /* InteractionTrackerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractionTrackerTests.swift; sourceTree = "<group>"; };
 		064BE38709D54C95B06FC813 /* NotificationVariant.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationVariant.swift; sourceTree = "<group>"; };
 		0903AF7033243AFEED9405C0 /* CalendarContextService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarContextService.swift; sourceTree = "<group>"; };
 		1058413E9DCECDC55E8ADE42 /* Nunito-ExtraBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Nunito-ExtraBold.ttf"; sourceTree = "<group>"; };
@@ -158,20 +159,24 @@
 		39B01B3E715DF9C6090B73F0 /* HydrationAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HydrationAttributes.swift; sourceTree = "<group>"; };
 		3CEB9412C32EF75ADC24DDFE /* CloudKitSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitSyncService.swift; sourceTree = "<group>"; };
 		44B579DB179F9F9A74296475 /* ProfileFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileFormView.swift; sourceTree = "<group>"; };
+		4C35D54511A64C96A460EAB1 /* TrackedEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackedEvent.swift; sourceTree = "<group>"; };
 		4C74A3F1511E9062686EF2C1 /* NotificationScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationScheduler.swift; sourceTree = "<group>"; };
 		540637DEA5459F68897F943E /* WeatherContextService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherContextService.swift; sourceTree = "<group>"; };
 		575F9F9ED22AB3F667CCDDC7 /* SyncStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncStatus.swift; sourceTree = "<group>"; };
 		646191BC23E0F875E444DFCF /* LiveActivityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityManager.swift; sourceTree = "<group>"; };
 		686E273CA71813447AEE9531 /* DailyCheckin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyCheckin.swift; sourceTree = "<group>"; };
 		6CBDEB26A3C91B6C2C231FD8 /* SiriTutorialView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiriTutorialView.swift; sourceTree = "<group>"; };
+		6D36EF2EADD04FF7B2EE0E4F /* InteractionTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractionTracker.swift; sourceTree = "<group>"; };
 		6FD7F3234633C2BD519D6504 /* EditGoalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditGoalView.swift; sourceTree = "<group>"; };
 		70608375406AEFAB8FD9A05D /* PermissionsCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionsCoordinator.swift; sourceTree = "<group>"; };
 		71707F70B58A641E997517DB /* NotificationDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationDelegate.swift; sourceTree = "<group>"; };
 		774252888FE898F0E8A81CAA /* HydrationControlWidgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HydrationControlWidgets.swift; sourceTree = "<group>"; };
 		77D39C48CF3E7F2C6FADD5F4 /* HydrationLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HydrationLiveActivity.swift; sourceTree = "<group>"; };
+		796A17516BBF466280B87A1B /* SheetLifecycleTracking.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetLifecycleTracking.swift; sourceTree = "<group>"; };
 		87F6CEC61D0EB34F2C4E96D3 /* Nunito-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Nunito-Bold.ttf"; sourceTree = "<group>"; };
 		89E03889516701BE00C6A8E4 /* UserProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserProfile.swift; sourceTree = "<group>"; };
 		8FA657D469BE9DC8A54167C5 /* IntakeLogService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntakeLogService.swift; sourceTree = "<group>"; };
+		949353F3A50444289F1B24C6 /* NotificationVariantSelectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationVariantSelectionTests.swift; sourceTree = "<group>"; };
 		95F0050D87C688CD6A361091 /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constants.swift; sourceTree = "<group>"; };
 		A751463FEB8FCD28AA160686 /* WaterIntakeCalculatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaterIntakeCalculatorTests.swift; sourceTree = "<group>"; };
 		A9EDD10460D867692F1B0943 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
@@ -179,12 +184,6 @@
 		B1F08A6A4544B6C3057E6B91 /* HydrationWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = HydrationWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		B6A65931A21528481F595E29 /* BackgroundRefreshService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundRefreshService.swift; sourceTree = "<group>"; };
 		B97525FAC07C838AC2BFCF1F /* NotificationEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationEvent.swift; sourceTree = "<group>"; };
-		F51BAE834F7A497D9A17644C /* UIInteractionEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIInteractionEvent.swift; sourceTree = "<group>"; };
-		4C35D54511A64C96A460EAB1 /* TrackedEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackedEvent.swift; sourceTree = "<group>"; };
-		6D36EF2EADD04FF7B2EE0E4F /* InteractionTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractionTracker.swift; sourceTree = "<group>"; };
-		796A17516BBF466280B87A1B /* SheetLifecycleTracking.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetLifecycleTracking.swift; sourceTree = "<group>"; };
-		0589AAEA6C294F99934668E1 /* InteractionTrackerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractionTrackerTests.swift; sourceTree = "<group>"; };
-		949353F3A50444289F1B24C6 /* NotificationVariantSelectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationVariantSelectionTests.swift; sourceTree = "<group>"; };
 		BCD76832686E086EB393F6B1 /* HidrataPOC.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HidrataPOC.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C3BCAACF78A9164EF7C57D86 /* WeatherContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherContext.swift; sourceTree = "<group>"; };
 		C7A5DA61EDA45323AB04B6E6 /* HydrationWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HydrationWidgetBundle.swift; sourceTree = "<group>"; };
@@ -202,8 +201,13 @@
 		E2CE5627BDF23AE7101D454A /* ActionButtonTutorialView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionButtonTutorialView.swift; sourceTree = "<group>"; };
 		E2D3A02B4F45DACAE8A960EE /* Baloo2-ExtraBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Baloo2-ExtraBold.ttf"; sourceTree = "<group>"; };
 		EE11223344556677889900EE /* Nunito.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Nunito.ttf; sourceTree = "<group>"; };
+		F51BAE834F7A497D9A17644C /* UIInteractionEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIInteractionEvent.swift; sourceTree = "<group>"; };
 		F93CA27F187823B29EA02167 /* ConsentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsentView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		38054D603063FAE5002AAA24 /* notification */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = notification; sourceTree = "<group>"; };
+/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		5108A204B4BB55CAD7920E43 /* Frameworks */ = {
@@ -297,6 +301,7 @@
 				37A7FBDE48AA63EF35F8635C /* HidrataPOCTests */,
 				D75F7703392B61CB93FD3B8F /* HydrationKit */,
 				CCE68074A395D0577E56F79D /* HydrationWidget */,
+				38054D603063FAE5002AAA24 /* notification */,
 				46ECE8838F4FE464DCC19DD6 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -533,6 +538,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
+				LastSwiftUpdateCheck = 2700;
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
 					18860CD4E122DAAE82B46D70 = {
@@ -866,6 +872,10 @@
 				DEVELOPMENT_TEAM = J6WURQU382;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = HidrataPOC/Support/Info.plist;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Consultamos sua agenda apenas para saber se você está ocupado (sem ler título ou local dos eventos), para escolher melhores horários de lembrete.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Usamos sua localização para consultar a temperatura e umidade no momento dos lembretes de hidratação.";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -975,6 +985,10 @@
 				DEVELOPMENT_TEAM = J6WURQU382;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = HidrataPOC/Support/Info.plist;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Consultamos sua agenda apenas para saber se você está ocupado (sem ler título ou local dos eventos), para escolher melhores horários de lembrete.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Usamos sua localização para consultar a temperatura e umidade no momento dos lembretes de hidratação.";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

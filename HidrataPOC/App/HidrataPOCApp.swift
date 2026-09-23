@@ -37,15 +37,15 @@ struct HidrataPOCApp: App {
         if UserDefaults.standard.bool(forKey: "hasAcceptedConsent") {
             await PermissionsCoordinator.requestAll()
         }
-        NotificationScheduler.shared.ensureTodayScheduled()
+        await NotificationScheduler.shared.ensureTodayScheduled()
         await CloudKitSyncService.shared.flushPending(context: PersistenceController.context)
     }
 
     private func handleScenePhaseChange(_ phase: ScenePhase) {
         switch phase {
         case .active:
-            NotificationScheduler.shared.ensureTodayScheduled()
             Task {
+                await NotificationScheduler.shared.ensureTodayScheduled()
                 await CloudKitSyncService.shared.flushPending(context: PersistenceController.context)
                 await NotificationScheduler.shared.tick()
                 await refreshLiveActivity()

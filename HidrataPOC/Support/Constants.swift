@@ -47,7 +47,7 @@ enum Constants {
     /// Hour-of-day boundaries used to pick a notification persona variant: fires
     /// before `notificationMorningEndHour` => morning, at/after
     /// `notificationEveningStartHour` => evening, otherwise midday.
-    static let notificationMorningEndHour = 11
+    static let notificationMorningEndHour = 9
     static let notificationEveningStartHour = 19
 
     enum NotificationCategory {
