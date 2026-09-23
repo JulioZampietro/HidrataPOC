@@ -62,9 +62,10 @@ final class NotificationScheduler {
         (try? await center.requestAuthorization(options: [.alert, .sound, .badge])) ?? false
     }
 
-    /// Generates today's semi-random reminder times the first time this is called on a
-    /// given day, then schedules a system notification for each one. Safe to call
-    /// repeatedly — no-ops once today's slots already exist.
+    /// Generates today's fixed reminder times (`Constants.notificationFixedHours`) the
+    /// first time this is called on a given day, then schedules a system notification
+    /// for each one still ahead of `.now`. Safe to call repeatedly — no-ops once
+    /// today's slots already exist.
     func ensureTodayScheduled() async {
         // No point scheduling reminders (or capturing context for them) before
         // onboarding has created a profile — there's no goal/timezone to reason about
@@ -78,30 +79,24 @@ final class NotificationScheduler {
             return
         }
 
-        let windowStart = calendar.date(bySettingHour: Constants.dailyWindowStartHour, minute: 0, second: 0, of: today) ?? today
-        let windowEnd = calendar.date(bySettingHour: Constants.dailyWindowEndHour, minute: 0, second: 0, of: today) ?? today
-        let earliestAllowed = max(windowStart, .now)
-        guard earliestAllowed < windowEnd else {
-            UserDefaults.standard.set(today, forKey: scheduledDayKey)
-            return
-        }
-
-        let slotCount = Constants.notificationsPerDay
-        let totalSeconds = windowEnd.timeIntervalSince(earliestAllowed)
-        let strataLength = totalSeconds / Double(slotCount)
-
         let targetUserID = profile.userID
         let logs = (try? PersistenceController.context.fetch(FetchDescriptor<IntakeLog>(predicate: #Predicate { $0.userID == targetUserID }))) ?? []
         let consumidoHoje = HydrationMath.totalML(logs, on: .now)
 
+        let firesAtTimes = Constants.notificationFixedHours
+            .compactMap { calendar.date(bySettingHour: $0, minute: 0, second: 0, of: today) }
+            .filter { $0 > .now }
+        guard !firesAtTimes.isEmpty else {
+            UserDefaults.standard.set(today, forKey: scheduledDayKey)
+            return
+        }
+
         var slots: [PendingSlot] = []
-        for i in 0..<slotCount {
-            let strataStart = earliestAllowed.addingTimeInterval(strataLength * Double(i))
-            let offset = Double.random(in: 0..<strataLength)
-            let firesAt = strataStart.addingTimeInterval(offset)
-            slots.append(PendingSlot(id: UUID(), firesAt: firesAt, captured: false))
+        for firesAt in firesAtTimes {
+            let slot = PendingSlot(id: UUID(), firesAt: firesAt, captured: false)
+            slots.append(slot)
             await scheduleSystemNotification(
-                id: slots[i].id,
+                id: slot.id,
                 firesAt: firesAt,
                 title: NotificationVariant.fallbackGeneric.title,
                 body: NotificationVariant.fallbackGeneric.body,
@@ -143,10 +138,27 @@ final class NotificationScheduler {
         for index in slots.indices where !slots[index].captured {
             let minutesUntilFire = slots[index].firesAt.timeIntervalSince(now) / 60
             guard minutesUntilFire <= Double(Self.captureLeadMinutes) else { continue }
+
+            if await hasOutstandingHydrationNotification() {
+                center.removePendingNotificationRequests(withIdentifiers: [slots[index].id.uuidString])
+                slots[index].captured = true
+                continue
+            }
+
             await captureContext(id: slots[index].id, firesAt: slots[index].firesAt, context: context)
             slots[index].captured = true
         }
         savePendingSlots(slots)
+    }
+
+    /// Whether a previous hydration reminder is still sitting delivered (lock
+    /// screen/Notification Center) without having been tapped or dismissed — a tap
+    /// or a swipe-dismiss both remove an entry from `deliveredNotifications()`, so
+    /// this is exactly "outstanding, unactioned." Used to skip a slot outright
+    /// rather than pile a new reminder on top of one the tester hasn't dealt with.
+    private func hasOutstandingHydrationNotification() async -> Bool {
+        let delivered = await center.deliveredNotifications()
+        return delivered.contains { $0.request.content.categoryIdentifier == Constants.NotificationCategory.hydrationReminder }
     }
 
     /// Gathers weather/calendar/deficit context and creates the `NotificationEvent`
