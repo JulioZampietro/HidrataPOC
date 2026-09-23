@@ -3,6 +3,7 @@ import SwiftUI
 
 struct RootView: View {
     @AppStorage("hasAcceptedConsent") private var hasAcceptedConsent = false
+    @AppStorage("hasSeenFeatureOnboarding") private var hasSeenFeatureOnboarding = false
     @Environment(\.modelContext) private var modelContext
     @Query private var profiles: [UserProfile]
 
@@ -21,6 +22,12 @@ struct RootView: View {
                 mainContent(profile: profile)
                     .onAppear { startLiveActivityIfNeeded(for: profile) }
                     .onChange(of: profile.userID) { startLiveActivityIfNeeded(for: profile) }
+                    .fullScreenCover(isPresented: Binding(
+                        get: { !hasSeenFeatureOnboarding },
+                        set: { _ in }
+                    )) {
+                        FeatureOnboardingView { hasSeenFeatureOnboarding = true }
+                    }
             } else {
                 OnboardingView()
             }

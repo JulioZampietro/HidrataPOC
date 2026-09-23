@@ -8,5 +8,6 @@ struct HydrationWidgetBundle: WidgetBundle {
         GlassControl()
         BottleControl()
         GoleControl()
+        CustomControl()
     }
 }
