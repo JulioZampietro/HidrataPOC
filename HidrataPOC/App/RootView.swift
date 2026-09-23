@@ -3,11 +3,10 @@ import SwiftUI
 
 struct RootView: View {
     @AppStorage("hasAcceptedConsent") private var hasAcceptedConsent = false
+    @AppStorage("hasSeenFeatureOnboarding") private var hasSeenFeatureOnboarding = false
     @Environment(\.modelContext) private var modelContext
     @Query private var profiles: [UserProfile]
-    @Query private var checkins: [DailyCheckin]
 
-    @State private var showingCheckin = false
     @State private var selectedTab = 0
 
     private var profile: UserProfile? { profiles.first }
@@ -21,16 +20,13 @@ struct RootView: View {
                 })
             } else if let profile {
                 mainContent(profile: profile)
-                    .sheet(isPresented: $showingCheckin) {
-                        DailyCheckinView(userID: profile.userID, onDone: { showingCheckin = false })
-                    }
-                    .onAppear {
-                        evaluateCheckin(for: profile)
-                        startLiveActivityIfNeeded(for: profile)
-                    }
-                    .onChange(of: profile.userID) {
-                        evaluateCheckin(for: profile)
-                        startLiveActivityIfNeeded(for: profile)
+                    .onAppear { startLiveActivityIfNeeded(for: profile) }
+                    .onChange(of: profile.userID) { startLiveActivityIfNeeded(for: profile) }
+                    .fullScreenCover(isPresented: Binding(
+                        get: { !hasSeenFeatureOnboarding },
+                        set: { _ in }
+                    )) {
+                        FeatureOnboardingView { hasSeenFeatureOnboarding = true }
                     }
             } else {
                 OnboardingView()
@@ -56,13 +52,6 @@ struct RootView: View {
             AppTabBar(selectedTab: $selectedTab)
         }
         .ignoresSafeArea(edges: .bottom)
-    }
-
-    private func evaluateCheckin(for profile: UserProfile) {
-        let hasToday = checkins.contains {
-            $0.userID == profile.userID && Calendar.current.isDateInToday($0.dataReferencia)
-        }
-        showingCheckin = !hasToday
     }
 
     private func startLiveActivityIfNeeded(for profile: UserProfile) {
@@ -136,5 +125,5 @@ struct AppTabBar: View {
 
 #Preview {
     RootView()
-        .modelContainer(for: [UserProfile.self, DailyCheckin.self], inMemory: true)
+        .modelContainer(for: [UserProfile.self], inMemory: true)
 }

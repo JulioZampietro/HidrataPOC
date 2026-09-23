@@ -77,6 +77,7 @@ struct ProfileFormView: View {
     @State private var pesoKg: Double
     @State private var alturaCm: Double
     @State private var customIntakeML: Int
+    @State private var isFetchingFromHealth = false
 
     /// Read-only — recommended from the profile fields via `WaterIntakeCalculator`;
     /// no longer directly editable (see spec discussion on the heuristic model).
@@ -100,6 +101,32 @@ struct ProfileFormView: View {
 
     var body: some View {
         Form {
+            if showsCustomIntakeField {
+                Section {
+                    Button {
+                        Task { await fillFromHealth() }
+                    } label: {
+                        HStack(spacing: 12) {
+                            if isFetchingFromHealth {
+                                ProgressView().frame(width: 22, height: 22)
+                            } else {
+                                Image(systemName: "heart.fill")
+                                    .foregroundStyle(.pink)
+                                    .frame(width: 22)
+                            }
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Preencher com dados do Saúde")
+                                    .foregroundStyle(.primary)
+                                Text("Importa sexo biológico, nascimento, peso e altura")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    .disabled(isFetchingFromHealth)
+                }
+            }
+
             Section("Sobre você") {
                 Stepper("Idade: \(idade) anos", value: $idade, in: 10...100)
 
@@ -164,6 +191,16 @@ struct ProfileFormView: View {
             }
         }
         .navigationTitle(title)
+    }
+
+    private func fillFromHealth() async {
+        isFetchingFromHealth = true
+        let data = await HealthKitService.shared.fetchProfileData()
+        if let age = data.idade { idade = age }
+        if let g = data.genero { genero = g }
+        if let w = data.pesoKg { pesoKg = w.rounded() }
+        if let h = data.alturaCm { alturaCm = h.rounded() }
+        isFetchingFromHealth = false
     }
 }
 

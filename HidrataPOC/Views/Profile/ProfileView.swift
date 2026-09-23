@@ -9,6 +9,7 @@ struct ProfileView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.modelContext) private var modelContext
     @Query private var allLogs: [IntakeLog]
+    @State private var tempContext: TemperatureAdjustmentContext?
     @State private var isEditing = false
     @State private var isEditingGoal = false
     @State private var showGoalExplainer = false
@@ -53,6 +54,10 @@ struct ProfileView: View {
             .padding(.bottom, 32)
         }
         .appScreenBackground()
+        .task {
+            guard tempContext == nil else { return }
+            tempContext = await WeatherContextService.shared.temperatureAdjustmentContext()
+        }
         .sheet(isPresented: $isEditing) {
             NavigationStack {
                 ProfileFormView(
@@ -66,12 +71,15 @@ struct ProfileView: View {
             .trackSheetLifecycle(.editPersonalData, screen: .profile, userID: profile.userID)
         }
         .sheet(isPresented: $showGoalExplainer) {
-            GoalExplainerView(goalML: profile.metaDiariaML)
+            GoalExplainerView(goalML: profile.metaDiariaML, adjustmentML: tempContext?.adjustmentML ?? 0)
                 .trackSheetLifecycle(.goalExplainer, screen: .profile, userID: profile.userID)
         }
         .sheet(isPresented: $isEditingGoal) {
             EditGoalView(initialValueML: profile.metaDiariaML, onSave: saveGoal)
                 .trackSheetLifecycle(.editGoal, screen: .profile, userID: profile.userID)
+        }
+        .sheet(isPresented: $showHealthConnect) {
+            HealthConnectView(profile: profile)
         }
     }
 
@@ -92,6 +100,11 @@ struct ProfileView: View {
                         Text("mL")
                             .font(.custom("Nunito", size: 18).weight(.semibold))
                             .foregroundStyle(.secondary)
+                        if let adjustment = tempContext?.adjustmentML, adjustment > 0 {
+                            Text("+ \(adjustment) mL")
+                                .font(.custom("Nunito", size: 13).weight(.semibold))
+                                .foregroundStyle(.orange)
+                        }
                     }
                 }
 
@@ -373,6 +386,7 @@ struct ProfileView: View {
 
 private struct GoalExplainerView: View {
     let goalML: Int
+    let adjustmentML: Int
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -387,16 +401,29 @@ private struct GoalExplainerView: View {
                     .font(.custom("Nunito", size: 22).weight(.heavy))
 
                 VStack(spacing: 6) {
-                    Text("\(goalML) mL")
-                        .font(.custom("Nunito", size: 40).weight(.heavy))
-                        .foregroundStyle(accentBlue)
+                    HStack(alignment: .lastTextBaseline, spacing: 6) {
+                        Text("\(goalML) mL")
+                            .font(.custom("Nunito", size: 40).weight(.heavy))
+                            .foregroundStyle(accentBlue)
+                        if adjustmentML > 0 {
+                            Text("+ \(adjustmentML) mL")
+                                .font(.custom("Nunito", size: 15).weight(.semibold))
+                                .foregroundStyle(.orange)
+                        }
+                    }
 
                     Text("calculado com base no seu perfil")
                         .font(.custom("Nunito", size: 14))
                         .foregroundStyle(.secondary)
+
+                    if adjustmentML > 0 {
+                        Text("+ \(adjustmentML) mL por conta da temperatura hoje")
+                            .font(.custom("Nunito", size: 13))
+                            .foregroundStyle(.orange.opacity(0.85))
+                    }
                 }
 
-                Text("A quantidade ideal de água depende do seu peso, altura, idade e gênero. Você pode ajustar seus dados no perfil para recalcular a meta.")
+                Text("A quantidade ideal de água depende do seu peso, altura, idade, gênero e temperatura no dia. Você pode ajustar seus dados no perfil para recalcular a meta.")
                     .font(.custom("Nunito", size: 15))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)

@@ -49,6 +49,7 @@ struct HidrataPOCApp: App {
                 await CloudKitSyncService.shared.flushPending(context: PersistenceController.context)
                 await NotificationScheduler.shared.tick()
                 await refreshLiveActivity()
+                await syncHealthKitIfAuthorized()
             }
             startForegroundTimer()
         case .background:
@@ -61,6 +62,13 @@ struct HidrataPOCApp: App {
 
     /// FR-9/FR-10 — only meaningful once onboarding has created a profile (mirrors
     /// the guard in `NotificationScheduler.ensureTodayScheduled`).
+    private func syncHealthKitIfAuthorized() async {
+        guard HealthKitService.shared.isAuthorized,
+              let profile = try? PersistenceController.context.fetch(FetchDescriptor<UserProfile>()).first
+        else { return }
+        await HealthKitService.shared.syncFromHealthKit(userID: profile.userID, context: PersistenceController.context)
+    }
+
     private func refreshLiveActivity() async {
         guard let profile = try? PersistenceController.context.fetch(FetchDescriptor<UserProfile>()).first else { return }
         await LiveActivityManager.shared.startIfNeeded(profile: profile, context: PersistenceController.context)
