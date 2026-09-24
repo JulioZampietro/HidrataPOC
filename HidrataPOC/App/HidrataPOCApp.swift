@@ -17,6 +17,10 @@ struct HidrataPOCApp: App {
         NotificationScheduler.shared.registerCategories()
         BackgroundRefreshService.register()
         HidrataPOCShortcuts.updateAppShortcutParameters()
+
+        IntakeLogService.onIntakeRecorded = { volumeML, timestamp, logID in
+            await HealthKitService.shared.save(volumeML: volumeML, timestamp: timestamp, logID: logID)
+        }
     }
 
     var body: some Scene {
@@ -66,7 +70,10 @@ struct HidrataPOCApp: App {
         guard HealthKitService.shared.isAuthorized,
               let profile = try? PersistenceController.context.fetch(FetchDescriptor<UserProfile>()).first
         else { return }
-        await HealthKitService.shared.syncFromHealthKit(userID: profile.userID, context: PersistenceController.context)
+        let ctx = PersistenceController.context
+        let allLogs = (try? ctx.fetch(FetchDescriptor<IntakeLog>())) ?? []
+        await HealthKitService.shared.backfill(logs: allLogs)
+        await HealthKitService.shared.syncFromHealthKit(userID: profile.userID, context: ctx)
     }
 
     private func refreshLiveActivity() async {
