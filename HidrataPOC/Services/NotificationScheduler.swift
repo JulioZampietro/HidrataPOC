@@ -391,7 +391,10 @@ final class NotificationScheduler {
             content.categoryIdentifier = Constants.NotificationCategory.hydrationReminder
             content.userInfo = ["eventID": id.uuidString]
         }
-        content.sound = .default
+        // gulun.caf: the .m4a (AAC) source isn't a format local notifications can play
+        // as a custom sound, so it's bundled converted to Linear PCM .caf. Must stay
+        // under 30s, or iOS falls back to the default sound.
+        content.sound = UNNotificationSound(named: UNNotificationSoundName("gulun.caf"))
 
         // Communication Notifications (requires the entitlement in
         // HidrataPOC.entitlements): donating an `INSendMessageIntent` whose sender
