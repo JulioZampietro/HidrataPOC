@@ -17,6 +17,9 @@ struct ProfileView: View {
     @State private var showLiveActivities = false
     @State private var showSiriTutorial = false
     @State private var showHealthConnect = false
+    #if DEBUG
+    @State private var debugNotificationStatus: String?
+    #endif
 
     private var todayProgress: Double {
         guard profile.metaDiariaML > 0 else { return 0 }
@@ -47,6 +50,9 @@ struct ProfileView: View {
                 liveActivitiesRow
                 siriRow
                 healthRow
+                #if DEBUG
+                debugNotificationRow
+                #endif
                 personalDataSection
             }
             .padding(.horizontal, 20)
@@ -280,6 +286,45 @@ struct ProfileView: View {
         }
         .buttonStyle(.plain)
     }
+
+    // MARK: - Debug Row
+
+    #if DEBUG
+    private var debugNotificationRow: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Button {
+                Task {
+                    debugNotificationStatus = "Enviando…"
+                    _ = await NotificationScheduler.shared.requestAuthorization()
+                    if let expected = await NotificationScheduler.shared.sendDebugNotification() {
+                        debugNotificationStatus = "Chega em 5s (minimize o app pra ver na tela de bloqueio). Esperado: \(expected)"
+                    } else {
+                        debugNotificationStatus = "Sem perfil para gerar a notificação."
+                    }
+                }
+            } label: {
+                HStack {
+                    Label("Debug: testar notificação do mascote", systemImage: "ladybug")
+                        .font(.custom("Nunito", size: 16).weight(.semibold))
+                        .foregroundStyle(.primary)
+                    Spacer()
+                }
+                .padding(.horizontal, 18)
+                .padding(.vertical, 16)
+                .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
+                .shadow(color: .black.opacity(0.06), radius: 6, x: 0, y: 2)
+            }
+            .buttonStyle(.plain)
+
+            if let debugNotificationStatus {
+                Text(debugNotificationStatus)
+                    .font(.custom("Nunito", size: 13))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 6)
+            }
+        }
+    }
+    #endif
 
     // MARK: - Personal Data Section
 
