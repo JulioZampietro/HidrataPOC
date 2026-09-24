@@ -107,8 +107,7 @@ struct ActionButtonTutorialView: View {
                 isLast: true
             )
         }
-        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.06), radius: 6, x: 0, y: 2)
+        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 20))
     }
 
     private func stepRow(number: Int, icon: String, title: String, description: String, isLast: Bool) -> some View {
@@ -163,25 +162,17 @@ struct ActionButtonTutorialView: View {
 
     private var openSettingsButton: some View {
         Button(action: openActionButtonSettings) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(Color(red: 0.18, green: 0.35, blue: 0.56))
-                    .offset(y: 4)
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(accentBlue)
-                HStack(spacing: 8) {
-                    Image(systemName: "arrow.up.right.square")
-                        .font(.system(size: 16, weight: .semibold))
-                    Text("Abrir Ajustes")
-                        .font(.custom("Nunito", size: 16).weight(.bold))
-                }
-                .foregroundStyle(.white)
-                .padding(.vertical, 16)
+            HStack(spacing: 8) {
+                Image(systemName: "arrow.up.right.square")
+                    .font(.system(size: 16, weight: .semibold))
+                Text("Abrir Ajustes")
+                    .font(.custom("Nunito", size: 16).weight(.bold))
             }
             .frame(maxWidth: .infinity)
-            .padding(.bottom, 4)
+            .padding(.vertical, 8)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.glassProminent)
+        .tint(accentBlue)
     }
 
     // MARK: - Actions

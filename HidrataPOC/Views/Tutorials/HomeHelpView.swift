@@ -116,8 +116,7 @@ struct HomeHelpView: View {
                 itemRow(item: item, isLast: index == items.count - 1)
             }
         }
-        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 18))
-        .shadow(color: .black.opacity(0.06), radius: 6, x: 0, y: 2)
+        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 18))
     }
 
     private func itemRow(item: HelpItem, isLast: Bool) -> some View {

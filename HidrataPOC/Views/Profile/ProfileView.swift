@@ -126,38 +126,28 @@ struct ProfileView: View {
                 Button {
                     showGoalExplainer = true
                 } label: {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 14)
-                            .fill(Color(red: 0.18, green: 0.35, blue: 0.56))
-                            .offset(y: 4)
-                        RoundedRectangle(cornerRadius: 14)
-                            .fill(accentBlue)
-                        Text("Entender minha meta")
-                            .font(.custom("Nunito", size: 15).weight(.bold))
-                            .foregroundStyle(.white)
-                            .padding(.vertical, 13)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.bottom, 4)
+                    Text("Entender minha meta")
+                        .font(.custom("Nunito", size: 15).weight(.bold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 6)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.glassProminent)
+                .tint(accentBlue)
 
                 Button {
                     isEditingGoal = true
                 } label: {
                     Text("Editar")
                         .font(.custom("Nunito", size: 15).weight(.semibold))
-                        .foregroundStyle(accentBlue)
-                        .padding(.vertical, 13)
-                        .padding(.horizontal, 20)
-                        .background(accentBlue.opacity(0.12), in: RoundedRectangle(cornerRadius: 14))
+                        .padding(.vertical, 6)
+                        .padding(.horizontal, 8)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.glass)
+                .tint(accentBlue)
             }
         }
         .padding(18)
-        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 2)
+        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 20))
     }
 
     // MARK: - Reminders Card
@@ -166,41 +156,31 @@ struct ProfileView: View {
         Button {
             showReminders = true
         } label: {
-            ZStack {
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(Color(red: 0.18, green: 0.35, blue: 0.56))
-                    .offset(y: 4)
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(accentBlue)
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Configurar lembretes")
-                            .font(.custom("Nunito", size: 17).weight(.heavy))
-                            .foregroundStyle(.white)
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Configurar lembretes")
+                        .font(.custom("Nunito", size: 17).weight(.heavy))
 
-                        Text("O monstro te provoca quando\nvocê esquece de beber")
-                            .font(.custom("Nunito", size: 13))
-                            .foregroundStyle(.white.opacity(0.85))
-                            .lineSpacing(2)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-
-                    Spacer()
-
-                    ZStack {
-                        Circle()
-                            .fill(.white.opacity(0.2))
-                            .frame(width: 40, height: 40)
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(.white)
-                    }
+                    Text("O monstro te provoca quando\nvocê esquece de beber")
+                        .font(.custom("Nunito", size: 13))
+                        .opacity(0.85)
+                        .lineSpacing(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .multilineTextAlignment(.leading)
                 }
-                .padding(18)
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 16, weight: .semibold))
             }
-            .padding(.bottom, 4)
+            .foregroundStyle(.white)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 8)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.glassProminent)
+        .buttonBorderShape(.roundedRectangle(radius: 20))
+        .tint(accentBlue)
     }
 
     // MARK: - Live Activities Row
@@ -222,8 +202,7 @@ struct ProfileView: View {
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 16)
-            .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
-            .shadow(color: .black.opacity(0.06), radius: 6, x: 0, y: 2)
+            .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 16))
         }
         .buttonStyle(.plain)
         .sheet(isPresented: $showLiveActivities) {
@@ -251,8 +230,7 @@ struct ProfileView: View {
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 16)
-            .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
-            .shadow(color: .black.opacity(0.06), radius: 6, x: 0, y: 2)
+            .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 16))
         }
         .buttonStyle(.plain)
         .sheet(isPresented: $showSiriTutorial) {
@@ -281,8 +259,7 @@ struct ProfileView: View {
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 16)
-            .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
-            .shadow(color: .black.opacity(0.06), radius: 6, x: 0, y: 2)
+            .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 16))
         }
         .buttonStyle(.plain)
     }
@@ -311,8 +288,7 @@ struct ProfileView: View {
                 }
                 .padding(.horizontal, 18)
                 .padding(.vertical, 16)
-                .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
-                .shadow(color: .black.opacity(0.06), radius: 6, x: 0, y: 2)
+                .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 16))
             }
             .buttonStyle(.plain)
 
@@ -356,8 +332,7 @@ struct ProfileView: View {
                 dataRow(label: "Peso", value: "\(Int(profile.pesoKg)) kg", isLast: false)
                 dataRow(label: "Altura", value: alturaFormatted, isLast: true)
             }
-            .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 18))
-            .shadow(color: .black.opacity(0.06), radius: 6, x: 0, y: 2)
+            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 18))
         }
     }
 

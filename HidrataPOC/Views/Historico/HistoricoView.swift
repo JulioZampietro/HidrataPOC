@@ -138,6 +138,8 @@ struct HistoricoView: View {
                 VStack(spacing: 12) {
                     topBar
                     mascotSection
+                        .frame(maxWidth: .infinity)
+                        .waterContainer(level: todayProgress, in: RoundedRectangle(cornerRadius: 32, style: .continuous))
                     calendarCard
                 }
                 .padding(.horizontal)
@@ -163,7 +165,7 @@ struct HistoricoView: View {
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(accentBlue)
                     .frame(width: 40, height: 40)
-                    .background(Color(.secondarySystemBackground), in: Circle())
+                    .glassEffect(.regular.interactive(), in: Circle())
             }
             .accessibilityLabel("Ajuda")
 
@@ -181,7 +183,7 @@ struct HistoricoView: View {
             .foregroundStyle(.primary)
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
-            .background(Color(.secondarySystemBackground), in: Capsule())
+            .glassEffect(.regular, in: Capsule())
         }
     }
 
@@ -207,8 +209,7 @@ struct HistoricoView: View {
             .foregroundStyle(.secondary)
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
-            .background(Color(.secondarySystemBackground), in: Capsule())
-            .shadow(color: .black.opacity(0.06), radius: 4, y: 2)
+            .glassEffect(.regular, in: Capsule())
     }
 
     private var mascotPlaceholder: some View {
@@ -231,8 +232,7 @@ struct HistoricoView: View {
             }
         }
         .padding(20)
-        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 24))
-        .shadow(color: .black.opacity(0.05), radius: 10, y: 4)
+        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 24))
         .simultaneousGesture(cardSwipeGesture)
     }
 

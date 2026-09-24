@@ -13,6 +13,11 @@ private struct PendingSlot: Codable {
     let id: UUID
     let firesAt: Date
     var captured: Bool
+    /// `NotificationVariant.rawValue` the system notification is currently armed with.
+    /// Chosen when the slot is scheduled (not only at capture time), so the persona copy
+    /// shows even if the app never got a chance to run in the capture window; kept so a
+    /// slot that fires before capture records the variant that was actually shown.
+    var variant: String? = nil
 }
 
 /// Drives the whole "notification with context" pipeline described in the spec:
@@ -95,16 +100,22 @@ final class NotificationScheduler {
             return
         }
 
+        // Every slot is armed with its persona copy right away — the capture pass a few
+        // minutes before firing (`captureContext`) only refines it with fresher weather.
+        // Relying on that pass alone left the generic fallback on screen whenever the app
+        // wasn't running in the capture window, which is the common case.
+        let weather = await WeatherContextService.shared.currentContext()
         var slots: [PendingSlot] = []
         for firesAt in firesAtTimes {
-            let slot = PendingSlot(id: UUID(), firesAt: firesAt, captured: false)
+            let variant = Self.selectVariant(firesAt: firesAt, weather: weather, profile: profile, logs: logs)
+            let slot = PendingSlot(id: UUID(), firesAt: firesAt, captured: false, variant: variant.rawValue)
             slots.append(slot)
             await scheduleSystemNotification(
                 id: slot.id,
                 firesAt: firesAt,
-                title: NotificationVariant.fallbackGeneric.title,
-                body: NotificationVariant.fallbackGeneric.body,
-                sender: mascotSender(title: NotificationVariant.fallbackGeneric.title, consumidoHojeML: consumidoHoje, goalML: goalML)
+                title: variant.title,
+                body: variant.body,
+                sender: mascotSender(title: variant.title, consumidoHojeML: consumidoHoje, goalML: goalML)
             )
         }
 
@@ -148,12 +159,14 @@ final class NotificationScheduler {
             // Re-checked on every tick, never cached: an outstanding notification
             // only blocks sending right now, not this slot for the rest of the day.
             if await hasOutstandingHydrationNotification(excluding: slots[index].id) {
-                await pushBackPendingSlot(id: slots[index].id)
+                await pushBackPendingSlot(id: slots[index].id, variant: slots[index].variant.flatMap(NotificationVariant.init(rawValue:)))
                 continue
             }
 
             let wasOverdue = minutesUntilFire < 0
-            await captureContext(id: slots[index].id, firesAt: slots[index].firesAt, context: context, forceImmediateDelivery: wasOverdue)
+            if let variant = await captureContext(id: slots[index].id, firesAt: slots[index].firesAt, context: context, forceImmediateDelivery: wasOverdue) {
+                slots[index].variant = variant.rawValue
+            }
             slots[index].captured = true
             didChange = true
         }
@@ -162,17 +175,19 @@ final class NotificationScheduler {
         }
     }
 
-    /// Re-arms a held-back slot's system notification a few minutes out (generic
-    /// fallback copy, same identifier) so it doesn't fire while still blocked, but
-    /// keeps trying — the slot stays uncaptured, so the next tick checks again.
-    private func pushBackPendingSlot(id: UUID) async {
+    /// Re-arms a held-back slot's system notification a few minutes out (same
+    /// identifier, keeping the slot's persona copy — generic fallback only if it never
+    /// had one) so it doesn't fire while still blocked, but keeps trying — the slot
+    /// stays uncaptured, so the next tick checks again.
+    private func pushBackPendingSlot(id: UUID, variant: NotificationVariant?) async {
         let retryAt = Date.now.addingTimeInterval(Double(Constants.notificationBlockedRetryMinutes) * 60)
+        let copy = variant ?? .fallbackGeneric
         await scheduleSystemNotification(
             id: id,
             firesAt: retryAt,
-            title: NotificationVariant.fallbackGeneric.title,
-            body: NotificationVariant.fallbackGeneric.body,
-            sender: await currentMascotSender(title: NotificationVariant.fallbackGeneric.title)
+            title: copy.title,
+            body: copy.body,
+            sender: await currentMascotSender(title: copy.title)
         )
     }
 
@@ -203,9 +218,13 @@ final class NotificationScheduler {
     /// (a notification that already fired on its own and is now being interacted
     /// with), so it still needs scheduling — just for right now instead of the
     /// stale original time.
-    func captureContext(id: UUID, firesAt: Date, context: ModelContext, forceImmediateDelivery: Bool = false) async {
-        guard fetchNotificationEvent(id: id, context: context) == nil else { return }
-        guard let profile = try? context.fetch(FetchDescriptor<UserProfile>()).first else { return }
+    ///
+    /// Returns the variant recorded on the event (nil if nothing was captured), so the
+    /// caller can keep the slot's bookkeeping in sync with what's armed.
+    @discardableResult
+    func captureContext(id: UUID, firesAt: Date, context: ModelContext, forceImmediateDelivery: Bool = false) async -> NotificationVariant? {
+        guard fetchNotificationEvent(id: id, context: context) == nil else { return nil }
+        guard let profile = try? context.fetch(FetchDescriptor<UserProfile>()).first else { return nil }
 
         let weather = await WeatherContextService.shared.currentContext()
         let calendarContext = CalendarContextService.shared.currentContext(around: firesAt)
@@ -215,7 +234,18 @@ final class NotificationScheduler {
         let consumidoHoje = HydrationMath.totalML(logs, on: firesAt)
         let deficit = HydrationMath.deficitML(metaDiariaML: profile.metaDiariaML, consumidoHojeML: consumidoHoje)
         let minutesSinceLast = HydrationMath.minutesSinceLastIntake(logs, now: firesAt)
-        let variant = Self.selectVariant(firesAt: firesAt, weather: weather, profile: profile, logs: logs)
+        // The variant the slot is currently armed with (chosen at scheduling time).
+        let armed = loadPendingSlots().first { $0.id == id }?.variant.flatMap(NotificationVariant.init(rawValue:))
+        let alreadyFired = firesAt <= .now && !forceImmediateDelivery
+        // If the reminder already fired on its own, the tester saw the armed copy, so
+        // that's what the event must record; otherwise re-pick with fresh context, but
+        // don't re-roll a random midday pick that's still valid.
+        let variant: NotificationVariant
+        if alreadyFired, let armed {
+            variant = armed
+        } else {
+            variant = Self.selectVariant(firesAt: firesAt, weather: weather, profile: profile, logs: logs, keeping: armed)
+        }
 
         let event = NotificationEvent(
             id: id,
@@ -237,15 +267,15 @@ final class NotificationScheduler {
 
         // Reschedule with the chosen persona copy, in place, only if the notification
         // hasn't fired yet — if it already fired (last-resort fallback capture from
-        // `NotificationDelegate`), the tester already saw the generic fallback text
-        // and there's nothing left to swap; the event still records which variant
-        // *would* have been shown, so no data is lost.
+        // `NotificationDelegate`), the tester already saw the armed copy and there's
+        // nothing left to swap.
         if firesAt > .now || forceImmediateDelivery {
             let goalML = await effectiveGoalML(for: profile)
             let sender = mascotSender(title: variant.title, consumidoHojeML: consumidoHoje, goalML: goalML)
             let scheduledFireDate = firesAt > .now ? firesAt : Date.now.addingTimeInterval(2)
             await scheduleSystemNotification(id: id, firesAt: scheduledFireDate, title: variant.title, body: variant.body, sender: sender)
         }
+        return variant
     }
 
     /// Picks which persona-flavored copy variant to show for a reminder firing at
@@ -258,7 +288,8 @@ final class NotificationScheduler {
         weather: WeatherContext?,
         profile: UserProfile,
         logs: [IntakeLog],
-        calendar: Calendar = .current
+        calendar: Calendar = .current,
+        keeping: NotificationVariant? = nil
     ) -> NotificationVariant {
         let hour = calendar.component(.hour, from: firesAt)
         let isEvening = hour >= Constants.notificationEveningStartHour
@@ -273,7 +304,11 @@ final class NotificationScheduler {
         }
         if isMorning { return .mildMorning }
         if isEvening { return .symptomIrritabilityEvening }
-        return [.middayNeutral, .symptomHeadacheMidday, .symptomConcentrationMidday].randomElement()!
+        // `keeping` lets a re-pick with fresher context avoid re-rolling a midday variant
+        // the slot was already armed with.
+        let midday: [NotificationVariant] = [.middayNeutral, .symptomHeadacheMidday, .symptomConcentrationMidday]
+        if let keeping, midday.contains(keeping) { return keeping }
+        return midday.randomElement()!
     }
 
     // MARK: - Interaction resolution
@@ -367,17 +402,29 @@ final class NotificationScheduler {
     /// day's regular random schedule.
     func scheduleSnoozeSlot() async {
         let firesAt = Date.now.addingTimeInterval(15 * 60)
-        let slot = PendingSlot(id: UUID(), firesAt: firesAt, captured: false)
+        let variant = await provisionalVariant(firesAt: firesAt)
+        let slot = PendingSlot(id: UUID(), firesAt: firesAt, captured: false, variant: variant.rawValue)
         var slots = loadPendingSlots()
         slots.append(slot)
         savePendingSlots(slots)
         await scheduleSystemNotification(
             id: slot.id,
             firesAt: firesAt,
-            title: NotificationVariant.fallbackGeneric.title,
-            body: NotificationVariant.fallbackGeneric.body,
-            sender: await currentMascotSender(title: NotificationVariant.fallbackGeneric.title)
+            title: variant.title,
+            body: variant.body,
+            sender: await currentMascotSender(title: variant.title)
         )
+    }
+
+    /// Persona variant for an ad-hoc slot (snooze), from whatever profile/intake/weather
+    /// data is on hand right now. Falls back to the generic copy without a profile.
+    private func provisionalVariant(firesAt: Date) async -> NotificationVariant {
+        let context = PersistenceController.context
+        guard let profile = try? context.fetch(FetchDescriptor<UserProfile>()).first else { return .fallbackGeneric }
+        let targetUserID = profile.userID
+        let logs = (try? context.fetch(FetchDescriptor<IntakeLog>(predicate: #Predicate { $0.userID == targetUserID }))) ?? []
+        let weather = await WeatherContextService.shared.currentContext()
+        return Self.selectVariant(firesAt: firesAt, weather: weather, profile: profile, logs: logs)
     }
 
     private func resolveTimedOutEvents(context: ModelContext) async {
