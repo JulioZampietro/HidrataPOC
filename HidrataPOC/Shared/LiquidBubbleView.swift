@@ -34,7 +34,7 @@ struct LiquidBubbleView: View {
                     blob
                         .fill(
                             RadialGradient(
-                                colors: [.white.opacity(0.1), .white.opacity(0)],
+                                colors: [.white.opacity(0.0), .white.opacity(0)],
                                 center: UnitPoint(x: 0.3, y: 0.24),
                                 startRadius: 0,
                                 endRadius: size * 0.5
