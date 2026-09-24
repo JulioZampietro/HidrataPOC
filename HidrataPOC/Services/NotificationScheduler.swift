@@ -135,36 +135,70 @@ final class NotificationScheduler {
         guard !slots.isEmpty else { return }
 
         let now = Date.now
+        var didChange = false
         for index in slots.indices where !slots[index].captured {
             let minutesUntilFire = slots[index].firesAt.timeIntervalSince(now) / 60
             guard minutesUntilFire <= Double(Self.captureLeadMinutes) else { continue }
 
-            if await hasOutstandingHydrationNotification() {
-                center.removePendingNotificationRequests(withIdentifiers: [slots[index].id.uuidString])
-                slots[index].captured = true
+            // Re-checked on every tick, never cached: an outstanding notification
+            // only blocks sending right now, not this slot for the rest of the day.
+            if await hasOutstandingHydrationNotification(excluding: slots[index].id) {
+                await pushBackPendingSlot(id: slots[index].id)
                 continue
             }
 
-            await captureContext(id: slots[index].id, firesAt: slots[index].firesAt, context: context)
+            let wasOverdue = minutesUntilFire < 0
+            await captureContext(id: slots[index].id, firesAt: slots[index].firesAt, context: context, forceImmediateDelivery: wasOverdue)
             slots[index].captured = true
+            didChange = true
         }
-        savePendingSlots(slots)
+        if didChange {
+            savePendingSlots(slots)
+        }
+    }
+
+    /// Re-arms a held-back slot's system notification a few minutes out (generic
+    /// fallback copy, same identifier) so it doesn't fire while still blocked, but
+    /// keeps trying — the slot stays uncaptured, so the next tick checks again.
+    private func pushBackPendingSlot(id: UUID) async {
+        let retryAt = Date.now.addingTimeInterval(Double(Constants.notificationBlockedRetryMinutes) * 60)
+        await scheduleSystemNotification(
+            id: id,
+            firesAt: retryAt,
+            title: NotificationVariant.fallbackGeneric.title,
+            body: NotificationVariant.fallbackGeneric.body,
+            sender: currentMascotSender(title: NotificationVariant.fallbackGeneric.title)
+        )
     }
 
     /// Whether a previous hydration reminder is still sitting delivered (lock
     /// screen/Notification Center) without having been tapped or dismissed — a tap
     /// or a swipe-dismiss both remove an entry from `deliveredNotifications()`, so
-    /// this is exactly "outstanding, unactioned." Used to skip a slot outright
-    /// rather than pile a new reminder on top of one the tester hasn't dealt with.
-    private func hasOutstandingHydrationNotification() async -> Bool {
+    /// this is exactly "outstanding, unactioned." Used to hold a slot back rather
+    /// than pile a new reminder on top of one the tester hasn't dealt with.
+    /// `excluding` leaves out the slot currently being evaluated, so a reminder
+    /// that already delivered itself (e.g. caught up on after being held back)
+    /// never counts as blocking its own slot.
+    private func hasOutstandingHydrationNotification(excluding id: UUID) async -> Bool {
         let delivered = await center.deliveredNotifications()
-        return delivered.contains { $0.request.content.categoryIdentifier == Constants.NotificationCategory.hydrationReminder }
+        return delivered.contains {
+            $0.request.content.categoryIdentifier == Constants.NotificationCategory.hydrationReminder
+                && $0.request.identifier != id.uuidString
+        }
     }
 
     /// Gathers weather/calendar/deficit context and creates the `NotificationEvent`
     /// for one slot. Public so `NotificationDelegate` can call it as a fallback when a
     /// tester interacts with a notification whose event was never pre-captured.
-    func captureContext(id: UUID, firesAt: Date, context: ModelContext) async {
+    ///
+    /// `forceImmediateDelivery` is for a slot that was held back past its original
+    /// `firesAt` by `hasOutstandingHydrationNotification` (see
+    /// `captureImminentSlots`/`pushBackPendingSlot`) and only just cleared: nothing
+    /// was ever delivered for it, unlike the ordinary `firesAt <= .now` case below
+    /// (a notification that already fired on its own and is now being interacted
+    /// with), so it still needs scheduling — just for right now instead of the
+    /// stale original time.
+    func captureContext(id: UUID, firesAt: Date, context: ModelContext, forceImmediateDelivery: Bool = false) async {
         guard fetchNotificationEvent(id: id, context: context) == nil else { return }
         guard let profile = try? context.fetch(FetchDescriptor<UserProfile>()).first else { return }
 
@@ -201,9 +235,10 @@ final class NotificationScheduler {
         // `NotificationDelegate`), the tester already saw the generic fallback text
         // and there's nothing left to swap; the event still records which variant
         // *would* have been shown, so no data is lost.
-        if firesAt > .now {
+        if firesAt > .now || forceImmediateDelivery {
             let sender = mascotSender(title: variant.title, consumidoHojeML: consumidoHoje, metaDiariaML: profile.metaDiariaML)
-            await scheduleSystemNotification(id: id, firesAt: firesAt, title: variant.title, body: variant.body, sender: sender)
+            let scheduledFireDate = firesAt > .now ? firesAt : Date.now.addingTimeInterval(2)
+            await scheduleSystemNotification(id: id, firesAt: scheduledFireDate, title: variant.title, body: variant.body, sender: sender)
         }
     }
 
