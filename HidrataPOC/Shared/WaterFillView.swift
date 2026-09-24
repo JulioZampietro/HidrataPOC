@@ -19,7 +19,8 @@ private struct WaterContainerModifier<S: Shape>: ViewModifier {
     @State private var motion = WaterMotion()
 
     func body(content: Content) -> some View {
-        content
+        WaterRefractionView(level: level, motion: motion, content: content)
+            .animation(.easeInOut(duration: 1.2), value: level)
             .background(alignment: .bottom) {
                 WaterFillView(level: level, layer: .body, motion: motion, bleedsIntoTopSafeArea: bleedsIntoTopSafeArea)
                     .animation(.easeInOut(duration: 1.2), value: level)
@@ -31,6 +32,52 @@ private struct WaterContainerModifier<S: Shape>: ViewModifier {
             .clipShape(shape)
             .onAppear { motion.start() }
             .onDisappear { motion.stop() }
+    }
+}
+
+/// O conteúdo do recipiente visto através da água: abaixo da superfície ele ondula e
+/// ganha uma tintura fria (`waterRefraction` em `Bubble.metal`). Usa a mesma simulação
+/// e o mesmo nível animado da água desenhada, para a linha d'água coincidir.
+private struct WaterRefractionView<Content: View>: View, @preconcurrency Animatable {
+    var level: Double
+    let motion: WaterMotion
+    let content: Content
+
+    var animatableData: Double {
+        get { level }
+        set { level = newValue }
+    }
+
+    var body: some View {
+        TimelineView(.animation) { context in
+            let time = Float(context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 10_000))
+            // Valores copiados aqui porque o closure do visualEffect é @Sendable.
+            let waterSize = motion.waterSize
+            let down = CGPoint(x: CGFloat(motion.down.x), y: CGFloat(motion.down.y))
+            let agitation = motion.agitation
+            let field = motion.field
+            let level = Float(min(max(level, 0), 1))
+
+            content.visualEffect { view, proxy in
+                // Antes do primeiro frame a água ainda não mediu o recipiente.
+                let size = waterSize.width > 0 ? waterSize : proxy.size
+                // O recipiente pode se estender sob a status bar: o conteúdo fica no
+                // canto inferior do retângulo da água.
+                let origin = CGPoint(x: 0, y: max(0, size.height - proxy.size.height))
+                return view.layerEffect(
+                    ShaderLibrary.waterRefraction(
+                        .float2(size),
+                        .float2(origin),
+                        .float(time),
+                        .float(level),
+                        .float2(down),
+                        .float(agitation),
+                        .floatArray(field)
+                    ),
+                    maxSampleOffset: CGSize(width: 8, height: 8)
+                )
+            }
+        }
     }
 }
 
@@ -99,6 +146,8 @@ final class WaterMotion {
     /// Deslocamento da superfície (pt) de parede a parede, no referencial da água.
     private(set) var field = [Float](repeating: 0, count: WaterMotion.columns)
     private(set) var agitation: Float = 0
+    /// Tamanho do recipiente na última medição (inclui a extensão sob a status bar).
+    private(set) var waterSize: CGSize = .zero
     /// Vetor unitário "para baixo" em coordenadas de tela (y para baixo).
     var down: SIMD2<Float> { SIMD2(sin(angle), cos(angle)) }
 
@@ -147,6 +196,7 @@ final class WaterMotion {
 
     /// Avança a simulação até `date`. `size` é o tamanho do recipiente em pontos.
     func advance(to date: Date, size: CGSize) {
+        waterSize = size
         guard let last = lastFrame else { lastFrame = date; return }
         let dt = Float(min(date.timeIntervalSince(last), 1.0 / 20.0))
         guard dt > 1e-4 else { return }
@@ -163,8 +213,11 @@ final class WaterMotion {
         angle += dAngle
         let surfaceLength = abs(cos(angle)) * width + abs(sin(angle)) * height
         for i in 0..<count {
-            let x = (Float(i) / Float(count - 1) - 0.5) * surfaceLength
-            field[i] += dAngle * x * tiltResponse
+            let u = Float(i) / Float(count - 1) - 0.5
+            // Rampa da inclinação com uma pitada de modos mais altos: a onda que sai daí
+            // é em "S" e não uma reta, como num balanço de verdade.
+            let ramp = u * surfaceLength + 0.10 * surfaceLength * sin(3 * .pi * u)
+            field[i] += dAngle * ramp * tiltResponse
         }
 
         // 2. Gravidade mais forte/fraca: o meio da massa sobe ou desce.
