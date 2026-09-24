@@ -9,6 +9,11 @@ import SwiftData
 /// reset — just tagged with a different `source`.
 @MainActor
 enum IntakeLogService {
+    /// Injected by the app at launch so the widget extension (which can't see
+    /// HealthKitService) still triggers a HealthKit write when the intent runs
+    /// in-process. Parameters: (volumeML, timestamp, logID).
+    static var onIntakeRecorded: ((Int, Date, UUID) async -> Void)?
+
     /// Records a spontaneous intake (not a direct notification-action tap), matching
     /// it to a recent `NotificationEvent` the same way the app's Home screen buttons
     /// already do — see `NotificationScheduler.recordManualIntake`'s doc comment for
@@ -46,6 +51,8 @@ enum IntakeLogService {
             }
         }
         try? context.save()
+
+        await onIntakeRecorded?(log.volumeML, log.timestamp, log.id)
 
         // Ends the Live Activity right after the local write, ahead of the CloudKit
         // round trips below — those are already best-effort (NR-1) and can take a
