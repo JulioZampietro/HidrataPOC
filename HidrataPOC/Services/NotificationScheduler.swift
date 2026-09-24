@@ -39,6 +39,9 @@ final class NotificationScheduler {
 
     private let defaultsKey = "pendingNotificationSlots"
     private let scheduledDayKey = "notificationSlotsScheduledForDay"
+    private let adjustmentValueKey = "lastTemperatureAdjustmentML"
+    private let adjustmentDayKey = "lastTemperatureAdjustmentDay"
+    private let renderedMascotKey = "pendingNotificationsRenderedMascot"
     private let center = UNUserNotificationCenter.current()
 
     private init() {}
@@ -62,9 +65,10 @@ final class NotificationScheduler {
         (try? await center.requestAuthorization(options: [.alert, .sound, .badge])) ?? false
     }
 
-    /// Generates today's semi-random reminder times the first time this is called on a
-    /// given day, then schedules a system notification for each one. Safe to call
-    /// repeatedly — no-ops once today's slots already exist.
+    /// Generates today's fixed reminder times (`Constants.notificationFixedHours`) the
+    /// first time this is called on a given day, then schedules a system notification
+    /// for each one still ahead of `.now`. Safe to call repeatedly — no-ops once
+    /// today's slots already exist.
     func ensureTodayScheduled() async {
         // No point scheduling reminders (or capturing context for them) before
         // onboarding has created a profile — there's no goal/timezone to reason about
@@ -78,34 +82,29 @@ final class NotificationScheduler {
             return
         }
 
-        let windowStart = calendar.date(bySettingHour: Constants.dailyWindowStartHour, minute: 0, second: 0, of: today) ?? today
-        let windowEnd = calendar.date(bySettingHour: Constants.dailyWindowEndHour, minute: 0, second: 0, of: today) ?? today
-        let earliestAllowed = max(windowStart, .now)
-        guard earliestAllowed < windowEnd else {
+        let targetUserID = profile.userID
+        let logs = (try? PersistenceController.context.fetch(FetchDescriptor<IntakeLog>(predicate: #Predicate { $0.userID == targetUserID }))) ?? []
+        let consumidoHoje = HydrationMath.totalML(logs, on: .now)
+        let goalML = await effectiveGoalML(for: profile)
+
+        let firesAtTimes = Constants.notificationFixedHours
+            .compactMap { calendar.date(bySettingHour: $0, minute: 0, second: 0, of: today) }
+            .filter { $0 > .now }
+        guard !firesAtTimes.isEmpty else {
             UserDefaults.standard.set(today, forKey: scheduledDayKey)
             return
         }
 
-        let slotCount = Constants.notificationsPerDay
-        let totalSeconds = windowEnd.timeIntervalSince(earliestAllowed)
-        let strataLength = totalSeconds / Double(slotCount)
-
-        let targetUserID = profile.userID
-        let logs = (try? PersistenceController.context.fetch(FetchDescriptor<IntakeLog>(predicate: #Predicate { $0.userID == targetUserID }))) ?? []
-        let consumidoHoje = HydrationMath.totalML(logs, on: .now)
-
         var slots: [PendingSlot] = []
-        for i in 0..<slotCount {
-            let strataStart = earliestAllowed.addingTimeInterval(strataLength * Double(i))
-            let offset = Double.random(in: 0..<strataLength)
-            let firesAt = strataStart.addingTimeInterval(offset)
-            slots.append(PendingSlot(id: UUID(), firesAt: firesAt, captured: false))
+        for firesAt in firesAtTimes {
+            let slot = PendingSlot(id: UUID(), firesAt: firesAt, captured: false)
+            slots.append(slot)
             await scheduleSystemNotification(
-                id: slots[i].id,
+                id: slot.id,
                 firesAt: firesAt,
                 title: NotificationVariant.fallbackGeneric.title,
                 body: NotificationVariant.fallbackGeneric.body,
-                sender: mascotSender(title: NotificationVariant.fallbackGeneric.title, consumidoHojeML: consumidoHoje, metaDiariaML: profile.metaDiariaML)
+                sender: mascotSender(title: NotificationVariant.fallbackGeneric.title, consumidoHojeML: consumidoHoje, goalML: goalML)
             )
         }
 
@@ -121,6 +120,7 @@ final class NotificationScheduler {
         await WeatherContextService.shared.refreshCacheIfStale()
         await captureImminentSlots(context: context)
         await resolveTimedOutEvents(context: context)
+        await refreshPendingMascotIfNeeded()
         if let profile = try? context.fetch(FetchDescriptor<UserProfile>()).first {
             await LiveActivityManager.shared.touchIfNeeded(profile: profile, context: context)
         }
@@ -140,19 +140,70 @@ final class NotificationScheduler {
         guard !slots.isEmpty else { return }
 
         let now = Date.now
+        var didChange = false
         for index in slots.indices where !slots[index].captured {
             let minutesUntilFire = slots[index].firesAt.timeIntervalSince(now) / 60
             guard minutesUntilFire <= Double(Self.captureLeadMinutes) else { continue }
-            await captureContext(id: slots[index].id, firesAt: slots[index].firesAt, context: context)
+
+            // Re-checked on every tick, never cached: an outstanding notification
+            // only blocks sending right now, not this slot for the rest of the day.
+            if await hasOutstandingHydrationNotification(excluding: slots[index].id) {
+                await pushBackPendingSlot(id: slots[index].id)
+                continue
+            }
+
+            let wasOverdue = minutesUntilFire < 0
+            await captureContext(id: slots[index].id, firesAt: slots[index].firesAt, context: context, forceImmediateDelivery: wasOverdue)
             slots[index].captured = true
+            didChange = true
         }
-        savePendingSlots(slots)
+        if didChange {
+            savePendingSlots(slots)
+        }
+    }
+
+    /// Re-arms a held-back slot's system notification a few minutes out (generic
+    /// fallback copy, same identifier) so it doesn't fire while still blocked, but
+    /// keeps trying — the slot stays uncaptured, so the next tick checks again.
+    private func pushBackPendingSlot(id: UUID) async {
+        let retryAt = Date.now.addingTimeInterval(Double(Constants.notificationBlockedRetryMinutes) * 60)
+        await scheduleSystemNotification(
+            id: id,
+            firesAt: retryAt,
+            title: NotificationVariant.fallbackGeneric.title,
+            body: NotificationVariant.fallbackGeneric.body,
+            sender: await currentMascotSender(title: NotificationVariant.fallbackGeneric.title)
+        )
+    }
+
+    /// Whether a previous hydration reminder is still sitting delivered (lock
+    /// screen/Notification Center) without having been tapped or dismissed — a tap
+    /// or a swipe-dismiss both remove an entry from `deliveredNotifications()`, so
+    /// this is exactly "outstanding, unactioned." Used to hold a slot back rather
+    /// than pile a new reminder on top of one the tester hasn't dealt with.
+    /// `excluding` leaves out the slot currently being evaluated, so a reminder
+    /// that already delivered itself (e.g. caught up on after being held back)
+    /// never counts as blocking its own slot.
+    private func hasOutstandingHydrationNotification(excluding id: UUID) async -> Bool {
+        let delivered = await center.deliveredNotifications()
+        return delivered.contains {
+            $0.request.content.categoryIdentifier == Constants.NotificationCategory.hydrationReminder
+                && $0.request.identifier != id.uuidString
+        }
     }
 
     /// Gathers weather/calendar/deficit context and creates the `NotificationEvent`
     /// for one slot. Public so `NotificationDelegate` can call it as a fallback when a
     /// tester interacts with a notification whose event was never pre-captured.
-    func captureContext(id: UUID, firesAt: Date, context: ModelContext) async {
+    ///
+    /// `forceImmediateDelivery` is for a slot that was held back past its original
+    /// `firesAt` by `hasOutstandingHydrationNotification` (see
+    /// `captureImminentSlots`/`pushBackPendingSlot`) and only just cleared: nothing
+    /// was ever delivered for it, unlike the ordinary `firesAt <= .now` case below
+    /// (a notification that already fired on its own and is now being interacted
+    /// with), so it still needs scheduling — just for right now instead of the
+    /// stale original time.
+    func captureContext(id: UUID, firesAt: Date, context: ModelContext, forceImmediateDelivery: Bool = false) async {
         guard fetchNotificationEvent(id: id, context: context) == nil else { return }
         guard let profile = try? context.fetch(FetchDescriptor<UserProfile>()).first else { return }
 
@@ -189,9 +240,11 @@ final class NotificationScheduler {
         // `NotificationDelegate`), the tester already saw the generic fallback text
         // and there's nothing left to swap; the event still records which variant
         // *would* have been shown, so no data is lost.
-        if firesAt > .now {
-            let sender = mascotSender(title: variant.title, consumidoHojeML: consumidoHoje, metaDiariaML: profile.metaDiariaML)
-            await scheduleSystemNotification(id: id, firesAt: firesAt, title: variant.title, body: variant.body, sender: sender)
+        if firesAt > .now || forceImmediateDelivery {
+            let goalML = await effectiveGoalML(for: profile)
+            let sender = mascotSender(title: variant.title, consumidoHojeML: consumidoHoje, goalML: goalML)
+            let scheduledFireDate = firesAt > .now ? firesAt : Date.now.addingTimeInterval(2)
+            await scheduleSystemNotification(id: id, firesAt: scheduledFireDate, title: variant.title, body: variant.body, sender: sender)
         }
     }
 
@@ -256,6 +309,7 @@ final class NotificationScheduler {
 
         await IntakeLogService.endLiveActivity()
         await HealthKitService.shared.save(volumeML: log.volumeML, timestamp: log.timestamp, logID: log.id)
+        await refreshPendingMascotIfNeeded()
     }
 
     /// Records a tap on one of the main screen's always-visible intake buttons. Per
@@ -273,6 +327,7 @@ final class NotificationScheduler {
             context: context
         )
         await HealthKitService.shared.save(volumeML: log.volumeML, timestamp: log.timestamp, logID: log.id)
+        await refreshPendingMascotIfNeeded()
     }
 
     /// Removes an `IntakeLog` the tester logged by mistake. If it was linked to a
@@ -290,6 +345,7 @@ final class NotificationScheduler {
 
         await HealthKitService.shared.delete(logID: logID)
         await CloudKitSyncService.shared.delete(recordType: "IntakeLog", id: logID)
+        await refreshPendingMascotIfNeeded()
 
         guard let notificationEventID, let eventID = UUID(uuidString: notificationEventID),
               let event = fetchNotificationEvent(id: eventID, context: context),
@@ -320,7 +376,7 @@ final class NotificationScheduler {
             firesAt: firesAt,
             title: NotificationVariant.fallbackGeneric.title,
             body: NotificationVariant.fallbackGeneric.body,
-            sender: currentMascotSender(title: NotificationVariant.fallbackGeneric.title)
+            sender: await currentMascotSender(title: NotificationVariant.fallbackGeneric.title)
         )
     }
 
@@ -360,13 +416,20 @@ final class NotificationScheduler {
         suggestionType: .none
     )
 
-    private func scheduleSystemNotification(id: UUID, firesAt: Date, title: String, body: String, sender: MascotSender? = nil) async {
+    private func scheduleSystemNotification(id: UUID, firesAt: Date, title: String, body: String, sender: MascotSender? = nil, isDebug: Bool = false) async {
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
-        content.categoryIdentifier = Constants.NotificationCategory.hydrationReminder
-        content.userInfo = ["eventID": id.uuidString]
-        content.sound = .default
+        // Debug notifications carry no category/eventID, so tapping one can never
+        // create a NotificationEvent or log an intake in the real dataset.
+        if !isDebug {
+            content.categoryIdentifier = Constants.NotificationCategory.hydrationReminder
+            content.userInfo = ["eventID": id.uuidString]
+        }
+        // gulun.caf: the .m4a (AAC) source isn't a format local notifications can play
+        // as a custom sound, so it's bundled converted to Linear PCM .caf. Must stay
+        // under 30s, or iOS falls back to the default sound.
+        content.sound = UNNotificationSound(named: UNNotificationSoundName("gulun.caf"))
 
         // Communication Notifications (requires the entitlement in
         // HidrataPOC.entitlements): donating an `INSendMessageIntent` whose sender
@@ -444,41 +507,120 @@ final class NotificationScheduler {
     }
 
     /// Builds the `INPerson` "sender" behind the mascot avatar treatment — its photo
-    /// is whichever mascot asset matches today's hydration progress (same
-    /// `AppTheme.mascotImageName` used on Home/Profile), and `title` (the persona
+    /// is whichever mascot asset matches today's hydration progress against the same
+    /// goal Home shows (base goal + temperature adjustment, see `effectiveGoalML`), via
+    /// the same `AppTheme.mascotImageName`. `title` (the persona
     /// copy's own title, e.g. "Vai desidratar nesse calor?") doubles as the "contact
     /// name" the system shows in bold, since these notifications already read as the
     /// mascot needling the tester. Returns nil (silently) on any image-loading
     /// failure, since falling back to a plain notification is better than not firing.
-    private func mascotSender(title: String, consumidoHojeML: Int, metaDiariaML: Int) -> MascotSender? {
-        let progress = metaDiariaML > 0 ? min(1, Double(consumidoHojeML) / Double(metaDiariaML)) : 0
-        let imageName = AppTheme.mascotImageName(for: progress)
+    ///
+    /// The person's handle/`customIdentifier` embed the asset name on purpose: the
+    /// system caches a sender's avatar per person identity, so a single fixed
+    /// identifier would keep showing whichever mascot it saw first.
+    private func mascotSender(title: String, consumidoHojeML: Int, goalML: Int) -> MascotSender? {
+        let imageName = Self.currentMascotImageName(consumidoHojeML: consumidoHojeML, goalML: goalML)
         guard let image = UIImage(named: imageName), let data = image.pngData() else { return nil }
 
+        let identity = "hidratapoc.mascot.\(imageName)"
         let avatar = INImage(imageData: data)
         let person = INPerson(
-            personHandle: INPersonHandle(value: "hidratapoc.mascot", type: .unknown),
+            personHandle: INPersonHandle(value: identity, type: .unknown),
             nameComponents: nil,
             displayName: title,
             image: avatar,
             contactIdentifier: nil,
-            customIdentifier: "hidratapoc.mascot",
+            customIdentifier: identity,
             isMe: false,
             suggestionType: .none
         )
         return MascotSender(person: person, image: avatar)
     }
 
-    /// Same as `mascotSender(title:consumidoHojeML:metaDiariaML:)`, but fetches
+    private static func currentMascotImageName(consumidoHojeML: Int, goalML: Int) -> String {
+        let progress = goalML > 0 ? min(1, Double(consumidoHojeML) / Double(goalML)) : 0
+        return AppTheme.mascotImageName(for: progress)
+    }
+
+    /// Same as `mascotSender(title:consumidoHojeML:goalML:)`, but fetches
     /// whatever profile/intake data is on hand right now — used where the caller
-    /// doesn't already have a `ModelContext`/profile in scope (initial scheduling,
-    /// snooze).
-    private func currentMascotSender(title: String) -> MascotSender? {
+    /// doesn't already have a `ModelContext`/profile in scope (snooze, pending-content refresh).
+    private func currentMascotSender(title: String) async -> MascotSender? {
+        guard let state = await currentHydrationState() else { return nil }
+        return mascotSender(title: title, consumidoHojeML: state.consumidoHojeML, goalML: state.goalML)
+    }
+
+    private func currentHydrationState() async -> (consumidoHojeML: Int, goalML: Int)? {
         guard let profile = (try? PersistenceController.context.fetch(FetchDescriptor<UserProfile>()))?.first else { return nil }
         let targetUserID = profile.userID
         let logs = (try? PersistenceController.context.fetch(FetchDescriptor<IntakeLog>(predicate: #Predicate { $0.userID == targetUserID }))) ?? []
         let consumidoHoje = HydrationMath.totalML(logs, on: .now)
-        return mascotSender(title: title, consumidoHojeML: consumidoHoje, metaDiariaML: profile.metaDiariaML)
+        return (consumidoHoje, await effectiveGoalML(for: profile))
+    }
+
+    /// Home's goal is the base goal plus today's temperature adjustment; the
+    /// notification's mascot has to be picked against that same number or it lands in a
+    /// different progress bucket than the one on screen. The forecast needs
+    /// location/network, so the last adjustment fetched today is kept as a fallback for
+    /// background paths where that lookup fails.
+    private func effectiveGoalML(for profile: UserProfile) async -> Int {
+        let defaults = UserDefaults.standard
+        let today = Calendar.current.startOfDay(for: .now)
+        if let fresh = await WeatherContextService.shared.temperatureAdjustmentContext()?.adjustmentML {
+            defaults.set(fresh, forKey: adjustmentValueKey)
+            defaults.set(today, forKey: adjustmentDayKey)
+            return profile.metaDiariaML + fresh
+        }
+        if let day = defaults.object(forKey: adjustmentDayKey) as? Date, Calendar.current.isDate(day, inSameDayAs: today) {
+            return profile.metaDiariaML + defaults.integer(forKey: adjustmentValueKey)
+        }
+        return profile.metaDiariaML
+    }
+
+    // MARK: - Debug
+
+    /// Fires a throwaway notification a few seconds from now, built exactly like a real
+    /// reminder (same mascot selection + communication-notification path), with the
+    /// expected mascot asset and progress spelled out in the body so the avatar the
+    /// system renders can be checked against it. Returns that description, or nil if
+    /// there's no profile yet.
+    @discardableResult
+    func sendDebugNotification(after seconds: TimeInterval = 5) async -> String? {
+        guard let state = await currentHydrationState() else { return nil }
+        let imageName = Self.currentMascotImageName(consumidoHojeML: state.consumidoHojeML, goalML: state.goalML)
+        let percent = state.goalML > 0 ? Int(min(1, Double(state.consumidoHojeML) / Double(state.goalML)) * 100) : 0
+        let description = "\(imageName) · \(state.consumidoHojeML)/\(state.goalML) mL (\(percent)%)"
+
+        let title = "Teste de notificação"
+        let body = "Mascote esperado: \(description)"
+        let sender = mascotSender(title: title, consumidoHojeML: state.consumidoHojeML, goalML: state.goalML)
+        await scheduleSystemNotification(id: UUID(), firesAt: .now.addingTimeInterval(seconds), title: title, body: body, sender: sender, isDebug: true)
+        return description
+    }
+
+    // MARK: - Keeping pending reminders' mascot current
+
+    /// Reminders are scheduled ahead of time, so the mascot baked into each one
+    /// reflects progress at scheduling time — not when it fires. Re-renders the pending
+    /// reminders' content whenever today's mascot has changed since the last render
+    /// (after logging/deleting an intake, or from `tick`). Title, body, trigger and
+    /// identifier are preserved.
+    func refreshPendingMascotIfNeeded() async {
+        guard let state = await currentHydrationState() else { return }
+        let imageName = Self.currentMascotImageName(consumidoHojeML: state.consumidoHojeML, goalML: state.goalML)
+        let day = Calendar.current.startOfDay(for: .now)
+        let stamp = "\(day.timeIntervalSince1970)|\(imageName)"
+        guard UserDefaults.standard.string(forKey: renderedMascotKey) != stamp else { return }
+
+        let pending = await center.pendingNotificationRequests()
+        for request in pending where request.content.categoryIdentifier == Constants.NotificationCategory.hydrationReminder {
+            guard let id = UUID(uuidString: request.identifier),
+                  let trigger = request.trigger as? UNCalendarNotificationTrigger,
+                  let firesAt = trigger.nextTriggerDate() else { continue }
+            let sender = mascotSender(title: request.content.title, consumidoHojeML: state.consumidoHojeML, goalML: state.goalML)
+            await scheduleSystemNotification(id: id, firesAt: firesAt, title: request.content.title, body: request.content.body, sender: sender)
+        }
+        UserDefaults.standard.set(stamp, forKey: renderedMascotKey)
     }
 
     private func loadPendingSlots() -> [PendingSlot] {

@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		1968D6749D2815CB458BE807 /* gulun.caf in Resources */ = {isa = PBXBuildFile; fileRef = E4D909FF7D95651568F63C58 /* gulun.caf */; };
 		00FFFB683C1484BEDAB9EB23 /* HidrataPOCApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1E20512978CBB3411673F86 /* HidrataPOCApp.swift */; };
 		044AFD6D58D9A11B3600EC06 /* WeatherContextService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 540637DEA5459F68897F943E /* WeatherContextService.swift */; };
 		06C46879FF254B37AC86F09C /* Nunito-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 87F6CEC61D0EB34F2C4E96D3 /* Nunito-Bold.ttf */; };
@@ -50,6 +51,8 @@
 		A3082F6D802FB359064B17EC /* NotificationScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C74A3F1511E9062686EF2C1 /* NotificationScheduler.swift */; };
 		A6F8E0F841F2C32C7DA91AF1 /* IntakeLogService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FA657D469BE9DC8A54167C5 /* IntakeLogService.swift */; };
 		A8D10111F22B609AB5FA8266 /* SiriTutorialView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CBDEB26A3C91B6C2C231FD8 /* SiriTutorialView.swift */; };
+		BB01C3A2E74F4D9B8C2A1D5E /* HomeHelpView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB01C3A2E74F4D9B8C2A1D5F /* HomeHelpView.swift */; };
+		CC02D4B3F85G5E0C9D3B2E6F /* HistoricoHelpView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC02D4B3F85G5E0C9D3B2E70 /* HistoricoHelpView.swift */; };
 		AC52395F9A5B66242F66926D /* IntakeLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4DF682424276EED691E73FE /* IntakeLog.swift */; };
 		BAD54F5B8B4D14D2F3D4E044 /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D3D07956D972BB7565F7450 /* ProfileView.swift */; };
 		BB11223344556677889900BB /* HistoricoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11223344556677889900AA /* HistoricoView.swift */; };
@@ -141,6 +144,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		E4D909FF7D95651568F63C58 /* gulun.caf */ = {isa = PBXFileReference; lastKnownFileType = audio.x-caf; path = Sounds/gulun.caf; sourceTree = "<group>"; };
 		00E817B37463672B4A760387 /* AppTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTheme.swift; sourceTree = "<group>"; };
 		0589AAEA6C294F99934668E1 /* InteractionTrackerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractionTrackerTests.swift; sourceTree = "<group>"; };
 		064BE38709D54C95B06FC813 /* NotificationVariant.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationVariant.swift; sourceTree = "<group>"; };
@@ -166,6 +170,8 @@
 		575F9F9ED22AB3F667CCDDC7 /* SyncStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncStatus.swift; sourceTree = "<group>"; };
 		646191BC23E0F875E444DFCF /* LiveActivityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityManager.swift; sourceTree = "<group>"; };
 		6CBDEB26A3C91B6C2C231FD8 /* SiriTutorialView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiriTutorialView.swift; sourceTree = "<group>"; };
+		BB01C3A2E74F4D9B8C2A1D5F /* HomeHelpView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeHelpView.swift; sourceTree = "<group>"; };
+		CC02D4B3F85G5E0C9D3B2E70 /* HistoricoHelpView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoricoHelpView.swift; sourceTree = "<group>"; };
 		6D36EF2EADD04FF7B2EE0E4F /* InteractionTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractionTracker.swift; sourceTree = "<group>"; };
 		6FD7F3234633C2BD519D6504 /* EditGoalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditGoalView.swift; sourceTree = "<group>"; };
 		70608375406AEFAB8FD9A05D /* PermissionsCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionsCoordinator.swift; sourceTree = "<group>"; };
@@ -241,6 +247,7 @@
 				E0CB3E3BA72A80075634FCBB /* HidrataPOC.entitlements */,
 				DEF14391DFF4F9227FB24BDF /* Info.plist */,
 				07906A779A28D5273E2D70DB /* Fonts */,
+				E4D909FF7D95651568F63C58 /* gulun.caf */,
 				4C35D54511A64C96A460EAB1 /* TrackedEvent.swift */,
 				796A17516BBF466280B87A1B /* SheetLifecycleTracking.swift */,
 				064BE38709D54C95B06FC813 /* NotificationVariant.swift */,
@@ -444,6 +451,8 @@
 			children = (
 				E2CE5627BDF23AE7101D454A /* ActionButtonTutorialView.swift */,
 				6CBDEB26A3C91B6C2C231FD8 /* SiriTutorialView.swift */,
+				BB01C3A2E74F4D9B8C2A1D5F /* HomeHelpView.swift */,
+				CC02D4B3F85G5E0C9D3B2E70 /* HistoricoHelpView.swift */,
 			);
 			path = Tutorials;
 			sourceTree = "<group>";
@@ -584,6 +593,7 @@
 				58290BE45010DB3437347604 /* Nunito-ExtraBold.ttf in Resources */,
 				06C46879FF254B37AC86F09C /* Nunito-Bold.ttf in Resources */,
 				GG11223344556677889900GG /* Nunito.ttf in Resources */,
+				1968D6749D2815CB458BE807 /* gulun.caf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -649,6 +659,8 @@
 				E4BDAB3AAF9B03FE1FFF4506 /* RootView.swift in Sources */,
 				F02FD10035B817EFD60727C6 /* SiriIntents.swift in Sources */,
 				A8D10111F22B609AB5FA8266 /* SiriTutorialView.swift in Sources */,
+				BB01C3A2E74F4D9B8C2A1D5E /* HomeHelpView.swift in Sources */,
+				CC02D4B3F85G5E0C9D3B2E6F /* HistoricoHelpView.swift in Sources */,
 				DCF58E734DC63F0D68382F0D /* SyncStatus.swift in Sources */,
 				1C683163E637960E88058478 /* UserProfile.swift in Sources */,
 				50D08C3D5EA73F9F85F1EA6A /* WaterIntakeCalculator.swift in Sources */,
