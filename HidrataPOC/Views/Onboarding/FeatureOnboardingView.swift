@@ -65,12 +65,11 @@ struct FeatureOnboardingView: View {
             } label: {
                 Text(currentPage < pages.count - 1 ? "Próximo" : "Começar")
                     .font(.custom("Nunito", size: 16).weight(.bold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 40)
-                    .padding(.vertical, 13)
-                    .background(accent, in: Capsule())
+                    .padding(.horizontal, 32)
+                    .padding(.vertical, 6)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.glassProminent)
+            .tint(accent)
             .animation(.easeInOut, value: currentPage)
         }
         .padding(.bottom, 36)
@@ -145,8 +144,7 @@ private struct ActionButtonPage: View {
                     title: "Adicione os controles do Hidrata",
                     isLast: true)
         }
-        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 18))
-        .shadow(color: .black.opacity(0.06), radius: 6, x: 0, y: 2)
+        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 18))
     }
 
     private func stepRow(number: Int, icon: String, title: String, isLast: Bool) -> some View {
@@ -245,8 +243,7 @@ private struct SiriPage: View {
                 }
             }
         }
-        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 18))
-        .shadow(color: .black.opacity(0.06), radius: 6, x: 0, y: 2)
+        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 18))
     }
 
     private var tipsRow: some View {
@@ -261,7 +258,7 @@ private struct SiriPage: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(14)
-        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14))
+        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 14))
     }
 }
 

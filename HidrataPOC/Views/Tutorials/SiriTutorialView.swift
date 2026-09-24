@@ -116,7 +116,7 @@ struct SiriTutorialView: View {
                     .foregroundStyle(.white)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
-                    .background(siriPurple, in: Capsule())
+                    .glassEffect(.regular.tint(siriPurple), in: Capsule())
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 14)
@@ -138,8 +138,7 @@ struct SiriTutorialView: View {
                 }
             }
         }
-        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.06), radius: 6, x: 0, y: 2)
+        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 20))
     }
 
     private func phraseRow(text: String, result: String, isLast: Bool) -> some View {
@@ -201,8 +200,7 @@ struct SiriTutorialView: View {
             tipRow(icon: "mic.fill", color: .orange, text: "Não precisa de frase exata — fale naturalmente.", isLast: false)
             tipRow(icon: "number", color: .blue, text: "Funciona com números: \"3 copos\", \"dois goles\".", isLast: true)
         }
-        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.06), radius: 6, x: 0, y: 2)
+        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 20))
     }
 
     private func tipRow(icon: String, color: Color, text: LocalizedStringKey, isLast: Bool) -> some View {

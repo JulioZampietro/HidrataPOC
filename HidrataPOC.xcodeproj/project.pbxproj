@@ -34,6 +34,7 @@
 		5CA9B1161DAD92BD19B3E346 /* HydrationLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77D39C48CF3E7F2C6FADD5F4 /* HydrationLiveActivity.swift */; };
 		5F256BC9AF4E497BB9D96E6C /* UIInteractionEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = F51BAE834F7A497D9A17644C /* UIInteractionEvent.swift */; };
 		65DAF3C87F6774FC3208F113 /* LiquidBubbleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D4758DA97785CE3AE8FB879 /* LiquidBubbleView.swift */; };
+		1C85BCBB6E64AAC5CC36A3FF /* WaterFillView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B25B4016D397F16E2119D1FF /* WaterFillView.swift */; };
 		6972D75383481BBDAD2D6345 /* EditGoalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FD7F3234633C2BD519D6504 /* EditGoalView.swift */; };
 		6B9F8313D8B9172C4DF3C1D0 /* IntakeLogService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FA657D469BE9DC8A54167C5 /* IntakeLogService.swift */; };
 		7096EB9CD8E24648B9AC6B2B /* UIInteractionEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = F51BAE834F7A497D9A17644C /* UIInteractionEvent.swift */; };
@@ -186,6 +187,7 @@
 		949353F3A50444289F1B24C6 /* NotificationVariantSelectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationVariantSelectionTests.swift; sourceTree = "<group>"; };
 		95F0050D87C688CD6A361091 /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constants.swift; sourceTree = "<group>"; };
 		9D4758DA97785CE3AE8FB879 /* LiquidBubbleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiquidBubbleView.swift; sourceTree = "<group>"; };
+		B25B4016D397F16E2119D1FF /* WaterFillView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaterFillView.swift; sourceTree = "<group>"; };
 		A751463FEB8FCD28AA160686 /* WaterIntakeCalculatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaterIntakeCalculatorTests.swift; sourceTree = "<group>"; };
 		A9EDD10460D867692F1B0943 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		AA11223344556677889900AA /* HistoricoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoricoView.swift; sourceTree = "<group>"; };
@@ -329,6 +331,7 @@
 				8FA657D469BE9DC8A54167C5 /* IntakeLogService.swift */,
 				C3BCAACF78A9164EF7C57D86 /* WeatherContext.swift */,
 				9D4758DA97785CE3AE8FB879 /* LiquidBubbleView.swift */,
+				B25B4016D397F16E2119D1FF /* WaterFillView.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -648,6 +651,7 @@
 				8DE7FD7B97BBF583ACF51FDF /* IntakeLog.swift in Sources */,
 				A6F8E0F841F2C32C7DA91AF1 /* IntakeLogService.swift in Sources */,
 				65DAF3C87F6774FC3208F113 /* LiquidBubbleView.swift in Sources */,
+				1C85BCBB6E64AAC5CC36A3FF /* WaterFillView.swift in Sources */,
 				4FA77BB80B7BFEFCD0CAC8AD /* LiveActivityManager.swift in Sources */,
 				167F52D89A8D0855F585B65D /* NotificationDelegate.swift in Sources */,
 				08AC2D7CA5CCC1CF858BE1F6 /* NotificationEvent.swift in Sources */,

@@ -79,8 +79,7 @@ struct HistoricoHelpView: View {
                     body: "O contador no canto superior direito do card mostra quantas metas foram batidas no mês atual.",
                     isLast: true)
         }
-        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 18))
-        .shadow(color: .black.opacity(0.06), radius: 6, x: 0, y: 2)
+        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 18))
     }
 
     private var legendPreview: some View {
@@ -164,8 +163,7 @@ struct HistoricoHelpView: View {
                         isLast: index == items.count - 1)
             }
         }
-        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 18))
-        .shadow(color: .black.opacity(0.06), radius: 6, x: 0, y: 2)
+        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 18))
     }
 
     private func itemRow(icon: String, color: Color, title: String, body: String, isLast: Bool) -> some View {

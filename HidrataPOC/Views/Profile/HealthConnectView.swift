@@ -95,12 +95,11 @@ struct HealthConnectView: View {
             } label: {
                 Text("Conectar ao Saúde")
                     .font(.custom("Nunito", size: 16).weight(.bold))
-                    .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(accentBlue, in: RoundedRectangle(cornerRadius: 16))
+                    .padding(.vertical, 8)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.glassProminent)
+            .tint(accentBlue)
         }
     }
 
@@ -137,10 +136,10 @@ struct HealthConnectView: View {
                     }
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-                .background(isSyncing ? Color.gray : accentBlue, in: RoundedRectangle(cornerRadius: 16))
+                .padding(.vertical, 8)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.glassProminent)
+            .tint(isSyncing ? Color.gray : accentBlue)
             .disabled(isSyncing || justSynced)
         }
     }
@@ -166,7 +165,7 @@ struct HealthConnectView: View {
             Spacer()
         }
         .padding(14)
-        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14))
+        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 14))
     }
 
     // MARK: - Actions

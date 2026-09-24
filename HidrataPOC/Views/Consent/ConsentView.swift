@@ -36,7 +36,7 @@ struct ConsentView: View {
                 Button("Concordo em participar") {
                     onAccept()
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.glassProminent)
                 .frame(maxWidth: .infinity)
                 .padding(.top, 8)
             }
