@@ -39,3 +39,12 @@ extension View {
         modifier(AppScreenBackgroundModifier())
     }
 }
+
+extension AppTheme {
+    /// Trilha da barra de progresso: cinza-claro no light, azul-acinzentado escuro no dark.
+    static func progressTrack(for colorScheme: ColorScheme) -> Color {
+        colorScheme == .dark
+            ? Color(red: 0.24, green: 0.30, blue: 0.40)
+            : Color(red: 0.75, green: 0.78, blue: 0.82)
+    }
+}

@@ -124,14 +124,15 @@ struct HomeView: View {
     }
 
     private let mascotHeight: CGFloat = 190
+    private let headerRowHeight: CGFloat = 48 // botão de 40 pt + 8 pt de respiro no topo
 
     private var topSection: some View {
         // Recipiente: vai do topo da tela até logo acima da barra de progresso e
         // enche de água conforme o progresso do dia.
+        // O cabeçalho fica fora do conteúdo da água: a refração achata o conteúdo
+        // numa imagem e o vidro dos botões deixa de enxergar o fundo (fica escuro).
         VStack(spacing: 20) {
-            headerRow
-                .padding(.horizontal, 20)
-                .padding(.top, 8)
+            Color.clear.frame(height: headerRowHeight)
             mascotPlaceholder
         }
         .padding(.bottom, 16)
@@ -141,6 +142,11 @@ struct HomeView: View {
             in: UnevenRoundedRectangle(bottomLeadingRadius: 32, bottomTrailingRadius: 32, style: .continuous),
             bleedsIntoTopSafeArea: true
         )
+        .overlay(alignment: .top) {
+            headerRow
+                .padding(.horizontal, 20)
+                .padding(.top, 8)
+        }
     }
 
     private var mascotPlaceholder: some View {
@@ -158,7 +164,7 @@ struct HomeView: View {
             ZStack(alignment: .leading) {
                 // track afundado
                 Capsule()
-                    .fill(Color(red: 0.75, green: 0.78, blue: 0.82))
+                    .fill(AppTheme.progressTrack(for: colorScheme))
                     .frame(height: 52)
 
                 // borda inferior do azul (efeito elevado)
@@ -239,6 +245,7 @@ struct HomeView: View {
                 Image(systemName: "pencil.circle.fill")
                     .symbolRenderingMode(.hierarchical)
                     .font(.title3)
+                    .foregroundStyle(accentBlue)
             }
             .padding(6)
             .accessibilityLabel("Editar volume do botão personalizado")

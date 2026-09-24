@@ -105,11 +105,6 @@ struct HistoricoView: View {
         monthDays.filter { $0.bateuMeta }.count
     }
 
-    /// Dias já passados neste mês que não bateram a meta.
-    private var diasPerdidos: Int {
-        monthDays.filter { !$0.isFuturo && !$0.bateuMeta }.count
-    }
-
     private var streakDias: Int {
         HydrationMath.currentStreak(userLogs, metaDiariaML: profile.metaDiariaML, calendar: calendar)
     }
@@ -136,14 +131,10 @@ struct HistoricoView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 12) {
-                    topBar
-                    mascotSection
-                        .frame(maxWidth: .infinity)
-                        .waterContainer(level: todayProgress, in: RoundedRectangle(cornerRadius: 32, style: .continuous))
+                    topSection
                     calendarCard
+                        .padding(.horizontal)
                 }
-                .padding(.horizontal)
-                .padding(.top, 8)
             }
             .appScreenBackground()
             .navigationBarHidden(true)
@@ -187,29 +178,26 @@ struct HistoricoView: View {
         }
     }
 
-    /// Mascote + seu balão de fala, agrupados para que o balão fique
-    /// visualmente grudado nele, saindo de perto da sua cabeça.
-    private var mascotSection: some View {
-        ZStack(alignment: .top) {
+    /// Mesmo recipiente da Home: do topo da tela até o mascote, enchendo com o
+    /// progresso do dia. O cabeçalho fica fora do conteúdo da água (a refração
+    /// achata o conteúdo e o vidro dos botões ficaria escuro).
+    private var topSection: some View {
+        VStack(spacing: 20) {
+            Color.clear.frame(height: 48) // botão de 40 pt + 8 pt de respiro no topo
             mascotPlaceholder
-                .padding(.top, 28)
-
-            HStack {
-                Spacer()
-                speechBubble
-            }
-            .padding(.trailing, 36)
         }
-        .padding(.bottom, 20)
-    }
-
-    private var speechBubble: some View {
-        Text("\(diasPerdidos) dias perdidos…")
-            .font(.nunitoExtraBold(13))
-            .foregroundStyle(.secondary)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
-            .glassEffect(.regular, in: Capsule())
+        .padding(.bottom, 16)
+        .frame(maxWidth: .infinity)
+        .waterContainer(
+            level: todayProgress,
+            in: UnevenRoundedRectangle(bottomLeadingRadius: 32, bottomTrailingRadius: 32, style: .continuous),
+            bleedsIntoTopSafeArea: true
+        )
+        .overlay(alignment: .top) {
+            topBar
+                .padding(.horizontal, 20)
+                .padding(.top, 8)
+        }
     }
 
     private var mascotPlaceholder: some View {
@@ -217,7 +205,6 @@ struct HistoricoView: View {
             .resizable()
             .scaledToFit()
             .frame(height: 190)
-            .frame(maxWidth: .infinity)
     }
 
     /// Card com duas "páginas": o calendário do mês e um gráfico dos últimos
