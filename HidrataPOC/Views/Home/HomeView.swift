@@ -246,7 +246,10 @@ struct HomeView: View {
                     .symbolRenderingMode(.hierarchical)
                     .font(.title3)
                     .foregroundStyle(accentBlue)
+                    .padding(4)
+                    .glassEffect(.regular.interactive(), in: Circle())
             }
+            .buttonStyle(.plain)
             .padding(6)
             .accessibilityLabel("Editar volume do botão personalizado")
         }
@@ -322,6 +325,10 @@ struct IntakeCardContent: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
+        // The old opaque `.background(...)` this replaced made the whole padded card
+        // hit-testable for free; `.glassEffect` doesn't, so without an explicit
+        // content shape the button only responds where the icon/text glyphs are.
+        .contentShape(RoundedRectangle(cornerRadius: 18))
         .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 18))
     }
 }
