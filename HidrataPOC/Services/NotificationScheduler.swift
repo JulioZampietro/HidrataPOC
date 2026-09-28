@@ -376,19 +376,27 @@ final class NotificationScheduler {
     func recordManualIntake(preset: Constants.IntakePreset, userID: String, context: ModelContext) async {
         // Called from the Home screen's always-visible buttons, i.e. while the app is
         // already running in the foreground — there's no widget-extension cold-start
-        // race to ride out here, so skip `endLiveActivity`'s retry wait (otherwise every
-        // tap pays up to 1s of artificial delay on the common case of no Live Activity
-        // running).
+        // race to ride out here, so skip `endLiveActivity`'s retry wait, and defer the
+        // CloudKit sync inside `record` to the background (otherwise every tap pays
+        // up to 1s of artificial delay plus a full network round trip on the common
+        // case of no Live Activity running).
         let log = await IntakeLogService.record(
             preset: preset,
             userID: userID,
             source: "app",
             weather: WeatherContextService.shared.cachedContext,
             context: context,
-            waitForColdStartActivity: false
+            waitForColdStartActivity: false,
+            deferCloudSync: true
         )
-        await HealthKitService.shared.save(volumeML: log.volumeML, timestamp: log.timestamp, logID: log.id)
-        await refreshPendingMascotIfNeeded()
+        // HealthKit's write and the pending-reminders mascot refresh don't affect
+        // anything the Home screen shows (SwiftData's @Query already reflects the new
+        // log) — run them in the background instead of holding the tap's spinner on
+        // two more HealthKit round trips and a UNUserNotificationCenter scan.
+        Task {
+            await HealthKitService.shared.save(volumeML: log.volumeML, timestamp: log.timestamp, logID: log.id)
+            await refreshPendingMascotIfNeeded()
+        }
     }
 
     /// Removes an `IntakeLog` the tester logged by mistake. If it was linked to a

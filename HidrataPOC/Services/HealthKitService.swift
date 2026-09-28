@@ -125,21 +125,16 @@ final class HealthKitService {
             end: timestamp,
             metadata: [HKMetadataKeyExternalUUID: logID.uuidString]
         )
-        print("[HealthKit] saving \(volumeML)mL logID=\(logID)")
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
             store.save(sample) { success, error in
                 if let error {
                     logger.error("HealthKit save failed: \(error.localizedDescription, privacy: .public)")
-                    print("[HealthKit] save FAILED: \(error.localizedDescription)")
                 } else {
-                    print("[HealthKit] save callback success=\(success)")
+                    logger.debug("HealthKit save callback success=\(success)")
                 }
                 continuation.resume()
             }
         }
-        // Verifica imediatamente se o sample foi persistido no store
-        let verified = await existsInHealthKit(logID: logID)
-        print("[HealthKit] post-save verification: exists=\(verified) logID=\(logID)")
     }
 
     /// Remove do HealthKit a amostra associada ao logID informado.

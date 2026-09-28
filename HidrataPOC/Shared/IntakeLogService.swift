@@ -28,7 +28,8 @@ enum IntakeLogService {
         source: String,
         weather: WeatherContext?,
         context: ModelContext,
-        waitForColdStartActivity: Bool = true
+        waitForColdStartActivity: Bool = true,
+        deferCloudSync: Bool = false
     ) async -> IntakeLog {
         let cutoff = Date.now.addingTimeInterval(-Double(Constants.notificationResponseWindowMinutes) * 60)
         let predicate = #Predicate<NotificationEvent> { $0.userID == userID && $0.sentAt >= cutoff }
@@ -61,11 +62,26 @@ enum IntakeLogService {
         // (the visible part of "this tap did something") should wait on them.
         await endLiveActivity(waitForColdStart: waitForColdStartActivity)
 
-        await CloudKitSyncService.shared.push(log)
-        if let matchedEvent {
-            await CloudKitSyncService.shared.push(matchedEvent)
+        // CloudKit sync is best-effort (NR-1) and can take a few seconds on a slow
+        // connection. A long-lived caller (the app itself, logging from the Home
+        // screen) can defer it to the background so the tap isn't stuck waiting on
+        // the network; a short-lived one (widget/Siri intents, whose process can be
+        // suspended the instant their handler returns) must await it inline.
+        if deferCloudSync {
+            Task { @MainActor in
+                await CloudKitSyncService.shared.push(log)
+                if let matchedEvent {
+                    await CloudKitSyncService.shared.push(matchedEvent)
+                }
+                try? context.save()
+            }
+        } else {
+            await CloudKitSyncService.shared.push(log)
+            if let matchedEvent {
+                await CloudKitSyncService.shared.push(matchedEvent)
+            }
+            try? context.save()
         }
-        try? context.save()
 
         return log
     }
