@@ -14,7 +14,8 @@ import WidgetKit
 private func actionLabel(isActive: Bool, icon: String, name: String) -> some View {
     if isActive {
         Image(systemName: "checkmark.circle.fill")
-            .foregroundStyle(.green)
+            .symbolRenderingMode(.palette)
+            .foregroundStyle(Color.white, Color.green)
     } else {
         Label(name, systemImage: icon)
             .labelStyle(.iconOnly)
