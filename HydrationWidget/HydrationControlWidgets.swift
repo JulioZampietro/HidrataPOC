@@ -10,11 +10,23 @@ import WidgetKit
 // tagged with a different `source` ("actionButton" vs "liveActivity") so the two
 // surfaces are distinguishable in the dataset.
 
+@ViewBuilder
+private func actionLabel(isActive: Bool, icon: String, name: String) -> some View {
+    if isActive {
+        Label("Registrado", systemImage: "checkmark.circle.fill")
+            .tint(.green)
+    } else {
+        Label(name, systemImage: icon)
+    }
+}
+
 struct GlassControl: ControlWidget {
     var body: some ControlWidgetConfiguration {
         StaticControlConfiguration(kind: "com.hidratapoc.control.glass") {
             ControlWidgetButton(action: LogIntakeControlIntent(amountML: 250)) {
                 Label("Copo", systemImage: "cup.and.saucer.fill")
+            } actionLabel: { isActive in
+                actionLabel(isActive: isActive, icon: "cup.and.saucer.fill", name: "Copo")
             }
         }
         .displayName("Copo de Água")
@@ -27,6 +39,8 @@ struct BottleControl: ControlWidget {
         StaticControlConfiguration(kind: "com.hidratapoc.control.bottle") {
             ControlWidgetButton(action: LogIntakeControlIntent(amountML: 500)) {
                 Label("Garrafa", systemImage: "waterbottle.fill")
+            } actionLabel: { isActive in
+                actionLabel(isActive: isActive, icon: "waterbottle.fill", name: "Garrafa")
             }
         }
         .displayName("Garrafa de Água")
@@ -39,6 +53,8 @@ struct GoleControl: ControlWidget {
         StaticControlConfiguration(kind: "com.hidratapoc.control.gole") {
             ControlWidgetButton(action: LogIntakeControlIntent(amountML: 40)) {
                 Label("Gole", systemImage: "drop.fill")
+            } actionLabel: { isActive in
+                actionLabel(isActive: isActive, icon: "drop.fill", name: "Gole")
             }
         }
         .displayName("Gole de Água")
@@ -51,6 +67,8 @@ struct CustomControl: ControlWidget {
         StaticControlConfiguration(kind: "com.hidratapoc.control.custom") {
             ControlWidgetButton(action: LogCustomControlIntent()) {
                 Label("Personalizado", systemImage: "slider.horizontal.3")
+            } actionLabel: { isActive in
+                actionLabel(isActive: isActive, icon: "slider.horizontal.3", name: "Personalizado")
             }
         }
         .displayName("Quantidade Personalizada")
