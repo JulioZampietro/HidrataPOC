@@ -19,7 +19,7 @@ enum WaterTuning {
     static let fizzPerShake: Float = 0.6     // bolhas por g de sacudida forte
 
     // Sacudida forte → gotas
-    static let shakeThreshold: Float = 2.0   // g de aceleração do aparelho (ou tranco) para soltar gotas (antes: 1.2)
+    static let shakeThreshold: Float = 1.0   // g de aceleração do aparelho (ou tranco) para soltar gotas (antes: 1.2)
     static let jerkWeight: Float = 0.5       // peso do tranco (variação brusca) frente à aceleração
     static let shakeCooldown: Double = 0.12  // s entre rajadas
     static let dropsPerBurst: Float = 3      // gotas numa sacudida bem no limiar
