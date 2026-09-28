@@ -30,6 +30,7 @@ struct GlassControl: ControlWidget {
             } actionLabel: { isActive in
                 actionLabel(isActive: isActive, icon: "cup.and.saucer.fill", name: "Copo")
             }
+            .tint(.green)
         }
         .displayName("Copo de Água")
         .description("Registra 250 mL sem abrir o app")
@@ -45,6 +46,7 @@ struct BottleControl: ControlWidget {
             } actionLabel: { isActive in
                 actionLabel(isActive: isActive, icon: "waterbottle.fill", name: "Garrafa")
             }
+            .tint(.green)
         }
         .displayName("Garrafa de Água")
         .description("Registra 500 mL sem abrir o app")
@@ -60,6 +62,7 @@ struct GoleControl: ControlWidget {
             } actionLabel: { isActive in
                 actionLabel(isActive: isActive, icon: "drop.fill", name: "Gole")
             }
+            .tint(.green)
         }
         .displayName("Gole de Água")
         .description("Registra 40 mL sem abrir o app")
@@ -75,6 +78,7 @@ struct CustomControl: ControlWidget {
             } actionLabel: { isActive in
                 actionLabel(isActive: isActive, icon: "slider.horizontal.3", name: "Personalizado")
             }
+            .tint(.green)
         }
         .displayName("Quantidade Personalizada")
         .description("Registra sua quantidade personalizada de água sem abrir o app")
