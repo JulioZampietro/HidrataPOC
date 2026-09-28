@@ -244,10 +244,11 @@ struct HomeView: View {
             } label: {
                 Image(systemName: "pencil.circle.fill")
                     .symbolRenderingMode(.hierarchical)
-                    .font(.title3)
+                    .font(.title2)
                     .foregroundStyle(accentBlue)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
-            .padding(6)
             .accessibilityLabel("Editar volume do botão personalizado")
         }
     }
@@ -260,7 +261,7 @@ struct HomeView: View {
 
     private func iconName(for preset: Constants.IntakePreset) -> String {
         switch preset {
-        case .glass: return "waterbottle"
+        case .glass: return "cup.and.saucer.fill"
         case .bottle: return "waterbottle.fill"
         case .gole: return "drop.fill"
         case .custom: return "plus"

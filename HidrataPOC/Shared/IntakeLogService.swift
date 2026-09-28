@@ -27,7 +27,8 @@ enum IntakeLogService {
         userID: String,
         source: String,
         weather: WeatherContext?,
-        context: ModelContext
+        context: ModelContext,
+        waitForColdStartActivity: Bool = true
     ) async -> IntakeLog {
         let cutoff = Date.now.addingTimeInterval(-Double(Constants.notificationResponseWindowMinutes) * 60)
         let predicate = #Predicate<NotificationEvent> { $0.userID == userID && $0.sentAt >= cutoff }
@@ -58,7 +59,7 @@ enum IntakeLogService {
         // round trips below — those are already best-effort (NR-1) and can take a
         // few seconds, and there's no reason the Lock Screen/Dynamic Island dismissal
         // (the visible part of "this tap did something") should wait on them.
-        await endLiveActivity()
+        await endLiveActivity(waitForColdStart: waitForColdStartActivity)
 
         await CloudKitSyncService.shared.push(log)
         if let matchedEvent {
@@ -83,9 +84,9 @@ enum IntakeLogService {
     /// `Activity<HydrationAttributes>.activities` reads empty for a brief moment
     /// after launch. Retrying a few times over ~1s rides out that startup race
     /// without holding up the (already-committed) CloudKit write in `record(...)`.
-    static func endLiveActivity() async {
+    static func endLiveActivity(waitForColdStart: Bool = true) async {
         var activities = Activity<HydrationAttributes>.activities
-        var attemptsRemaining = 5
+        var attemptsRemaining = waitForColdStart ? 5 : 0
         while activities.isEmpty, attemptsRemaining > 0 {
             try? await Task.sleep(for: .milliseconds(200))
             activities = Activity<HydrationAttributes>.activities
