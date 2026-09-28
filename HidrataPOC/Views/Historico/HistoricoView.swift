@@ -283,6 +283,8 @@ struct HistoricoView: View {
 
                 Text(monthTitle)
                     .font(.baloo2ExtraBold(21))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
 
                 Button {
                     changeMonth(by: 1)
@@ -400,28 +402,14 @@ private struct DayCell: View {
 
     var body: some View {
         GeometryReader { geo in
-            let fillHeight = geo.size.height * clampedFill
-
             ZStack(alignment: .bottom) {
                 FillSwatch(percentual: dia.percentualMeta, cornerRadius: 12)
 
-                // O número é desenhado duas vezes, cada cópia recortada exatamente
-                // na linha do preenchimento: a metade sobre o azul fica branca, a
-                // metade sobre a trilha vazia usa a cor de contraste da trilha —
-                // acompanha o preenchimento em vez de escolher uma cor única.
-                numberText
-                    .foregroundStyle(fillTextColor)
+                Text("\(dayNumber)")
+                    .font(.baloo2ExtraBold(14))
+                    .foregroundStyle(numberColor)
+                    .shadow(color: numberShadow, radius: 1, x: 0, y: 0)
                     .frame(width: geo.size.width, height: geo.size.height)
-                    .mask(alignment: .bottom) {
-                        Rectangle().frame(height: fillHeight)
-                    }
-
-                numberText
-                    .foregroundStyle(trackTextColor)
-                    .frame(width: geo.size.width, height: geo.size.height)
-                    .mask(alignment: .top) {
-                        Rectangle().frame(height: geo.size.height - fillHeight)
-                    }
             }
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
@@ -432,27 +420,24 @@ private struct DayCell: View {
         .frame(height: 40)
     }
 
-    private var numberText: Text {
-        Text("\(dayNumber)").font(.baloo2ExtraBold(14))
-    }
-
-    /// No dark mode o anel do dia atual usa o mesmo azul escuro do fundo da
-    /// tela (em vez de branco/azul de marca), pedido explícito do time — no
-    /// light mode o comportamento original (branco quando bateu a meta,
-    /// azul de marca quando não) continua igual.
     private var todayRingColor: Color {
-        return dia.bateuMeta ? .white : calendarBlue
+        dia.bateuMeta ? .white : calendarBlue
     }
 
-    private var fillTextColor: Color { .white }
-
-    /// No light mode a trilha é bem clara, então o próprio azul do preenchimento
-    /// já lê bem sobre ela (metade branca, metade azul). No dark mode a trilha
-    /// já é uma versão escura desse mesmo azul, então branco continua sendo a
-    /// única cor com contraste suficiente ali.
-    private var trackTextColor: Color {
-        guard !dia.isFuturo else { return .secondary }
+    /// Cor única do número: branco quando o preenchimento domina (≥ 50%),
+    /// caso contrário azul de marca (light) ou branco (dark) sobre a trilha clara.
+    private var numberColor: Color {
+        if dia.isFuturo { return .secondary }
+        if clampedFill >= 0.5 { return .white }
         return colorScheme == .dark ? .white : calendarBlue
+    }
+
+    /// Sombra sutil que garante legibilidade na faixa de transição (~30–70%).
+    private var numberShadow: Color {
+        if dia.isFuturo { return .clear }
+        return clampedFill >= 0.5
+            ? .black.opacity(0.25)
+            : (colorScheme == .dark ? .black.opacity(0.3) : .clear)
     }
 }
 
