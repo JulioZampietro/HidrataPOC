@@ -49,6 +49,13 @@ final class NotificationScheduler {
     private let renderedMascotKey = "pendingNotificationsRenderedMascot"
     private let center = UNUserNotificationCenter.current()
 
+    /// Deduplicates concurrent `ensureTodayScheduled()` calls (e.g. the launch `.task`
+    /// and the scenePhase-`.active` handler firing within moments of each other) so a
+    /// second caller awaits the first's in-flight work instead of racing it — without
+    /// this, both would pass the "already scheduled today" guard before either had
+    /// written `scheduledDayKey`, doubling every fixed-hour slot with distinct UUIDs.
+    private var inflightEnsureTodayScheduledTask: Task<Void, Never>?
+
     private init() {}
 
     func registerCategories() {
@@ -72,9 +79,22 @@ final class NotificationScheduler {
 
     /// Generates today's fixed reminder times (`Constants.notificationFixedHours`) the
     /// first time this is called on a given day, then schedules a system notification
-    /// for each one still ahead of `.now`. Safe to call repeatedly — no-ops once
-    /// today's slots already exist.
+    /// for each one still ahead of `.now`. Safe to call repeatedly, including
+    /// concurrently — overlapping callers all await the same in-flight work rather than
+    /// each racing through the day-guard independently (see
+    /// `inflightEnsureTodayScheduledTask`).
     func ensureTodayScheduled() async {
+        if let inflightEnsureTodayScheduledTask {
+            await inflightEnsureTodayScheduledTask.value
+            return
+        }
+        let task = Task { await self.performEnsureTodayScheduled() }
+        inflightEnsureTodayScheduledTask = task
+        await task.value
+        inflightEnsureTodayScheduledTask = nil
+    }
+
+    private func performEnsureTodayScheduled() async {
         // No point scheduling reminders (or capturing context for them) before
         // onboarding has created a profile — there's no goal/timezone to reason about
         // yet, and `captureContext` would silently no-op without one.
