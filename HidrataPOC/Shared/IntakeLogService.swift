@@ -29,7 +29,8 @@ enum IntakeLogService {
         weather: WeatherContext?,
         context: ModelContext,
         waitForColdStartActivity: Bool = true,
-        deferCloudSync: Bool = false
+        deferCloudSync: Bool = false,
+        deferLiveActivityEnd: Bool = false
     ) async -> IntakeLog {
         let cutoff = Date.now.addingTimeInterval(-Double(Constants.notificationResponseWindowMinutes) * 60)
         let predicate = #Predicate<NotificationEvent> { $0.userID == userID && $0.sentAt >= cutoff }
@@ -60,7 +61,21 @@ enum IntakeLogService {
         // round trips below — those are already best-effort (NR-1) and can take a
         // few seconds, and there's no reason the Lock Screen/Dynamic Island dismissal
         // (the visible part of "this tap did something") should wait on them.
-        await endLiveActivity(waitForColdStart: waitForColdStartActivity)
+        //
+        // A caller whose process survives past `record()` returning (a `LiveActivityIntent`
+        // running in the app's own process, e.g. the Action Button controls) can push this
+        // to the background too: with `waitForColdStartActivity` on, the up-to-1s XPC-catch-up
+        // retry loop was the dominant cost left in the synchronous path, long enough that
+        // Control Center gives up on showing its success checkmark before `perform()` ever
+        // returns. A short-lived caller (widget extension/Siri) must still await it inline —
+        // its process can be suspended the instant the handler returns.
+        if deferLiveActivityEnd {
+            Task { @MainActor in
+                await endLiveActivity(waitForColdStart: waitForColdStartActivity)
+            }
+        } else {
+            await endLiveActivity(waitForColdStart: waitForColdStartActivity)
+        }
 
         // CloudKit sync is best-effort (NR-1) and can take a few seconds on a slow
         // connection. A long-lived caller (the app itself, logging from the Home

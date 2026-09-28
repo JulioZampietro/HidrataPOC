@@ -183,7 +183,18 @@ final class NotificationScheduler {
                 continue
             }
 
-            let wasOverdue = minutesUntilFire < 0
+            // `minutesUntilFire < 0` alone isn't enough to tell "genuinely held back,
+            // never delivered" apart from "fired right on schedule and we're only
+            // getting around to capturing it now" (e.g. the app wasn't foregrounded in
+            // the capture window). Treating the latter as overdue used to force a
+            // fresh, re-picked-variant notification 2s from now on top of the one the
+            // system already delivered on time — two hydration reminders back to back
+            // with different copy. Only force immediate delivery when the system
+            // confirms nothing was actually shown for this slot yet.
+            var wasOverdue = minutesUntilFire < 0
+            if wasOverdue {
+                wasOverdue = !(await isAlreadyDelivered(id: slots[index].id))
+            }
             if let variant = await captureContext(id: slots[index].id, firesAt: slots[index].firesAt, context: context, forceImmediateDelivery: wasOverdue) {
                 slots[index].variant = variant.rawValue
             }
@@ -225,6 +236,15 @@ final class NotificationScheduler {
             $0.request.content.categoryIdentifier == Constants.NotificationCategory.hydrationReminder
                 && $0.request.identifier != id.uuidString
         }
+    }
+
+    /// Whether this exact slot's notification has already been shown to the tester —
+    /// used to tell a genuinely-missed slot (never delivered, safe to force out
+    /// immediately) apart from one that fired right on schedule and is merely being
+    /// captured late.
+    private func isAlreadyDelivered(id: UUID) async -> Bool {
+        let delivered = await center.deliveredNotifications()
+        return delivered.contains { $0.request.identifier == id.uuidString }
     }
 
     /// Gathers weather/calendar/deficit context and creates the `NotificationEvent`
@@ -380,7 +400,7 @@ final class NotificationScheduler {
         // CloudKit sync inside `record` to the background (otherwise every tap pays
         // up to 1s of artificial delay plus a full network round trip on the common
         // case of no Live Activity running).
-        let log = await IntakeLogService.record(
+        await IntakeLogService.record(
             preset: preset,
             userID: userID,
             source: "app",
@@ -389,12 +409,12 @@ final class NotificationScheduler {
             waitForColdStartActivity: false,
             deferCloudSync: true
         )
-        // HealthKit's write and the pending-reminders mascot refresh don't affect
+        // `record()` already wrote this to HealthKit synchronously via
+        // `IntakeLogService.onIntakeRecorded` — saving it again here would double-count
+        // the intake in Health. The pending-reminders mascot refresh doesn't affect
         // anything the Home screen shows (SwiftData's @Query already reflects the new
-        // log) — run them in the background instead of holding the tap's spinner on
-        // two more HealthKit round trips and a UNUserNotificationCenter scan.
+        // log), so it's the only thing left to run in the background here.
         Task {
-            await HealthKitService.shared.save(volumeML: log.volumeML, timestamp: log.timestamp, logID: log.id)
             await refreshPendingMascotIfNeeded()
         }
     }

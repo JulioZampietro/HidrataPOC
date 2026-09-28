@@ -30,7 +30,9 @@ struct LogCustomControlIntent: LiveActivityIntent {
             userID: profile.userID,
             source: "actionButton",
             weather: nil,
-            context: context
+            context: context,
+            deferCloudSync: true,
+            deferLiveActivityEnd: true
         )
     }
 }
@@ -63,7 +65,9 @@ struct LogIntakeControlIntent: LiveActivityIntent {
             userID: profile.userID,
             source: "actionButton",
             weather: nil,
-            context: context
+            context: context,
+            deferCloudSync: true,
+            deferLiveActivityEnd: true
         )
     }
 }
