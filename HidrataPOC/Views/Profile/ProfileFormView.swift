@@ -35,6 +35,10 @@ struct ProfileFormValues {
     var pesoKg: Double
     var alturaCm: Double
     var customIntakeML: Int
+    /// Current persisted goal — nil during onboarding (no stored value yet).
+    var storedGoalML: Int?
+    /// When true, save() recalculates the goal from the formula instead of preserving a manual value.
+    var resetGoalToCalculated: Bool = false
 
     /// `generoAutoDeclarado` trimmed to `nil` when blank or not applicable — what
     /// actually gets persisted to `UserProfile.generoAutoDeclarado`.
@@ -45,7 +49,7 @@ struct ProfileFormValues {
     }
 
     static var new: ProfileFormValues {
-        ProfileFormValues(idade: 25, genero: .naoInformar, generoAutoDeclarado: "", pesoKg: 70, alturaCm: 170, customIntakeML: 300)
+        ProfileFormValues(idade: 25, genero: .naoInformar, generoAutoDeclarado: "", pesoKg: 70, alturaCm: 170, customIntakeML: 300, storedGoalML: nil, resetGoalToCalculated: false)
     }
 
     static func from(_ profile: UserProfile) -> ProfileFormValues {
@@ -55,7 +59,8 @@ struct ProfileFormValues {
             generoAutoDeclarado: profile.generoAutoDeclarado ?? "",
             pesoKg: profile.pesoKg,
             alturaCm: profile.alturaCm,
-            customIntakeML: profile.customIntakeML
+            customIntakeML: profile.customIntakeML,
+            storedGoalML: profile.metaDiariaML
         )
     }
 }
@@ -72,12 +77,16 @@ struct ProfileFormView: View {
     let onSave: (ProfileFormValues) -> Void
 
     @State private var idade: Int
+    @State private var idadeText: String
     @State private var genero: Genero
     @State private var generoAutoDeclarado: String
     @State private var pesoKg: Double
+    @State private var pesoText: String
     @State private var alturaCm: Double
+    @State private var alturaText: String
     @State private var customIntakeML: Int
     @State private var isFetchingFromHealth = false
+    @State private var resetGoal = false
 
     /// Read-only — recommended from the profile fields via `WaterIntakeCalculator`;
     /// no longer directly editable (see spec discussion on the heuristic model).
@@ -92,61 +101,80 @@ struct ProfileFormView: View {
         self.showsCustomIntakeField = showsCustomIntakeField
         self.onSave = onSave
         _idade = State(initialValue: initialValues.idade)
+        _idadeText = State(initialValue: "\(initialValues.idade)")
         _genero = State(initialValue: initialValues.genero)
         _generoAutoDeclarado = State(initialValue: initialValues.generoAutoDeclarado)
         _pesoKg = State(initialValue: initialValues.pesoKg)
+        _pesoText = State(initialValue: Self.formatDecimal(initialValues.pesoKg))
         _alturaCm = State(initialValue: initialValues.alturaCm)
+        _alturaText = State(initialValue: Self.formatDecimal(initialValues.alturaCm))
         _customIntakeML = State(initialValue: initialValues.customIntakeML)
     }
 
     var body: some View {
+        ScrollViewReader { proxy in
         Form {
-            if showsCustomIntakeField {
-                Section {
-                    Button {
-                        Task { await fillFromHealth() }
-                    } label: {
-                        HStack(spacing: 12) {
-                            if isFetchingFromHealth {
-                                ProgressView().frame(width: 22, height: 22)
-                            } else {
-                                Image(systemName: "heart.fill")
-                                    .foregroundStyle(.pink)
-                                    .frame(width: 22)
-                            }
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Preencher com dados do Saúde")
-                                    .foregroundStyle(.primary)
-                                Text("Importa sexo biológico, nascimento, peso e altura")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
+            Section {
+                Button {
+                    Task { await fillFromHealth() }
+                } label: {
+                    HStack(spacing: 12) {
+                        if isFetchingFromHealth {
+                            ProgressView().frame(width: 22, height: 22)
+                        } else {
+                            Image(systemName: "heart.fill")
+                                .foregroundStyle(.pink)
+                                .frame(width: 22)
+                        }
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Sincronizar com Saúde")
+                                .foregroundStyle(.primary)
+                            Text("Importa sexo biológico, nascimento, peso e altura")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                         }
                     }
-                    .disabled(isFetchingFromHealth)
                 }
+                .disabled(isFetchingFromHealth)
             }
 
             Section("Sobre você") {
-                Stepper("Idade: \(idade) anos", value: $idade, in: 10...100)
+                HStack {
+                    Text("Idade")
+                    Spacer()
+                    TextField("anos", text: $idadeText)
+                        .keyboardType(.numberPad)
+                        .multilineTextAlignment(.trailing)
+                        .frame(width: 60)
+                        .onChange(of: idadeText) { _, val in
+                            if let n = Int(val), (10...120).contains(n) { idade = n }
+                        }
+                    Text("anos").foregroundStyle(.secondary)
+                }
 
                 HStack {
                     Text("Peso")
                     Spacer()
-                    TextField("kg", value: $pesoKg, format: .number)
+                    TextField("kg", text: $pesoText)
                         .keyboardType(.decimalPad)
                         .multilineTextAlignment(.trailing)
                         .frame(width: 80)
+                        .onChange(of: pesoText) { _, val in
+                            if let n = Self.parseDecimal(val) { pesoKg = n }
+                        }
                     Text("kg").foregroundStyle(.secondary)
                 }
 
                 HStack {
                     Text("Altura")
                     Spacer()
-                    TextField("cm", value: $alturaCm, format: .number)
+                    TextField("cm", text: $alturaText)
                         .keyboardType(.decimalPad)
                         .multilineTextAlignment(.trailing)
                         .frame(width: 80)
+                        .onChange(of: alturaText) { _, val in
+                            if let n = Self.parseDecimal(val) { alturaCm = n }
+                        }
                     Text("cm").foregroundStyle(.secondary)
                 }
             }
@@ -166,7 +194,21 @@ struct ProfileFormView: View {
             }
 
             Section {
-                LabeledContent("Meta diária", value: "\(metaDiariaML) mL")
+                let displayedGoal = resetGoal ? metaDiariaML : (initialValues.storedGoalML ?? metaDiariaML)
+                LabeledContent("Meta diária", value: "\(displayedGoal) mL")
+
+                if let stored = initialValues.storedGoalML, stored != metaDiariaML {
+                    if resetGoal {
+                        Button("Manter meta manual — \(stored) mL") { resetGoal = false }
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Button("Redefinir para meta calculada — \(metaDiariaML) mL") { resetGoal = true }
+                    }
+                }
+            } footer: {
+                if resetGoal {
+                    Text("A meta será redefinida para \(metaDiariaML) mL ao salvar.")
+                }
             }
 
             if showsCustomIntakeField {
@@ -185,22 +227,42 @@ struct ProfileFormView: View {
 
             Section {
                 Button(confirmLabel) {
-                    onSave(ProfileFormValues(idade: idade, genero: genero, generoAutoDeclarado: generoAutoDeclarado, pesoKg: pesoKg, alturaCm: alturaCm, customIntakeML: customIntakeML))
+                    let finalIdade = Int(idadeText).map { max(10, min(120, $0)) } ?? idade
+                    let finalPeso = Self.parseDecimal(pesoText) ?? pesoKg
+                    let finalAltura = Self.parseDecimal(alturaText) ?? alturaCm
+                    onSave(ProfileFormValues(idade: finalIdade, genero: genero, generoAutoDeclarado: generoAutoDeclarado, pesoKg: finalPeso, alturaCm: finalAltura, customIntakeML: customIntakeML, storedGoalML: initialValues.storedGoalML, resetGoalToCalculated: resetGoal))
                 }
                 .frame(maxWidth: .infinity)
             }
+            .id("confirmSection")
         }
         .navigationTitle(title)
+        .onChange(of: isFetchingFromHealth) { _, isFetching in
+            guard !isFetching else { return }
+            withAnimation(.easeInOut(duration: 0.5)) {
+                proxy.scrollTo("confirmSection", anchor: .bottom)
+            }
+        }
+        } // ScrollViewReader
     }
 
     private func fillFromHealth() async {
         isFetchingFromHealth = true
         let data = await HealthKitService.shared.fetchProfileData()
-        if let age = data.idade { idade = age }
+        if let age = data.idade { idade = age; idadeText = "\(age)" }
         if let g = data.genero { genero = g }
-        if let w = data.pesoKg { pesoKg = w.rounded() }
-        if let h = data.alturaCm { alturaCm = h.rounded() }
+        if let w = data.pesoKg { pesoKg = w.rounded(); pesoText = Self.formatDecimal(w.rounded()) }
+        if let h = data.alturaCm { alturaCm = h.rounded(); alturaText = Self.formatDecimal(h.rounded()) }
         isFetchingFromHealth = false
+    }
+
+    private static func parseDecimal(_ text: String) -> Double? {
+        Double(text.replacingOccurrences(of: ",", with: ".").trimmingCharacters(in: .whitespaces))
+    }
+
+    private static func formatDecimal(_ value: Double) -> String {
+        let formatted = String(format: value.truncatingRemainder(dividingBy: 1) == 0 ? "%.0f" : "%.1f", value)
+        return formatted
     }
 }
 

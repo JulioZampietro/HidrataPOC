@@ -17,6 +17,15 @@ struct ProfileView: View {
     @State private var showLiveActivities = false
     @State private var showSiriTutorial = false
     @State private var showHealthConnect = false
+
+    private var calculatedGoalML: Int {
+        let genero = Genero(rawValue: profile.genero ?? Genero.naoInformar.rawValue) ?? .naoInformar
+        return UserProfile.suggestedGoalML(gender: genero.gender, idade: profile.idade, pesoKg: profile.pesoKg, alturaCm: profile.alturaCm)
+    }
+
+    private var isManualGoal: Bool {
+        profile.metaDiariaML != calculatedGoalML
+    }
     #if DEBUG
     @State private var debugNotificationStatus: String?
     #endif
@@ -77,7 +86,7 @@ struct ProfileView: View {
             .trackSheetLifecycle(.editPersonalData, screen: .profile, userID: profile.userID)
         }
         .sheet(isPresented: $showGoalExplainer) {
-            GoalExplainerView(goalML: profile.metaDiariaML, adjustmentML: tempContext?.adjustmentML ?? 0)
+            GoalExplainerView(goalML: profile.metaDiariaML, adjustmentML: tempContext?.adjustmentML ?? 0, isManual: isManualGoal)
                 .trackSheetLifecycle(.goalExplainer, screen: .profile, userID: profile.userID)
         }
         .sheet(isPresented: $isEditingGoal) {
@@ -203,6 +212,7 @@ struct ProfileView: View {
             .padding(.horizontal, 18)
             .padding(.vertical, 16)
             .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 16))
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .sheet(isPresented: $showLiveActivities) {
@@ -231,6 +241,7 @@ struct ProfileView: View {
             .padding(.horizontal, 18)
             .padding(.vertical, 16)
             .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 16))
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .sheet(isPresented: $showSiriTutorial) {
@@ -260,6 +271,7 @@ struct ProfileView: View {
             .padding(.horizontal, 18)
             .padding(.vertical, 16)
             .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 16))
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
@@ -377,7 +389,9 @@ struct ProfileView: View {
         profile.generoAutoDeclarado = values.normalizedGeneroAutoDeclarado
         profile.pesoKg = values.pesoKg
         profile.alturaCm = values.alturaCm
-        profile.metaDiariaML = UserProfile.suggestedGoalML(gender: values.genero.gender, idade: values.idade, pesoKg: values.pesoKg, alturaCm: values.alturaCm)
+        if values.resetGoalToCalculated || values.storedGoalML == nil {
+            profile.metaDiariaML = UserProfile.suggestedGoalML(gender: values.genero.gender, idade: values.idade, pesoKg: values.pesoKg, alturaCm: values.alturaCm)
+        }
         profile.atualizadoEm = .now
         profile.syncStatus = .pending
         try? modelContext.save()
@@ -407,6 +421,7 @@ struct ProfileView: View {
 private struct GoalExplainerView: View {
     let goalML: Int
     let adjustmentML: Int
+    let isManual: Bool
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -432,7 +447,7 @@ private struct GoalExplainerView: View {
                         }
                     }
 
-                    Text("calculado com base no seu perfil")
+                    Text(isManual ? "definida por você manualmente" : "calculada com base no seu perfil")
                         .font(.custom("Nunito", size: 14))
                         .foregroundStyle(.secondary)
 
@@ -443,11 +458,15 @@ private struct GoalExplainerView: View {
                     }
                 }
 
-                Text("A quantidade ideal de água depende do seu peso, altura, idade, gênero e temperatura no dia. Você pode ajustar seus dados no perfil para recalcular a meta.")
-                    .font(.custom("Nunito", size: 15))
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 32)
+                Text(
+                    isManual
+                        ? "Esta meta foi definida por você manualmente. Se editar seus dados pessoais (peso, altura, idade ou gênero), ela será recalculada automaticamente."
+                        : "A quantidade ideal de água depende do seu peso, altura, idade, gênero e temperatura no dia. Você pode ajustar seus dados no perfil para recalcular a meta."
+                )
+                .font(.custom("Nunito", size: 15))
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
 
                 Spacer()
             }

@@ -10,20 +10,19 @@ struct EditGoalView: View {
     let onSave: (Int) -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @State private var amountML: Int
+    @State private var text: String
+    private let initialValueML: Int
 
-    /// Not shown anywhere in the UI up front — the field just silently clamps back
-    /// to this once typing crosses it, so the limit only becomes apparent if someone
-    /// actually tries to exceed it.
     private static let maxML = 10000
 
     init(initialValueML: Int, onSave: @escaping (Int) -> Void) {
+        self.initialValueML = initialValueML
         self.onSave = onSave
-        _amountML = State(initialValue: initialValueML)
+        _text = State(initialValue: "\(initialValueML)")
     }
 
-    private var amountField: Binding<Int> {
-        Binding(get: { amountML }, set: { amountML = min(max($0, 0), Self.maxML) })
+    private var parsedValue: Int? {
+        Int(text.trimmingCharacters(in: .whitespaces))
     }
 
     var body: some View {
@@ -33,7 +32,7 @@ struct EditGoalView: View {
                     HStack {
                         Text("Meta diária")
                         Spacer()
-                        TextField("mL", value: amountField, format: .number)
+                        TextField("mL", text: $text)
                             .keyboardType(.numberPad)
                             .multilineTextAlignment(.trailing)
                             .frame(width: 90)
@@ -51,7 +50,8 @@ struct EditGoalView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Salvar") {
-                        onSave(amountML)
+                        let value = parsedValue.map { min(max($0, 0), Self.maxML) } ?? initialValueML
+                        onSave(value)
                         dismiss()
                     }
                 }
