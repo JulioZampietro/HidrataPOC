@@ -18,6 +18,13 @@ private struct PendingSlot: Codable {
     /// shows even if the app never got a chance to run in the capture window; kept so a
     /// slot that fires before capture records the variant that was actually shown.
     var variant: String? = nil
+    /// Set the first time this slot is held back by an outstanding notification (see
+    /// `hasOutstandingHydrationNotification`). Lets `captureImminentSlots` tell "just
+    /// started waiting" apart from "been stuck behind the same unread notification for
+    /// a while" and give up past `Constants.notificationBlockedGiveUpMinutes`, instead
+    /// of pushing back indefinitely and then bursting every backed-up slot at once the
+    /// moment the block clears.
+    var firstBlockedAt: Date? = nil
 }
 
 /// Drives the whole "notification with context" pipeline described in the spec:
@@ -179,6 +186,25 @@ final class NotificationScheduler {
             // Re-checked on every tick, never cached: an outstanding notification
             // only blocks sending right now, not this slot for the rest of the day.
             if await hasOutstandingHydrationNotification(excluding: slots[index].id) {
+                let firstBlockedAt = slots[index].firstBlockedAt ?? now
+                if slots[index].firstBlockedAt == nil {
+                    slots[index].firstBlockedAt = firstBlockedAt
+                    didChange = true
+                }
+                let blockedMinutes = now.timeIntervalSince(firstBlockedAt) / 60
+                guard blockedMinutes < Double(Constants.notificationBlockedGiveUpMinutes) else {
+                    // Stuck behind the same unread notification too long — give up on
+                    // this slot instead of leaving it to back up behind whichever one(s)
+                    // come after it. Cancel its (now stale) pushed-back retry so it can't
+                    // still fire on its own later, and capture context without forcing
+                    // delivery: `firesAt` is already in the past, so `captureContext`
+                    // records the event as silently missed rather than showing anything.
+                    center.removePendingNotificationRequests(withIdentifiers: [slots[index].id.uuidString])
+                    await captureContext(id: slots[index].id, firesAt: slots[index].firesAt, context: context)
+                    slots[index].captured = true
+                    didChange = true
+                    continue
+                }
                 await pushBackPendingSlot(id: slots[index].id, variant: slots[index].variant.flatMap(NotificationVariant.init(rawValue:)))
                 continue
             }

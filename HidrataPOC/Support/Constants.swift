@@ -44,6 +44,13 @@ enum Constants {
     /// `NotificationScheduler.captureImminentSlots`.
     static let notificationBlockedRetryMinutes = 3
 
+    /// If a slot is still blocked after this long, `NotificationScheduler` gives up on
+    /// delivering it instead of continuing to push it back — otherwise, on a day the
+    /// tester never clears an earlier reminder, every later slot backs up behind it and
+    /// all fire in a burst the moment that one finally gets tapped/dismissed. See
+    /// `NotificationScheduler.captureImminentSlots`.
+    static let notificationBlockedGiveUpMinutes = 15
+
     /// Thresholds for `hot_day`/`cold_day` notification persona variants — based on
     /// `WeatherContext.temperaturaC` (current reading), not the forecast high used for
     /// `baselineMaxTempC`. Adjust to match your region's typical climate.

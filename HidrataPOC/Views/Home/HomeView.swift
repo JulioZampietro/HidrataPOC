@@ -5,7 +5,7 @@ private let accentBlue = Color(red: 0.286, green: 0.498, blue: 0.714)
 
 struct HomeView: View {
     let profile: UserProfile
-
+    
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.modelContext) private var modelContext
     @Query private var allLogs: [IntakeLog]
@@ -22,22 +22,22 @@ struct HomeView: View {
     private var todayLogs: [IntakeLog] {
         allLogs.filter { $0.userID == profile.userID && Calendar.current.isDateInToday($0.timestamp) }
     }
-
+    
     private var consumedToday: Int { HydrationMath.totalML(todayLogs, on: .now) }
-
+    
     private var effectiveGoalML: Int {
         profile.metaDiariaML + (tempContext?.adjustmentML ?? 0)
     }
-
+    
     private var progress: Double {
         guard effectiveGoalML > 0 else { return 0 }
         return min(1, Double(consumedToday) / Double(effectiveGoalML))
     }
-
+    
     private var streak: Int {
         HydrationMath.currentStreak(allLogs.filter { $0.userID == profile.userID }, metaDiariaML: profile.metaDiariaML)
     }
-
+    
     var body: some View {
         ZStack {
             LinearGradient(
@@ -50,14 +50,14 @@ struct HomeView: View {
                 endPoint: .bottom
             )
             .ignoresSafeArea()
-
+            
             ScrollView {
                 VStack(spacing: 20) {
                     topSection
-
+                    
                     progressBar
                         .padding(.horizontal, 20)
-
+                    
                     intakeGrid
                         .padding(.horizontal, 20)
                 }
@@ -89,9 +89,9 @@ struct HomeView: View {
         .sheet(isPresented: $showSiriTutorial) { SiriTutorialView() }
         .sheet(isPresented: $showActionButtonTutorial) { ActionButtonTutorialView() }
     }
-
+    
     // MARK: - Subviews
-
+    
     private var headerRow: some View {
         HStack {
             Button {
@@ -104,9 +104,9 @@ struct HomeView: View {
                     .frame(width: 40, height: 40)
                     .glassEffect(.regular.interactive(), in: Circle())
             }
-
+            
             Spacer()
-
+            
             HStack(spacing: 6) {
                 Image(systemName: "drop.fill")
                     .font(.custom("Nunito", size: 12))
@@ -122,10 +122,10 @@ struct HomeView: View {
             .glassEffect(.regular, in: Capsule())
         }
     }
-
+    
     private let mascotHeight: CGFloat = 190
     private let headerRowHeight: CGFloat = 48 // botão de 40 pt + 8 pt de respiro no topo
-
+    
     private var topSection: some View {
         // Recipiente: vai do topo da tela até logo acima da barra de progresso e
         // enche de água conforme o progresso do dia.
@@ -148,38 +148,38 @@ struct HomeView: View {
                 .padding(.top, 8)
         }
     }
-
+    
     private var mascotPlaceholder: some View {
         Image(AppTheme.mascotImageName(for: progress))
             .resizable()
             .scaledToFit()
             .frame(height: mascotHeight)
     }
-
+    
     private var progressBar: some View {
         GeometryReader { geo in
             let barWidth = max(geo.size.width * progress, 56)
             let borderDepth: CGFloat = 4
-
+            
             ZStack(alignment: .leading) {
                 // track afundado
                 Capsule()
                     .fill(AppTheme.progressTrack(for: colorScheme))
                     .frame(height: 52)
-
+                
                 // borda inferior do azul (efeito elevado)
                 Capsule()
                     .fill(Color(red: 0.18, green: 0.35, blue: 0.56))
                     .frame(width: barWidth, height: 52)
                     .offset(y: borderDepth)
                     .animation(.easeOut(duration: 0.4), value: progress)
-
+                
                 // preenchimento azul
                 Capsule()
                     .fill(accentBlue)
                     .frame(width: barWidth, height: 52)
                     .animation(.easeOut(duration: 0.4), value: progress)
-
+                
                 Text("\(consumedToday) mL / \(effectiveGoalML) mL")
                     .font(.custom("Nunito", size: 15).weight(.heavy))
                     .foregroundStyle(.white)
@@ -188,7 +188,7 @@ struct HomeView: View {
         }
         .frame(height: 52 + 4)
     }
-
+    
     private var intakeGrid: some View {
         GlassEffectContainer(spacing: 12) {
             LazyVGrid(
@@ -202,7 +202,7 @@ struct HomeView: View {
             }
         }
     }
-
+    
     private var goleCard: some View {
         Button { logIntake(.custom(volumeML: 40)) } label: {
             IntakeCardContent(
@@ -214,7 +214,7 @@ struct HomeView: View {
         .buttonStyle(.plain)
         .disabled(isLogging)
     }
-
+    
     private func intakeCard(_ preset: Constants.IntakePreset) -> some View {
         Button { logIntake(preset) } label: {
             IntakeCardContent(
@@ -226,7 +226,7 @@ struct HomeView: View {
         .buttonStyle(.plain)
         .disabled(isLogging)
     }
-
+    
     private var customIntakeCard: some View {
         ZStack(alignment: .topTrailing) {
             Button { logIntake(.custom(volumeML: profile.customIntakeML)) } label: {
@@ -238,7 +238,7 @@ struct HomeView: View {
             }
             .buttonStyle(.plain)
             .disabled(isLogging)
-
+            
             Button {
                 isEditingCustomAmount = true
             } label: {
@@ -254,27 +254,27 @@ struct HomeView: View {
             .accessibilityLabel("Editar volume do botão personalizado")
         }
     }
-
+    
     // MARK: - Helpers
-
+    
     private var isPresentingDeleteConfirm: Binding<Bool> {
         Binding(get: { pendingDeleteLog != nil }, set: { if !$0 { pendingDeleteLog = nil } })
     }
-
+    
     private func iconName(for preset: Constants.IntakePreset) -> String {
         switch preset {
-        case .glass: return "cup.and.saucer.fill"
+        case .glass: return "mug.fill"
         case .bottle: return "waterbottle.fill"
         case .gole: return "drop.fill"
         case .custom: return "plus"
         }
     }
-
+    
     private func loadWeather() async {
         weather = await WeatherContextService.shared.currentContext()
         isLoadingWeather = false
     }
-
+    
     private func logIntake(_ preset: Constants.IntakePreset) {
         isLogging = true
         Task {
@@ -282,11 +282,11 @@ struct HomeView: View {
             isLogging = false
         }
     }
-
+    
     private func deleteLog(_ log: IntakeLog) {
         Task { await NotificationScheduler.shared.deleteIntake(log, context: modelContext) }
     }
-
+    
     private func saveCustomAmount(_ newValue: Int) {
         profile.customIntakeML = newValue
         profile.atualizadoEm = .now
@@ -307,18 +307,18 @@ struct IntakeCardContent: View {
     let icon: String
     let title: String
     let subtitle: String
-
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Image(systemName: icon)
-                .font(.title2)
+                .font(icon == "plus" ? .system(size: 30) : .title2)
                 .foregroundStyle(accentBlue)
                 .padding(.bottom, 28)
-
+            
             Text(title)
                 .font(.custom("Nunito", size: 17).weight(.heavy))
                 .foregroundStyle(.primary)
-
+            
             Text(subtitle)
                 .font(.custom("Nunito", size: 15))
                 .foregroundStyle(.secondary)
