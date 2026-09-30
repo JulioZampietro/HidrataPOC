@@ -9,45 +9,26 @@ struct MascotSpeechBubble: View {
     private let tailWidth: CGFloat = 14
     private let tailX: CGFloat = 16
 
-    @State private var dotCount: Int = 1
-
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(text)
-                .font(.custom("Nunito", size: 13).weight(.bold))
-                .foregroundStyle(Color.black)
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
-
-            HStack(spacing: 3) {
-                ForEach(0..<3, id: \.self) { i in
-                    Circle()
-                        .fill(Color.black.opacity(i < dotCount ? 0.65 : 0.18))
-                        .frame(width: 4, height: 4)
-                }
-            }
-            .animation(.easeInOut(duration: 0.25), value: dotCount)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .padding(.bottom, tailHeight)
-        .frame(maxWidth: 150)
-        .background(
-            SpeechBubbleShape(
-                cornerRadius: 14,
-                tailHeight: tailHeight,
-                tailWidth: tailWidth,
-                tailX: tailX
+        Text(text)
+            .font(.custom("Nunito", size: 13).weight(.bold))
+            .foregroundStyle(Color.black)
+            .multilineTextAlignment(.leading)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .padding(.bottom, tailHeight)
+            .frame(maxWidth: 150)
+            .background(
+                SpeechBubbleShape(
+                    cornerRadius: 14,
+                    tailHeight: tailHeight,
+                    tailWidth: tailWidth,
+                    tailX: tailX
+                )
+                .fill(Color.white)
+                .shadow(color: .black.opacity(0.15), radius: 6, x: 0, y: 2)
             )
-            .fill(Color.white)
-            .shadow(color: .black.opacity(0.15), radius: 6, x: 0, y: 2)
-        )
-        .task {
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(0.5))
-                dotCount = dotCount % 3 + 1
-            }
-        }
     }
 }
 
@@ -67,7 +48,6 @@ private struct SpeechBubbleShape: Shape {
         var path = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                             .path(in: bubbleRect)
 
-        // Triângulo com ponta em baixo-esquerda
         path.move(to: CGPoint(x: tailX, y: bubbleBottom))
         path.addLine(to: CGPoint(x: tailX + tailWidth, y: bubbleBottom))
         path.addLine(to: CGPoint(x: tailX, y: rect.maxY))
