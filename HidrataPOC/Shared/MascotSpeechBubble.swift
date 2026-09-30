@@ -12,33 +12,42 @@ struct MascotSpeechBubble: View {
     @State private var dotCount: Int = 1
 
     var body: some View {
-        Text(text + String(repeating: ".", count: dotCount))
-            .font(.custom("Nunito", size: 13).weight(.bold))
-            .foregroundStyle(Color.black)
-            .multilineTextAlignment(.center)
-            .fixedSize(horizontal: false, vertical: true)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .padding(.bottom, tailHeight)
-            .frame(maxWidth: 150)
-            .background(
-                SpeechBubbleShape(
-                    cornerRadius: 14,
-                    tailHeight: tailHeight,
-                    tailWidth: tailWidth,
-                    tailX: tailX
-                )
-                .fill(Color.white)
-                .shadow(color: .black.opacity(0.15), radius: 6, x: 0, y: 2)
-            )
-            .task {
-                while !Task.isCancelled {
-                    try? await Task.sleep(for: .seconds(0.5))
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        dotCount = dotCount % 3 + 1
-                    }
+        VStack(alignment: .leading, spacing: 4) {
+            Text(text)
+                .font(.custom("Nunito", size: 13).weight(.bold))
+                .foregroundStyle(Color.black)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+
+            HStack(spacing: 3) {
+                ForEach(0..<3, id: \.self) { i in
+                    Circle()
+                        .fill(Color.black.opacity(i < dotCount ? 0.65 : 0.18))
+                        .frame(width: 4, height: 4)
                 }
             }
+            .animation(.easeInOut(duration: 0.25), value: dotCount)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .padding(.bottom, tailHeight)
+        .frame(maxWidth: 150)
+        .background(
+            SpeechBubbleShape(
+                cornerRadius: 14,
+                tailHeight: tailHeight,
+                tailWidth: tailWidth,
+                tailX: tailX
+            )
+            .fill(Color.white)
+            .shadow(color: .black.opacity(0.15), radius: 6, x: 0, y: 2)
+        )
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(0.5))
+                dotCount = dotCount % 3 + 1
+            }
+        }
     }
 }
 
