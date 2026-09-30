@@ -9,10 +9,12 @@ struct MascotSpeechBubble: View {
     private let tailWidth: CGFloat = 14
     private let tailX: CGFloat = 16
 
+    @State private var dotCount: Int = 1
+
     var body: some View {
-        Text(text)
+        Text(text + String(repeating: ".", count: dotCount))
             .font(.custom("Nunito", size: 13).weight(.bold))
-            .foregroundStyle(Color.primary)
+            .foregroundStyle(Color.black)
             .multilineTextAlignment(.center)
             .fixedSize(horizontal: false, vertical: true)
             .padding(.horizontal, 12)
@@ -29,6 +31,14 @@ struct MascotSpeechBubble: View {
                 .fill(Color.white)
                 .shadow(color: .black.opacity(0.15), radius: 6, x: 0, y: 2)
             )
+            .task {
+                while !Task.isCancelled {
+                    try? await Task.sleep(for: .seconds(0.5))
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        dotCount = dotCount % 3 + 1
+                    }
+                }
+            }
     }
 }
 
