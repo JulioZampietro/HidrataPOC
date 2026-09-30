@@ -21,14 +21,8 @@ struct HomeView: View {
     @State private var phraseIndex: Int = 0
 
     private static let mascotPhrases: [String] = [
-        "Bora beber água! 💧",
-        "Mais um gole?",
-        "Hidratação é vida!",
-        "Você está indo bem!",
-        "Cuide-se, beba água.",
-        "Seu corpo agradece! 🌊",
-        "Não esqueça de se hidratar!",
-        "Cada gole conta! ✨",
+        "Nao bebe água não",
+        
     ]
 
     private var todayLogs: [IntakeLog] {
