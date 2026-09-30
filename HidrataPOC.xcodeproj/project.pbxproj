@@ -15,6 +15,7 @@
 		12120E76924A8652F17F74B0 /* HydrationKit.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = E25C2DCFF2A32A6FFCA18FE5 /* HydrationKit.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		1296A932E1117A61AB227D6C /* LogIntakeControlIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27DADD46B8ED63F7B4C704B4 /* LogIntakeControlIntent.swift */; };
 		15A0FC549FFA47EEA262A4FA /* NotificationVariantSelectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 949353F3A50444289F1B24C6 /* NotificationVariantSelectionTests.swift */; };
+		7C1D2E3F4A5B6C7D8E9F0A1B /* NotificationSlotDecisionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C1D2E3F4A5B6C7D8E9F0A1C /* NotificationSlotDecisionTests.swift */; };
 		167F52D89A8D0855F585B65D /* NotificationDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71707F70B58A641E997517DB /* NotificationDelegate.swift */; };
 		1968D6749D2815CB458BE807 /* Sounds/gulun.caf in Resources */ = {isa = PBXBuildFile; fileRef = E4D909FF7D95651568F63C58 /* Sounds/gulun.caf */; };
 		1B94AE46986CCE914AAF2327 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = DB825039445C1E23D630B41F /* Assets.xcassets */; };
@@ -185,6 +186,7 @@
 		89E03889516701BE00C6A8E4 /* UserProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserProfile.swift; sourceTree = "<group>"; };
 		8FA657D469BE9DC8A54167C5 /* IntakeLogService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntakeLogService.swift; sourceTree = "<group>"; };
 		949353F3A50444289F1B24C6 /* NotificationVariantSelectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationVariantSelectionTests.swift; sourceTree = "<group>"; };
+		7C1D2E3F4A5B6C7D8E9F0A1C /* NotificationSlotDecisionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationSlotDecisionTests.swift; sourceTree = "<group>"; };
 		95F0050D87C688CD6A361091 /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constants.swift; sourceTree = "<group>"; };
 		9D4758DA97785CE3AE8FB879 /* LiquidBubbleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiquidBubbleView.swift; sourceTree = "<group>"; };
 		A751463FEB8FCD28AA160686 /* WaterIntakeCalculatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaterIntakeCalculatorTests.swift; sourceTree = "<group>"; };
@@ -288,6 +290,7 @@
 				A751463FEB8FCD28AA160686 /* WaterIntakeCalculatorTests.swift */,
 				0589AAEA6C294F99934668E1 /* InteractionTrackerTests.swift */,
 				949353F3A50444289F1B24C6 /* NotificationVariantSelectionTests.swift */,
+				7C1D2E3F4A5B6C7D8E9F0A1C /* NotificationSlotDecisionTests.swift */,
 			);
 			path = HidrataPOCTests;
 			sourceTree = "<group>";
@@ -634,6 +637,7 @@
 				38B4362730654D550041595B /* Bubble.metal in Sources */,
 				F08622324B2A40469FE2AC5D /* InteractionTrackerTests.swift in Sources */,
 				15A0FC549FFA47EEA262A4FA /* NotificationVariantSelectionTests.swift in Sources */,
+				7C1D2E3F4A5B6C7D8E9F0A1B /* NotificationSlotDecisionTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
