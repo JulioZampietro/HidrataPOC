@@ -74,7 +74,7 @@ struct HomeHelpView: View {
         helpCard(title: "Botões de registro", items: [
             HelpItem(icon: "drop.fill", color: accent,
                      title: "Gole · Copo · Garrafa",
-                     body: "Toque em qualquer um para registrar 40 mL, 250 mL ou 500 mL instantaneamente."),
+                     body: "Toque no botão para registrar 40 mL, 250 mL ou 500 mL, respectivamente."),
             HelpItem(icon: "plus", color: accent,
                      title: "Outro (personalizado)",
                      body: "Registra o volume que você configurou. Toque no lápis no canto do cartão para alterar o valor."),
@@ -91,9 +91,9 @@ struct HomeHelpView: View {
 
     private var mascotSection: some View {
         helpCard(title: "Mascote", items: [
-            HelpItem(icon: "face.smiling", color: .green,
+            HelpItem(icon: "face.dashed.fill", color: .red,
                      title: "Reage ao seu progresso",
-                     body: "O monstro fica feliz quando você está hidratado e irritado quando está atrás da meta — use-o como guia visual rápido."),
+                     body: "O monstro fica triste quando você está hidratado e feliz quando está atrás da meta — use-o como guia visual rápido."),
         ])
     }
 

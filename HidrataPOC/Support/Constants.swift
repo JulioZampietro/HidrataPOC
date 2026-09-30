@@ -33,23 +33,11 @@ enum Constants {
     static let baselineMaxTempC: Double = 26
 
     /// Fixed hours (24h) at which hydration reminders are sent each day — a strict
-    /// 2-hour cadence from 8am to 10pm. Replaces the earlier semi-random schedule;
-    /// a slot is held back (not permanently cancelled) and rechecked on every tick
-    /// while a previous reminder is still outstanding — see
-    /// `NotificationScheduler.hasOutstandingHydrationNotification`.
+    /// 2-hour cadence from 8am to 10pm. Replaces the earlier semi-random schedule.
+    /// While one sits unanswered no later slot is sent (it's skipped, not delayed),
+    /// except the first hour of the next day, which always goes out; overnight
+    /// leftovers are deleted — see `NotificationScheduler.armNextSlotIfClear`.
     static let notificationFixedHours = [8, 10, 12, 14, 16, 18, 20, 22]
-
-    /// How often a slot held back by an outstanding, unattended notification gets
-    /// its delivery re-armed while it waits for the tester to clear that one — see
-    /// `NotificationScheduler.captureImminentSlots`.
-    static let notificationBlockedRetryMinutes = 3
-
-    /// If a slot is still blocked after this long, `NotificationScheduler` gives up on
-    /// delivering it instead of continuing to push it back — otherwise, on a day the
-    /// tester never clears an earlier reminder, every later slot backs up behind it and
-    /// all fire in a burst the moment that one finally gets tapped/dismissed. See
-    /// `NotificationScheduler.captureImminentSlots`.
-    static let notificationBlockedGiveUpMinutes = 15
 
     /// Thresholds for `hot_day`/`cold_day` notification persona variants — based on
     /// `WeatherContext.temperaturaC` (current reading), not the forecast high used for

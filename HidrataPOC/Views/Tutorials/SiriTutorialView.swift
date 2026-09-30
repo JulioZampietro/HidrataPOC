@@ -24,7 +24,7 @@ struct SiriTutorialView: View {
                         ]
                     )
                     intakeCard(
-                        icon: "cup.and.saucer.fill",
+                        icon: "mug.fill",
                         title: "Copo",
                         volume: "250 mL",
                         phrases: [

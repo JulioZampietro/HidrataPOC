@@ -31,6 +31,7 @@
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "D059628CDD0B06714A32DCDD"
                BuildableName = "HidrataPOC.app"
+               BlueprintName = "HidrataPOC"
                ReferencedContainer = "container:HidrataPOC.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -62,6 +63,7 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "D059628CDD0B06714A32DCDD"
             BuildableName = "HidrataPOC.app"
+            BlueprintName = "HidrataPOC"
             ReferencedContainer = "container:HidrataPOC.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -80,6 +82,7 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "D059628CDD0B06714A32DCDD"
             BuildableName = "HidrataPOC.app"
+            BlueprintName = "HidrataPOC"
             ReferencedContainer = "container:HidrataPOC.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>

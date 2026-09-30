@@ -40,7 +40,7 @@ struct ActionButtonTutorialView: View {
                 Circle()
                     .fill(accentBlue.opacity(0.12))
                     .frame(width: 80, height: 80)
-                Image(systemName: "button.angledbottom.horizontal.right")
+                Image(systemName: "button.vertical.left.press.fill")
                     .font(.system(size: 36, weight: .semibold))
                     .foregroundStyle(accentBlue)
             }
@@ -87,7 +87,7 @@ struct ActionButtonTutorialView: View {
             )
             stepRow(
                 number: 2,
-                icon: "button.angledbottom.horizontal.right",
+                icon: "button.vertical.left.press.fill",
                 title: "Toque em \"Botão de Ação\"",
                 description: "Role até encontrar a opção Botão de Ação.",
                 isLast: false
