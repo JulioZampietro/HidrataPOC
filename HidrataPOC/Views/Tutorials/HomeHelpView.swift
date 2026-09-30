@@ -93,7 +93,7 @@ struct HomeHelpView: View {
         helpCard(title: "Mascote", items: [
             HelpItem(icon: "face.smiling", color: .green,
                      title: "Reage ao seu progresso",
-                     body: "O monstro fica feliz quando você está hidratado e irritado quando está atrás da meta — use-o como guia visual rápido."),
+                     body: "O monstro fica triste quando você está hidratado e feliz quando está atrás da meta — use-o como guia visual rápido."),
         ])
     }
 
