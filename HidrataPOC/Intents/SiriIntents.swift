@@ -165,7 +165,7 @@ struct HidrataPOCShortcuts: AppShortcutsProvider {
                 "Tomei um copo d'água no \(.applicationName)",
             ],
             shortTitle: "Registrar Copo",
-            systemImageName: "cup.and.saucer.fill"
+            systemImageName: "mug.fill"
         )
         AppShortcut(
             intent: LogBottleIntent(),

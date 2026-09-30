@@ -100,7 +100,7 @@ private struct ActionButtonPage: View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 20) {
                 pageHeader(
-                    icon: "button.angledbottom.horizontal.right",
+                    icon: "button.vertical.left.press.fill",
                     title: "Botão de Ação",
                     subtitle: "Registre água com um toque lateral, sem desbloquear o iPhone."
                 )
@@ -134,7 +134,7 @@ private struct ActionButtonPage: View {
             stepRow(number: 1, icon: "gearshape.fill",
                     title: "Abra o app Ajustes",
                     isLast: false)
-            stepRow(number: 2, icon: "button.angledbottom.horizontal.right",
+            stepRow(number: 2, icon: "button.vertical.left.press.fill",
                     title: "Toque em \"Botão de Ação\"",
                     isLast: false)
             stepRow(number: 3, icon: "slider.horizontal.3",
@@ -181,7 +181,7 @@ private struct ActionButtonPage: View {
 private struct SiriPage: View {
     private let phrases: [(icon: String, text: String, result: String)] = [
         ("drop.fill",          "\"Bebi um gole de HidrataPOC\"",    "40 mL"),
-        ("cup.and.saucer.fill","\"Bebi um copo de HidrataPOC\"",    "250 mL"),
+        ("mug.fill","\"Bebi um copo de HidrataPOC\"",    "250 mL"),
         ("waterbottle.fill",   "\"Bebi uma garrafa de HidrataPOC\"","500 mL"),
         ("drop.fill",          "\"Bebi 3 goles de HidrataPOC\"",    "120 mL"),
     ]

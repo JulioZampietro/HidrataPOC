@@ -25,10 +25,10 @@ struct GlassControl: ControlWidget {
     var body: some ControlWidgetConfiguration {
         StaticControlConfiguration(kind: "com.hidratapoc.control.glass") {
             ControlWidgetButton(action: LogIntakeControlIntent(amountML: 250)) {
-                Label("Copo", systemImage: "cup.and.saucer.fill")
+                Label("Copo", systemImage: "mug.fill")
                     .labelStyle(.iconOnly)
             } actionLabel: { isActive in
-                actionLabel(isActive: isActive, icon: "cup.and.saucer.fill", name: "Copo")
+                actionLabel(isActive: isActive, icon: "mug.fill", name: "Copo")
             }
             .tint(.green)
         }
