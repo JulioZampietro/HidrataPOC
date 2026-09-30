@@ -25,6 +25,14 @@ enum HydrationMath {
         return Int((excess * Double(Constants.tempAdjustmentMLPerDegree)).rounded())
     }
 
+    /// Meta diária ajustada pelo clima (`baseGoalML` + o ajuste de temperatura do dia).
+    /// Centralizado aqui pra Home e Histórico calcularem o mesmo nível de água/progresso
+    /// do dia a partir do mesmo `TemperatureAdjustmentContext`, em vez de cada tela ter
+    /// sua própria conta e divergir entre si.
+    static func effectiveGoalML(baseGoalML: Int, tempContext: TemperatureAdjustmentContext?) -> Int {
+        baseGoalML + (tempContext?.adjustmentML ?? 0)
+    }
+
     static func dailyTotals(_ logs: [IntakeLog], days: Int, calendar: Calendar = .current, now: Date = .now) -> [(day: Date, totalML: Int)] {
         let today = calendar.startOfDay(for: now)
         return (0..<days).reversed().map { offset in

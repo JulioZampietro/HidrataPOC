@@ -73,6 +73,7 @@ struct HistoricoView: View {
     @State private var cardPage: HistoricoCardPage = .calendario
     @State private var selectedDay: DiaHistorico?
     @State private var showHelp = false
+    @State private var tempContext: TemperatureAdjustmentContext?
 
     private var calendar: Calendar {
         var cal = Calendar(identifier: .gregorian)
@@ -109,10 +110,16 @@ struct HistoricoView: View {
         HydrationMath.currentStreak(userLogs, metaDiariaML: profile.metaDiariaML, calendar: calendar)
     }
 
+    /// Mesma meta ajustada pelo clima usada na Home — sem isso, o nível de água das
+    /// duas telas diverge num dia quente (ver `HydrationMath.effectiveGoalML`).
+    private var effectiveGoalML: Int {
+        HydrationMath.effectiveGoalML(baseGoalML: profile.metaDiariaML, tempContext: tempContext)
+    }
+
     private var todayProgress: Double {
-        guard profile.metaDiariaML > 0 else { return 0 }
+        guard effectiveGoalML > 0 else { return 0 }
         let total = HydrationMath.totalML(userLogs, on: .now, calendar: calendar)
-        return min(1, Double(total) / Double(profile.metaDiariaML))
+        return min(1, Double(total) / Double(effectiveGoalML))
     }
 
     private var monthTitle: String {
@@ -138,6 +145,12 @@ struct HistoricoView: View {
             }
             .appScreenBackground()
             .navigationBarHidden(true)
+        }
+        .onAppear {
+            guard tempContext == nil else { return }
+            Task {
+                tempContext = await WeatherContextService.shared.temperatureAdjustmentContext()
+            }
         }
         .sheet(isPresented: $showHelp) { HistoricoHelpView() }
         .sheet(item: $selectedDay) { dia in
@@ -181,6 +194,10 @@ struct HistoricoView: View {
     /// Mesmo recipiente da Home: do topo da tela até o mascote, enchendo com o
     /// progresso do dia. O cabeçalho fica fora do conteúdo da água (a refração
     /// achata o conteúdo e o vidro dos botões ficaria escuro).
+    private var containerShape: UnevenRoundedRectangle {
+        UnevenRoundedRectangle(bottomLeadingRadius: 32, bottomTrailingRadius: 32, style: .continuous)
+    }
+
     private var topSection: some View {
         VStack(spacing: 20) {
             Color.clear.frame(height: 48) // botão de 40 pt + 8 pt de respiro no topo
@@ -188,9 +205,18 @@ struct HistoricoView: View {
         }
         .padding(.bottom, 16)
         .frame(maxWidth: .infinity)
+        .background {
+            // O conteúdo do recipiente (mascote + shader da água) não tem fundo opaco
+            // próprio, então uma `.shadow` direta nele sairia recortada e irregular.
+            // Essa forma preenchida com a mesma cor do fundo fica escondida atrás do
+            // recipiente e só deixa a sombra aparecer, contornando-o nos dois temas.
+            containerShape
+                .fill(AppTheme.screenBackground(for: colorScheme))
+                .shadow(color: .black.opacity(0.2), radius: 14, x: 0, y: 6)
+        }
         .waterContainer(
             level: todayProgress,
-            in: UnevenRoundedRectangle(bottomLeadingRadius: 32, bottomTrailingRadius: 32, style: .continuous),
+            in: containerShape,
             bleedsIntoTopSafeArea: true
         )
         .overlay(alignment: .top) {

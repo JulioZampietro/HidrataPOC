@@ -26,7 +26,7 @@ struct HomeView: View {
     private var consumedToday: Int { HydrationMath.totalML(todayLogs, on: .now) }
     
     private var effectiveGoalML: Int {
-        profile.metaDiariaML + (tempContext?.adjustmentML ?? 0)
+        HydrationMath.effectiveGoalML(baseGoalML: profile.metaDiariaML, tempContext: tempContext)
     }
     
     private var progress: Double {
@@ -126,6 +126,10 @@ struct HomeView: View {
     private let mascotHeight: CGFloat = 190
     private let headerRowHeight: CGFloat = 48 // botão de 40 pt + 8 pt de respiro no topo
     
+    private var containerShape: UnevenRoundedRectangle {
+        UnevenRoundedRectangle(bottomLeadingRadius: 32, bottomTrailingRadius: 32, style: .continuous)
+    }
+
     private var topSection: some View {
         // Recipiente: vai do topo da tela até logo acima da barra de progresso e
         // enche de água conforme o progresso do dia.
@@ -137,9 +141,18 @@ struct HomeView: View {
         }
         .padding(.bottom, 16)
         .frame(maxWidth: .infinity)
+        .background {
+            // O conteúdo do recipiente (mascote + shader da água) não tem fundo opaco
+            // próprio, então uma `.shadow` direta nele sairia recortada e irregular.
+            // Essa forma preenchida com a mesma cor do fundo fica escondida atrás do
+            // recipiente e só deixa a sombra aparecer, contornando-o nos dois temas.
+            containerShape
+                .fill(AppTheme.screenBackground(for: colorScheme))
+                .shadow(color: .black.opacity(0.2), radius: 14, x: 0, y: 6)
+        }
         .waterContainer(
             level: progress,
-            in: UnevenRoundedRectangle(bottomLeadingRadius: 32, bottomTrailingRadius: 32, style: .continuous),
+            in: containerShape,
             bleedsIntoTopSafeArea: true
         )
         .overlay(alignment: .top) {
@@ -244,7 +257,7 @@ struct HomeView: View {
             } label: {
                 Image(systemName: "pencil.circle.fill")
                     .symbolRenderingMode(.hierarchical)
-                    .font(.title2)
+                    .font(.system(size: 30))
                     .foregroundStyle(accentBlue)
                     .padding(4)
                     .glassEffect(.regular.interactive(), in: Circle())
