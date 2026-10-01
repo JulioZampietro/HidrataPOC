@@ -288,7 +288,6 @@ struct HomeView: View {
                     .font(.system(size: 30))
                     .foregroundStyle(accentBlue)
                     .padding(4)
-                    .glassEffect(.regular.interactive(), in: Circle())
             }
             .buttonStyle(.plain)
             .padding(6)
@@ -348,28 +347,39 @@ struct IntakeCardContent: View {
     let icon: String
     let title: String
     let subtitle: String
-    
+
+    private let borderDepth: CGFloat = 4
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Image(systemName: icon)
-                .font(icon == "plus" ? .system(size: 30) : .title2)
-                .foregroundStyle(accentBlue)
-                .padding(.bottom, 28)
-            
-            Text(title)
-                .font(.custom("Nunito", size: 17).weight(.heavy))
-                .foregroundStyle(.primary)
-            
-            Text(subtitle)
-                .font(.custom("Nunito", size: 15))
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .background(
+        ZStack {
+            // Camada inferior — dá profundidade (efeito 3D)
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color(UIColor.secondarySystemBackground))
-        )
+                .fill(Color(UIColor.systemFill))
+                .offset(y: borderDepth)
+
+            // Superfície do card
+            VStack(alignment: .leading, spacing: 0) {
+                Image(systemName: icon)
+                    .font(icon == "plus" ? .system(size: 30) : .title2)
+                    .foregroundStyle(accentBlue)
+                    .padding(.bottom, 28)
+
+                Text(title)
+                    .font(.custom("Nunito", size: 17).weight(.heavy))
+                    .foregroundStyle(.primary)
+
+                Text(subtitle)
+                    .font(.custom("Nunito", size: 15))
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(16)
+            .background(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(Color(UIColor.secondarySystemBackground))
+            )
+        }
+        .padding(.bottom, borderDepth)
         .contentShape(RoundedRectangle(cornerRadius: 18))
     }
 }
