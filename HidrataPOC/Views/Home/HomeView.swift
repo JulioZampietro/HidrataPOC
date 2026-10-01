@@ -253,9 +253,8 @@ struct HomeView: View {
             )
         }
         .buttonStyle(.plain)
-        .disabled(isLogging)
     }
-    
+
     private func intakeCard(_ preset: Constants.IntakePreset) -> some View {
         Button { logIntake(preset) } label: {
             IntakeCardContent(
@@ -265,9 +264,8 @@ struct HomeView: View {
             )
         }
         .buttonStyle(.plain)
-        .disabled(isLogging)
     }
-    
+
     private var customIntakeCard: some View {
         ZStack(alignment: .topTrailing) {
             Button { logIntake(.custom(volumeML: profile.customIntakeML)) } label: {
@@ -278,7 +276,6 @@ struct HomeView: View {
                 )
             }
             .buttonStyle(.plain)
-            .disabled(isLogging)
             
             Button {
                 isEditingCustomAmount = true
@@ -316,6 +313,7 @@ struct HomeView: View {
     }
     
     private func logIntake(_ preset: Constants.IntakePreset) {
+        guard !isLogging else { return }
         isLogging = true
         Task {
             await NotificationScheduler.shared.recordManualIntake(preset: preset, userID: profile.userID, context: modelContext)
