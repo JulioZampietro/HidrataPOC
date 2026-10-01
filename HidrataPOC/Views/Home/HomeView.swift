@@ -1,3 +1,4 @@
+import AVFoundation
 import SwiftData
 import SwiftUI
 
@@ -10,6 +11,8 @@ struct HomeView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var allLogs: [IntakeLog]
     @State private var isLogging = false
+    @State private var highlightedCard: String? = nil
+    @State private var audioPlayer: AVAudioPlayer?
     @State private var pendingDeleteLog: IntakeLog?
     @State private var isEditingCustomAmount = false
     @State private var showHelp = false
@@ -245,22 +248,24 @@ struct HomeView: View {
     }
     
     private var goleCard: some View {
-        Button { logIntake(.custom(volumeML: 40)) } label: {
+        Button { logIntake(.custom(volumeML: 40), cardID: "gole") } label: {
             IntakeCardContent(
                 icon: "drop.fill",
                 title: "Gole",
-                subtitle: "40 mL"
+                subtitle: "40 mL",
+                isHighlighted: highlightedCard == "gole"
             )
         }
         .buttonStyle(.plain)
     }
 
     private func intakeCard(_ preset: Constants.IntakePreset) -> some View {
-        Button { logIntake(preset) } label: {
+        Button { logIntake(preset, cardID: preset.label) } label: {
             IntakeCardContent(
                 icon: iconName(for: preset),
                 title: preset.label,
-                subtitle: "\(preset.volumeML) mL"
+                subtitle: "\(preset.volumeML) mL",
+                isHighlighted: highlightedCard == preset.label
             )
         }
         .buttonStyle(.plain)
@@ -268,11 +273,12 @@ struct HomeView: View {
 
     private var customIntakeCard: some View {
         ZStack(alignment: .topTrailing) {
-            Button { logIntake(.custom(volumeML: profile.customIntakeML)) } label: {
+            Button { logIntake(.custom(volumeML: profile.customIntakeML), cardID: "custom") } label: {
                 IntakeCardContent(
                     icon: "plus",
                     title: "Outro",
-                    subtitle: "\(profile.customIntakeML) mL"
+                    subtitle: "\(profile.customIntakeML) mL",
+                    isHighlighted: highlightedCard == "custom"
                 )
             }
             .buttonStyle(.plain)
@@ -312,13 +318,26 @@ struct HomeView: View {
         isLoadingWeather = false
     }
     
-    private func logIntake(_ preset: Constants.IntakePreset) {
+    private func logIntake(_ preset: Constants.IntakePreset, cardID: String) {
         guard !isLogging else { return }
         isLogging = true
+        playWaterSound()
+        withAnimation(.easeInOut(duration: 0.15)) { highlightedCard = cardID }
+        Task {
+            try? await Task.sleep(for: .seconds(0.7))
+            withAnimation(.easeInOut(duration: 0.2)) { highlightedCard = nil }
+        }
         Task {
             await NotificationScheduler.shared.recordManualIntake(preset: preset, userID: profile.userID, context: modelContext)
             isLogging = false
         }
+    }
+
+    private func playWaterSound() {
+        guard let asset = NSDataAsset(name: "agua"),
+              let player = try? AVAudioPlayer(data: asset.data, fileTypeHint: AVFileType.mp3.rawValue) else { return }
+        audioPlayer = player
+        player.play()
     }
     
     private func deleteLog(_ log: IntakeLog) {
@@ -345,27 +364,28 @@ struct IntakeCardContent: View {
     let icon: String
     let title: String
     let subtitle: String
+    var isHighlighted: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Image(systemName: icon)
                 .font(icon == "plus" ? .system(size: 30) : .title2)
-                .foregroundStyle(accentBlue)
+                .foregroundStyle(isHighlighted ? .white : accentBlue)
                 .padding(.bottom, 28)
 
             Text(title)
                 .font(.custom("Nunito", size: 17).weight(.heavy))
-                .foregroundStyle(.primary)
+                .foregroundStyle(isHighlighted ? Color.white : Color.primary)
 
             Text(subtitle)
                 .font(.custom("Nunito", size: 15))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(isHighlighted ? Color.white.opacity(0.8) : Color.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color(UIColor.secondarySystemBackground))
+                .fill(isHighlighted ? accentBlue : Color(UIColor.secondarySystemBackground))
                 .shadow(color: .black.opacity(0.18), radius: 8, x: 0, y: 4)
         )
         .contentShape(RoundedRectangle(cornerRadius: 18))
