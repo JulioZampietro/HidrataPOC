@@ -141,11 +141,20 @@ struct HomeView: View {
         // enche de água conforme o progresso do dia.
         // O cabeçalho fica fora do conteúdo da água: a refração achata o conteúdo
         // numa imagem e o vidro dos botões deixa de enxergar o fundo (fica escuro).
-        VStack(spacing: 20) {
-            Color.clear.frame(height: headerRowHeight)
-            mascotPlaceholder
+        ZStack {
+            Image("mascoteBackground")
+                .resizable()
+                .scaledToFill()
+                .opacity(0.85)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .clipped()
+
+            VStack(spacing: 20) {
+                Color.clear.frame(height: headerRowHeight)
+                mascotPlaceholder
+            }
+            .padding(.bottom, 16)
         }
-        .padding(.bottom, 16)
         .frame(maxWidth: .infinity)
         .background {
             // O conteúdo do recipiente (mascote + shader da água) não tem fundo opaco
@@ -174,12 +183,6 @@ struct HomeView: View {
                 .resizable()
                 .scaledToFit()
                 .frame(height: mascotHeight)
-                .background(
-                    Image("mascoteBackground")
-                        .resizable()
-                        .scaledToFill()
-                        .opacity(0.85)
-                )
 
             MascotSpeechBubble(text: Self.mascotPhrases[phraseIndex])
                 .offset(x: 8, y: -8)
