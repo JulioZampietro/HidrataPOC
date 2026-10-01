@@ -348,8 +348,6 @@ struct IntakeCardContent: View {
     let title: String
     let subtitle: String
 
-    private let borderDepth: CGFloat = 6
-
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Image(systemName: icon)
@@ -367,14 +365,11 @@ struct IntakeCardContent: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
-        .background {
-            // Camada inferior offset — efeito 3D sem alterar o frame do card
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color(UIColor.systemFill))
-                .offset(y: borderDepth)
+        .background(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .fill(Color(UIColor.secondarySystemBackground))
-        }
+                .shadow(color: .black.opacity(0.18), radius: 8, x: 0, y: 4)
+        )
         .contentShape(RoundedRectangle(cornerRadius: 18))
     }
 }
