@@ -348,38 +348,33 @@ struct IntakeCardContent: View {
     let title: String
     let subtitle: String
 
-    private let borderDepth: CGFloat = 4
+    private let borderDepth: CGFloat = 6
 
     var body: some View {
-        ZStack {
-            // Camada inferior — dá profundidade (efeito 3D)
+        VStack(alignment: .leading, spacing: 0) {
+            Image(systemName: icon)
+                .font(icon == "plus" ? .system(size: 30) : .title2)
+                .foregroundStyle(accentBlue)
+                .padding(.bottom, 28)
+
+            Text(title)
+                .font(.custom("Nunito", size: 17).weight(.heavy))
+                .foregroundStyle(.primary)
+
+            Text(subtitle)
+                .font(.custom("Nunito", size: 15))
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background {
+            // Camada inferior offset — efeito 3D sem alterar o frame do card
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .fill(Color(UIColor.systemFill))
                 .offset(y: borderDepth)
-
-            // Superfície do card
-            VStack(alignment: .leading, spacing: 0) {
-                Image(systemName: icon)
-                    .font(icon == "plus" ? .system(size: 30) : .title2)
-                    .foregroundStyle(accentBlue)
-                    .padding(.bottom, 28)
-
-                Text(title)
-                    .font(.custom("Nunito", size: 17).weight(.heavy))
-                    .foregroundStyle(.primary)
-
-                Text(subtitle)
-                    .font(.custom("Nunito", size: 15))
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(16)
-            .background(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(Color(UIColor.secondarySystemBackground))
-            )
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Color(UIColor.secondarySystemBackground))
         }
-        .padding(.bottom, borderDepth)
         .contentShape(RoundedRectangle(cornerRadius: 18))
     }
 }
