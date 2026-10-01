@@ -233,16 +233,14 @@ struct HomeView: View {
     }
     
     private var intakeGrid: some View {
-        GlassEffectContainer(spacing: 12) {
-            LazyVGrid(
-                columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)],
-                spacing: 12
-            ) {
-                goleCard
-                intakeCard(.glass)
-                intakeCard(.bottle)
-                customIntakeCard
-            }
+        LazyVGrid(
+            columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)],
+            spacing: 12
+        ) {
+            goleCard
+            intakeCard(.glass)
+            intakeCard(.bottle)
+            customIntakeCard
         }
     }
     
@@ -368,11 +366,11 @@ struct IntakeCardContent: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
-        // The old opaque `.background(...)` this replaced made the whole padded card
-        // hit-testable for free; `.glassEffect` doesn't, so without an explicit
-        // content shape the button only responds where the icon/text glyphs are.
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Color(UIColor.secondarySystemBackground))
+        )
         .contentShape(RoundedRectangle(cornerRadius: 18))
-        .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 18))
     }
 }
 
