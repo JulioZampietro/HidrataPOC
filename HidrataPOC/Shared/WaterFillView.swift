@@ -11,7 +11,7 @@ enum WaterTuning {
     static let viscosity: Float = 60         // pt²/s — só apaga as ondulações mais finas do campo
     static let tiltResponse: Float = 0.6     // fração da inclinação que vira onda (1 = física plena)
     static let heaveGain: Float = 120        // pt/s por g de variação da gravidade
-    static let maxDisplacement: Float = 90   // pt
+    static let maxDisplacement: Float = 75   // pt
 
     // Bolhas (`fizz`: 0 = repouso, 1 = logo após sacudida forte)
     static let fizzDecay: Float = 1.8        // s — quanto tempo as bolhas da sacudida levam para rarear

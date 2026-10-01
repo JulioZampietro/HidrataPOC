@@ -53,7 +53,11 @@ struct HomeView: View {
             
             ScrollView {
                 VStack(spacing: 20) {
+                    headerRow
+                        .padding(.horizontal, 20)
+                    
                     topSection
+                        .padding(.horizontal, 10)
                     
                     progressBar
                         .padding(.horizontal, 20)
@@ -127,7 +131,7 @@ struct HomeView: View {
     private let headerRowHeight: CGFloat = 48 // botão de 40 pt + 8 pt de respiro no topo
     
     private var containerShape: UnevenRoundedRectangle {
-        UnevenRoundedRectangle(bottomLeadingRadius: 32, bottomTrailingRadius: 32, style: .continuous)
+        UnevenRoundedRectangle(topLeadingRadius: 32, bottomLeadingRadius: 32, bottomTrailingRadius: 32, topTrailingRadius: 32, style: .continuous)
     }
 
     private var topSection: some View {
@@ -148,18 +152,12 @@ struct HomeView: View {
             // recipiente e só deixa a sombra aparecer, contornando-o nos dois temas.
             containerShape
                 .fill(AppTheme.screenBackground(for: colorScheme))
-                .shadow(color: .black.opacity(0.2), radius: 14, x: 0, y: 6)
         }
         .waterContainer(
             level: progress,
             in: containerShape,
             bleedsIntoTopSafeArea: true
         )
-        .overlay(alignment: .top) {
-            headerRow
-                .padding(.horizontal, 20)
-                .padding(.top, 8)
-        }
     }
     
     private var mascotPlaceholder: some View {
