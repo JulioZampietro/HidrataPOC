@@ -170,17 +170,16 @@ struct HomeView: View {
     
     private var mascotPlaceholder: some View {
         ZStack(alignment: .topTrailing) {
-            // Cenário atrás do mascote
-            Image("mascoteBackground")
-                .resizable()
-                .scaledToFill()
-                .frame(width: mascotHeight * 1.1, height: mascotHeight * 1.1)
-                .opacity(0.85)
-
             Image(AppTheme.mascotImageName(for: progress))
                 .resizable()
                 .scaledToFit()
                 .frame(height: mascotHeight)
+                .background(
+                    Image("mascoteBackground")
+                        .resizable()
+                        .scaledToFill()
+                        .opacity(0.85)
+                )
 
             MascotSpeechBubble(text: Self.mascotPhrases[phraseIndex])
                 .offset(x: 8, y: -8)
