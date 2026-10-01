@@ -322,6 +322,7 @@ struct HomeView: View {
         guard !isLogging else { return }
         isLogging = true
         playWaterSound()
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         withAnimation(.easeInOut(duration: 0.15)) { highlightedCard = cardID }
         Task {
             try? await Task.sleep(for: .seconds(0.7))
