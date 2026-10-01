@@ -18,6 +18,12 @@ struct HomeView: View {
     @State private var weather: WeatherContext?
     @State private var isLoadingWeather = true
     @State private var tempContext: TemperatureAdjustmentContext?
+    @State private var phraseIndex: Int = 0
+
+    private static let mascotPhrases: [String] = [
+        "Nao bebe água não",
+        
+    ]
 
     private var todayLogs: [IntakeLog] {
         allLogs.filter { $0.userID == profile.userID && Calendar.current.isDateInToday($0.timestamp) }
@@ -161,10 +167,25 @@ struct HomeView: View {
     }
     
     private var mascotPlaceholder: some View {
-        Image(AppTheme.mascotImageName(for: progress))
-            .resizable()
-            .scaledToFit()
-            .frame(height: mascotHeight)
+        ZStack(alignment: .topTrailing) {
+            Image(AppTheme.mascotImageName(for: progress))
+                .resizable()
+                .scaledToFit()
+                .frame(height: mascotHeight)
+
+            MascotSpeechBubble(text: Self.mascotPhrases[phraseIndex])
+                .offset(x: 8, y: -8)
+                .transition(.scale(scale: 0.8, anchor: .bottomLeading).combined(with: .opacity))
+        }
+        .onAppear { phraseIndex = Int.random(in: 0..<Self.mascotPhrases.count) }
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(6))
+                withAnimation(.easeInOut(duration: 0.35)) {
+                    phraseIndex = (phraseIndex + 1) % Self.mascotPhrases.count
+                }
+            }
+        }
     }
     
     private var progressBar: some View {
