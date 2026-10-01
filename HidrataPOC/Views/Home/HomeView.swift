@@ -335,10 +335,12 @@ struct HomeView: View {
     }
 
     private func playWaterSound() {
-        guard let asset = NSDataAsset(name: "agua"),
-              let player = try? AVAudioPlayer(data: asset.data, fileTypeHint: AVFileType.mp3.rawValue) else { return }
-        audioPlayer = player
-        player.play()
+        Task.detached(priority: .userInitiated) {
+            guard let asset = NSDataAsset(name: "agua"),
+                  let player = try? AVAudioPlayer(data: asset.data, fileTypeHint: AVFileType.mp3.rawValue) else { return }
+            await MainActor.run { audioPlayer = player }
+            player.play()
+        }
     }
     
     private func deleteLog(_ log: IntakeLog) {
