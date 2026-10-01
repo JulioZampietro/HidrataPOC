@@ -170,6 +170,14 @@ struct HomeView: View {
     
     private var mascotPlaceholder: some View {
         ZStack(alignment: .topTrailing) {
+            // Cenário atrás do mascote
+            Image("mascoteBackground")
+                .resizable()
+                .scaledToFill()
+                .frame(width: mascotHeight * 1.1, height: mascotHeight * 1.1)
+                .clipShape(Circle())
+                .opacity(0.85)
+
             Image(AppTheme.mascotImageName(for: progress))
                 .resizable()
                 .scaledToFit()
