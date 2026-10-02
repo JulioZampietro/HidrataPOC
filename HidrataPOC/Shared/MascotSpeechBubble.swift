@@ -12,7 +12,7 @@ struct MascotSpeechBubble: View {
     var body: some View {
         Text(text)
             .font(.custom("Nunito", size: 13).weight(.bold))
-            .foregroundStyle(Color(red: 0.6314, green: 0.5333, blue: 0.3922))
+            .foregroundStyle(Color(red: 0.4314, green: 0.3647, blue: 0.2667)) // #6E5D44
             .multilineTextAlignment(.leading)
             .fixedSize(horizontal: false, vertical: true)
             .padding(.horizontal, 12)
@@ -26,7 +26,7 @@ struct MascotSpeechBubble: View {
                     tailWidth: tailWidth,
                     tailX: tailX
                 )
-                .fill(Color(red: 0.9725, green: 0.9294, blue: 0.8667))
+                .fill(Color(red: 0.9922, green: 0.9725, blue: 0.9451)) // #FDF8F1
                 .shadow(color: .black.opacity(0.15), radius: 6, x: 0, y: 2)
             )
     }
