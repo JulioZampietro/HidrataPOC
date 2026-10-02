@@ -10,8 +10,15 @@ enum WaterTuning {
     static let damping: Float = 0.6          // 1/s — menor = balança mais e demora a assentar (antigo: 1.6)
     static let viscosity: Float = 60         // pt²/s — só apaga as ondulações mais finas do campo
     static let tiltResponse: Float = 0.6     // fração da inclinação que vira onda (1 = física plena)
+    static let maxTiltSpeed: Float = 4.2     // rad/s — máximo que o referencial da água pode girar por
+                                              // segundo. Sem isso, quando o sensor perde a referência
+                                              // (aparelho quase na horizontal) e reaparece já virado pro
+                                              // lado oposto, a água "teleporta" pra inclinação nova no
+                                              // mesmo frame. Com o limite, ela varre os ângulos
+                                              // intermediários — um giro de 180° leva ~0,75 s, como
+                                              // virar uma garrafa de ponta-cabeça, não um corte seco.
     static let heaveGain: Float = 120        // pt/s por g de variação da gravidade
-    static let maxDisplacement: Float = 90   // pt
+    static let maxDisplacement: Float = 75   // pt
 
     // Bolhas (`fizz`: 0 = repouso, 1 = logo após sacudida forte)
     static let fizzDecay: Float = 1.8        // s — quanto tempo as bolhas da sacudida levam para rarear
@@ -357,7 +364,9 @@ final class WaterMotion {
         var diff = sensorAngle - angle
         while diff > .pi { diff -= 2 * .pi }
         while diff < -.pi { diff += 2 * .pi }
-        let dAngle = diff * min(1, dt * followRate)
+        let desired = diff * min(1, dt * followRate)
+        let maxAngleStep = WaterTuning.maxTiltSpeed * dt
+        let dAngle = max(-maxAngleStep, min(maxAngleStep, desired))
         angle += dAngle
         let surfaceLength = abs(cos(angle)) * width + abs(sin(angle)) * height
         for i in 0..<count {

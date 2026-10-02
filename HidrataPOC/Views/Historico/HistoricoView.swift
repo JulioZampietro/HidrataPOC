@@ -4,10 +4,10 @@ import SwiftUI
 
 /// Azul de marca usado no calendário do histórico (preenchimento, anel do dia
 /// atual e contador de metas batidas).
-private let calendarBlue = Color(red: 0x3E / 255.0, green: 0x8F / 255.0, blue: 0xC7 / 255.0)
+private let calendarBlue = Color(red: 0.1098, green: 0.4627, blue: 0.9922)
 
 /// Mesmo azul de accent da HomeView — usado na topBar para manter os botões idênticos.
-private let accentBlue = Color(red: 0.286, green: 0.498, blue: 0.714)
+private let accentBlue = Color(red: 0.1098, green: 0.4627, blue: 0.9922)
 
 private extension Font {
     static func baloo2ExtraBold(_ size: CGFloat) -> Font {
@@ -74,6 +74,13 @@ struct HistoricoView: View {
     @State private var selectedDay: DiaHistorico?
     @State private var showHelp = false
     @State private var tempContext: TemperatureAdjustmentContext?
+    @State private var phraseIndex: Int = 0
+
+    /// Mesmas frases da Home — o mascote precisa falar igual nas duas telas.
+    private static let mascotPhrases: [String] = [
+        "Nao bebe água não",
+
+    ]
 
     private var calendar: Calendar {
         var cal = Calendar(identifier: .gregorian)
@@ -83,7 +90,7 @@ struct HistoricoView: View {
     }
 
     private let weekdaySymbols = ["D", "S", "T", "Q", "Q", "S", "S"]
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 8), count: 7)
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: Self.gridColumnSpacing), count: 7)
 
     private var userLogs: [IntakeLog] {
         allLogs.filter { $0.userID == profile.userID }
@@ -136,12 +143,21 @@ struct HistoricoView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 12) {
-                    topSection
-                    calendarCard
-                        .padding(.horizontal)
+            GeometryReader { geo in
+                ScrollView {
+                    // Same layout as Home (`TabScreenLayout`), so the mascot and water
+                    // match on both tabs and the card ends the same gap above the tab bar.
+                    VStack(spacing: TabScreenLayout.spacing) {
+                        topBar
+                            .padding(.horizontal, 20)
+                        topSection(height: TabScreenLayout.waterHeight(forVisibleHeight: geo.size.height))
+                            .padding(.horizontal, 10)
+                        calendarCard(height: max(TabScreenLayout.contentHeight(forVisibleHeight: geo.size.height), Self.minCalendarCardHeight))
+                            .padding(.horizontal)
+                    }
+                    .padding(.bottom, TabScreenLayout.spacing)
                 }
+                .scrollBounceBehavior(.basedOnSize)
             }
             .appScreenBackground()
             .navigationBarHidden(true)
@@ -191,20 +207,21 @@ struct HistoricoView: View {
         }
     }
 
-    /// Mesmo recipiente da Home: do topo da tela até o mascote, enchendo com o
+    /// Mesmo recipiente da Home (mesma forma, altura e margens), enchendo com o
     /// progresso do dia. O cabeçalho fica fora do conteúdo da água (a refração
     /// achata o conteúdo e o vidro dos botões ficaria escuro).
     private var containerShape: UnevenRoundedRectangle {
-        UnevenRoundedRectangle(bottomLeadingRadius: 32, bottomTrailingRadius: 32, style: .continuous)
+        UnevenRoundedRectangle(topLeadingRadius: 32, bottomLeadingRadius: 32, bottomTrailingRadius: 32, topTrailingRadius: 32, style: .continuous)
     }
 
-    private var topSection: some View {
-        VStack(spacing: 20) {
-            Color.clear.frame(height: 48) // botão de 40 pt + 8 pt de respiro no topo
-            mascotPlaceholder
+    private func topSection(height: CGFloat) -> some View {
+        VStack(spacing: 0) {
+            Spacer(minLength: 0)
+            mascotPlaceholder(height: TabScreenLayout.mascotHeight(forWaterHeight: height))
         }
-        .padding(.bottom, 16)
+        .padding(.bottom, TabScreenLayout.mascotBottomPadding)
         .frame(maxWidth: .infinity)
+        .frame(height: height)
         .background {
             // O conteúdo do recipiente (mascote + shader da água) não tem fundo opaco
             // próprio, então uma `.shadow` direta nele sairia recortada e irregular.
@@ -212,31 +229,45 @@ struct HistoricoView: View {
             // recipiente e só deixa a sombra aparecer, contornando-o nos dois temas.
             containerShape
                 .fill(AppTheme.screenBackground(for: colorScheme))
-                .shadow(color: .black.opacity(0.2), radius: 14, x: 0, y: 6)
         }
         .waterContainer(
             level: todayProgress,
             in: containerShape,
             bleedsIntoTopSafeArea: true
         )
-        .overlay(alignment: .top) {
-            topBar
-                .padding(.horizontal, 20)
-                .padding(.top, 8)
+    }
+
+    private func mascotPlaceholder(height: CGFloat) -> some View {
+        ZStack(alignment: .topTrailing) {
+            Image(AppTheme.mascotImageName(for: todayProgress))
+                .resizable()
+                .scaledToFit()
+                .frame(height: height)
+
+            MascotSpeechBubble(text: Self.mascotPhrases[phraseIndex])
+                .offset(x: 8, y: -8)
+                .transition(.scale(scale: 0.8, anchor: .bottomLeading).combined(with: .opacity))
+        }
+        .onAppear { phraseIndex = Int.random(in: 0..<Self.mascotPhrases.count) }
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(6))
+                withAnimation(.easeInOut(duration: 0.35)) {
+                    phraseIndex = (phraseIndex + 1) % Self.mascotPhrases.count
+                }
+            }
         }
     }
 
-    private var mascotPlaceholder: some View {
-        Image(AppTheme.mascotImageName(for: todayProgress))
-            .resizable()
-            .scaledToFit()
-            .frame(height: 190)
-    }
+    /// Below this the day cells would get too small; the screen scrolls instead.
+    private static let minCalendarCardHeight: CGFloat = 330
+    private static let gridRowSpacing: CGFloat = 10
+    private static let gridColumnSpacing: CGFloat = 8
 
     /// Card com duas "páginas": o calendário do mês e um gráfico dos últimos
     /// 7 dias. Troca de página pela setinha (`pageToggleButton`, presente nos
     /// dois cabeçalhos) ou arrastando o card para o lado.
-    private var calendarCard: some View {
+    private func calendarCard(height: CGFloat) -> some View {
         VStack(spacing: 14) {
             if cardPage == .calendario {
                 calendarPageContent
@@ -245,6 +276,7 @@ struct HistoricoView: View {
             }
         }
         .padding(20)
+        .frame(height: height)
         .background(RoundedRectangle(cornerRadius: 24, style: .continuous)
             .fill(Color(UIColor.secondarySystemBackground))
             .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4))
@@ -255,35 +287,46 @@ struct HistoricoView: View {
         VStack(spacing: 14) {
             monthHeader
             weekdayHeader
-            LazyVGrid(columns: columns, spacing: 10) {
-                ForEach(Array(gridCells.enumerated()), id: \.offset) { _, cell in
-                    if let cell {
-                        DayCell(dia: cell, isToday: calendar.isDateInToday(cell.date))
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                guard !cell.isFuturo else { return }
-                                InteractionTracker.log(
-                                    "historico_day_tap",
-                                    screen: .historico,
-                                    userID: profile.userID,
-                                    metadata: [
-                                        "date": isoDate(cell.date),
-                                        "metGoal": "\(cell.bateuMeta)",
-                                        "isToday": "\(calendar.isDateInToday(cell.date))",
-                                    ],
-                                    context: modelContext
-                                )
-                                selectedDay = cell
-                            }
-                    } else {
-                        Color.clear.frame(height: 40)
-                    }
-                }
+            // 6-row months stretch their cells to fill the space the card leaves for
+            // the grid. Shorter months use square cells (capped so they still fit),
+            // centered vertically in that space.
+            GeometryReader { geo in
+                let rows = CGFloat((gridCells.count + 6) / 7)
+                let fillHeight = max((geo.size.height - (rows - 1) * Self.gridRowSpacing) / rows, 26)
+                let cellWidth = (geo.size.width - 6 * Self.gridColumnSpacing) / 7
+                calendarGrid(cellHeight: rows >= 6 ? fillHeight : min(cellWidth, fillHeight))
+                    .frame(width: geo.size.width, height: geo.size.height)
             }
-            DashedDivider()
-            legend
         }
         .transition(.opacity)
+    }
+
+    private func calendarGrid(cellHeight: CGFloat) -> some View {
+        LazyVGrid(columns: columns, spacing: Self.gridRowSpacing) {
+            ForEach(Array(gridCells.enumerated()), id: \.offset) { _, cell in
+                if let cell {
+                    DayCell(dia: cell, isToday: calendar.isDateInToday(cell.date), height: cellHeight)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            guard !cell.isFuturo else { return }
+                            InteractionTracker.log(
+                                "historico_day_tap",
+                                screen: .historico,
+                                userID: profile.userID,
+                                metadata: [
+                                    "date": isoDate(cell.date),
+                                    "metGoal": "\(cell.bateuMeta)",
+                                    "isToday": "\(calendar.isDateInToday(cell.date))",
+                                ],
+                                context: modelContext
+                            )
+                            selectedDay = cell
+                        }
+                } else {
+                    Color.clear.frame(height: cellHeight)
+                }
+            }
+        }
     }
 
     private var weeklyChartPageContent: some View {
@@ -296,6 +339,7 @@ struct HistoricoView: View {
             }
             HydrationChartView(dailyTotals: weeklyChartData, metaDiariaML: profile.metaDiariaML)
         }
+        .frame(maxHeight: .infinity, alignment: .top)
         .transition(.opacity)
     }
 
@@ -380,24 +424,6 @@ struct HistoricoView: View {
         }
     }
 
-    private var legend: some View {
-        HStack(spacing: 16) {
-            legendItem(percentual: 1.0, label: "Meta batida")
-            legendItem(percentual: 0.5, label: "Parcial")
-            legendItem(percentual: nil, label: "A vir")
-        }
-        .font(.caption2)
-        .foregroundStyle(.secondary)
-    }
-
-    private func legendItem(percentual: Double?, label: String) -> some View {
-        HStack(spacing: 6) {
-            FillSwatch(percentual: percentual)
-                .frame(width: 12, height: 12)
-            Text(label)
-        }
-    }
-
     private func changeMonth(by value: Int) {
         InteractionTracker.log("historico_month_nav", screen: .historico, userID: profile.userID, metadata: ["direction": value < 0 ? "prev" : "next"], context: modelContext)
         guard let newDate = calendar.date(byAdding: .month, value: value, to: displayedMonth) else { return }
@@ -419,6 +445,7 @@ private struct DayCell: View {
     @Environment(\.colorScheme) private var colorScheme
     let dia: DiaHistorico
     let isToday: Bool
+    let height: CGFloat
 
     private var dayNumber: Int {
         Calendar.current.component(.day, from: dia.date)
@@ -445,7 +472,7 @@ private struct DayCell: View {
                     .padding(1)
             )
         }
-        .frame(height: 40)
+        .frame(height: height)
     }
 
     private var todayRingColor: Color {
@@ -499,15 +526,16 @@ private struct FillSwatch: View {
     /// perderia contraste contra ela.
     private var trackColor: Color {
         guard percentual != nil else { return Color(.systemGray4) }
-        return colorScheme == .dark ? calendarBlue.opacity(0.32) : calendarBlue.opacity(0.12)
+        return colorScheme == .dark ? calendarBlue.opacity(0.32) : Color(red: 0.8863, green: 0.9333, blue: 0.9922)
     }
 }
 
 /// Sheet aberto ao tocar em um dia do calendário: detalha quanto da meta diária
 /// foi bebido naquele dia, com um gráfico por horário e a lista dos `IntakeLog`
 /// reais do dia — reativa a `@Query`, então apagar um registro aqui atualiza a
-/// tela (e o calendário por trás dela) imediatamente.
-private struct DayDetailSheet: View {
+/// tela (e o calendário por trás dela) imediatamente. Também é aberto pela Home,
+/// ao tocar na barra de progresso, com os registros de hoje.
+struct DayDetailSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     let dia: DiaHistorico
@@ -658,20 +686,6 @@ private struct IntakeRow: View {
             .accessibilityLabel("Apagar registro das \(timeLabel)")
         }
         .padding(.vertical, 10)
-    }
-}
-
-private struct DashedDivider: View {
-    var body: some View {
-        GeometryReader { geo in
-            Path { path in
-                path.move(to: CGPoint(x: 0, y: 0))
-                path.addLine(to: CGPoint(x: geo.size.width, y: 0))
-            }
-            .stroke(style: StrokeStyle(lineWidth: 1, dash: [5, 4]))
-            .foregroundStyle(Color(.systemGray4))
-        }
-        .frame(height: 1)
     }
 }
 

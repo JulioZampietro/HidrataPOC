@@ -15,7 +15,7 @@ constant float kLineSharpness   = 2.0;    // nitidez do contorno: maior = linha 
 constant float kSparkleSharp    = 260.0;  // expoente do brilho pontual: maior = pontos menores e mais raros
 constant float kSparkleAlpha    = 0.95;
 // Bolhas
-constant float kBubbleRestPresence  = 0.30; // fração de bolhas ativas com a água parada
+constant float kBubbleRestPresence  = 0.60; // fração de bolhas ativas com a água parada
 constant float kBubbleShakePresence = 0.85; // fração logo após uma sacudida forte
 constant float kBubbleRiseSpeed     = 65.0; // pt/s de subida (as grandes sobem um pouco mais rápido)
 // Refração do conteúdo

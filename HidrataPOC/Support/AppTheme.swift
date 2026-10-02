@@ -48,3 +48,35 @@ extension AppTheme {
             : Color(red: 0.75, green: 0.78, blue: 0.82)
     }
 }
+
+/// Vertical layout shared by Home and Histórico: header, water container, then the
+/// screen's own content, with the same `spacing` between every block and below the
+/// last one (above the tab bar). Sizes derive from the visible height, so the water
+/// container is identical on both tabs and the bottom content fills exactly what's
+/// left. Below the minimums (very short screens, large text) the screens scroll.
+enum TabScreenLayout {
+    static let spacing: CGFloat = 20
+    static let headerHeight: CGFloat = 40
+    /// Space between the mascot and the container's bottom edge.
+    static let mascotBottomPadding: CGFloat = 16
+    /// Space between the container's top edge and the mascot at full size.
+    static let mascotTopPadding: CGFloat = 15
+    static let maxMascotHeight: CGFloat = 190
+
+    /// The container hugs the full-size mascot; it only gets shorter on screens too
+    /// short to fit everything else.
+    static func waterHeight(forVisibleHeight height: CGFloat) -> CGFloat {
+        let fullHeight = mascotTopPadding + maxMascotHeight + mascotBottomPadding
+        return min(max(height * 0.376, 160), fullHeight)
+    }
+
+    /// The mascot shrinks with the container on short screens, never past 190 pt.
+    static func mascotHeight(forWaterHeight waterHeight: CGFloat) -> CGFloat {
+        min(max(waterHeight - mascotTopPadding - mascotBottomPadding, 110), maxMascotHeight)
+    }
+
+    /// Height left for the screen's own content below the water container.
+    static func contentHeight(forVisibleHeight height: CGFloat) -> CGFloat {
+        height - headerHeight - waterHeight(forVisibleHeight: height) - spacing * 3
+    }
+}

@@ -8,15 +8,25 @@ import UserNotifications
 /// Every interaction is also what unblocks delivery: only one reminder is ever queued
 /// with the system, and the next one is armed here, once the current one is answered
 /// (see `NotificationScheduler.armNextSlotIfClear`).
-final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
-    nonisolated func userNotificationCenter(
+///
+/// Both callbacks are `@MainActor`, not `nonisolated`: the compiler-generated thunk
+/// calls UIKit's completion handler wherever the async method finishes. A
+/// `nonisolated async` method finishes on a background thread after its last
+/// `await`, and for background launches (quick actions, snooze, dismiss) UIKit then
+/// updates the app snapshot off the main thread and aborts with "Call must be made
+/// on main thread". `@preconcurrency` lets the non-Sendable UserNotifications types
+/// cross into the main-actor implementations (UIKit delivers them on main anyway).
+final class NotificationDelegate: NSObject, @preconcurrency UNUserNotificationCenterDelegate {
+    @MainActor
+    func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
         [.banner, .sound]
     }
 
-    nonisolated func userNotificationCenter(
+    @MainActor
+    func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse
     ) async {

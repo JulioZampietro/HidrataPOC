@@ -1,6 +1,6 @@
 import SwiftUI
 
-private let accent = Color(red: 0.286, green: 0.498, blue: 0.714)
+private let accent = Color(red: 0.1098, green: 0.4627, blue: 0.9922)
 private let calBlue = Color(red: 0x3E / 255.0, green: 0x8F / 255.0, blue: 0xC7 / 255.0)
 
 struct HistoricoHelpView: View {

@@ -2,7 +2,8 @@ import AVFoundation
 import SwiftData
 import SwiftUI
 
-private let accentBlue = Color(red: 0.286, green: 0.498, blue: 0.714)
+//private let accentBlue = Color(red: 0.1098, green: 0.4627, blue: 0.9922)
+private let accentBlue = Color(red: 0.1098, green: 0.4627, blue: 0.9922)
 
 struct HomeView: View {
     let profile: UserProfile
@@ -18,6 +19,7 @@ struct HomeView: View {
     @State private var showHelp = false
     @State private var showSiriTutorial = false
     @State private var showActionButtonTutorial = false
+    @State private var showTodayLogs = false
     @State private var weather: WeatherContext?
     @State private var isLoadingWeather = true
     @State private var tempContext: TemperatureAdjustmentContext?
@@ -54,28 +56,27 @@ struct HomeView: View {
     
     var body: some View {
         ZStack {
-            LinearGradient(
-                stops: [
-                    .init(color: AppTheme.screenBackground(for: colorScheme), location: 0.0),
-                    .init(color: AppTheme.screenBackground(for: colorScheme), location: 0.7),
-                    .init(color: .orange.opacity(0.4), location: 1.0),
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
+            AppTheme.screenBackground(for: colorScheme)
+                .ignoresSafeArea()
             
-            ScrollView {
-                VStack(spacing: 20) {
-                    topSection
-                    
-                    progressBar
-                        .padding(.horizontal, 20)
-                    
-                    intakeGrid
-                        .padding(.horizontal, 20)
+            GeometryReader { geo in
+                ScrollView {
+                    VStack(spacing: TabScreenLayout.spacing) {
+                        headerRow
+                            .padding(.horizontal, 20)
+
+                        topSection(height: TabScreenLayout.waterHeight(forVisibleHeight: geo.size.height))
+                            .padding(.horizontal, 10)
+
+                        progressBarButton
+                            .padding(.horizontal, 20)
+
+                        intakeGrid(cardHeight: intakeCardHeight(forVisibleHeight: geo.size.height))
+                            .padding(.horizontal, 20)
+                    }
+                    .padding(.bottom, TabScreenLayout.spacing)
                 }
-                .padding(.bottom, 24)
+                .scrollBounceBehavior(.basedOnSize)
             }
         }
         .task { await loadWeather() }
@@ -102,6 +103,16 @@ struct HomeView: View {
         .sheet(isPresented: $showHelp) { HomeHelpView() }
         .sheet(isPresented: $showSiriTutorial) { SiriTutorialView() }
         .sheet(isPresented: $showActionButtonTutorial) { ActionButtonTutorialView() }
+        .sheet(isPresented: $showTodayLogs) {
+            // Same goal as the bar (base + temperature adjustment), so the sheet's
+            // "X mL de Y mL" matches what the user just tapped.
+            DayDetailSheet(
+                dia: DiaHistorico(date: .now, percentualMeta: progress),
+                metaDiariaML: effectiveGoalML,
+                userID: profile.userID,
+                calendar: .current
+            )
+        }
     }
     
     // MARK: - Subviews
@@ -137,26 +148,32 @@ struct HomeView: View {
         }
     }
     
-    private let mascotHeight: CGFloat = 190
-    private let headerRowHeight: CGFloat = 48 // botão de 40 pt + 8 pt de respiro no topo
-    
-    private var containerShape: UnevenRoundedRectangle {
-        UnevenRoundedRectangle(bottomLeadingRadius: 32, bottomTrailingRadius: 32, style: .continuous)
+    private let progressBarHeight: CGFloat = 52 + 4 // barra + borda inferior
+    private let intakeGridSpacing: CGFloat = 12
+
+    /// The two rows of intake cards share what's left below the progress bar, so the
+    /// grid ends `TabScreenLayout.spacing` above the tab bar.
+    private func intakeCardHeight(forVisibleHeight height: CGFloat) -> CGFloat {
+        let gridHeight = TabScreenLayout.contentHeight(forVisibleHeight: height) - progressBarHeight - TabScreenLayout.spacing
+        return max((gridHeight - intakeGridSpacing) / 2, 116)
     }
 
-    private var topSection: some View {
+    private var containerShape: UnevenRoundedRectangle {
+        UnevenRoundedRectangle(topLeadingRadius: 32, bottomLeadingRadius: 32, bottomTrailingRadius: 32, topTrailingRadius: 32, style: .continuous)
+    }
+
+    private func topSection(height: CGFloat) -> some View {
         // Recipiente: vai do topo da tela até logo acima da barra de progresso e
         // enche de água conforme o progresso do dia.
         // O cabeçalho fica fora do conteúdo da água: a refração achata o conteúdo
         // numa imagem e o vidro dos botões deixa de enxergar o fundo (fica escuro).
-        ZStack {
-            VStack(spacing: 20) {
-                Color.clear.frame(height: headerRowHeight)
-                mascotPlaceholder
-            }
-            .padding(.bottom, 16)
+        VStack(spacing: 0) {
+            Spacer(minLength: 0)
+            mascotPlaceholder(height: TabScreenLayout.mascotHeight(forWaterHeight: height))
         }
+        .padding(.bottom, TabScreenLayout.mascotBottomPadding)
         .frame(maxWidth: .infinity)
+        .frame(height: height)
         .background {
             // O conteúdo do recipiente (mascote + shader da água) não tem fundo opaco
             // próprio, então uma `.shadow` direta nele sairia recortada e irregular.
@@ -164,26 +181,20 @@ struct HomeView: View {
             // recipiente e só deixa a sombra aparecer, contornando-o nos dois temas.
             containerShape
                 .fill(AppTheme.screenBackground(for: colorScheme))
-                .shadow(color: .black.opacity(0.2), radius: 14, x: 0, y: 6)
         }
         .waterContainer(
             level: progress,
             in: containerShape,
             bleedsIntoTopSafeArea: true
         )
-        .overlay(alignment: .top) {
-            headerRow
-                .padding(.horizontal, 20)
-                .padding(.top, 8)
-        }
     }
     
-    private var mascotPlaceholder: some View {
+    private func mascotPlaceholder(height: CGFloat) -> some View {
         ZStack(alignment: .topTrailing) {
             Image(AppTheme.mascotImageName(for: progress))
                 .resizable()
                 .scaledToFit()
-                .frame(height: mascotHeight)
+                .frame(height: height)
                 .scaleEffect(
                     x: isPoking ? 1.18 : 1.0,
                     y: isPoking ? 0.82 : 1.0,
@@ -234,6 +245,20 @@ struct HomeView: View {
         }
     }
     
+    /// Tapping the bar opens today's intake logs (same sheet as a day in Histórico).
+    private var progressBarButton: some View {
+        Button {
+            InteractionTracker.log("home_progress_bar_tap", screen: .home, userID: profile.userID, context: modelContext)
+            showTodayLogs = true
+        } label: {
+            progressBar
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Consumo de hoje: \(consumedToday) de \(effectiveGoalML) mililitros")
+        .accessibilityHint("Mostra os registros de hoje")
+    }
+
     private var progressBar: some View {
         GeometryReader { geo in
             let barWidth = max(geo.size.width * progress, 56)
@@ -267,50 +292,53 @@ struct HomeView: View {
         .frame(height: 52 + 4)
     }
     
-    private var intakeGrid: some View {
+    private func intakeGrid(cardHeight: CGFloat) -> some View {
         LazyVGrid(
-            columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)],
-            spacing: 12
+            columns: [GridItem(.flexible(), spacing: intakeGridSpacing), GridItem(.flexible(), spacing: intakeGridSpacing)],
+            spacing: intakeGridSpacing
         ) {
-            goleCard
-            intakeCard(.glass)
-            intakeCard(.bottle)
-            customIntakeCard
+            goleCard(height: cardHeight)
+            intakeCard(.glass, height: cardHeight)
+            intakeCard(.bottle, height: cardHeight)
+            customIntakeCard(height: cardHeight)
         }
     }
-    
-    private var goleCard: some View {
+
+    private func goleCard(height: CGFloat) -> some View {
         Button { logIntake(.custom(volumeML: 40), cardID: "gole") } label: {
             IntakeCardContent(
                 icon: "drop.fill",
                 title: "Gole",
                 subtitle: "40 mL",
-                isHighlighted: highlightedCard == "gole"
+                isHighlighted: highlightedCard == "gole",
+                height: height
             )
         }
         .buttonStyle(.plain)
     }
 
-    private func intakeCard(_ preset: Constants.IntakePreset) -> some View {
+    private func intakeCard(_ preset: Constants.IntakePreset, height: CGFloat) -> some View {
         Button { logIntake(preset, cardID: preset.label) } label: {
             IntakeCardContent(
                 icon: iconName(for: preset),
                 title: preset.label,
                 subtitle: "\(preset.volumeML) mL",
-                isHighlighted: highlightedCard == preset.label
+                isHighlighted: highlightedCard == preset.label,
+                height: height
             )
         }
         .buttonStyle(.plain)
     }
 
-    private var customIntakeCard: some View {
+    private func customIntakeCard(height: CGFloat) -> some View {
         ZStack(alignment: .topTrailing) {
             Button { logIntake(.custom(volumeML: profile.customIntakeML), cardID: "custom") } label: {
                 IntakeCardContent(
                     icon: "plus",
                     title: "Outro",
                     subtitle: "\(profile.customIntakeML) mL",
-                    isHighlighted: highlightedCard == "custom"
+                    isHighlighted: highlightedCard == "custom",
+                    height: height
                 )
             }
             .buttonStyle(.plain)
@@ -396,28 +424,40 @@ struct HomeView: View {
 // MARK: - IntakeCardContent
 
 struct IntakeCardContent: View {
+    @Environment(\.colorScheme) private var colorScheme
     let icon: String
     let title: String
     let subtitle: String
     var isHighlighted: Bool = false
+    var height: CGFloat? = nil
+
+    private var titleColor: Color {
+        isHighlighted ? .white : (colorScheme == .dark ? .primary : Color(red: 0.3686, green: 0.4667, blue: 0.6078))
+    }
+
+    private var subtitleColor: Color {
+        isHighlighted ? Color.white.opacity(0.8) : (colorScheme == .dark ? .secondary : Color(red: 0.3686, green: 0.4667, blue: 0.6078).opacity(0.75))
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Image(systemName: icon)
                 .font(icon == "plus" ? .system(size: 30) : .title2)
                 .foregroundStyle(isHighlighted ? .white : accentBlue)
-                .padding(.bottom, 28)
+
+            Spacer(minLength: 12)
 
             Text(title)
                 .font(.custom("Nunito", size: 17).weight(.heavy))
-                .foregroundStyle(isHighlighted ? Color.white : Color.primary)
+                .foregroundStyle(titleColor)
 
             Text(subtitle)
                 .font(.custom("Nunito", size: 15))
-                .foregroundStyle(isHighlighted ? Color.white.opacity(0.8) : Color.secondary)
+                .foregroundStyle(subtitleColor)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
+        .frame(height: height)
         .background(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .fill(isHighlighted ? accentBlue : Color(UIColor.secondarySystemBackground))

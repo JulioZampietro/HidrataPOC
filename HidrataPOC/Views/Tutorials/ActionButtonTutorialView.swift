@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 
-private let accentBlue = Color(red: 0.286, green: 0.498, blue: 0.714)
+private let accentBlue = Color(red: 0.1098, green: 0.4627, blue: 0.9922)
 
 struct ActionButtonTutorialView: View {
     @Environment(\.dismiss) private var dismiss
