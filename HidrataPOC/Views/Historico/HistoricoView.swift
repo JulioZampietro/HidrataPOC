@@ -144,18 +144,18 @@ struct HistoricoView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 12) {
-                    VStack(spacing: 20) {
-                        topBar
-                            .padding(.horizontal, 20)
 
-                        topSection
-                            .padding(.horizontal, 10)
-                    }
-
+                // Same arrangement and spacing as Home's header + container, so
+                // the mascot and water sit at the same height on both tabs.
+                VStack(spacing: 20) {
+                    topBar
+                        .padding(.horizontal, 20)
+                    topSection
+                        .padding(.horizontal, 10)
                     calendarCard
                         .padding(.horizontal)
                 }
+                .padding(.bottom, 12)
             }
             .appScreenBackground()
             .navigationBarHidden(true)
@@ -205,7 +205,7 @@ struct HistoricoView: View {
         }
     }
 
-    /// Mesmo recipiente da Home: do topo da tela até o mascote, enchendo com o
+    /// Mesmo recipiente da Home (mesma forma, altura e margens), enchendo com o
     /// progresso do dia. O cabeçalho fica fora do conteúdo da água (a refração
     /// achata o conteúdo e o vidro dos botões ficaria escuro).
     private let mascotHeight: CGFloat = 190
@@ -305,8 +305,6 @@ struct HistoricoView: View {
                     }
                 }
             }
-            DashedDivider()
-            legend
         }
         .transition(.opacity)
     }
@@ -402,24 +400,6 @@ struct HistoricoView: View {
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity)
             }
-        }
-    }
-
-    private var legend: some View {
-        HStack(spacing: 16) {
-            legendItem(percentual: 1.0, label: "Meta batida")
-            legendItem(percentual: 0.5, label: "Parcial")
-            legendItem(percentual: nil, label: "A vir")
-        }
-        .font(.caption2)
-        .foregroundStyle(.secondary)
-    }
-
-    private func legendItem(percentual: Double?, label: String) -> some View {
-        HStack(spacing: 6) {
-            FillSwatch(percentual: percentual)
-                .frame(width: 12, height: 12)
-            Text(label)
         }
     }
 
@@ -531,8 +511,9 @@ private struct FillSwatch: View {
 /// Sheet aberto ao tocar em um dia do calendário: detalha quanto da meta diária
 /// foi bebido naquele dia, com um gráfico por horário e a lista dos `IntakeLog`
 /// reais do dia — reativa a `@Query`, então apagar um registro aqui atualiza a
-/// tela (e o calendário por trás dela) imediatamente.
-private struct DayDetailSheet: View {
+/// tela (e o calendário por trás dela) imediatamente. Também é aberto pela Home,
+/// ao tocar na barra de progresso, com os registros de hoje.
+struct DayDetailSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     let dia: DiaHistorico
@@ -683,20 +664,6 @@ private struct IntakeRow: View {
             .accessibilityLabel("Apagar registro das \(timeLabel)")
         }
         .padding(.vertical, 10)
-    }
-}
-
-private struct DashedDivider: View {
-    var body: some View {
-        GeometryReader { geo in
-            Path { path in
-                path.move(to: CGPoint(x: 0, y: 0))
-                path.addLine(to: CGPoint(x: geo.size.width, y: 0))
-            }
-            .stroke(style: StrokeStyle(lineWidth: 1, dash: [5, 4]))
-            .foregroundStyle(Color(.systemGray4))
-        }
-        .frame(height: 1)
     }
 }
 
