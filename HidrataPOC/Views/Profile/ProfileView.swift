@@ -19,8 +19,7 @@ struct ProfileView: View {
     @State private var showHealthConnect = false
 
     private var calculatedGoalML: Int {
-        let genero = Genero(rawValue: profile.genero ?? Genero.naoInformar.rawValue) ?? .naoInformar
-        return UserProfile.suggestedGoalML(gender: genero.gender, idade: profile.idade, pesoKg: profile.pesoKg, alturaCm: profile.alturaCm)
+        UserProfile.suggestedGoalML(gender: Genero(stored: profile.genero)?.gender, idade: profile.idade, pesoKg: profile.pesoKg, alturaCm: profile.alturaCm)
     }
 
     private var isManualGoal: Bool {
@@ -37,12 +36,8 @@ struct ProfileView: View {
         return min(1, Double(total) / Double(profile.metaDiariaML))
     }
 
-    private var generoDisplay: String {
-        let genero = Genero(rawValue: profile.genero ?? Genero.naoInformar.rawValue) ?? .naoInformar
-        if genero == .autoDeclarado, let texto = profile.generoAutoDeclarado, !texto.isEmpty {
-            return texto
-        }
-        return genero.label
+    private var sexoDisplay: String {
+        Genero(stored: profile.genero)?.label ?? "Não informado"
     }
 
     private var alturaFormatted: String {
@@ -126,10 +121,12 @@ struct ProfileView: View {
 
                 Spacer()
 
-                Image(AppTheme.mascotImageName(for: todayProgress))
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 72, height: 72)
+                if let mascot = AppTheme.mascotImageName(for: todayProgress) {
+                    Image(mascot)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 72, height: 72)
+                }
             }
 
             HStack(spacing: 10) {
@@ -402,7 +399,7 @@ struct ProfileView: View {
 
             VStack(spacing: 0) {
                 dataRow(label: "Idade", value: "\(profile.idade) anos", isLast: false)
-                dataRow(label: "Gênero", value: generoDisplay, isLast: false)
+                dataRow(label: "Sexo", value: sexoDisplay, isLast: false)
                 dataRow(label: "Peso", value: "\(Int(profile.pesoKg)) kg", isLast: false)
                 dataRow(label: "Altura", value: alturaFormatted, isLast: true)
             }
@@ -449,12 +446,12 @@ struct ProfileView: View {
 
     private func save(_ values: ProfileFormValues) {
         profile.idade = values.idade
-        profile.genero = values.genero == .naoInformar ? nil : values.genero.rawValue
-        profile.generoAutoDeclarado = values.normalizedGeneroAutoDeclarado
+        profile.genero = values.genero?.rawValue
+        profile.generoAutoDeclarado = nil
         profile.pesoKg = values.pesoKg
         profile.alturaCm = values.alturaCm
         if values.resetGoalToCalculated || values.storedGoalML == nil {
-            profile.metaDiariaML = UserProfile.suggestedGoalML(gender: values.genero.gender, idade: values.idade, pesoKg: values.pesoKg, alturaCm: values.alturaCm)
+            profile.metaDiariaML = UserProfile.suggestedGoalML(gender: values.genero?.gender, idade: values.idade, pesoKg: values.pesoKg, alturaCm: values.alturaCm)
         }
         profile.atualizadoEm = .now
         profile.syncStatus = .pending
@@ -524,7 +521,7 @@ private struct GoalExplainerView: View {
 
                 Text(
                     isManual
-                        ? "Esta meta foi definida por você manualmente. Se editar seus dados pessoais (peso, altura, idade ou gênero), ela será recalculada automaticamente."
+                        ? "Esta meta foi definida por você manualmente. Se editar seus dados pessoais (peso, altura, idade ou sexo), ela será recalculada automaticamente."
                         : "A quantidade ideal de água depende do seu peso, altura, idade, gênero e temperatura no dia. Você pode ajustar seus dados no perfil para recalcular a meta."
                 )
                 .font(.custom("Nunito", size: 15))

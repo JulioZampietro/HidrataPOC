@@ -22,12 +22,11 @@ struct OnboardingView: View {
             let profile = UserProfile(
                 userID: userID,
                 idade: values.idade,
-                genero: values.genero == .naoInformar ? nil : values.genero.rawValue,
-                generoAutoDeclarado: values.normalizedGeneroAutoDeclarado,
+                genero: values.genero?.rawValue,
                 pesoKg: values.pesoKg,
                 alturaCm: values.alturaCm,
                 fusoHorario: TimeZone.current.identifier,
-                metaDiariaML: UserProfile.suggestedGoalML(gender: values.genero.gender, idade: values.idade, pesoKg: values.pesoKg, alturaCm: values.alturaCm),
+                metaDiariaML: UserProfile.suggestedGoalML(gender: values.genero?.gender, idade: values.idade, pesoKg: values.pesoKg, alturaCm: values.alturaCm),
                 customIntakeML: values.customIntakeML
             )
             modelContext.insert(profile)
