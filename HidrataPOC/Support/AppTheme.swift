@@ -60,7 +60,7 @@ enum TabScreenLayout {
     /// Space between the mascot and the container's bottom edge.
     static let mascotBottomPadding: CGFloat = 16
     /// Space between the container's top edge and the mascot at full size.
-    static let mascotTopPadding: CGFloat = 15
+    static let mascotTopPadding: CGFloat = 20
     static let maxMascotHeight: CGFloat = 190
 
     /// The container hugs the full-size mascot; it only gets shorter on screens too

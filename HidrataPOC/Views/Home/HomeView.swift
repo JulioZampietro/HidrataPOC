@@ -175,10 +175,6 @@ struct HomeView: View {
         .frame(maxWidth: .infinity)
         .frame(height: height)
         .background {
-            // O conteúdo do recipiente (mascote + shader da água) não tem fundo opaco
-            // próprio, então uma `.shadow` direta nele sairia recortada e irregular.
-            // Essa forma preenchida com a mesma cor do fundo fica escondida atrás do
-            // recipiente e só deixa a sombra aparecer, contornando-o nos dois temas.
             containerShape
                 .fill(AppTheme.screenBackground(for: colorScheme))
         }

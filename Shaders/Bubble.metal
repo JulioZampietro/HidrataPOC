@@ -19,7 +19,7 @@ constant float kBubbleRestPresence  = 0.60; // fração de bolhas ativas com a �
 constant float kBubbleShakePresence = 0.85; // fração logo após uma sacudida forte
 constant float kBubbleRiseSpeed     = 65.0; // pt/s de subida (as grandes sobem um pouco mais rápido)
 // Refração do conteúdo
-constant float kRefractAmp      = 1.3;    // deslocamento base (pt); cresce com a agitação e perto da superfície
+constant float kRefractAmp      = 3.45;    // deslocamento base (pt); cresce com a agitação e perto da superfície
 constant float kRefractLens     = 6.0;    // quanto a imagem acompanha a inclinação das ondas logo abaixo da linha
 constant float kRefractMax      = 9.5;    // limite do deslocamento (pt) — manter < maxSampleOffset no Swift
 constant float3 kWaterTint      = float3(0.1098, 0.4627, 0.9922); // azul de destaque do app (#1C76FD)
