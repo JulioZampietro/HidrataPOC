@@ -137,11 +137,17 @@ struct HistoricoView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 12) {
+                // Same arrangement and spacing as Home's header + container, so
+                // the mascot and water sit at the same height on both tabs.
+                VStack(spacing: 20) {
+                    topBar
+                        .padding(.horizontal, 20)
                     topSection
+                        .padding(.horizontal, 10)
                     calendarCard
                         .padding(.horizontal)
                 }
+                .padding(.bottom, 12)
             }
             .appScreenBackground()
             .navigationBarHidden(true)
@@ -191,11 +197,11 @@ struct HistoricoView: View {
         }
     }
 
-    /// Mesmo recipiente da Home: do topo da tela até o mascote, enchendo com o
+    /// Mesmo recipiente da Home (mesma forma, altura e margens), enchendo com o
     /// progresso do dia. O cabeçalho fica fora do conteúdo da água (a refração
     /// achata o conteúdo e o vidro dos botões ficaria escuro).
     private var containerShape: UnevenRoundedRectangle {
-        UnevenRoundedRectangle(bottomLeadingRadius: 32, bottomTrailingRadius: 32, style: .continuous)
+        UnevenRoundedRectangle(topLeadingRadius: 32, bottomLeadingRadius: 32, bottomTrailingRadius: 32, topTrailingRadius: 32, style: .continuous)
     }
 
     private var topSection: some View {
@@ -212,18 +218,12 @@ struct HistoricoView: View {
             // recipiente e só deixa a sombra aparecer, contornando-o nos dois temas.
             containerShape
                 .fill(AppTheme.screenBackground(for: colorScheme))
-                .shadow(color: .black.opacity(0.2), radius: 14, x: 0, y: 6)
         }
         .waterContainer(
             level: todayProgress,
             in: containerShape,
             bleedsIntoTopSafeArea: true
         )
-        .overlay(alignment: .top) {
-            topBar
-                .padding(.horizontal, 20)
-                .padding(.top, 8)
-        }
     }
 
     private var mascotPlaceholder: some View {
@@ -278,8 +278,6 @@ struct HistoricoView: View {
                     }
                 }
             }
-            DashedDivider()
-            legend
         }
         .transition(.opacity)
     }
@@ -375,24 +373,6 @@ struct HistoricoView: View {
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity)
             }
-        }
-    }
-
-    private var legend: some View {
-        HStack(spacing: 16) {
-            legendItem(percentual: 1.0, label: "Meta batida")
-            legendItem(percentual: 0.5, label: "Parcial")
-            legendItem(percentual: nil, label: "A vir")
-        }
-        .font(.caption2)
-        .foregroundStyle(.secondary)
-    }
-
-    private func legendItem(percentual: Double?, label: String) -> some View {
-        HStack(spacing: 6) {
-            FillSwatch(percentual: percentual)
-                .frame(width: 12, height: 12)
-            Text(label)
         }
     }
 
@@ -657,20 +637,6 @@ private struct IntakeRow: View {
             .accessibilityLabel("Apagar registro das \(timeLabel)")
         }
         .padding(.vertical, 10)
-    }
-}
-
-private struct DashedDivider: View {
-    var body: some View {
-        GeometryReader { geo in
-            Path { path in
-                path.move(to: CGPoint(x: 0, y: 0))
-                path.addLine(to: CGPoint(x: geo.size.width, y: 0))
-            }
-            .stroke(style: StrokeStyle(lineWidth: 1, dash: [5, 4]))
-            .foregroundStyle(Color(.systemGray4))
-        }
-        .frame(height: 1)
     }
 }
 
