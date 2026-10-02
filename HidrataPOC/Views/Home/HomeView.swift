@@ -1,3 +1,4 @@
+import AVFoundation
 import SwiftData
 import SwiftUI
 
@@ -10,6 +11,8 @@ struct HomeView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var allLogs: [IntakeLog]
     @State private var isLogging = false
+    @State private var highlightedCard: String? = nil
+    @State private var audioPlayer: AVAudioPlayer?
     @State private var pendingDeleteLog: IntakeLog?
     @State private var isEditingCustomAmount = false
     @State private var showHelp = false
@@ -19,9 +22,14 @@ struct HomeView: View {
     @State private var isLoadingWeather = true
     @State private var tempContext: TemperatureAdjustmentContext?
     @State private var phraseIndex: Int = 0
+    @State private var pokeCount: Int = 0
+    @State private var isPoking: Bool = false
+    @State private var overridePhrase: String? = nil
 
     private static let mascotPhrases: [String] = [
-        "Nao bebe água não",
+        "Não bebe água não",
+        "Você nem sente sede né?",
+        "Amo a sensação de boca seca!"
         
     ]
 
@@ -141,11 +149,13 @@ struct HomeView: View {
         // enche de água conforme o progresso do dia.
         // O cabeçalho fica fora do conteúdo da água: a refração achata o conteúdo
         // numa imagem e o vidro dos botões deixa de enxergar o fundo (fica escuro).
-        VStack(spacing: 20) {
-            Color.clear.frame(height: headerRowHeight)
-            mascotPlaceholder
+        ZStack {
+            VStack(spacing: 20) {
+                Color.clear.frame(height: headerRowHeight)
+                mascotPlaceholder
+            }
+            .padding(.bottom, 16)
         }
-        .padding(.bottom, 16)
         .frame(maxWidth: .infinity)
         .background {
             // O conteúdo do recipiente (mascote + shader da água) não tem fundo opaco
@@ -174,8 +184,14 @@ struct HomeView: View {
                 .resizable()
                 .scaledToFit()
                 .frame(height: mascotHeight)
+                .scaleEffect(
+                    x: isPoking ? 1.18 : 1.0,
+                    y: isPoking ? 0.82 : 1.0,
+                    anchor: .bottom
+                )
+                .onTapGesture { pokeMascot() }
 
-            MascotSpeechBubble(text: Self.mascotPhrases[phraseIndex])
+            MascotSpeechBubble(text: overridePhrase ?? Self.mascotPhrases[phraseIndex])
                 .offset(x: 8, y: -8)
                 .transition(.scale(scale: 0.8, anchor: .bottomLeading).combined(with: .opacity))
         }
@@ -183,9 +199,37 @@ struct HomeView: View {
         .task {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(6))
+                guard overridePhrase == nil else { continue }
                 withAnimation(.easeInOut(duration: 0.35)) {
                     phraseIndex = (phraseIndex + 1) % Self.mascotPhrases.count
                 }
+            }
+        }
+    }
+
+    private func pokeMascot() {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+
+        withAnimation(.interpolatingSpring(stiffness: 500, damping: 8)) { isPoking = true }
+        Task {
+            try? await Task.sleep(for: .milliseconds(130))
+            withAnimation(.interpolatingSpring(stiffness: 200, damping: 14)) { isPoking = false }
+        }
+
+        pokeCount += 1
+
+        if pokeCount >= 3 {
+            pokeCount = 0
+            withAnimation(.easeInOut(duration: 0.25)) {
+                overridePhrase = "Para de me cutucar zé mané"
+            }
+            Task {
+                try? await Task.sleep(for: .seconds(4))
+                withAnimation(.easeInOut(duration: 0.35)) { overridePhrase = nil }
+            }
+        } else {
+            withAnimation(.easeInOut(duration: 0.25)) {
+                phraseIndex = (phraseIndex + 1) % Self.mascotPhrases.count
             }
         }
     }
@@ -224,54 +268,52 @@ struct HomeView: View {
     }
     
     private var intakeGrid: some View {
-        GlassEffectContainer(spacing: 12) {
-            LazyVGrid(
-                columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)],
-                spacing: 12
-            ) {
-                goleCard
-                intakeCard(.glass)
-                intakeCard(.bottle)
-                customIntakeCard
-            }
+        LazyVGrid(
+            columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)],
+            spacing: 12
+        ) {
+            goleCard
+            intakeCard(.glass)
+            intakeCard(.bottle)
+            customIntakeCard
         }
     }
     
     private var goleCard: some View {
-        Button { logIntake(.custom(volumeML: 40)) } label: {
+        Button { logIntake(.custom(volumeML: 40), cardID: "gole") } label: {
             IntakeCardContent(
                 icon: "drop.fill",
                 title: "Gole",
-                subtitle: "40 mL"
+                subtitle: "40 mL",
+                isHighlighted: highlightedCard == "gole"
             )
         }
         .buttonStyle(.plain)
-        .disabled(isLogging)
     }
-    
+
     private func intakeCard(_ preset: Constants.IntakePreset) -> some View {
-        Button { logIntake(preset) } label: {
+        Button { logIntake(preset, cardID: preset.label) } label: {
             IntakeCardContent(
                 icon: iconName(for: preset),
                 title: preset.label,
-                subtitle: "\(preset.volumeML) mL"
+                subtitle: "\(preset.volumeML) mL",
+                isHighlighted: highlightedCard == preset.label
             )
         }
         .buttonStyle(.plain)
-        .disabled(isLogging)
     }
-    
+
     private var customIntakeCard: some View {
         ZStack(alignment: .topTrailing) {
-            Button { logIntake(.custom(volumeML: profile.customIntakeML)) } label: {
+            Button { logIntake(.custom(volumeML: profile.customIntakeML), cardID: "custom") } label: {
                 IntakeCardContent(
                     icon: "plus",
                     title: "Outro",
-                    subtitle: "\(profile.customIntakeML) mL"
+                    subtitle: "\(profile.customIntakeML) mL",
+                    isHighlighted: highlightedCard == "custom"
                 )
             }
             .buttonStyle(.plain)
-            .disabled(isLogging)
             
             Button {
                 isEditingCustomAmount = true
@@ -281,7 +323,6 @@ struct HomeView: View {
                     .font(.system(size: 30))
                     .foregroundStyle(accentBlue)
                     .padding(4)
-                    .glassEffect(.regular.interactive(), in: Circle())
             }
             .buttonStyle(.plain)
             .padding(6)
@@ -309,11 +350,28 @@ struct HomeView: View {
         isLoadingWeather = false
     }
     
-    private func logIntake(_ preset: Constants.IntakePreset) {
+    private func logIntake(_ preset: Constants.IntakePreset, cardID: String) {
+        guard !isLogging else { return }
         isLogging = true
+        playWaterSound()
+        UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+        withAnimation(.easeInOut(duration: 0.15)) { highlightedCard = cardID }
+        Task {
+            try? await Task.sleep(for: .seconds(0.7))
+            withAnimation(.easeInOut(duration: 0.2)) { highlightedCard = nil }
+        }
         Task {
             await NotificationScheduler.shared.recordManualIntake(preset: preset, userID: profile.userID, context: modelContext)
             isLogging = false
+        }
+    }
+
+    private func playWaterSound() {
+        Task.detached(priority: .userInitiated) {
+            guard let asset = NSDataAsset(name: "agua"),
+                  let player = try? AVAudioPlayer(data: asset.data, fileTypeHint: AVFileType.mp3.rawValue) else { return }
+            await MainActor.run { audioPlayer = player }
+            player.play()
         }
     }
     
@@ -341,29 +399,31 @@ struct IntakeCardContent: View {
     let icon: String
     let title: String
     let subtitle: String
-    
+    var isHighlighted: Bool = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Image(systemName: icon)
                 .font(icon == "plus" ? .system(size: 30) : .title2)
-                .foregroundStyle(accentBlue)
+                .foregroundStyle(isHighlighted ? .white : accentBlue)
                 .padding(.bottom, 28)
-            
+
             Text(title)
                 .font(.custom("Nunito", size: 17).weight(.heavy))
-                .foregroundStyle(.primary)
-            
+                .foregroundStyle(isHighlighted ? Color.white : Color.primary)
+
             Text(subtitle)
                 .font(.custom("Nunito", size: 15))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(isHighlighted ? Color.white.opacity(0.8) : Color.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
-        // The old opaque `.background(...)` this replaced made the whole padded card
-        // hit-testable for free; `.glassEffect` doesn't, so without an explicit
-        // content shape the button only responds where the icon/text glyphs are.
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(isHighlighted ? accentBlue : Color(UIColor.secondarySystemBackground))
+                .shadow(color: .black.opacity(0.18), radius: 8, x: 0, y: 4)
+        )
         .contentShape(RoundedRectangle(cornerRadius: 18))
-        .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 18))
     }
 }
 

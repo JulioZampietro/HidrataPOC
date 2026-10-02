@@ -116,7 +116,7 @@ struct SiriTutorialView: View {
                     .foregroundStyle(.white)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
-                    .glassEffect(.regular.tint(siriPurple), in: Capsule())
+                    .background(siriPurple, in: Capsule())
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 14)
@@ -138,7 +138,9 @@ struct SiriTutorialView: View {
                 }
             }
         }
-        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 20))
+        .background(RoundedRectangle(cornerRadius: 20, style: .continuous)
+            .fill(Color(UIColor.secondarySystemBackground))
+            .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4))
     }
 
     private func phraseRow(text: String, result: String, isLast: Bool) -> some View {
@@ -200,7 +202,9 @@ struct SiriTutorialView: View {
             tipRow(icon: "mic.fill", color: .orange, text: "Não precisa de frase exata — fale naturalmente.", isLast: false)
             tipRow(icon: "number", color: .blue, text: "Funciona com números: \"3 copos\", \"dois goles\".", isLast: true)
         }
-        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 20))
+        .background(RoundedRectangle(cornerRadius: 20, style: .continuous)
+            .fill(Color(UIColor.secondarySystemBackground))
+            .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4))
     }
 
     private func tipRow(icon: String, color: Color, text: LocalizedStringKey, isLast: Bool) -> some View {

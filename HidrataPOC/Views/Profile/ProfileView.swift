@@ -61,6 +61,7 @@ struct ProfileView: View {
                 healthRow
                 #if DEBUG
                 debugNotificationRow
+                debugWeatherCard
                 #endif
                 personalDataSection
             }
@@ -140,7 +141,7 @@ struct ProfileView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 6)
                 }
-                .buttonStyle(.glassProminent)
+                .buttonStyle(.borderedProminent)
                 .tint(accentBlue)
 
                 Button {
@@ -151,12 +152,14 @@ struct ProfileView: View {
                         .padding(.vertical, 6)
                         .padding(.horizontal, 8)
                 }
-                .buttonStyle(.glass)
+                .buttonStyle(.bordered)
                 .tint(accentBlue)
             }
         }
         .padding(18)
-        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 20))
+        .background(RoundedRectangle(cornerRadius: 20, style: .continuous)
+            .fill(Color(UIColor.secondarySystemBackground))
+            .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4))
     }
 
     // MARK: - Reminders Card
@@ -211,7 +214,9 @@ struct ProfileView: View {
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 16)
-            .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 16))
+            .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color(UIColor.secondarySystemBackground))
+                .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -240,7 +245,9 @@ struct ProfileView: View {
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 16)
-            .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 16))
+            .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color(UIColor.secondarySystemBackground))
+                .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -270,7 +277,9 @@ struct ProfileView: View {
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 16)
-            .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 16))
+            .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color(UIColor.secondarySystemBackground))
+                .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -300,7 +309,9 @@ struct ProfileView: View {
                 }
                 .padding(.horizontal, 18)
                 .padding(.vertical, 16)
-                .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 16))
+                .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color(UIColor.secondarySystemBackground))
+                    .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4))
             }
             .buttonStyle(.plain)
 
@@ -311,6 +322,57 @@ struct ProfileView: View {
                     .padding(.horizontal, 6)
             }
         }
+    }
+
+    private var debugWeatherCard: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Label("Debug: ajuste climático", systemImage: "cloud.sun")
+                    .font(.custom("Nunito", size: 14).weight(.bold))
+                    .foregroundStyle(.secondary)
+                Spacer()
+            }
+            .padding(.horizontal, 18)
+            .padding(.top, 14)
+            .padding(.bottom, 10)
+
+            Divider().padding(.horizontal, 18)
+
+            if let ctx = tempContext {
+                Group {
+                    debugRow(label: "Temp. máxima real",     value: String(format: "%.1f °C", ctx.todayMaxC))
+                    debugRow(label: "Umidade média",         value: String(format: "%.0f %%", ctx.humidityPct))
+                    debugRow(label: "Heat Index (sensação)", value: String(format: "%.1f °C", ctx.apparentMaxC))
+                    debugRow(label: "Baseline",              value: String(format: "%.0f °C", ctx.baselineC))
+                    debugRow(label: "Excesso sobre baseline",value: String(format: "%.1f °C", max(0, ctx.apparentMaxC - ctx.baselineC)))
+                    debugRow(label: "Ajuste total",          value: "+ \(ctx.adjustmentML) mL", highlight: ctx.adjustmentML > 0)
+                }
+            } else {
+                Text("Carregando dados do clima…")
+                    .font(.custom("Nunito", size: 13))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 14)
+            }
+        }
+        .padding(.bottom, 14)
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
+            .fill(Color(UIColor.secondarySystemBackground))
+            .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4))
+    }
+
+    private func debugRow(label: String, value: String, highlight: Bool = false) -> some View {
+        HStack {
+            Text(label)
+                .font(.custom("Nunito", size: 13))
+                .foregroundStyle(.secondary)
+            Spacer()
+            Text(value)
+                .font(.custom("Nunito", size: 13).weight(.bold))
+                .foregroundStyle(highlight ? .orange : .primary)
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 8)
     }
     #endif
 
@@ -344,7 +406,9 @@ struct ProfileView: View {
                 dataRow(label: "Peso", value: "\(Int(profile.pesoKg)) kg", isLast: false)
                 dataRow(label: "Altura", value: alturaFormatted, isLast: true)
             }
-            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 18))
+            .background(RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Color(UIColor.secondarySystemBackground))
+                .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4))
         }
     }
 
@@ -452,7 +516,7 @@ private struct GoalExplainerView: View {
                         .foregroundStyle(.secondary)
 
                     if adjustmentML > 0 {
-                        Text("+ \(adjustmentML) mL por conta da temperatura hoje")
+                        Text("+ \(adjustmentML) mL por conta do clima hoje")
                             .font(.custom("Nunito", size: 13))
                             .foregroundStyle(.orange.opacity(0.85))
                     }

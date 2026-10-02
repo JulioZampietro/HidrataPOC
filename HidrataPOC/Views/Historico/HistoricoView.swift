@@ -245,7 +245,9 @@ struct HistoricoView: View {
             }
         }
         .padding(20)
-        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 24))
+        .background(RoundedRectangle(cornerRadius: 24, style: .continuous)
+            .fill(Color(UIColor.secondarySystemBackground))
+            .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4))
         .simultaneousGesture(cardSwipeGesture)
     }
 
