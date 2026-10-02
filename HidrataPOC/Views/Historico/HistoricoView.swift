@@ -504,8 +504,9 @@ private struct FillSwatch: View {
 /// Sheet aberto ao tocar em um dia do calendário: detalha quanto da meta diária
 /// foi bebido naquele dia, com um gráfico por horário e a lista dos `IntakeLog`
 /// reais do dia — reativa a `@Query`, então apagar um registro aqui atualiza a
-/// tela (e o calendário por trás dela) imediatamente.
-private struct DayDetailSheet: View {
+/// tela (e o calendário por trás dela) imediatamente. Também é aberto pela Home,
+/// ao tocar na barra de progresso, com os registros de hoje.
+struct DayDetailSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     let dia: DiaHistorico

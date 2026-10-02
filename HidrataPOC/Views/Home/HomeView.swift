@@ -15,6 +15,7 @@ struct HomeView: View {
     @State private var showHelp = false
     @State private var showSiriTutorial = false
     @State private var showActionButtonTutorial = false
+    @State private var showTodayLogs = false
     @State private var weather: WeatherContext?
     @State private var isLoadingWeather = true
     @State private var tempContext: TemperatureAdjustmentContext?
@@ -65,7 +66,7 @@ struct HomeView: View {
                     topSection
                         .padding(.horizontal, 10)
                     
-                    progressBar
+                    progressBarButton
                         .padding(.horizontal, 20)
                     
                     intakeGrid
@@ -98,6 +99,16 @@ struct HomeView: View {
         .sheet(isPresented: $showHelp) { HomeHelpView() }
         .sheet(isPresented: $showSiriTutorial) { SiriTutorialView() }
         .sheet(isPresented: $showActionButtonTutorial) { ActionButtonTutorialView() }
+        .sheet(isPresented: $showTodayLogs) {
+            // Same goal as the bar (base + temperature adjustment), so the sheet's
+            // "X mL de Y mL" matches what the user just tapped.
+            DayDetailSheet(
+                dia: DiaHistorico(date: .now, percentualMeta: progress),
+                metaDiariaML: effectiveGoalML,
+                userID: profile.userID,
+                calendar: .current
+            )
+        }
     }
     
     // MARK: - Subviews
@@ -188,6 +199,20 @@ struct HomeView: View {
         }
     }
     
+    /// Tapping the bar opens today's intake logs (same sheet as a day in Histórico).
+    private var progressBarButton: some View {
+        Button {
+            InteractionTracker.log("home_progress_bar_tap", screen: .home, userID: profile.userID, context: modelContext)
+            showTodayLogs = true
+        } label: {
+            progressBar
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Consumo de hoje: \(consumedToday) de \(effectiveGoalML) mililitros")
+        .accessibilityHint("Mostra os registros de hoje")
+    }
+
     private var progressBar: some View {
         GeometryReader { geo in
             let barWidth = max(geo.size.width * progress, 56)
