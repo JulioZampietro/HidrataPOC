@@ -58,7 +58,7 @@ struct RootView: View {
     }
 }
 
-private let tabBarBlue = Color(red: 0.286, green: 0.498, blue: 0.714)
+private let tabBarBlue = Color(red: 0.1098, green: 0.4627, blue: 0.9922)
 
 #Preview {
     RootView()

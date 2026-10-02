@@ -4,10 +4,10 @@ import SwiftUI
 
 /// Azul de marca usado no calendário do histórico (preenchimento, anel do dia
 /// atual e contador de metas batidas).
-private let calendarBlue = Color(red: 0x3E / 255.0, green: 0x8F / 255.0, blue: 0xC7 / 255.0)
+private let calendarBlue = Color(red: 0.1098, green: 0.4627, blue: 0.9922)
 
 /// Mesmo azul de accent da HomeView — usado na topBar para manter os botões idênticos.
-private let accentBlue = Color(red: 0.286, green: 0.498, blue: 0.714)
+private let accentBlue = Color(red: 0.1098, green: 0.4627, blue: 0.9922)
 
 private extension Font {
     static func baloo2ExtraBold(_ size: CGFloat) -> Font {
@@ -74,6 +74,13 @@ struct HistoricoView: View {
     @State private var selectedDay: DiaHistorico?
     @State private var showHelp = false
     @State private var tempContext: TemperatureAdjustmentContext?
+    @State private var phraseIndex: Int = 0
+
+    /// Mesmas frases da Home — o mascote precisa falar igual nas duas telas.
+    private static let mascotPhrases: [String] = [
+        "Nao bebe água não",
+
+    ]
 
     private var calendar: Calendar {
         var cal = Calendar(identifier: .gregorian)
@@ -138,7 +145,14 @@ struct HistoricoView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 12) {
-                    topSection
+                    VStack(spacing: 20) {
+                        topBar
+                            .padding(.horizontal, 20)
+
+                        topSection
+                            .padding(.horizontal, 10)
+                    }
+
                     calendarCard
                         .padding(.horizontal)
                 }
@@ -194,15 +208,19 @@ struct HistoricoView: View {
     /// Mesmo recipiente da Home: do topo da tela até o mascote, enchendo com o
     /// progresso do dia. O cabeçalho fica fora do conteúdo da água (a refração
     /// achata o conteúdo e o vidro dos botões ficaria escuro).
+    private let mascotHeight: CGFloat = 190
+
     private var containerShape: UnevenRoundedRectangle {
-        UnevenRoundedRectangle(bottomLeadingRadius: 32, bottomTrailingRadius: 32, style: .continuous)
+        UnevenRoundedRectangle(topLeadingRadius: 32, bottomLeadingRadius: 32, bottomTrailingRadius: 32, topTrailingRadius: 32, style: .continuous)
     }
 
     private var topSection: some View {
-        VStack(spacing: 20) {
-            Color.clear.frame(height: 48) // botão de 40 pt + 8 pt de respiro no topo
+        // Mesmo recipiente da Home: o cabeçalho (topBar) fica fora do conteúdo da
+        // água, como um irmão acima dela no VStack do body.
+        VStack(spacing: 8) {
             mascotPlaceholder
         }
+        .padding(.top, 8)
         .padding(.bottom, 16)
         .frame(maxWidth: .infinity)
         .background {
@@ -212,25 +230,34 @@ struct HistoricoView: View {
             // recipiente e só deixa a sombra aparecer, contornando-o nos dois temas.
             containerShape
                 .fill(AppTheme.screenBackground(for: colorScheme))
-                .shadow(color: .black.opacity(0.2), radius: 14, x: 0, y: 6)
         }
         .waterContainer(
             level: todayProgress,
             in: containerShape,
             bleedsIntoTopSafeArea: true
         )
-        .overlay(alignment: .top) {
-            topBar
-                .padding(.horizontal, 20)
-                .padding(.top, 8)
-        }
     }
 
     private var mascotPlaceholder: some View {
-        Image(AppTheme.mascotImageName(for: todayProgress))
-            .resizable()
-            .scaledToFit()
-            .frame(height: 190)
+        ZStack(alignment: .topTrailing) {
+            Image(AppTheme.mascotImageName(for: todayProgress))
+                .resizable()
+                .scaledToFit()
+                .frame(height: mascotHeight)
+
+            MascotSpeechBubble(text: Self.mascotPhrases[phraseIndex])
+                .offset(x: 8, y: -8)
+                .transition(.scale(scale: 0.8, anchor: .bottomLeading).combined(with: .opacity))
+        }
+        .onAppear { phraseIndex = Int.random(in: 0..<Self.mascotPhrases.count) }
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(6))
+                withAnimation(.easeInOut(duration: 0.35)) {
+                    phraseIndex = (phraseIndex + 1) % Self.mascotPhrases.count
+                }
+            }
+        }
     }
 
     /// Card com duas "páginas": o calendário do mês e um gráfico dos últimos
@@ -497,7 +524,7 @@ private struct FillSwatch: View {
     /// perderia contraste contra ela.
     private var trackColor: Color {
         guard percentual != nil else { return Color(.systemGray4) }
-        return colorScheme == .dark ? calendarBlue.opacity(0.32) : calendarBlue.opacity(0.12)
+        return colorScheme == .dark ? calendarBlue.opacity(0.32) : Color(red: 0.8863, green: 0.9333, blue: 0.9922)
     }
 }
 

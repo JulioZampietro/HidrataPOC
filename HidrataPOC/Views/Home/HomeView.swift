@@ -1,7 +1,8 @@
 import SwiftData
 import SwiftUI
 
-private let accentBlue = Color(red: 0.286, green: 0.498, blue: 0.714)
+//private let accentBlue = Color(red: 0.1098, green: 0.4627, blue: 0.9922)
+private let accentBlue = Color(red: 0.1098, green: 0.4627, blue: 0.9922)
 
 struct HomeView: View {
     let profile: UserProfile
@@ -46,16 +47,8 @@ struct HomeView: View {
     
     var body: some View {
         ZStack {
-            LinearGradient(
-                stops: [
-                    .init(color: AppTheme.screenBackground(for: colorScheme), location: 0.0),
-                    .init(color: AppTheme.screenBackground(for: colorScheme), location: 0.7),
-                    .init(color: .orange.opacity(0.4), location: 1.0),
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
+            AppTheme.screenBackground(for: colorScheme)
+                .ignoresSafeArea()
             
             ScrollView {
                 VStack(spacing: 20) {
@@ -134,8 +127,7 @@ struct HomeView: View {
     }
     
     private let mascotHeight: CGFloat = 190
-    private let headerRowHeight: CGFloat = 48 // botão de 40 pt + 8 pt de respiro no topo
-    
+
     private var containerShape: UnevenRoundedRectangle {
         UnevenRoundedRectangle(topLeadingRadius: 32, bottomLeadingRadius: 32, bottomTrailingRadius: 32, topTrailingRadius: 32, style: .continuous)
     }
@@ -145,10 +137,10 @@ struct HomeView: View {
         // enche de água conforme o progresso do dia.
         // O cabeçalho fica fora do conteúdo da água: a refração achata o conteúdo
         // numa imagem e o vidro dos botões deixa de enxergar o fundo (fica escuro).
-        VStack(spacing: 20) {
-            Color.clear.frame(height: headerRowHeight)
+        VStack(spacing: 8) {
             mascotPlaceholder
         }
+        .padding(.top, 8)
         .padding(.bottom, 16)
         .frame(maxWidth: .infinity)
         .background {
@@ -336,24 +328,35 @@ struct HomeView: View {
 // MARK: - IntakeCardContent
 
 struct IntakeCardContent: View {
+    @Environment(\.colorScheme) private var colorScheme
     let icon: String
     let title: String
     let subtitle: String
-    
+
+    /// Azul-acinzentado do design só tem contraste pensado para o vidro claro;
+    /// no dark mode o cartão fica escuro e esse tom some, então cai pra `.primary`.
+    private var titleColor: Color {
+        colorScheme == .dark ? .primary : Color(red: 0.3686, green: 0.4667, blue: 0.6078)
+    }
+
+    private var subtitleColor: Color {
+        colorScheme == .dark ? .secondary : Color(red: 0.3686, green: 0.4667, blue: 0.6078).opacity(0.75)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Image(systemName: icon)
                 .font(icon == "plus" ? .system(size: 30) : .title2)
                 .foregroundStyle(accentBlue)
                 .padding(.bottom, 28)
-            
+
             Text(title)
                 .font(.custom("Nunito", size: 17).weight(.heavy))
-                .foregroundStyle(.primary)
-            
+                .foregroundStyle(titleColor)
+
             Text(subtitle)
                 .font(.custom("Nunito", size: 15))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(subtitleColor)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
