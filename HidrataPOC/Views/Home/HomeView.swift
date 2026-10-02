@@ -151,7 +151,7 @@ struct HomeView: View {
         VStack(spacing: 8) {
             mascotPlaceholder
         }
-        .padding(.top, 8)
+        .padding(.top, 15)
         .padding(.bottom, 16)
         .frame(maxWidth: .infinity)
         .background {
