@@ -90,7 +90,7 @@ struct HistoricoView: View {
     }
 
     private let weekdaySymbols = ["D", "S", "T", "Q", "Q", "S", "S"]
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 8), count: 7)
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: Self.gridColumnSpacing), count: 7)
 
     private var userLogs: [IntakeLog] {
         allLogs.filter { $0.userID == profile.userID }
@@ -262,6 +262,7 @@ struct HistoricoView: View {
     /// Below this the day cells would get too small; the screen scrolls instead.
     private static let minCalendarCardHeight: CGFloat = 330
     private static let gridRowSpacing: CGFloat = 10
+    private static let gridColumnSpacing: CGFloat = 8
 
     /// Card com duas "páginas": o calendário do mês e um gráfico dos últimos
     /// 7 dias. Troca de página pela setinha (`pageToggleButton`, presente nos
@@ -284,12 +285,15 @@ struct HistoricoView: View {
         VStack(spacing: 14) {
             monthHeader
             weekdayHeader
-            // The day cells share whatever height the card leaves for the grid, so a
-            // 4-, 5- or 6-row month always fills the same card.
+            // 6-row months stretch their cells to fill the space the card leaves for
+            // the grid. Shorter months use square cells (capped so they still fit),
+            // centered vertically in that space.
             GeometryReader { geo in
                 let rows = CGFloat((gridCells.count + 6) / 7)
-                let cellHeight = max((geo.size.height - (rows - 1) * Self.gridRowSpacing) / rows, 26)
-                calendarGrid(cellHeight: cellHeight)
+                let fillHeight = max((geo.size.height - (rows - 1) * Self.gridRowSpacing) / rows, 26)
+                let cellWidth = (geo.size.width - 6 * Self.gridColumnSpacing) / 7
+                calendarGrid(cellHeight: rows >= 6 ? fillHeight : min(cellWidth, fillHeight))
+                    .frame(width: geo.size.width, height: geo.size.height)
             }
         }
         .transition(.opacity)
