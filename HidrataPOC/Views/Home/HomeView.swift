@@ -148,7 +148,7 @@ struct HomeView: View {
         }
     }
     
-    private let progressBarHeight: CGFloat = 52 + 4 // barra + borda inferior
+    private let progressBarHeight: CGFloat = 52
     private let intakeGridSpacing: CGFloat = 12
 
     /// The two rows of intake cards share what's left below the progress bar, so the
@@ -258,20 +258,13 @@ struct HomeView: View {
     private var progressBar: some View {
         GeometryReader { geo in
             let barWidth = max(geo.size.width * progress, 56)
-            let borderDepth: CGFloat = 4
             
             ZStack(alignment: .leading) {
-                // track afundado
+                // trilha, elevada com a mesma sombra dos cartões de ingestão
                 Capsule()
                     .fill(AppTheme.progressTrack(for: colorScheme))
                     .frame(height: 52)
-                
-                // borda inferior do azul (efeito elevado)
-                Capsule()
-                    .fill(Color(red: 0.18, green: 0.35, blue: 0.56))
-                    .frame(width: barWidth, height: 52)
-                    .offset(y: borderDepth)
-                    .animation(.easeOut(duration: 0.4), value: progress)
+                    .homeCardShadow()
                 
                 // preenchimento azul
                 Capsule()
@@ -285,7 +278,7 @@ struct HomeView: View {
                     .padding(.leading, 18)
             }
         }
-        .frame(height: 52 + 4)
+        .frame(height: progressBarHeight)
     }
     
     private func intakeGrid(cardHeight: CGFloat) -> some View {
@@ -394,8 +387,10 @@ struct HomeView: View {
         Task.detached(priority: .userInitiated) {
             guard let asset = NSDataAsset(name: "agua"),
                   let player = try? AVAudioPlayer(data: asset.data, fileTypeHint: AVFileType.mp3.rawValue) else { return }
-            await MainActor.run { audioPlayer = player }
             player.play()
+            // Hand-off must be the last use: after it, the player belongs to the main
+            // actor (which keeps it alive while it plays) and can't be touched here.
+            await MainActor.run { audioPlayer = player }
         }
     }
     
@@ -457,9 +452,16 @@ struct IntakeCardContent: View {
         .background(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .fill(isHighlighted ? accentBlue : Color(UIColor.secondarySystemBackground))
-                .shadow(color: .black.opacity(0.18), radius: 8, x: 0, y: 4)
+                .homeCardShadow()
         )
         .contentShape(RoundedRectangle(cornerRadius: 18))
+    }
+}
+
+private extension View {
+    /// Elevação compartilhada pelos cartões de ingestão e pela barra de progresso.
+    func homeCardShadow() -> some View {
+        shadow(color: .black.opacity(0.18), radius: 8, x: 0, y: 4)
     }
 }
 
