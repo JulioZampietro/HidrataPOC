@@ -18,10 +18,47 @@ enum HydrationMath {
         return max(0, Int(now.timeIntervalSince(last) / 60))
     }
 
-    /// Extra mL to add when today's forecast high exceeds `Constants.baselineMaxTempC`.
-    /// Returns 0 when today is at or below the baseline.
-    static func temperatureAdjustmentML(todayMaxC: Double) -> Int {
-        let excess = max(0, todayMaxC - Constants.baselineMaxTempC)
+    /// Computes an apparent temperature that accounts for both humidity extremes:
+    ///
+    /// - **Dry air (RH < 40 %, T ≥ 25 °C)**: insensible losses (respiration + skin
+    ///   evaporation) rise as RH drops. Modelled as a linear bonus of up to +3 °C
+    ///   at 0 % RH (≈ +150 mL at 50 mL/°C per degree).
+    ///
+    /// - **Hot + humid (RH ≥ 40 %, T ≥ 25 °C)**: sweat evaporation is impaired;
+    ///   uses the Rothfusz Heat Index regression.
+    ///
+    /// Returns `tempC` unchanged when T < 25 °C (conditions don't warrant an
+    /// adjustment, and the Rothfusz formula is unreliable below that range).
+    static func heatIndex(tempC: Double, humidityFraction: Double) -> Double {
+        let rh = humidityFraction * 100
+        guard tempC >= 25 else { return tempC }
+
+        if rh < 40 {
+            // Linear dry-air penalty: 0 at 40 % → +3 °C at 0 % RH
+            let dryBoost = (40 - rh) / 40 * 3.0
+            return tempC + dryBoost
+        }
+
+        // Rothfusz Heat Index (reliable for T ≥ 25 °C, RH ≥ 40 %)
+        let T = tempC, R = rh
+        return -8.78469475556
+            + 1.61139411  * T
+            + 2.338549    * R
+            - 0.14611605  * T * R
+            - 0.012308094 * T * T
+            - 0.016424828 * R * R
+            + 0.002211732 * T * T * R
+            + 0.00072546  * T * R * R
+            - 0.000003582 * T * T * R * R
+    }
+
+    /// Extra mL to add when today's forecast Heat Index exceeds `Constants.baselineMaxTempC`.
+    /// When `humidityFraction` is provided the Heat Index replaces the raw temperature,
+    /// so a humid 30 °C day produces a larger adjustment than a dry 30 °C day.
+    /// Returns 0 when conditions are at or below the baseline.
+    static func temperatureAdjustmentML(todayMaxC: Double, humidityFraction: Double = 0) -> Int {
+        let apparent = heatIndex(tempC: todayMaxC, humidityFraction: humidityFraction)
+        let excess = max(0, apparent - Constants.baselineMaxTempC)
         return Int((excess * Double(Constants.tempAdjustmentMLPerDegree)).rounded())
     }
 

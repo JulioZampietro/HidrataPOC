@@ -107,7 +107,9 @@ struct ActionButtonTutorialView: View {
                 isLast: true
             )
         }
-        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 20))
+        .background(RoundedRectangle(cornerRadius: 20, style: .continuous)
+            .fill(Color(UIColor.secondarySystemBackground))
+            .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4))
     }
 
     private func stepRow(number: Int, icon: String, title: String, description: String, isLast: Bool) -> some View {
@@ -173,7 +175,7 @@ struct ActionButtonTutorialView: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, 8)
         }
-        .buttonStyle(.glassProminent)
+        .buttonStyle(.borderedProminent)
         .tint(accentBlue)
     }
 

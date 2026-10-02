@@ -33,10 +33,10 @@ struct CustomIntakeEditorView: View {
                         Text("mL").foregroundStyle(.secondary)
                     }
 
-                    Slider(value: $amountML, in: 0...1500, step: 50) {
+                    Slider(value: $amountML, in: 50...1500, step: 50) {
                         Text("Volume")
                     } minimumValueLabel: {
-                        Text("0")
+                        Text("50")
                     } maximumValueLabel: {
                         Text("1.500")
                     }
@@ -50,7 +50,7 @@ struct CustomIntakeEditorView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Salvar") {
-                        onSave(Int(amountML.rounded()))
+                        onSave(max(50, Int(amountML.rounded())))
                         dismiss()
                     }
                 }

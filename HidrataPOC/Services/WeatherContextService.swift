@@ -6,6 +6,11 @@ import WeatherKit
 struct TemperatureAdjustmentContext {
     let todayMaxC: Double
     let baselineC: Double
+    /// Average relative humidity for today as a percentage (0–100).
+    let humidityPct: Double
+    /// Heat Index computed from `todayMaxC` and `humidityPct`; equals `todayMaxC`
+    /// when conditions don't warrant a Heat Index adjustment.
+    let apparentMaxC: Double
     let adjustmentML: Int
 }
 
@@ -93,10 +98,21 @@ final class WeatherContextService: NSObject, CLLocationManagerDelegate {
             let forecast = try await WeatherService.shared.weather(for: location, including: .daily)
             guard let today = forecast.forecast.first else { return nil }
             let maxC = today.highTemperature.converted(to: .celsius).value
-            let adjustment = HydrationMath.temperatureAdjustmentML(todayMaxC: maxC)
+            // maximumHumidity/minimumHumidity are iOS 18+ — average gives a
+            // reasonable daily representative value (0.0–1.0).
+            let humidityFraction: Double
+            if #available(iOS 18, *) {
+                humidityFraction = (today.maximumHumidity + today.minimumHumidity) / 2
+            } else {
+                humidityFraction = 0
+            }
+            let apparentMaxC = HydrationMath.heatIndex(tempC: maxC, humidityFraction: humidityFraction)
+            let adjustment = HydrationMath.temperatureAdjustmentML(todayMaxC: maxC, humidityFraction: humidityFraction)
             return TemperatureAdjustmentContext(
                 todayMaxC: maxC,
                 baselineC: Constants.baselineMaxTempC,
+                humidityPct: humidityFraction * 100,
+                apparentMaxC: apparentMaxC,
                 adjustmentML: adjustment
             )
         } catch {

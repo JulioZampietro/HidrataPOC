@@ -1,5 +1,7 @@
 import SwiftUI
 
+private let accentBlue = Color(red: 0.286, green: 0.498, blue: 0.714)
+
 enum Genero: String, CaseIterable, Identifiable {
     case feminino, masculino, naoBinario = "nao_binario", autoDeclarado = "autodeclarado", naoInformar = "prefiro_nao_informar"
 
@@ -233,6 +235,9 @@ struct ProfileFormView: View {
                     onSave(ProfileFormValues(idade: finalIdade, genero: genero, generoAutoDeclarado: generoAutoDeclarado, pesoKg: finalPeso, alturaCm: finalAltura, customIntakeML: customIntakeML, storedGoalML: initialValues.storedGoalML, resetGoalToCalculated: resetGoal))
                 }
                 .frame(maxWidth: .infinity)
+                .font(.custom("Nunito", size: 16).weight(.bold))
+                .foregroundStyle(.white)
+                .listRowBackground(accentBlue)
             }
             .id("confirmSection")
         }
