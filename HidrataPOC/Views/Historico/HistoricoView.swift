@@ -78,7 +78,7 @@ struct HistoricoView: View {
 
     /// Mesmas frases da Home — o mascote precisa falar igual nas duas telas.
     private static let mascotPhrases: [String] = [
-        "Nao bebe água não",
+        "Não bebe água não",
 
     ]
 
