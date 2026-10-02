@@ -22,9 +22,14 @@ struct HomeView: View {
     @State private var isLoadingWeather = true
     @State private var tempContext: TemperatureAdjustmentContext?
     @State private var phraseIndex: Int = 0
+    @State private var pokeCount: Int = 0
+    @State private var isPoking: Bool = false
+    @State private var overridePhrase: String? = nil
 
     private static let mascotPhrases: [String] = [
-        "Nao bebe água não",
+        "Não bebe água não",
+        "Você nem sente sede né?",
+        "Amo a sensação de boca seca!"
         
     ]
 
@@ -145,13 +150,6 @@ struct HomeView: View {
         // O cabeçalho fica fora do conteúdo da água: a refração achata o conteúdo
         // numa imagem e o vidro dos botões deixa de enxergar o fundo (fica escuro).
         ZStack {
-            Image("mascoteBackground")
-                .resizable()
-                .scaledToFill()
-                .opacity(0.85)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .clipped()
-
             VStack(spacing: 20) {
                 Color.clear.frame(height: headerRowHeight)
                 mascotPlaceholder
@@ -186,8 +184,14 @@ struct HomeView: View {
                 .resizable()
                 .scaledToFit()
                 .frame(height: mascotHeight)
+                .scaleEffect(
+                    x: isPoking ? 1.18 : 1.0,
+                    y: isPoking ? 0.82 : 1.0,
+                    anchor: .bottom
+                )
+                .onTapGesture { pokeMascot() }
 
-            MascotSpeechBubble(text: Self.mascotPhrases[phraseIndex])
+            MascotSpeechBubble(text: overridePhrase ?? Self.mascotPhrases[phraseIndex])
                 .offset(x: 8, y: -8)
                 .transition(.scale(scale: 0.8, anchor: .bottomLeading).combined(with: .opacity))
         }
@@ -195,9 +199,37 @@ struct HomeView: View {
         .task {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(6))
+                guard overridePhrase == nil else { continue }
                 withAnimation(.easeInOut(duration: 0.35)) {
                     phraseIndex = (phraseIndex + 1) % Self.mascotPhrases.count
                 }
+            }
+        }
+    }
+
+    private func pokeMascot() {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+
+        withAnimation(.interpolatingSpring(stiffness: 500, damping: 8)) { isPoking = true }
+        Task {
+            try? await Task.sleep(for: .milliseconds(130))
+            withAnimation(.interpolatingSpring(stiffness: 200, damping: 14)) { isPoking = false }
+        }
+
+        pokeCount += 1
+
+        if pokeCount >= 3 {
+            pokeCount = 0
+            withAnimation(.easeInOut(duration: 0.25)) {
+                overridePhrase = "Para de me cutucar zé mané"
+            }
+            Task {
+                try? await Task.sleep(for: .seconds(4))
+                withAnimation(.easeInOut(duration: 0.35)) { overridePhrase = nil }
+            }
+        } else {
+            withAnimation(.easeInOut(duration: 0.25)) {
+                phraseIndex = (phraseIndex + 1) % Self.mascotPhrases.count
             }
         }
     }

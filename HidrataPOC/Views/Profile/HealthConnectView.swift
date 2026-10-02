@@ -98,7 +98,7 @@ struct HealthConnectView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 8)
             }
-            .buttonStyle(.glassProminent)
+            .buttonStyle(.borderedProminent)
             .tint(accentBlue)
         }
     }
@@ -138,7 +138,7 @@ struct HealthConnectView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 8)
             }
-            .buttonStyle(.glassProminent)
+            .buttonStyle(.borderedProminent)
             .tint(isSyncing ? Color.gray : accentBlue)
             .disabled(isSyncing || justSynced)
         }
@@ -165,7 +165,9 @@ struct HealthConnectView: View {
             Spacer()
         }
         .padding(14)
-        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 14))
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous)
+            .fill(Color(UIColor.secondarySystemBackground))
+            .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4))
     }
 
     // MARK: - Actions
