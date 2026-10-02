@@ -1,7 +1,8 @@
 import SwiftData
 import SwiftUI
 
-private let accentBlue = Color(red: 0.286, green: 0.498, blue: 0.714)
+//private let accentBlue = Color(red: 0.1098, green: 0.4627, blue: 0.9922)
+private let accentBlue = Color(red: 0.1098, green: 0.4627, blue: 0.9922)
 
 struct HomeView: View {
     let profile: UserProfile
@@ -47,16 +48,8 @@ struct HomeView: View {
     
     var body: some View {
         ZStack {
-            LinearGradient(
-                stops: [
-                    .init(color: AppTheme.screenBackground(for: colorScheme), location: 0.0),
-                    .init(color: AppTheme.screenBackground(for: colorScheme), location: 0.7),
-                    .init(color: .orange.opacity(0.4), location: 1.0),
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
+            AppTheme.screenBackground(for: colorScheme)
+                .ignoresSafeArea()
             
             GeometryReader { geo in
                 ScrollView {
@@ -375,28 +368,39 @@ struct HomeView: View {
 // MARK: - IntakeCardContent
 
 struct IntakeCardContent: View {
+    @Environment(\.colorScheme) private var colorScheme
     let icon: String
     let title: String
     let subtitle: String
     /// Fixed card height chosen by the screen layout; the gap between the icon and
     /// the title absorbs the difference. `nil` keeps the natural height.
     var height: CGFloat? = nil
-    
+
+    /// Azul-acinzentado do design só tem contraste pensado para o vidro claro;
+    /// no dark mode o cartão fica escuro e esse tom some, então cai pra `.primary`.
+    private var titleColor: Color {
+        colorScheme == .dark ? .primary : Color(red: 0.3686, green: 0.4667, blue: 0.6078)
+    }
+
+    private var subtitleColor: Color {
+        colorScheme == .dark ? .secondary : Color(red: 0.3686, green: 0.4667, blue: 0.6078).opacity(0.75)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Image(systemName: icon)
                 .font(icon == "plus" ? .system(size: 30) : .title2)
                 .foregroundStyle(accentBlue)
-            
+
             Spacer(minLength: 12)
-            
+
             Text(title)
                 .font(.custom("Nunito", size: 17).weight(.heavy))
-                .foregroundStyle(.primary)
-            
+                .foregroundStyle(titleColor)
+
             Text(subtitle)
                 .font(.custom("Nunito", size: 15))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(subtitleColor)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)

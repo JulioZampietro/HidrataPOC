@@ -4,10 +4,10 @@ import SwiftUI
 
 /// Azul de marca usado no calendário do histórico (preenchimento, anel do dia
 /// atual e contador de metas batidas).
-private let calendarBlue = Color(red: 0x3E / 255.0, green: 0x8F / 255.0, blue: 0xC7 / 255.0)
+private let calendarBlue = Color(red: 0.1098, green: 0.4627, blue: 0.9922)
 
 /// Mesmo azul de accent da HomeView — usado na topBar para manter os botões idênticos.
-private let accentBlue = Color(red: 0.286, green: 0.498, blue: 0.714)
+private let accentBlue = Color(red: 0.1098, green: 0.4627, blue: 0.9922)
 
 private extension Font {
     static func baloo2ExtraBold(_ size: CGFloat) -> Font {
@@ -74,6 +74,13 @@ struct HistoricoView: View {
     @State private var selectedDay: DiaHistorico?
     @State private var showHelp = false
     @State private var tempContext: TemperatureAdjustmentContext?
+    @State private var phraseIndex: Int = 0
+
+    /// Mesmas frases da Home — o mascote precisa falar igual nas duas telas.
+    private static let mascotPhrases: [String] = [
+        "Nao bebe água não",
+
+    ]
 
     private var calendar: Calendar {
         var cal = Calendar(identifier: .gregorian)
@@ -231,10 +238,25 @@ struct HistoricoView: View {
     }
 
     private func mascotPlaceholder(height: CGFloat) -> some View {
-        Image(AppTheme.mascotImageName(for: todayProgress))
-            .resizable()
-            .scaledToFit()
-            .frame(height: height)
+        ZStack(alignment: .topTrailing) {
+            Image(AppTheme.mascotImageName(for: todayProgress))
+                .resizable()
+                .scaledToFit()
+                .frame(height: height)
+
+            MascotSpeechBubble(text: Self.mascotPhrases[phraseIndex])
+                .offset(x: 8, y: -8)
+                .transition(.scale(scale: 0.8, anchor: .bottomLeading).combined(with: .opacity))
+        }
+        .onAppear { phraseIndex = Int.random(in: 0..<Self.mascotPhrases.count) }
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(6))
+                withAnimation(.easeInOut(duration: 0.35)) {
+                    phraseIndex = (phraseIndex + 1) % Self.mascotPhrases.count
+                }
+            }
+        }
     }
 
     /// Below this the day cells would get too small; the screen scrolls instead.
@@ -498,7 +520,7 @@ private struct FillSwatch: View {
     /// perderia contraste contra ela.
     private var trackColor: Color {
         guard percentual != nil else { return Color(.systemGray4) }
-        return colorScheme == .dark ? calendarBlue.opacity(0.32) : calendarBlue.opacity(0.12)
+        return colorScheme == .dark ? calendarBlue.opacity(0.32) : Color(red: 0.8863, green: 0.9333, blue: 0.9922)
     }
 }
 

@@ -59,14 +59,20 @@ enum TabScreenLayout {
     static let headerHeight: CGFloat = 40
     /// Space between the mascot and the container's bottom edge.
     static let mascotBottomPadding: CGFloat = 16
+    /// Space between the container's top edge and the mascot at full size.
+    static let mascotTopPadding: CGFloat = 15
+    static let maxMascotHeight: CGFloat = 190
 
+    /// The container hugs the full-size mascot; it only gets shorter on screens too
+    /// short to fit everything else.
     static func waterHeight(forVisibleHeight height: CGFloat) -> CGFloat {
-        min(max(height * 0.376, 200), 300)
+        let fullHeight = mascotTopPadding + maxMascotHeight + mascotBottomPadding
+        return min(max(height * 0.376, 160), fullHeight)
     }
 
     /// The mascot shrinks with the container on short screens, never past 190 pt.
     static func mascotHeight(forWaterHeight waterHeight: CGFloat) -> CGFloat {
-        min(max(waterHeight - 84, 110), 190)
+        min(max(waterHeight - mascotTopPadding - mascotBottomPadding, 110), maxMascotHeight)
     }
 
     /// Height left for the screen's own content below the water container.
