@@ -113,7 +113,7 @@ private struct WaterContainerModifier<S: Shape>: ViewModifier {
 }
 
 /// O conteúdo do recipiente visto através da água: abaixo da superfície ele ondula e
-/// ganha uma tintura fria (`waterRefraction` em `Bubble.metal`). Usa a mesma simulação
+/// ganha uma tintura no azul de destaque (`waterRefraction` em `Bubble.metal`). Usa a mesma simulação
 /// e o mesmo nível animado da água desenhada, para a linha d'água coincidir.
 private struct WaterRefractionView<Content: View>: View, @preconcurrency Animatable {
     var level: Double

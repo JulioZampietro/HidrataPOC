@@ -22,6 +22,10 @@ constant float kBubbleRiseSpeed     = 65.0; // pt/s de subida (as grandes sobem 
 constant float kRefractAmp      = 1.3;    // deslocamento base (pt); cresce com a agitação e perto da superfície
 constant float kRefractLens     = 6.0;    // quanto a imagem acompanha a inclinação das ondas logo abaixo da linha
 constant float kRefractMax      = 9.5;    // limite do deslocamento (pt) — manter < maxSampleOffset no Swift
+constant float3 kWaterTint      = float3(0.1098, 0.4627, 0.9922); // azul de destaque do app (#1C76FD)
+constant float kTintSurface     = 0.18;   // quanto do azul cobre o conteúdo logo abaixo da superfície
+constant float kTintDeep        = 0.45;   // …e no fundo do recipiente (cresce com a profundidade)
+constant float kAccentAmount    = 0.5;    // 0 = tintura fria antiga, 1 = só o azul de destaque
 // Gotas (a física fica no Swift, em `WaterTuning`)
 constant int   kMaxDrops        = 32;     // igual a `WaterTuning.maxDroplets`
 constant float kDropRimAlpha    = 0.55;   // aro branco fino
@@ -421,7 +425,7 @@ static DropShade shadeDrops(float2 p, bool shadowLayer, device const float *drop
 // superfície a imagem é deslocada (sem blur: só muda de onde cada pixel é lido) por
 // ondulações rápidas e finas, mais fortes perto da superfície e com a água agitada;
 // logo abaixo da linha ela acompanha a inclinação das ondas, como uma lente. Ganha
-// ainda uma tintura fria leve — como se fosse vista através do líquido.
+// ainda uma tintura azulada (ver `kAccentAmount`) — como se fosse vista através do líquido.
 // `origin` é o canto do conteúdo dentro do retângulo da água (o recipiente pode se
 // estender sob a status bar).
 
@@ -453,10 +457,13 @@ static DropShade shadeDrops(float2 p, bool shadowLayer, device const float *drop
 
     half4 c = layer.sample(position + offset);
 
-    // Tintura fria e leve perda de brilho com a profundidade (pré-multiplicado).
+    // Duas tinturas misturadas por `kAccentAmount` (pré-multiplicado): a fria antiga, com
+    // leve perda de brilho no fundo, e a no azul de destaque, mais forte com a profundidade.
     float depth = saturate(g.d / max(size.y, 1.0));
-    float3 cool = float3(0.90, 0.97, 1.05);
-    float3 rgb = float3(c.rgb) * mix(float3(1.0), cool, inside * 0.7) * (1.0 - 0.12 * depth * inside);
-    rgb = min(rgb, float3(c.a));
+    float3 base = float3(c.rgb);
+    float3 cool = base * mix(float3(1.0), float3(0.90, 0.97, 1.05), inside * 0.7) * (1.0 - 0.12 * depth * inside);
+    cool = min(cool, float3(c.a));
+    float3 accent = mix(base, kWaterTint * float(c.a), inside * mix(kTintSurface, kTintDeep, depth));
+    float3 rgb = mix(cool, accent, kAccentAmount);
     return half4(half3(rgb), c.a);
 }
