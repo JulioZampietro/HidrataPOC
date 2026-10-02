@@ -58,21 +58,24 @@ struct HomeView: View {
             )
             .ignoresSafeArea()
             
-            ScrollView {
-                VStack(spacing: 20) {
-                    headerRow
-                        .padding(.horizontal, 20)
-                    
-                    topSection
-                        .padding(.horizontal, 10)
-                    
-                    progressBarButton
-                        .padding(.horizontal, 20)
-                    
-                    intakeGrid
-                        .padding(.horizontal, 20)
+            GeometryReader { geo in
+                ScrollView {
+                    VStack(spacing: TabScreenLayout.spacing) {
+                        headerRow
+                            .padding(.horizontal, 20)
+
+                        topSection(height: TabScreenLayout.waterHeight(forVisibleHeight: geo.size.height))
+                            .padding(.horizontal, 10)
+
+                        progressBarButton
+                            .padding(.horizontal, 20)
+
+                        intakeGrid(cardHeight: intakeCardHeight(forVisibleHeight: geo.size.height))
+                            .padding(.horizontal, 20)
+                    }
+                    .padding(.bottom, TabScreenLayout.spacing)
                 }
-                .padding(.bottom, 24)
+                .scrollBounceBehavior(.basedOnSize)
             }
         }
         .task { await loadWeather() }
@@ -144,24 +147,32 @@ struct HomeView: View {
         }
     }
     
-    private let mascotHeight: CGFloat = 190
-    private let headerRowHeight: CGFloat = 48 // botão de 40 pt + 8 pt de respiro no topo
-    
+    private let progressBarHeight: CGFloat = 52 + 4 // barra + borda inferior
+    private let intakeGridSpacing: CGFloat = 12
+
+    /// The two rows of intake cards share what's left below the progress bar, so the
+    /// grid ends `TabScreenLayout.spacing` above the tab bar.
+    private func intakeCardHeight(forVisibleHeight height: CGFloat) -> CGFloat {
+        let gridHeight = TabScreenLayout.contentHeight(forVisibleHeight: height) - progressBarHeight - TabScreenLayout.spacing
+        return max((gridHeight - intakeGridSpacing) / 2, 116)
+    }
+
     private var containerShape: UnevenRoundedRectangle {
         UnevenRoundedRectangle(topLeadingRadius: 32, bottomLeadingRadius: 32, bottomTrailingRadius: 32, topTrailingRadius: 32, style: .continuous)
     }
 
-    private var topSection: some View {
+    private func topSection(height: CGFloat) -> some View {
         // Recipiente: vai do topo da tela até logo acima da barra de progresso e
         // enche de água conforme o progresso do dia.
         // O cabeçalho fica fora do conteúdo da água: a refração achata o conteúdo
         // numa imagem e o vidro dos botões deixa de enxergar o fundo (fica escuro).
-        VStack(spacing: 20) {
-            Color.clear.frame(height: headerRowHeight)
-            mascotPlaceholder
+        VStack(spacing: 0) {
+            Spacer(minLength: 0)
+            mascotPlaceholder(height: TabScreenLayout.mascotHeight(forWaterHeight: height))
         }
-        .padding(.bottom, 16)
+        .padding(.bottom, TabScreenLayout.mascotBottomPadding)
         .frame(maxWidth: .infinity)
+        .frame(height: height)
         .background {
             // O conteúdo do recipiente (mascote + shader da água) não tem fundo opaco
             // próprio, então uma `.shadow` direta nele sairia recortada e irregular.
@@ -177,12 +188,12 @@ struct HomeView: View {
         )
     }
     
-    private var mascotPlaceholder: some View {
+    private func mascotPlaceholder(height: CGFloat) -> some View {
         ZStack(alignment: .topTrailing) {
             Image(AppTheme.mascotImageName(for: progress))
                 .resizable()
                 .scaledToFit()
-                .frame(height: mascotHeight)
+                .frame(height: height)
 
             MascotSpeechBubble(text: Self.mascotPhrases[phraseIndex])
                 .offset(x: 8, y: -8)
@@ -246,51 +257,54 @@ struct HomeView: View {
         .frame(height: 52 + 4)
     }
     
-    private var intakeGrid: some View {
-        GlassEffectContainer(spacing: 12) {
+    private func intakeGrid(cardHeight: CGFloat) -> some View {
+        GlassEffectContainer(spacing: intakeGridSpacing) {
             LazyVGrid(
-                columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)],
-                spacing: 12
+                columns: [GridItem(.flexible(), spacing: intakeGridSpacing), GridItem(.flexible(), spacing: intakeGridSpacing)],
+                spacing: intakeGridSpacing
             ) {
-                goleCard
-                intakeCard(.glass)
-                intakeCard(.bottle)
-                customIntakeCard
+                goleCard(height: cardHeight)
+                intakeCard(.glass, height: cardHeight)
+                intakeCard(.bottle, height: cardHeight)
+                customIntakeCard(height: cardHeight)
             }
         }
     }
     
-    private var goleCard: some View {
+    private func goleCard(height: CGFloat) -> some View {
         Button { logIntake(.custom(volumeML: 40)) } label: {
             IntakeCardContent(
                 icon: "drop.fill",
                 title: "Gole",
-                subtitle: "40 mL"
+                subtitle: "40 mL",
+                height: height
             )
         }
         .buttonStyle(.plain)
         .disabled(isLogging)
     }
     
-    private func intakeCard(_ preset: Constants.IntakePreset) -> some View {
+    private func intakeCard(_ preset: Constants.IntakePreset, height: CGFloat) -> some View {
         Button { logIntake(preset) } label: {
             IntakeCardContent(
                 icon: iconName(for: preset),
                 title: preset.label,
-                subtitle: "\(preset.volumeML) mL"
+                subtitle: "\(preset.volumeML) mL",
+                height: height
             )
         }
         .buttonStyle(.plain)
         .disabled(isLogging)
     }
     
-    private var customIntakeCard: some View {
+    private func customIntakeCard(height: CGFloat) -> some View {
         ZStack(alignment: .topTrailing) {
             Button { logIntake(.custom(volumeML: profile.customIntakeML)) } label: {
                 IntakeCardContent(
                     icon: "plus",
                     title: "Outro",
-                    subtitle: "\(profile.customIntakeML) mL"
+                    subtitle: "\(profile.customIntakeML) mL",
+                    height: height
                 )
             }
             .buttonStyle(.plain)
@@ -364,13 +378,17 @@ struct IntakeCardContent: View {
     let icon: String
     let title: String
     let subtitle: String
+    /// Fixed card height chosen by the screen layout; the gap between the icon and
+    /// the title absorbs the difference. `nil` keeps the natural height.
+    var height: CGFloat? = nil
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Image(systemName: icon)
                 .font(icon == "plus" ? .system(size: 30) : .title2)
                 .foregroundStyle(accentBlue)
-                .padding(.bottom, 28)
+            
+            Spacer(minLength: 12)
             
             Text(title)
                 .font(.custom("Nunito", size: 17).weight(.heavy))
@@ -382,6 +400,7 @@ struct IntakeCardContent: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
+        .frame(height: height)
         // The old opaque `.background(...)` this replaced made the whole padded card
         // hit-testable for free; `.glassEffect` doesn't, so without an explicit
         // content shape the button only responds where the icon/text glyphs are.

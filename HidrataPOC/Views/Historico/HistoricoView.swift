@@ -136,18 +136,21 @@ struct HistoricoView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                // Same arrangement and spacing as Home's header + container, so
-                // the mascot and water sit at the same height on both tabs.
-                VStack(spacing: 20) {
-                    topBar
-                        .padding(.horizontal, 20)
-                    topSection
-                        .padding(.horizontal, 10)
-                    calendarCard
-                        .padding(.horizontal)
+            GeometryReader { geo in
+                ScrollView {
+                    // Same layout as Home (`TabScreenLayout`), so the mascot and water
+                    // match on both tabs and the card ends the same gap above the tab bar.
+                    VStack(spacing: TabScreenLayout.spacing) {
+                        topBar
+                            .padding(.horizontal, 20)
+                        topSection(height: TabScreenLayout.waterHeight(forVisibleHeight: geo.size.height))
+                            .padding(.horizontal, 10)
+                        calendarCard(height: max(TabScreenLayout.contentHeight(forVisibleHeight: geo.size.height), Self.minCalendarCardHeight))
+                            .padding(.horizontal)
+                    }
+                    .padding(.bottom, TabScreenLayout.spacing)
                 }
-                .padding(.bottom, 12)
+                .scrollBounceBehavior(.basedOnSize)
             }
             .appScreenBackground()
             .navigationBarHidden(true)
@@ -204,13 +207,14 @@ struct HistoricoView: View {
         UnevenRoundedRectangle(topLeadingRadius: 32, bottomLeadingRadius: 32, bottomTrailingRadius: 32, topTrailingRadius: 32, style: .continuous)
     }
 
-    private var topSection: some View {
-        VStack(spacing: 20) {
-            Color.clear.frame(height: 48) // botão de 40 pt + 8 pt de respiro no topo
-            mascotPlaceholder
+    private func topSection(height: CGFloat) -> some View {
+        VStack(spacing: 0) {
+            Spacer(minLength: 0)
+            mascotPlaceholder(height: TabScreenLayout.mascotHeight(forWaterHeight: height))
         }
-        .padding(.bottom, 16)
+        .padding(.bottom, TabScreenLayout.mascotBottomPadding)
         .frame(maxWidth: .infinity)
+        .frame(height: height)
         .background {
             // O conteúdo do recipiente (mascote + shader da água) não tem fundo opaco
             // próprio, então uma `.shadow` direta nele sairia recortada e irregular.
@@ -226,17 +230,21 @@ struct HistoricoView: View {
         )
     }
 
-    private var mascotPlaceholder: some View {
+    private func mascotPlaceholder(height: CGFloat) -> some View {
         Image(AppTheme.mascotImageName(for: todayProgress))
             .resizable()
             .scaledToFit()
-            .frame(height: 190)
+            .frame(height: height)
     }
+
+    /// Below this the day cells would get too small; the screen scrolls instead.
+    private static let minCalendarCardHeight: CGFloat = 330
+    private static let gridRowSpacing: CGFloat = 10
 
     /// Card com duas "páginas": o calendário do mês e um gráfico dos últimos
     /// 7 dias. Troca de página pela setinha (`pageToggleButton`, presente nos
     /// dois cabeçalhos) ou arrastando o card para o lado.
-    private var calendarCard: some View {
+    private func calendarCard(height: CGFloat) -> some View {
         VStack(spacing: 14) {
             if cardPage == .calendario {
                 calendarPageContent
@@ -245,6 +253,7 @@ struct HistoricoView: View {
             }
         }
         .padding(20)
+        .frame(height: height)
         .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 24))
         .simultaneousGesture(cardSwipeGesture)
     }
@@ -253,33 +262,43 @@ struct HistoricoView: View {
         VStack(spacing: 14) {
             monthHeader
             weekdayHeader
-            LazyVGrid(columns: columns, spacing: 10) {
-                ForEach(Array(gridCells.enumerated()), id: \.offset) { _, cell in
-                    if let cell {
-                        DayCell(dia: cell, isToday: calendar.isDateInToday(cell.date))
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                guard !cell.isFuturo else { return }
-                                InteractionTracker.log(
-                                    "historico_day_tap",
-                                    screen: .historico,
-                                    userID: profile.userID,
-                                    metadata: [
-                                        "date": isoDate(cell.date),
-                                        "metGoal": "\(cell.bateuMeta)",
-                                        "isToday": "\(calendar.isDateInToday(cell.date))",
-                                    ],
-                                    context: modelContext
-                                )
-                                selectedDay = cell
-                            }
-                    } else {
-                        Color.clear.frame(height: 40)
-                    }
-                }
+            // The day cells share whatever height the card leaves for the grid, so a
+            // 4-, 5- or 6-row month always fills the same card.
+            GeometryReader { geo in
+                let rows = CGFloat((gridCells.count + 6) / 7)
+                let cellHeight = max((geo.size.height - (rows - 1) * Self.gridRowSpacing) / rows, 26)
+                calendarGrid(cellHeight: cellHeight)
             }
         }
         .transition(.opacity)
+    }
+
+    private func calendarGrid(cellHeight: CGFloat) -> some View {
+        LazyVGrid(columns: columns, spacing: Self.gridRowSpacing) {
+            ForEach(Array(gridCells.enumerated()), id: \.offset) { _, cell in
+                if let cell {
+                    DayCell(dia: cell, isToday: calendar.isDateInToday(cell.date), height: cellHeight)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            guard !cell.isFuturo else { return }
+                            InteractionTracker.log(
+                                "historico_day_tap",
+                                screen: .historico,
+                                userID: profile.userID,
+                                metadata: [
+                                    "date": isoDate(cell.date),
+                                    "metGoal": "\(cell.bateuMeta)",
+                                    "isToday": "\(calendar.isDateInToday(cell.date))",
+                                ],
+                                context: modelContext
+                            )
+                            selectedDay = cell
+                        }
+                } else {
+                    Color.clear.frame(height: cellHeight)
+                }
+            }
+        }
     }
 
     private var weeklyChartPageContent: some View {
@@ -292,6 +311,7 @@ struct HistoricoView: View {
             }
             HydrationChartView(dailyTotals: weeklyChartData, metaDiariaML: profile.metaDiariaML)
         }
+        .frame(maxHeight: .infinity, alignment: .top)
         .transition(.opacity)
     }
 
@@ -397,6 +417,7 @@ private struct DayCell: View {
     @Environment(\.colorScheme) private var colorScheme
     let dia: DiaHistorico
     let isToday: Bool
+    let height: CGFloat
 
     private var dayNumber: Int {
         Calendar.current.component(.day, from: dia.date)
@@ -423,7 +444,7 @@ private struct DayCell: View {
                     .padding(1)
             )
         }
-        .frame(height: 40)
+        .frame(height: height)
     }
 
     private var todayRingColor: Color {
