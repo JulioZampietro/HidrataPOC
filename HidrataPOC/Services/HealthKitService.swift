@@ -91,7 +91,6 @@ final class HealthKitService {
         switch sex {
         case .female: return .feminino
         case .male:   return .masculino
-        case .other:  return .naoBinario
         default:      return nil
         }
     }

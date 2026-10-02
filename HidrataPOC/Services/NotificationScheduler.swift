@@ -883,7 +883,9 @@ final class NotificationScheduler {
 
     private static func currentMascotImageName(consumidoHojeML: Int, goalML: Int) -> String {
         let progress = goalML > 0 ? min(1, Double(consumidoHojeML) / Double(goalML)) : 0
-        return AppTheme.mascotImageName(for: progress)
+        // A notificação sempre precisa de um avatar; com a meta batida (sem mascote
+        // na tela) usa o último estágio.
+        return AppTheme.mascotImageName(for: progress) ?? "mascote1"
     }
 
     /// Mascot for a reminder firing at `firesAt` without SwiftData or WeatherKit: the
@@ -898,7 +900,7 @@ final class NotificationScheduler {
            let name = defaults.string(forKey: lastMascotImageNameKey) {
             imageName = name
         } else {
-            imageName = AppTheme.mascotImageName(for: 0)
+            imageName = AppTheme.mascotImageName(for: 0) ?? "mascote5"
         }
         return mascotSender(title: title, imageName: imageName)
     }

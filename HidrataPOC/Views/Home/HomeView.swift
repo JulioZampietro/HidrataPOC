@@ -187,20 +187,25 @@ struct HomeView: View {
     
     private func mascotPlaceholder(height: CGFloat) -> some View {
         ZStack(alignment: .topTrailing) {
-            Image(AppTheme.mascotImageName(for: progress))
-                .resizable()
-                .scaledToFit()
-                .frame(height: height)
-                .scaleEffect(
-                    x: isPoking ? 1.18 : 1.0,
-                    y: isPoking ? 0.82 : 1.0,
-                    anchor: .bottom
-                )
-                .onTapGesture { pokeMascot() }
+            if let mascot = AppTheme.mascotImageName(for: progress) {
+                Image(mascot)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(height: height)
+                    .scaleEffect(
+                        x: isPoking ? 1.18 : 1.0,
+                        y: isPoking ? 0.82 : 1.0,
+                        anchor: .bottom
+                    )
+                    .onTapGesture { pokeMascot() }
 
-            MascotSpeechBubble(text: overridePhrase ?? Self.mascotPhrases[phraseIndex])
-                .offset(x: 8, y: -8)
-                .transition(.scale(scale: 0.8, anchor: .bottomLeading).combined(with: .opacity))
+                MascotSpeechBubble(text: overridePhrase ?? Self.mascotPhrases[phraseIndex])
+                    .offset(x: 8, y: -8)
+                    .transition(.scale(scale: 0.8, anchor: .bottomLeading).combined(with: .opacity))
+            } else {
+                // Meta batida: o mascote some, mas o espaço fica para o layout não pular.
+                Color.clear.frame(height: height)
+            }
         }
         .onAppear { phraseIndex = Int.random(in: 0..<Self.mascotPhrases.count) }
         .task {

@@ -12,16 +12,18 @@ enum AppTheme {
         colorScheme == .dark ? screenBackgroundDark : screenBackgroundLight
     }
 
-    /// Retorna o nome do asset do mascote correspondente ao progresso diário.
-    /// 0–25% → mascote5, 25–50% → mascote4, 50–75% → mascote3,
-    /// 75–<100% → mascote2, 100% → mascote1 (meta batida).
-    static func mascotImageName(for progress: Double) -> String {
+    /// Retorna o nome do asset do mascote correspondente ao progresso diário,
+    /// trocando a cada 20%: 0–20% → mascote5, 20–40% → mascote4, 40–60% → mascote3,
+    /// 60–80% → mascote2, 80–<100% → mascote1. Em 100% (meta batida) retorna nil —
+    /// o mascote some da tela.
+    static func mascotImageName(for progress: Double) -> String? {
         switch progress {
-        case ..<0.25: return "mascote5"
-        case ..<0.50: return "mascote4"
-        case ..<0.75: return "mascote3"
-        case ..<1.0:  return "mascote2"
-        default:      return "mascote1"
+        case ..<0.20: return "mascote5"
+        case ..<0.40: return "mascote4"
+        case ..<0.60: return "mascote3"
+        case ..<0.80: return "mascote2"
+        case ..<1.0:  return "mascote1"
+        default:      return nil
         }
     }
 }

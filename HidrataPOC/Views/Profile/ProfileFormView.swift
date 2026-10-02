@@ -2,38 +2,39 @@ import SwiftUI
 
 private let accentBlue = Color(red: 0.286, green: 0.498, blue: 0.714)
 
+/// Biological sex ("Sexo" in the UI). Still persisted under `UserProfile.genero`;
+/// legacy values from the old gender options (nonbinary, self-identify, decline to
+/// state) don't parse and are treated as "not set".
 enum Genero: String, CaseIterable, Identifiable {
-    case feminino, masculino, naoBinario = "nao_binario", autoDeclarado = "autodeclarado", naoInformar = "prefiro_nao_informar"
+    case masculino, feminino
 
     var id: String { rawValue }
 
     var label: String {
         switch self {
-        case .feminino: return "Feminino"
         case .masculino: return "Masculino"
-        case .naoBinario: return "Não binário"
-        case .autoDeclarado: return "Autodeclarado"
-        case .naoInformar: return "Prefiro não informar"
+        case .feminino: return "Feminino"
         }
     }
 
-    /// Maps to `WaterIntakeCalculator`'s `Gender` — only male/female follow the
-    /// formula's own baseline; every other option (`nil` here) is treated by
-    /// `UserProfile.suggestedGoalML` as a male/female average.
-    var gender: Gender? {
+    /// Maps to `WaterIntakeCalculator`'s `Gender`.
+    var gender: Gender {
         switch self {
         case .feminino: return .female
         case .masculino: return .male
-        case .naoBinario, .autoDeclarado, .naoInformar: return nil
         }
+    }
+
+    init?(stored: String?) {
+        guard let stored else { return nil }
+        self.init(rawValue: stored)
     }
 }
 
 struct ProfileFormValues {
     var idade: Int
-    var genero: Genero
-    /// Free-text label for `.autoDeclarado` ("self-identify"); ignored otherwise.
-    var generoAutoDeclarado: String
+    /// `nil` when not set (new or legacy profile) — the goal then averages male/female.
+    var genero: Genero?
     var pesoKg: Double
     var alturaCm: Double
     var customIntakeML: Int
@@ -42,23 +43,14 @@ struct ProfileFormValues {
     /// When true, save() recalculates the goal from the formula instead of preserving a manual value.
     var resetGoalToCalculated: Bool = false
 
-    /// `generoAutoDeclarado` trimmed to `nil` when blank or not applicable — what
-    /// actually gets persisted to `UserProfile.generoAutoDeclarado`.
-    var normalizedGeneroAutoDeclarado: String? {
-        guard genero == .autoDeclarado else { return nil }
-        let trimmed = generoAutoDeclarado.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? nil : trimmed
-    }
-
     static var new: ProfileFormValues {
-        ProfileFormValues(idade: 25, genero: .naoInformar, generoAutoDeclarado: "", pesoKg: 70, alturaCm: 170, customIntakeML: 300, storedGoalML: nil, resetGoalToCalculated: false)
+        ProfileFormValues(idade: 25, genero: nil, pesoKg: 70, alturaCm: 170, customIntakeML: 300, storedGoalML: nil, resetGoalToCalculated: false)
     }
 
     static func from(_ profile: UserProfile) -> ProfileFormValues {
         ProfileFormValues(
             idade: profile.idade,
-            genero: Genero(rawValue: profile.genero ?? Genero.naoInformar.rawValue) ?? .naoInformar,
-            generoAutoDeclarado: profile.generoAutoDeclarado ?? "",
+            genero: Genero(stored: profile.genero),
             pesoKg: profile.pesoKg,
             alturaCm: profile.alturaCm,
             customIntakeML: profile.customIntakeML,
@@ -80,8 +72,7 @@ struct ProfileFormView: View {
 
     @State private var idade: Int
     @State private var idadeText: String
-    @State private var genero: Genero
-    @State private var generoAutoDeclarado: String
+    @State private var genero: Genero?
     @State private var pesoKg: Double
     @State private var pesoText: String
     @State private var alturaCm: Double
@@ -93,7 +84,7 @@ struct ProfileFormView: View {
     /// Read-only — recommended from the profile fields via `WaterIntakeCalculator`;
     /// no longer directly editable (see spec discussion on the heuristic model).
     private var metaDiariaML: Int {
-        UserProfile.suggestedGoalML(gender: genero.gender, idade: idade, pesoKg: pesoKg, alturaCm: alturaCm)
+        UserProfile.suggestedGoalML(gender: genero?.gender, idade: idade, pesoKg: pesoKg, alturaCm: alturaCm)
     }
 
     init(title: String, confirmLabel: String, initialValues: ProfileFormValues, showsCustomIntakeField: Bool, onSave: @escaping (ProfileFormValues) -> Void) {
@@ -105,7 +96,6 @@ struct ProfileFormView: View {
         _idade = State(initialValue: initialValues.idade)
         _idadeText = State(initialValue: "\(initialValues.idade)")
         _genero = State(initialValue: initialValues.genero)
-        _generoAutoDeclarado = State(initialValue: initialValues.generoAutoDeclarado)
         _pesoKg = State(initialValue: initialValues.pesoKg)
         _pesoText = State(initialValue: Self.formatDecimal(initialValues.pesoKg))
         _alturaCm = State(initialValue: initialValues.alturaCm)
@@ -182,14 +172,10 @@ struct ProfileFormView: View {
             }
 
             Section {
-                Picker("Gênero", selection: $genero) {
+                Picker("Sexo", selection: $genero) {
                     ForEach(Genero.allCases) { option in
-                        Text(option.label).tag(option)
+                        Text(option.label).tag(Optional(option))
                     }
-                }
-
-                if genero == .autoDeclarado {
-                    TextField("Como você se identifica", text: $generoAutoDeclarado)
                 }
             } footer: {
                 Text("Usado apenas para calcular sua necessidade diária de água.")
@@ -232,16 +218,17 @@ struct ProfileFormView: View {
                     let finalIdade = Int(idadeText).map { max(10, min(120, $0)) } ?? idade
                     let finalPeso = Self.parseDecimal(pesoText) ?? pesoKg
                     let finalAltura = Self.parseDecimal(alturaText) ?? alturaCm
-                    onSave(ProfileFormValues(idade: finalIdade, genero: genero, generoAutoDeclarado: generoAutoDeclarado, pesoKg: finalPeso, alturaCm: finalAltura, customIntakeML: customIntakeML, storedGoalML: initialValues.storedGoalML, resetGoalToCalculated: resetGoal))
+                    onSave(ProfileFormValues(idade: finalIdade, genero: genero, pesoKg: finalPeso, alturaCm: finalAltura, customIntakeML: customIntakeML, storedGoalML: initialValues.storedGoalML, resetGoalToCalculated: resetGoal))
                 }
                 .frame(maxWidth: .infinity)
-                .font(.custom("Nunito", size: 16).weight(.bold))
+                .fontWeight(.semibold)
                 .foregroundStyle(.white)
                 .listRowBackground(accentBlue)
             }
             .id("confirmSection")
         }
         .navigationTitle(title)
+        .navigationBarTitleDisplayMode(.inline)
         .onChange(of: isFetchingFromHealth) { _, isFetching in
             guard !isFetching else { return }
             withAnimation(.easeInOut(duration: 0.5)) {
