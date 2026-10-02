@@ -398,8 +398,10 @@ struct HomeView: View {
         Task.detached(priority: .userInitiated) {
             guard let asset = NSDataAsset(name: "agua"),
                   let player = try? AVAudioPlayer(data: asset.data, fileTypeHint: AVFileType.mp3.rawValue) else { return }
-            await MainActor.run { audioPlayer = player }
             player.play()
+            // Hand-off must be the last use: after it, the player belongs to the main
+            // actor (which keeps it alive while it plays) and can't be touched here.
+            await MainActor.run { audioPlayer = player }
         }
     }
     
