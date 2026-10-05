@@ -240,21 +240,36 @@ struct ShareProgressView: View {
         guard let data = image?.pngData() else { return }
         saveState = .saving
 
-        let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
-        guard status == .authorized || status == .limited else {
+        switch await Self.saveToPhotos(data) {
+        case .saved:
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+            saveState = .saved
+        case .denied:
             saveState = .denied
-            return
+        case .failed:
+            saveState = .failed
         }
+    }
+
+    private enum SaveResult: Sendable {
+        case saved, denied, failed
+    }
+
+    /// Fora do MainActor de propósito: o Photos chama o bloco de `performChanges` (e
+    /// o retorno da autorização) numa fila em segundo plano. Se esse código herdasse o
+    /// isolamento da View, o Swift 6 derrubaria o app ao detectar a fila errada.
+    private nonisolated static func saveToPhotos(_ data: Data) async -> SaveResult {
+        let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
+        guard status == .authorized || status == .limited else { return .denied }
 
         do {
             // Salva o PNG original para não perder a transparência do estilo "adesivo".
             try await PHPhotoLibrary.shared().performChanges {
                 PHAssetCreationRequest.forAsset().addResource(with: .photo, data: data, options: nil)
             }
-            UINotificationFeedbackGenerator().notificationOccurred(.success)
-            saveState = .saved
+            return .saved
         } catch {
-            saveState = .failed
+            return .failed
         }
     }
 }
