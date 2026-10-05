@@ -18,4 +18,5 @@ enum TrackedSheet: String {
     case siriTutorial = "siri_tutorial"
     case editPersonalData = "edit_personal_data"
     case historicoDayDetail = "historico_day_detail"
+    case shareProgress = "share_progress"
 }

@@ -86,6 +86,7 @@
 		FA12B3C9D0E74A8B1C2D5F6E /* FeatureOnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA12B3C9D0E74A8B1C2D5F6F /* FeatureOnboardingView.swift */; };
 		FCC1324381344DB8DA982AE3 /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95F0050D87C688CD6A361091 /* Constants.swift */; };
 		FEF1E8A999A9841C843C2208 /* CustomIntakeEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20FA02344B32332B350BC11D /* CustomIntakeEditorView.swift */; };
+		5A1C0DE15A1C0DE15A1C0DE1 /* ShareProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1C0DE25A1C0DE25A1C0DE2 /* ShareProgressView.swift */; };
 		FF11223344556677889900FF /* AppFont.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD11223344556677889900DD /* AppFont.swift */; };
 		GG11223344556677889900GG /* Nunito.ttf in Resources */ = {isa = PBXBuildFile; fileRef = EE11223344556677889900EE /* Nunito.ttf */; };
 		HH11223344556677889900HH /* HealthKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = II11223344556677889900II /* HealthKitService.swift */; };
@@ -156,6 +157,7 @@
 		1058413E9DCECDC55E8ADE42 /* Nunito-ExtraBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Nunito-ExtraBold.ttf"; sourceTree = "<group>"; };
 		18681BFBE503481336FBEBD8 /* PersistenceController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceController.swift; sourceTree = "<group>"; };
 		20FA02344B32332B350BC11D /* CustomIntakeEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomIntakeEditorView.swift; sourceTree = "<group>"; };
+		5A1C0DE25A1C0DE25A1C0DE2 /* ShareProgressView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareProgressView.swift; sourceTree = "<group>"; };
 		2503669AFFB90410A6F12B75 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		27DADD46B8ED63F7B4C704B4 /* LogIntakeControlIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogIntakeControlIntent.swift; sourceTree = "<group>"; };
 		28F1ED724B8B626A9128D39F /* HidrataPOCTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HidrataPOCTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -351,6 +353,7 @@
 			children = (
 				20FA02344B32332B350BC11D /* CustomIntakeEditorView.swift */,
 				A9EDD10460D867692F1B0943 /* HomeView.swift */,
+				5A1C0DE25A1C0DE25A1C0DE2 /* ShareProgressView.swift */,
 			);
 			path = Home;
 			sourceTree = "<group>";
@@ -649,6 +652,7 @@
 				C875CDDF311D834B8785DD94 /* ConsentView.swift in Sources */,
 				F40ED5533A05C10C3ED5268A /* Constants.swift in Sources */,
 				FEF1E8A999A9841C843C2208 /* CustomIntakeEditorView.swift in Sources */,
+				5A1C0DE15A1C0DE15A1C0DE1 /* ShareProgressView.swift in Sources */,
 				00FFFB683C1484BEDAB9EB23 /* HidrataPOCApp.swift in Sources */,
 				267A40DE9CF3539833AEA14D /* HomeView.swift in Sources */,
 				BB11223344556677889900BB /* HistoricoView.swift in Sources */,

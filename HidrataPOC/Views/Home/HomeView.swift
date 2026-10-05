@@ -19,6 +19,7 @@ struct HomeView: View {
     @State private var showSiriTutorial = false
     @State private var showActionButtonTutorial = false
     @State private var showTodayLogs = false
+    @State private var showShare = false
     @State private var weather: WeatherContext?
     @State private var isLoadingWeather = true
     @State private var tempContext: TemperatureAdjustmentContext?
@@ -100,6 +101,10 @@ struct HomeView: View {
                 .trackSheetLifecycle(.customAmountEditor, screen: .home, userID: profile.userID)
         }
         .sheet(isPresented: $showSiriTutorial) { SiriTutorialView() }
+        .sheet(isPresented: $showShare) {
+            ShareProgressView(snapshot: ShareProgressSnapshot(consumedML: consumedToday, goalML: effectiveGoalML, streakDias: streak))
+                .trackSheetLifecycle(.shareProgress, screen: .home, userID: profile.userID)
+        }
         .sheet(isPresented: $showActionButtonTutorial) { ActionButtonTutorialView() }
         .sheet(isPresented: $showTodayLogs) {
             // Same goal as the bar (base + temperature adjustment), so the sheet's
@@ -133,8 +138,9 @@ struct HomeView: View {
 
             Spacer()
 
-            // Compartilhar: ainda sem ação.
             Button {
+                InteractionTracker.log("home_share_tap", screen: .home, userID: profile.userID, context: modelContext)
+                showShare = true
             } label: {
                 Image(systemName: "square.and.arrow.up")
                     .font(.system(size: 15, weight: .semibold))
