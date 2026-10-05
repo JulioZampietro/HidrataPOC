@@ -155,15 +155,17 @@ struct ShareProgressView: View {
     var body: some View {
         let image = renderedImage
         NavigationStack {
-            VStack(spacing: 20) {
-                Picker("Estilo", selection: $style) {
-                    ForEach(ShareCardStyle.allCases) { Text($0.label).tag($0) }
+            VStack(spacing: 16) {
+                // Arrasta para o lado (ou toca nas bolinhas) para trocar o estilo.
+                TabView(selection: $style) {
+                    ForEach(ShareCardStyle.allCases) { option in
+                        preview(option).tag(option)
+                    }
                 }
-                .pickerStyle(.segmented)
-                .padding(.horizontal, 20)
+                .tabViewStyle(.page(indexDisplayMode: .never))
+                .frame(maxHeight: .infinity)
 
-                preview
-                    .frame(maxHeight: .infinity)
+                pageDots
 
                 if let footnote = saveFootnote {
                     Text(footnote)
@@ -173,7 +175,7 @@ struct ShareProgressView: View {
                         .padding(.horizontal, 20)
                 }
 
-                HStack(spacing: 12) {
+                VStack(spacing: 12) {
                     Button {
                         Task { await save(image) }
                     } label: {
@@ -215,7 +217,7 @@ struct ShareProgressView: View {
 
     /// O cartão em escala reduzida; no estilo transparente aparece sobre um fundo
     /// escuro para dar para ver o texto branco.
-    private var preview: some View {
+    private func preview(_ style: ShareCardStyle) -> some View {
         GeometryReader { geo in
             let scale = min(geo.size.width / ShareProgressCard.size.width, geo.size.height / ShareProgressCard.size.height)
             ShareProgressCard(snapshot: snapshot, style: style)
@@ -226,6 +228,23 @@ struct ShareProgressView: View {
                 .shadow(color: .black.opacity(0.15), radius: 12, x: 0, y: 6)
         }
         .padding(.horizontal, 20)
+        .accessibilityLabel("Estilo \(style.label)")
+    }
+
+    /// Indicador de página: uma bolinha por estilo, a atual alongada e em azul.
+    private var pageDots: some View {
+        HStack(spacing: 8) {
+            ForEach(ShareCardStyle.allCases) { option in
+                Capsule()
+                    .fill(option == style ? accentBlue : Color.secondary.opacity(0.3))
+                    .frame(width: option == style ? 22 : 8, height: 8)
+                    .contentShape(Rectangle().inset(by: -8))
+                    .onTapGesture { withAnimation(.easeInOut) { style = option } }
+                    .accessibilityLabel(option.label)
+                    .accessibilityAddTraits(option == style ? [.isButton, .isSelected] : .isButton)
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: style)
     }
 
     private var saveFootnote: String? {
