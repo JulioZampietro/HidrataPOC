@@ -19,18 +19,25 @@ struct ShareProgressSnapshot {
 }
 
 /// Estilo do cartão, no estilo do Strava: um cartão com fundo pronto para postar, ou
-/// um "adesivo" transparente para colar por cima de uma foto nos Stories.
+/// um "adesivo" transparente para colar por cima de uma foto nos Stories — com letras
+/// brancas (fotos escuras) ou pretas (fotos claras).
 enum ShareCardStyle: String, CaseIterable, Identifiable {
-    case cartao, transparente
+    case cartao, transparente, transparenteEscuro
 
     var id: String { rawValue }
 
     var label: String {
         switch self {
         case .cartao: return "Cartão"
-        case .transparente: return "Transparente"
+        case .transparente: return "Transparente com letras brancas"
+        case .transparenteEscuro: return "Transparente com letras pretas"
         }
     }
+
+    var isTransparent: Bool { self != .cartao }
+
+    /// Cor das letras, do mascote à parte.
+    var inkColor: Color { self == .transparenteEscuro ? .black : .white }
 }
 
 /// O cartão em si, em tamanho fixo de Stories (9:16). Renderizado a 3x vira
@@ -97,7 +104,9 @@ struct ShareProgressCard: View {
             .padding(.top, 28)
             .padding(.bottom, 56)
         }
-        .foregroundStyle(.white)
+        .foregroundStyle(style.inkColor)
+        // Sombra só nas letras brancas, para destacar sobre fotos claras; nas pretas
+        // ficaria borrado.
         .shadow(color: style == .transparente ? .black.opacity(0.35) : .clear, radius: 6, x: 0, y: 2)
         .frame(width: Self.size.width, height: Self.size.height)
         .background {
@@ -114,8 +123,8 @@ struct ShareProgressCard: View {
     private var progressBar: some View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
-                Capsule().fill(.white.opacity(0.3))
-                Capsule().fill(.white)
+                Capsule().fill(style.inkColor.opacity(0.25))
+                Capsule().fill(style.inkColor)
                     .frame(width: max(geo.size.width * snapshot.progress, 12))
             }
         }
@@ -123,14 +132,15 @@ struct ShareProgressCard: View {
     }
 }
 
-/// Quadriculado clássico de "fundo transparente" dos editores de imagem. Usa tons
-/// de cinza escuros para o texto branco do cartão continuar legível.
+/// Quadriculado clássico de "fundo transparente" dos editores de imagem. Escuro para
+/// as letras brancas e claro para as pretas, para o texto continuar legível.
 private struct TransparencyCheckerboard: View {
+    var isLight = false
     var squareSize: CGFloat = 16
 
     var body: some View {
         Canvas { context, size in
-            context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(Color(white: 0.32)))
+            context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(Color(white: isLight ? 1 : 0.32)))
             let columns = Int((size.width / squareSize).rounded(.up))
             let rows = Int((size.height / squareSize).rounded(.up))
             var squares = Path()
@@ -139,7 +149,7 @@ private struct TransparencyCheckerboard: View {
                     squares.addRect(CGRect(x: CGFloat(column) * squareSize, y: CGFloat(row) * squareSize, width: squareSize, height: squareSize))
                 }
             }
-            context.fill(squares, with: .color(Color(white: 0.44)))
+            context.fill(squares, with: .color(Color(white: isLight ? 0.84 : 0.44)))
         }
     }
 }
@@ -169,7 +179,7 @@ struct ShareProgressView: View {
     private var renderedImage: UIImage? {
         let renderer = ImageRenderer(content: ShareProgressCard(snapshot: snapshot, style: style))
         renderer.scale = 3
-        renderer.isOpaque = style == .cartao
+        renderer.isOpaque = !style.isTransparent
         return renderer.uiImage
     }
 
@@ -242,7 +252,7 @@ struct ShareProgressView: View {
         GeometryReader { geo in
             let scale = min(geo.size.width / ShareProgressCard.size.width, geo.size.height / ShareProgressCard.size.height)
             ShareProgressCard(snapshot: snapshot, style: style)
-                .background { if style == .transparente { TransparencyCheckerboard() } }
+                .background { if style.isTransparent { TransparencyCheckerboard(isLight: style == .transparenteEscuro) } }
                 .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
                 .scaleEffect(scale)
                 .frame(width: geo.size.width, height: geo.size.height)
