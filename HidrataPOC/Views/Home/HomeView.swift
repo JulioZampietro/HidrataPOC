@@ -16,7 +16,6 @@ struct HomeView: View {
     @State private var audioPlayer: AVAudioPlayer?
     @State private var pendingDeleteLog: IntakeLog?
     @State private var isEditingCustomAmount = false
-    @State private var showHelp = false
     @State private var showSiriTutorial = false
     @State private var showActionButtonTutorial = false
     @State private var showTodayLogs = false
@@ -100,7 +99,6 @@ struct HomeView: View {
             CustomIntakeEditorView(initialValueML: profile.customIntakeML, onSave: saveCustomAmount)
                 .trackSheetLifecycle(.customAmountEditor, screen: .home, userID: profile.userID)
         }
-        .sheet(isPresented: $showHelp) { HomeHelpView() }
         .sheet(isPresented: $showSiriTutorial) { SiriTutorialView() }
         .sheet(isPresented: $showActionButtonTutorial) { ActionButtonTutorialView() }
         .sheet(isPresented: $showTodayLogs) {
@@ -119,19 +117,6 @@ struct HomeView: View {
     
     private var headerRow: some View {
         HStack {
-            Button {
-                InteractionTracker.log("home_help_tap", screen: .home, userID: profile.userID, context: modelContext)
-                showHelp = true
-            } label: {
-                Image(systemName: "questionmark")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(accentBlue)
-                    .frame(width: 40, height: 40)
-                    .glassEffect(.regular.interactive(), in: Circle())
-            }
-            
-            Spacer()
-            
             HStack(spacing: 6) {
                 Image(systemName: "drop.fill")
                     .font(.custom("Nunito", size: 12))
@@ -145,6 +130,19 @@ struct HomeView: View {
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
             .glassEffect(.regular, in: Capsule())
+
+            Spacer()
+
+            // Compartilhar: ainda sem ação.
+            Button {
+            } label: {
+                Image(systemName: "square.and.arrow.up")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(accentBlue)
+                    .frame(width: 40, height: 40)
+                    .glassEffect(.regular.interactive(), in: Circle())
+            }
+            .accessibilityLabel("Compartilhar")
         }
     }
     
@@ -281,6 +279,15 @@ struct HomeView: View {
                     .font(.custom("Nunito", size: 15).weight(.heavy))
                     .foregroundStyle(.white)
                     .padding(.leading, 18)
+
+                // Indica que a barra é tocável (abre os registros de hoje). Fica branco
+                // quando o preenchimento azul já chegou embaixo dele.
+                Image(systemName: "info.circle")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(barWidth >= geo.size.width - 36 ? .white : accentBlue)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .padding(.trailing, 18)
+                    .accessibilityHidden(true)
             }
         }
         .frame(height: progressBarHeight)

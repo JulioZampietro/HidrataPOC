@@ -59,7 +59,6 @@
 		A8D10111F22B609AB5FA8266 /* SiriTutorialView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CBDEB26A3C91B6C2C231FD8 /* SiriTutorialView.swift */; };
 		AC52395F9A5B66242F66926D /* IntakeLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4DF682424276EED691E73FE /* IntakeLog.swift */; };
 		BAD54F5B8B4D14D2F3D4E044 /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D3D07956D972BB7565F7450 /* ProfileView.swift */; };
-		BB01C3A2E74F4D9B8C2A1D5E /* HomeHelpView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB01C3A2E74F4D9B8C2A1D5F /* HomeHelpView.swift */; };
 		BB11223344556677889900BB /* HistoricoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11223344556677889900AA /* HistoricoView.swift */; };
 		BC59B3F0F5629C9B84554939 /* CloudKitSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CEB9412C32EF75ADC24DDFE /* CloudKitSyncService.swift */; };
 		C390E2FE5A235D47F6B6B6B0 /* HydrationAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39B01B3E715DF9C6090B73F0 /* HydrationAttributes.swift */; };
@@ -67,7 +66,6 @@
 		C875CDDF311D834B8785DD94 /* ConsentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F93CA27F187823B29EA02167 /* ConsentView.swift */; };
 		CBB98B79D311408A851A2BB8 /* TrackedEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C35D54511A64C96A460EAB1 /* TrackedEvent.swift */; };
 		CBD8A418B4AC4862A62DEBDA /* InteractionTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D36EF2EADD04FF7B2EE0E4F /* InteractionTracker.swift */; };
-		CC02D4B3F85G5E0C9D3B2E6F /* HistoricoHelpView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC02D4B3F85G5E0C9D3B2E70 /* HistoricoHelpView.swift */; };
 		CCF46130AF549FBA9BBDBAA8 /* ProfileFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44B579DB179F9F9A74296475 /* ProfileFormView.swift */; };
 		CD5C5622FF926BBA66F4899C /* BackgroundRefreshService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6A65931A21528481F595E29 /* BackgroundRefreshService.swift */; };
 		D572116344EF1B76385B5E9B /* NotificationEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = B97525FAC07C838AC2BFCF1F /* NotificationEvent.swift */; };
@@ -198,11 +196,9 @@
 		B25B4016D397F16E2119D1FF /* WaterFillView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaterFillView.swift; sourceTree = "<group>"; };
 		B6A65931A21528481F595E29 /* BackgroundRefreshService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundRefreshService.swift; sourceTree = "<group>"; };
 		B97525FAC07C838AC2BFCF1F /* NotificationEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationEvent.swift; sourceTree = "<group>"; };
-		BB01C3A2E74F4D9B8C2A1D5F /* HomeHelpView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeHelpView.swift; sourceTree = "<group>"; };
 		BCD76832686E086EB393F6B1 /* HidrataPOC.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HidrataPOC.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C3BCAACF78A9164EF7C57D86 /* WeatherContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherContext.swift; sourceTree = "<group>"; };
 		C7A5DA61EDA45323AB04B6E6 /* HydrationWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HydrationWidgetBundle.swift; sourceTree = "<group>"; };
-		CC02D4B3F85G5E0C9D3B2E70 /* HistoricoHelpView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoricoHelpView.swift; sourceTree = "<group>"; };
 		CD611C7BACD349B4B8CBC129 /* WaterIntakeCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaterIntakeCalculator.swift; sourceTree = "<group>"; };
 		D1076794D01AED95AA12B4A0 /* SiriIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiriIntents.swift; sourceTree = "<group>"; };
 		D1E20512978CBB3411673F86 /* HidrataPOCApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HidrataPOCApp.swift; sourceTree = "<group>"; };
@@ -474,8 +470,6 @@
 			children = (
 				E2CE5627BDF23AE7101D454A /* ActionButtonTutorialView.swift */,
 				6CBDEB26A3C91B6C2C231FD8 /* SiriTutorialView.swift */,
-				BB01C3A2E74F4D9B8C2A1D5F /* HomeHelpView.swift */,
-				CC02D4B3F85G5E0C9D3B2E70 /* HistoricoHelpView.swift */,
 			);
 			path = Tutorials;
 			sourceTree = "<group>";
@@ -688,8 +682,6 @@
 				E4BDAB3AAF9B03FE1FFF4506 /* RootView.swift in Sources */,
 				F02FD10035B817EFD60727C6 /* SiriIntents.swift in Sources */,
 				A8D10111F22B609AB5FA8266 /* SiriTutorialView.swift in Sources */,
-				BB01C3A2E74F4D9B8C2A1D5E /* HomeHelpView.swift in Sources */,
-				CC02D4B3F85G5E0C9D3B2E6F /* HistoricoHelpView.swift in Sources */,
 				DCF58E734DC63F0D68382F0D /* SyncStatus.swift in Sources */,
 				1C683163E637960E88058478 /* UserProfile.swift in Sources */,
 				50D08C3D5EA73F9F85F1EA6A /* WaterIntakeCalculator.swift in Sources */,
