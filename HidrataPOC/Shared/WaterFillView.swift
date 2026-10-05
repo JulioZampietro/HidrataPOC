@@ -26,7 +26,7 @@ enum WaterTuning {
     static let fizzPerShake: Float = 0.6     // bolhas por g de sacudida forte
 
     // Sacudida forte → gotas
-    static let shakeThreshold: Float = 1.0   // g de aceleração do aparelho (ou tranco) para soltar gotas (antes: 1.2)
+    static let shakeThreshold: Float = 0.7   // g de aceleração do aparelho (ou tranco) para soltar gotas (antes: 1.2)
     static let jerkWeight: Float = 0.5       // peso do tranco (variação brusca) frente à aceleração
     static let shakeCooldown: Double = 0.12  // s entre rajadas
     static let dropsPerBurst: Float = 3      // gotas numa sacudida bem no limiar
@@ -56,6 +56,11 @@ enum WaterTuning {
     static let impactGain: Float = 0.012     // impulso no campo por pt² · (pt/s) de impacto
     static let impactDent: Float = 0.5       // afundamento local (× raio, em pt)
     static let crownSpeed: Float = 380       // pt/s de impacto a partir do qual respinga em coroa
+
+    // Interações externas (arrastar o mascote empurra a água)
+    static let dragPushGain: Float = 2.4     // impulso no campo por pt de deslocamento do arrasto
+    static let maxDragPush: Float = 260      // pt/s — limite do impulso de um único arrasto
+    static let dragPushWidth: Float = 7      // colunas — largura (sigma) do empurrão em torno do ponto
 }
 
 extension Notification.Name {
@@ -80,8 +85,11 @@ extension View {
     /// em `Bubble.metal`): a água sobe conforme `level` (0…1), acompanha o giroscópio e
     /// passa por trás e por cima do conteúdo, que fica parecendo mergulhado.
     /// `bleedsIntoTopSafeArea` estende o recipiente por baixo da status bar.
-    func waterContainer<S: Shape>(level: Double, in shape: S, bleedsIntoTopSafeArea: Bool = false) -> some View {
-        modifier(WaterContainerModifier(level: level, shape: shape, bleedsIntoTopSafeArea: bleedsIntoTopSafeArea))
+    /// `motion`, quando informado, substitui a simulação interna — assim quem chama
+    /// (por exemplo, um gesto de arrastar fora do recipiente) pode perturbar a mesma
+    /// água que está sendo desenhada aqui.
+    func waterContainer<S: Shape>(level: Double, in shape: S, bleedsIntoTopSafeArea: Bool = false, motion: WaterMotion? = nil) -> some View {
+        modifier(WaterContainerModifier(level: level, shape: shape, bleedsIntoTopSafeArea: bleedsIntoTopSafeArea, externalMotion: motion))
     }
 }
 
@@ -89,8 +97,11 @@ private struct WaterContainerModifier<S: Shape>: ViewModifier {
     let level: Double
     let shape: S
     let bleedsIntoTopSafeArea: Bool
+    var externalMotion: WaterMotion?
 
-    @State private var motion = WaterMotion()
+    @State private var internalMotion = WaterMotion()
+
+    private var motion: WaterMotion { externalMotion ?? internalMotion }
 
     func body(content: Content) -> some View {
         WaterRefractionView(level: level, motion: motion, content: content)
@@ -149,7 +160,8 @@ private struct WaterRefractionView<Content: View>: View, @preconcurrency Animata
                         .float(level),
                         .float2(down),
                         .float(agitation),
-                        .floatArray(field)
+                        .floatArray(field),
+                        .float2(proxy.size)
                     ),
                     // Cobre o maior deslocamento da refração (`kRefractMax` em Bubble.metal).
                     maxSampleOffset: CGSize(width: 10, height: 10)
@@ -311,6 +323,25 @@ final class WaterMotion {
             velocity[i] += strength * (side * 250 * u + 60 * sin(5 * .pi * u))
         }
         queueShake(strength: strength, inertia: SIMD2(side * 1.2, -0.3), delay: 0.15)
+    }
+
+    /// Empurra a superfície perto de `u` (0...1, de parede a parede) — usado por
+    /// interações externas ao shader, como arrastar o mascote dentro da água.
+    /// `strength` > 0 afunda a superfície (empurra para baixo); < 0 levanta.
+    func disturb(atU u: Float, strength: Float) {
+        let count = Self.columns
+        let clamped = max(-WaterTuning.maxDragPush, min(WaterTuning.maxDragPush, strength))
+        guard abs(clamped) > 0.01 else { return }
+        let x = min(max(u, 0), 1) * Float(count - 1)
+        let sigma = WaterTuning.dragPushWidth
+        let lower = max(0, Int((x - 3 * sigma).rounded(.down)))
+        let upper = min(count - 1, Int((x + 3 * sigma).rounded(.up)))
+        guard lower <= upper else { return }
+        for j in lower...upper {
+            let offset = Float(j) - x
+            let weight = exp(-offset * offset / (2 * sigma * sigma))
+            velocity[j] += clamped * weight
+        }
     }
 
     private func receive(_ motion: CMDeviceMotion) {

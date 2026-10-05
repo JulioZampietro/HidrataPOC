@@ -26,6 +26,23 @@ enum AppTheme {
         default:      return nil
         }
     }
+
+    /// As imagens dos mascotes foram recortadas exatamente no contorno do
+    /// personagem (sem fundo transparente). Como cada uma tinha uma proporção
+    /// diferente de espaço vazio ao redor do personagem, recortar fez com que
+    /// `scaledToFit()` as exibisse maiores do que antes. Este fator (altura do
+    /// conteúdo ÷ altura do canvas original) é aplicado à altura do frame para
+    /// que o mascote apareça do mesmo tamanho de antes do recorte.
+    static func mascotSizeCorrection(for imageName: String) -> CGFloat {
+        switch imageName {
+        case "mascote1": return 0.6548
+        case "mascote2": return 0.5224
+        case "mascote3": return 0.7021
+        case "mascote4": return 0.8446
+        case "mascote5": return 0.9028
+        default: return 1.0
+        }
+    }
 }
 
 private struct AppScreenBackgroundModifier: ViewModifier {

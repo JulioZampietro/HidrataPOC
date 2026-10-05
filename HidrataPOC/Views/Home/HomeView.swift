@@ -27,6 +27,9 @@ struct HomeView: View {
     @State private var pokeCount: Int = 0
     @State private var isPoking: Bool = false
     @State private var overridePhrase: String? = nil
+    @GestureState private var mascotDragOffset: CGSize = .zero
+    @State private var lastMascotDragTranslation: CGSize = .zero
+    @State private var waterMotion = WaterMotion()
 
     private static let mascotPhrases: [String] = [
         "Não bebe água não",
@@ -167,13 +170,9 @@ struct HomeView: View {
         // enche de água conforme o progresso do dia.
         // O cabeçalho fica fora do conteúdo da água: a refração achata o conteúdo
         // numa imagem e o vidro dos botões deixa de enxergar o fundo (fica escuro).
-        VStack(spacing: 0) {
-            Spacer(minLength: 0)
-            mascotPlaceholder(height: TabScreenLayout.mascotHeight(forWaterHeight: height))
-        }
-        .padding(.bottom, TabScreenLayout.mascotBottomPadding)
-        .frame(maxWidth: .infinity)
-        .frame(height: height)
+        mascotPlaceholder(height: TabScreenLayout.mascotHeight(forWaterHeight: height))
+            .frame(maxWidth: .infinity)
+            .frame(height: height, alignment: .center)
         .background {
             containerShape
                 .fill(AppTheme.screenBackground(for: colorScheme))
@@ -181,10 +180,11 @@ struct HomeView: View {
         .waterContainer(
             level: progress,
             in: containerShape,
-            bleedsIntoTopSafeArea: true
+            bleedsIntoTopSafeArea: true,
+            motion: waterMotion
         )
     }
-    
+
     private func mascotPlaceholder(height: CGFloat) -> some View {
         ZStack(alignment: .topTrailing) {
             if let mascot = AppTheme.mascotImageName(for: progress) {
@@ -192,15 +192,24 @@ struct HomeView: View {
                     .resizable()
                     .scaledToFit()
                     .frame(height: height)
+                    // Slot de layout com largura e altura fixas, iguais para todos os
+                    // mascotes: sem isso, cada imagem (recortada no seu próprio contorno,
+                    // com proporção diferente) mudava o tamanho da ZStack e fazia o
+                    // mascote "saltar" de posição ao trocar de estágio.
+                    .frame(width: height * 1.55, height: height, alignment: .center)
                     .scaleEffect(
-                        x: isPoking ? 1.18 : 1.0,
-                        y: isPoking ? 0.82 : 1.0,
-                        anchor: .bottom
+                        x: AppTheme.mascotSizeCorrection(for: mascot) * (isPoking ? 1.18 : 1.0),
+                        y: AppTheme.mascotSizeCorrection(for: mascot) * (isPoking ? 0.82 : 1.0),
+                        anchor: .center
                     )
+                    .offset(mascotDragOffset)
+                    .animation(.interactiveSpring(response: 0.28, dampingFraction: 0.55), value: mascotDragOffset)
                     .onTapGesture { pokeMascot() }
+                    .simultaneousGesture(mascotDragGesture)
 
                 MascotSpeechBubble(text: overridePhrase ?? Self.mascotPhrases[phraseIndex])
-                    .offset(x: 8, y: -8)
+                    .offset(x: 8 + mascotDragOffset.width, y: -8 + mascotDragOffset.height)
+                    .animation(.interactiveSpring(response: 0.28, dampingFraction: 0.55), value: mascotDragOffset)
                     .transition(.scale(scale: 0.8, anchor: .bottomLeading).combined(with: .opacity))
             } else {
                 // Meta batida: o mascote some, mas o espaço fica para o layout não pular.
@@ -245,7 +254,45 @@ struct HomeView: View {
             }
         }
     }
-    
+
+    /// Arrastar o mascote: ele acompanha o dedo dentro de um raio curto e, ao soltar,
+    /// a mola o traz de volta à posição original — sempre dentro do recipiente. O
+    /// movimento também empurra a superfície da água (mesmo `WaterMotion` do
+    /// `waterContainer`), como se o mascote estivesse mergulhado nela.
+    private var mascotDragGesture: some Gesture {
+        DragGesture(minimumDistance: 0)
+            .updating($mascotDragOffset) { value, state, _ in
+                state = CGSize(
+                    width: clampedDrag(value.translation.width, limit: 110),
+                    height: clampedDrag(value.translation.height, limit: 45)
+                )
+            }
+            .onChanged { value in
+                let deltaX = value.translation.width - lastMascotDragTranslation.width
+                let deltaY = value.translation.height - lastMascotDragTranslation.height
+                lastMascotDragTranslation = value.translation
+                disturbWaterFromDrag(deltaX: deltaX, deltaY: deltaY)
+            }
+            .onEnded { value in
+                // Soltar "chacoalha" a água com força proporcional a quão longe o
+                // mascote tinha ido, na direção em que ele está voltando para o centro.
+                disturbWaterFromDrag(deltaX: -value.translation.width * 0.6, deltaY: -value.translation.height * 0.6)
+                lastMascotDragTranslation = .zero
+            }
+    }
+
+    private func clampedDrag(_ translation: CGFloat, limit: CGFloat) -> CGFloat {
+        max(-limit, min(limit, translation))
+    }
+
+    private func disturbWaterFromDrag(deltaX: CGFloat, deltaY: CGFloat) {
+        let magnitude = (deltaX * deltaX + deltaY * deltaY).squareRoot()
+        guard magnitude > 0.01 else { return }
+        let sign: CGFloat = deltaY >= 0 ? 1 : -1
+        let strength = Float(magnitude * sign) * WaterTuning.dragPushGain
+        waterMotion.disturb(atU: 0.5, strength: strength)
+    }
+
     /// Tapping the bar opens today's intake logs (same sheet as a day in Histórico).
     private var progressBarButton: some View {
         Button {

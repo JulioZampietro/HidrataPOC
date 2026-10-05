@@ -18,6 +18,17 @@ constant float kSparkleAlpha    = 0.95;
 constant float kBubbleRestPresence  = 0.60; // fração de bolhas ativas com a água parada
 constant float kBubbleShakePresence = 0.85; // fração logo após uma sacudida forte
 constant float kBubbleRiseSpeed     = 65.0; // pt/s de subida (as grandes sobem um pouco mais rápido)
+// Fragmentos (só aparecem com a meta do dia 100% batida) — resquícios da pedra do
+// mascote, que afundam e se acomodam no fundo do recipiente.
+constant float  kFragmentLevel      = 0.995; // `level` a partir do qual eles começam a aparecer
+constant float  kFragmentFade       = 0.01;  // faixa de entrada suave acima de `kFragmentLevel`
+constant float  kFragmentCellW      = 34.0;  // espaçamento médio entre fragmentos (pt), ao longo de `s`
+constant int    kFragmentPerCell    = 2;     // quantos fragmentos por célula de `kFragmentCellW`
+constant float  kFragmentMinRadius  = 2.0;   // pt
+constant float  kFragmentMaxRadius  = 5.0;   // pt
+constant float  kFragmentAlpha      = 0.65;  // opacidade máxima de cada fragmento
+constant float  kFragmentSettleBias = 0.45;  // > 0 empurra a distribuição deles para o fundo
+constant float3 kFragmentColor      = float3(0.56, 0.47, 0.37); // tom de pedra (como a pedra do mascote)
 // Refração do conteúdo
 constant float kRefractAmp      = 2.3;    // deslocamento base (pt); cresce com a agitação e perto da superfície
 constant float kRefractLens     = 6.0;    // quanto a imagem acompanha a inclinação das ondas logo abaixo da linha
@@ -411,13 +422,65 @@ static DropShade shadeDrops(float2 p, bool shadowLayer, device const float *drop
         }
     }
 
-    float highlightA = saturate(saturate(arcs + lineA + glint + lip + near * 0.012 + walls + bubbles) * inside
-                                + drop.hi);
+    // Fragmentos: resquícios da pedra do mascote, só com a meta do dia 100% batida
+    // (fade suave ao cruzar o limiar). Têm "gravidade": a distribuição é polarizada
+    // para o fundo do recipiente (`kFragmentSettleBias`), no referencial (s, h) — que
+    // já gira com a gravidade, então eles acompanham a inclinação do aparelho e se
+    // reacomodam no novo fundo. Quase parados em repouso; a agitação (sacudida,
+    // balanço) solta um tremor, como se fossem revirados pela água.
+    float fragVisible = smoothstep(kFragmentLevel, kFragmentLevel + kFragmentFade, level);
+    float fragA = 0.0;
+    float3 fragRGB = float3(0.0);
+    if (fragVisible > 0.0) {
+        float jiggle = 0.15 + 0.6 * saturate(agitation);
+        float fcell = floor(s / kFragmentCellW);
+        for (int k = -1; k <= 1; k++) {
+            float cc = fcell + float(k);
+            for (int j = 0; j < kFragmentPerCell; j++) {
+                float id = cc * float(kFragmentPerCell) + float(j);
+                float hs = hash21(float2(id, 11.7));
+                float hd = hash21(float2(id, 23.9));
+                float baseS = (cc + (float(j) + 0.3 + 0.4 * hs) / float(kFragmentPerCell)) * kFragmentCellW;
+                // Gravidade: expoente < 1 empurra a maioria pra perto do fundo.
+                float settle = pow(hd, 1.0 - kFragmentSettleBias);
+                float baseH = mix(surfaceH + 16.0, bottomH - 6.0, settle);
+                float sway = jiggle * 5.0 * sin(time * (0.35 + 0.25 * hs) + id * 3.7);
+                float bob = jiggle * 3.0 * sin(time * (0.45 + 0.3 * hd) + id * 2.1 + 1.7);
+                float2 rel = float2(s - (baseS + sway), h - (baseH + bob));
+                float r = mix(kFragmentMinRadius, kFragmentMaxRadius, hash21(float2(id, 5.2)));
+                float dist = length(rel);
+                if (dist > r + 2.0) { continue; }
+                float shape = 1.0 - smoothstep(r - 1.2, r, dist);
+                float a = shape * kFragmentAlpha * fragVisible;
+                if (a <= fragA) { continue; }
+                // Sombreado de pedrinha: luz de cima-esquerda, como o resto da cena.
+                float2 nrm = dist > 1e-3 ? rel / dist : float2(0.0, -1.0);
+                float lightAmt = saturate(dot(nrm, normalize(float2(-0.5, -0.8))));
+                fragA = a;
+                fragRGB = kFragmentColor * mix(0.65, 1.25, lightAmt);
+            }
+        }
+    }
+
+    float surfaceHi = saturate(arcs + lineA + glint + lip + near * 0.012 + walls + bubbles) * inside;
     float darkA = max(lipEdge * inside, drop.dark);
 
-    // branco pré-multiplicado, com o fio escuro por baixo
-    float alpha = highlightA + darkA * (1.0 - highlightA);
-    return half4(half3(highlightA), half(alpha));
+    // As gotas no ar ganham um toque de azul (`kWaterTint`) proporcional a `fizz`:
+    // paradas ou num respingo fraco ficam brancas como antes; numa sacudida forte
+    // (`fizz` alto), saem tingidas de azul, como gotículas de água de verdade.
+    float3 dropTint = mix(float3(1.0), kWaterTint, saturate(fizz));
+
+    // Composição por camadas (premultiplicado, "over"): sombra escura (preta) no fundo,
+    // fragmentos de pedra por cima, realces brancos da superfície por cima, e as gotas
+    // (brancas ou azuis) por cima de tudo.
+    float3 overDark = fragRGB * fragA;               // preto não contribui em rgb
+    float aOverDark = fragA + darkA * (1.0 - fragA);
+    float3 rgbUnderDrops = float3(surfaceHi) + overDark * (1.0 - surfaceHi);
+    float aUnderDrops = surfaceHi + aOverDark * (1.0 - surfaceHi);
+
+    float3 rgb = dropTint * drop.hi + rgbUnderDrops * (1.0 - drop.hi);
+    float alpha = drop.hi + aUnderDrops * (1.0 - drop.hi);
+    return half4(half3(rgb), half(alpha));
 }
 
 // ---------- Refração do conteúdo sob a água ----------
@@ -432,7 +495,8 @@ static DropShade shadeDrops(float2 p, bool shadowLayer, device const float *drop
 [[ stitchable ]] half4 waterRefraction(float2 position, SwiftUI::Layer layer,
                                        float2 size, float2 origin, float time, float level,
                                        float2 down, float agitation,
-                                       device const float *field, int count) {
+                                       device const float *field, int count,
+                                       float2 contentSize) {
     float2 p = position + origin;
     WaterGeometry g = waterGeometry(p, size, time, level, down, agitation, field, count);
 
@@ -454,6 +518,17 @@ static DropShade shadeDrops(float2 p, bool shadowLayer, device const float *drop
     float lens = exp(-g.d / 9.0) * inside;
     offset += normalize(down) * (clamp(g.slope, -0.4, 0.4) * kRefractLens * lens);
     offset = clamp(offset, -kRefractMax, kRefractMax);
+
+    // `position` é local ao conteúdo de verdade (`contentSize`), que pode ser menor
+    // que `size` (o retângulo da água, que se estende sob a status bar). Perto de
+    // qualquer borda do conteúdo, o deslocamento vai suavemente a zero — sem isso,
+    // a amostra podia cair fora da área renderizada (pixel transparente) bem na
+    // parede, esfarelando-a numa linha ondulada. A tintura abaixo não depende desse
+    // deslocamento, então o azul continua igual.
+    float edgeMargin = kRefractMax + 1.0;
+    float2 edgeWindow = smoothstep(float2(0.0), float2(edgeMargin), position)
+                       * smoothstep(float2(0.0), float2(edgeMargin), contentSize - position);
+    offset *= edgeWindow.x * edgeWindow.y;
 
     half4 c = layer.sample(position + offset);
 
