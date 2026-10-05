@@ -123,6 +123,27 @@ struct ShareProgressCard: View {
     }
 }
 
+/// Quadriculado clássico de "fundo transparente" dos editores de imagem. Usa tons
+/// de cinza escuros para o texto branco do cartão continuar legível.
+private struct TransparencyCheckerboard: View {
+    var squareSize: CGFloat = 16
+
+    var body: some View {
+        Canvas { context, size in
+            context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(Color(white: 0.32)))
+            let columns = Int((size.width / squareSize).rounded(.up))
+            let rows = Int((size.height / squareSize).rounded(.up))
+            var squares = Path()
+            for row in 0..<rows {
+                for column in 0..<columns where (row + column).isMultiple(of: 2) {
+                    squares.addRect(CGRect(x: CGFloat(column) * squareSize, y: CGFloat(row) * squareSize, width: squareSize, height: squareSize))
+                }
+            }
+            context.fill(squares, with: .color(Color(white: 0.44)))
+        }
+    }
+}
+
 /// PNG pronto para o `ShareLink` — mantém a transparência do estilo "adesivo".
 private struct SharePNG: Transferable {
     let data: Data
@@ -215,13 +236,13 @@ struct ShareProgressView: View {
         }
     }
 
-    /// O cartão em escala reduzida; no estilo transparente aparece sobre um fundo
-    /// escuro para dar para ver o texto branco.
+    /// O cartão em escala reduzida; no estilo transparente aparece sobre um
+    /// quadriculado (só na prévia, não vai na imagem) para indicar o fundo vazado.
     private func preview(_ style: ShareCardStyle) -> some View {
         GeometryReader { geo in
             let scale = min(geo.size.width / ShareProgressCard.size.width, geo.size.height / ShareProgressCard.size.height)
             ShareProgressCard(snapshot: snapshot, style: style)
-                .background(style == .transparente ? Color(white: 0.18) : .clear)
+                .background { if style == .transparente { TransparencyCheckerboard() } }
                 .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
                 .scaleEffect(scale)
                 .frame(width: geo.size.width, height: geo.size.height)
