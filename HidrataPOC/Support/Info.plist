@@ -30,6 +30,8 @@
 	<string>Salvamos cada gole registrado aqui diretamente no app Saúde, para que seu histórico fique centralizado.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
 	<string>Consultamos sua agenda apenas para saber se você está ocupado (sem ler título ou local dos eventos), para escolher melhores horários de lembrete.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Salvamos a imagem do seu progresso do dia na sua galeria.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Usamos sua localização para consultar a temperatura e umidade no momento dos lembretes de hidratação.</string>
 	<key>NSSupportsLiveActivities</key>

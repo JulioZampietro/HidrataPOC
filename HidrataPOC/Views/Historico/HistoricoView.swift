@@ -72,9 +72,9 @@ struct HistoricoView: View {
     @State private var displayedMonth = Calendar.current.dateInterval(of: .month, for: .now)?.start ?? .now
     @State private var cardPage: HistoricoCardPage = .calendario
     @State private var selectedDay: DiaHistorico?
-    @State private var showHelp = false
     @State private var tempContext: TemperatureAdjustmentContext?
     @State private var phraseIndex: Int = 0
+    @State private var showShare = false
 
     /// Mesmas frases da Home — o mascote precisa falar igual nas duas telas.
     private static let mascotPhrases: [String] = [
@@ -123,10 +123,13 @@ struct HistoricoView: View {
         HydrationMath.effectiveGoalML(baseGoalML: profile.metaDiariaML, tempContext: tempContext)
     }
 
+    private var consumedToday: Int {
+        HydrationMath.totalML(userLogs, on: .now, calendar: calendar)
+    }
+
     private var todayProgress: Double {
         guard effectiveGoalML > 0 else { return 0 }
-        let total = HydrationMath.totalML(userLogs, on: .now, calendar: calendar)
-        return min(1, Double(total) / Double(effectiveGoalML))
+        return min(1, Double(consumedToday) / Double(effectiveGoalML))
     }
 
     private var monthTitle: String {
@@ -168,7 +171,10 @@ struct HistoricoView: View {
                 tempContext = await WeatherContextService.shared.temperatureAdjustmentContext()
             }
         }
-        .sheet(isPresented: $showHelp) { HistoricoHelpView() }
+        .sheet(isPresented: $showShare) {
+            ShareProgressView(snapshot: ShareProgressSnapshot(consumedML: consumedToday, goalML: effectiveGoalML, streakDias: streakDias))
+                .trackSheetLifecycle(.shareProgress, screen: .historico, userID: profile.userID)
+        }
         .sheet(item: $selectedDay) { dia in
             DayDetailSheet(dia: dia, metaDiariaML: profile.metaDiariaML, userID: profile.userID, calendar: calendar)
                 .trackSheetLifecycle(.historicoDayDetail, screen: .historico, userID: profile.userID, metadata: ["date": isoDate(dia.date)])
@@ -177,20 +183,6 @@ struct HistoricoView: View {
 
     private var topBar: some View {
         HStack {
-            Button {
-                InteractionTracker.log("historico_help_tap", screen: .historico, userID: profile.userID, context: modelContext)
-                showHelp = true
-            } label: {
-                Image(systemName: "questionmark")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(accentBlue)
-                    .frame(width: 40, height: 40)
-                    .glassEffect(.regular.interactive(), in: Circle())
-            }
-            .accessibilityLabel("Ajuda")
-
-            Spacer()
-
             HStack(spacing: 6) {
                 Image(systemName: "drop.fill")
                     .font(.custom("Nunito", size: 12))
@@ -204,6 +196,20 @@ struct HistoricoView: View {
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
             .glassEffect(.regular, in: Capsule())
+
+            Spacer()
+
+            Button {
+                InteractionTracker.log("historico_share_tap", screen: .historico, userID: profile.userID, context: modelContext)
+                showShare = true
+            } label: {
+                Image(systemName: "square.and.arrow.up")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(accentBlue)
+                    .frame(width: 40, height: 40)
+                    .glassEffect(.regular.interactive(), in: Circle())
+            }
+            .accessibilityLabel("Compartilhar")
         }
     }
 
