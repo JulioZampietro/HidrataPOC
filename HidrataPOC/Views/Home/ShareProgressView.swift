@@ -434,6 +434,14 @@ struct ShareProgressView: View {
                 .padding(.bottom, 8)
             }
             .padding(.top, 8)
+            // Com o seletor de cores aberto, tocar em qualquer lugar fora dele fecha.
+            .overlay {
+                if isPickingColor {
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .onTapGesture { isPickingColor = false }
+                }
+            }
             .animation(.easeInOut(duration: 0.3), value: isPickingColor)
             } // GeometryReader
             .navigationTitle("Compartilhar")
@@ -452,6 +460,8 @@ struct ShareProgressView: View {
             .sheet(isPresented: $isPickingColor) {
                 SystemColorPicker(color: $customInk, onDone: { isPickingColor = false })
                     .presentationDetents([.fraction(Self.colorPickerDetent)])
+                    // Sem escurecer o fundo, para a prévia continuar com a cor real; o toque
+                    // fora é tratado pelo overlay acima.
                     .presentationBackgroundInteraction(.enabled(upThrough: .fraction(Self.colorPickerDetent)))
                     .presentationDragIndicator(.hidden)
             }
