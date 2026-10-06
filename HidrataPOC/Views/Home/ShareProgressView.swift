@@ -39,14 +39,26 @@ enum ShareCardLayout: String, CaseIterable, Identifiable {
     var isTransparent: Bool { self != .cartao }
 }
 
-/// Cor das letras nos layouts transparentes: brancas para fotos escuras, pretas para
-/// fotos claras. O cartão azul sempre usa branco.
+/// Cor das letras nos layouts transparentes: brancas para fotos escuras, azul-escuras
+/// para fotos claras. O cartão azul sempre usa branco.
 enum ShareCardInk: String, CaseIterable, Identifiable {
-    case branca, preta
+    case branca, azulEscuro
 
     var id: String { rawValue }
 
-    var color: Color { self == .preta ? .black : .white }
+    var color: Color {
+        switch self {
+        case .branca: return .white
+        case .azulEscuro: return Color(red: 0.04, green: 0.18, blue: 0.42)
+        }
+    }
+
+    var label: String {
+        switch self {
+        case .branca: return "Letras brancas"
+        case .azulEscuro: return "Letras azul-escuras"
+        }
+    }
 }
 
 /// O cartão em si, em tamanho fixo de Stories (9:16). Renderizado a 3x vira
@@ -86,7 +98,7 @@ struct ShareProgressCard: View {
         content
             .foregroundStyle(inkColor)
             // Sombra só nas letras brancas sobre fundo transparente, para destacar sobre
-            // fotos claras; nas pretas ficaria borrado.
+            // fotos claras; nas escuras ficaria borrado.
             .shadow(color: layout.isTransparent && ink == .branca ? .black.opacity(0.35) : .clear, radius: 6, x: 0, y: 2)
             .frame(width: Self.size.width, height: Self.size.height)
             .background {
@@ -272,7 +284,7 @@ struct ShareProgressCard: View {
 }
 
 /// Quadriculado clássico de "fundo transparente" dos editores de imagem. Escuro para
-/// as letras brancas e claro para as pretas, para o texto continuar legível.
+/// as letras brancas e claro para as azul-escuras, para o texto continuar legível.
 private struct TransparencyCheckerboard: View {
     var isLight = false
     var squareSize: CGFloat = 16
@@ -396,7 +408,7 @@ struct ShareProgressView: View {
         GeometryReader { geo in
             let scale = min(geo.size.width / ShareProgressCard.size.width, geo.size.height / ShareProgressCard.size.height)
             ShareProgressCard(snapshot: snapshot, layout: layout, ink: ink)
-                .background { if layout.isTransparent { TransparencyCheckerboard(isLight: ink == .preta) } }
+                .background { if layout.isTransparent { TransparencyCheckerboard(isLight: ink == .azulEscuro) } }
                 .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
                 .scaleEffect(scale)
                 .frame(width: geo.size.width, height: geo.size.height)
@@ -422,7 +434,7 @@ struct ShareProgressView: View {
         .animation(.easeInOut(duration: 0.2), value: layout)
     }
 
-    /// Cor das letras nos layouts transparentes: duas bolinhas, branca e preta.
+    /// Cor das letras nos layouts transparentes: duas bolinhas, branca e azul-escura.
     private var inkPicker: some View {
         HStack(spacing: 14) {
             ForEach(ShareCardInk.allCases) { option in
@@ -434,7 +446,7 @@ struct ShareProgressView: View {
                     .overlay(Circle().stroke(option == ink ? accentBlue : .clear, lineWidth: 2.5))
                     .contentShape(Circle())
                     .onTapGesture { withAnimation(.easeInOut(duration: 0.2)) { ink = option } }
-                    .accessibilityLabel(option == .branca ? "Letras brancas" : "Letras pretas")
+                    .accessibilityLabel(option.label)
                     .accessibilityAddTraits(option == ink ? [.isButton, .isSelected] : .isButton)
             }
         }
