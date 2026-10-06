@@ -18,17 +18,12 @@ constant float kSparkleAlpha    = 0.95;
 constant float kBubbleRestPresence  = 0.60; // fração de bolhas ativas com a água parada
 constant float kBubbleShakePresence = 0.85; // fração logo após uma sacudida forte
 constant float kBubbleRiseSpeed     = 65.0; // pt/s de subida (as grandes sobem um pouco mais rápido)
-// Fragmentos (só aparecem com a meta do dia 100% batida) — resquícios da pedra do
-// mascote, que afundam e se acomodam no fundo do recipiente.
-constant float  kFragmentLevel      = 0.995; // `level` a partir do qual eles começam a aparecer
-constant float  kFragmentFade       = 0.01;  // faixa de entrada suave acima de `kFragmentLevel`
-constant float  kFragmentCellW      = 34.0;  // espaçamento médio entre fragmentos (pt), ao longo de `s`
-constant int    kFragmentPerCell    = 2;     // quantos fragmentos por célula de `kFragmentCellW`
-constant float  kFragmentMinRadius  = 2.0;   // pt
-constant float  kFragmentMaxRadius  = 5.0;   // pt
-constant float  kFragmentAlpha      = 0.65;  // opacidade máxima de cada fragmento
-constant float  kFragmentSettleBias = 0.45;  // > 0 empurra a distribuição deles para o fundo
-constant float3 kFragmentColor      = float3(0.56, 0.47, 0.37); // tom de pedra (como a pedra do mascote)
+// Pedrinhas (nascem da "explosão" do mascote ao bater a meta do dia) — a física
+// (gravidade, sacudida, sensor) é simulada no Swift (`WaterMotion.updateStones`);
+// aqui só desenham a posição real que ele manda, já caindo e assentando no fundo.
+constant int    kMaxStones   = 12;    // igual a `WaterTuning.stoneCount`, com folga
+constant float  kStoneAlpha  = 0.95;  // opacidade (quase opaca — é pedra, não gota)
+constant float3 kStoneColor  = float3(0.71, 0.64, 0.54); // cor média do mascote1.png (bege/caqui)
 // Refração do conteúdo
 constant float kRefractAmp      = 2.3;    // deslocamento base (pt); cresce com a agitação e perto da superfície
 constant float kRefractLens     = 6.0;    // quanto a imagem acompanha a inclinação das ondas logo abaixo da linha
@@ -320,10 +315,64 @@ static DropShade shadeDrops(float2 p, bool shadowLayer, device const float *drop
     return o;
 }
 
+// Pedrinhas no fundo do recipiente. `stones` = 4 floats por pedra: x, y, raio,
+// ângulo (giro, só pra variar o sombreado — não é uma rotação real da silhueta,
+// que aqui é só um círculo levemente irregular). Posição real, vinda da física
+// simulada no Swift — nada de distribuição procedural aqui.
+struct StoneShade {
+    float a;
+    float3 rgb;
+};
+
+static StoneShade shadeStones(float2 p, device const float *stones, int count) {
+    StoneShade o = { 0.0, float3(0.0) };
+    int n = min(count / 4, kMaxStones);
+    for (int i = 0; i < n; i++) {
+        int b = i * 4;
+        float2 center = float2(stones[b], stones[b + 1]);
+        float r = stones[b + 2];
+        float ang = stones[b + 3];
+        if (r <= 0.0) { continue; }
+        float2 rel = p - center;
+        float dist = length(rel);
+        if (dist > r + 3.0) { continue; }
+
+        // Irregularidade angular (silhueta de pedra, não um círculo perfeito nem uma
+        // flor/estrela). `ang` gira a amostragem junto (mesmo coeficiente em todos os
+        // harmônicos), então o contorno roda rígido com a pedra. `r` entra como
+        // semente (estável durante a vida da pedra) pra cada uma ter um contorno
+        // diferente das outras. As frequências têm que ser inteiras (senão o contorno
+        // não fecha direito em ±π), mas somando 4 delas sem relação de múltiplo entre
+        // si (2, 3, 5, 7) e com fases bem separadas, o resultado não tem a simetria
+        // de N pontas de um polígono/estrela — fica irregular, como lasca de pedra.
+        float theta = atan2(rel.y, rel.x) - ang;
+        float seed = r * 3.3;
+        float wobble = 1.0
+            + 0.045 * cos(theta * 2.0 + seed * 1.1)
+            + 0.035 * cos(theta * 3.0 - seed * 2.7 + 1.3)
+            + 0.030 * cos(theta * 5.0 + seed * 0.4 + 4.1)
+            + 0.020 * cos(theta * 7.0 - seed * 3.6 + 2.2);
+        float sd = dist - r * wobble;
+        float shape = 1.0 - smoothstep(-1.4, 1.0, sd);
+        if (shape <= o.a) { continue; }
+
+        // Sombreado: em vez da direção do centro até o pixel (`rel / dist`, que
+        // "explode" perto do centro — dist quase zero — e aparecia como um pontinho
+        // bem no meio da pedra), usa a distância até um ponto de luz deslocado pro
+        // canto de cima-esquerda da pedra. Contínuo em toda parte, sem singularidade.
+        float2 lightSpot = center - normalize(float2(-0.5, -0.8)) * r * 0.35;
+        float lightAmt = saturate(1.0 - length(p - lightSpot) / (r * 1.4));
+        o.a = shape * kStoneAlpha;
+        o.rgb = kStoneColor * mix(0.4, 1.35, lightAmt);
+    }
+    return o;
+}
+
 [[ stitchable ]] half4 water(float2 position, half4 color, float2 size, float time,
                              float level, float2 down, float agitation, float fizz, float front,
                              device const float *field, int count,
-                             device const float *drops, int dropCount) {
+                             device const float *drops, int dropCount,
+                             device const float *stones, int stoneCount) {
 
     WaterGeometry g = waterGeometry(position, size, time, level, down, agitation, field, count);
     float d = g.d, h = g.h, s = g.s, u = g.u;
@@ -422,45 +471,12 @@ static DropShade shadeDrops(float2 p, bool shadowLayer, device const float *drop
         }
     }
 
-    // Fragmentos: resquícios da pedra do mascote, só com a meta do dia 100% batida
-    // (fade suave ao cruzar o limiar). Têm "gravidade": a distribuição é polarizada
-    // para o fundo do recipiente (`kFragmentSettleBias`), no referencial (s, h) — que
-    // já gira com a gravidade, então eles acompanham a inclinação do aparelho e se
-    // reacomodam no novo fundo. Quase parados em repouso; a agitação (sacudida,
-    // balanço) solta um tremor, como se fossem revirados pela água.
-    float fragVisible = smoothstep(kFragmentLevel, kFragmentLevel + kFragmentFade, level);
-    float fragA = 0.0;
-    float3 fragRGB = float3(0.0);
-    if (fragVisible > 0.0) {
-        float jiggle = 0.15 + 0.6 * saturate(agitation);
-        float fcell = floor(s / kFragmentCellW);
-        for (int k = -1; k <= 1; k++) {
-            float cc = fcell + float(k);
-            for (int j = 0; j < kFragmentPerCell; j++) {
-                float id = cc * float(kFragmentPerCell) + float(j);
-                float hs = hash21(float2(id, 11.7));
-                float hd = hash21(float2(id, 23.9));
-                float baseS = (cc + (float(j) + 0.3 + 0.4 * hs) / float(kFragmentPerCell)) * kFragmentCellW;
-                // Gravidade: expoente < 1 empurra a maioria pra perto do fundo.
-                float settle = pow(hd, 1.0 - kFragmentSettleBias);
-                float baseH = mix(surfaceH + 16.0, bottomH - 6.0, settle);
-                float sway = jiggle * 5.0 * sin(time * (0.35 + 0.25 * hs) + id * 3.7);
-                float bob = jiggle * 3.0 * sin(time * (0.45 + 0.3 * hd) + id * 2.1 + 1.7);
-                float2 rel = float2(s - (baseS + sway), h - (baseH + bob));
-                float r = mix(kFragmentMinRadius, kFragmentMaxRadius, hash21(float2(id, 5.2)));
-                float dist = length(rel);
-                if (dist > r + 2.0) { continue; }
-                float shape = 1.0 - smoothstep(r - 1.2, r, dist);
-                float a = shape * kFragmentAlpha * fragVisible;
-                if (a <= fragA) { continue; }
-                // Sombreado de pedrinha: luz de cima-esquerda, como o resto da cena.
-                float2 nrm = dist > 1e-3 ? rel / dist : float2(0.0, -1.0);
-                float lightAmt = saturate(dot(nrm, normalize(float2(-0.5, -0.8))));
-                fragA = a;
-                fragRGB = kFragmentColor * mix(0.65, 1.25, lightAmt);
-            }
-        }
-    }
+    // Pedrinhas: nascem da explosão do mascote ao bater a meta e caem com física
+    // real simulada no Swift (`WaterMotion.updateStones` — gravidade, parede,
+    // sensor do aparelho). Aqui só pinta onde a física mandou.
+    StoneShade stoneShade = shadeStones(position, stones, stoneCount);
+    float fragA = stoneShade.a;
+    float3 fragRGB = stoneShade.rgb;
 
     float surfaceHi = saturate(arcs + lineA + glint + lip + near * 0.012 + walls + bubbles) * inside;
     float darkA = max(lipEdge * inside, drop.dark);
@@ -470,16 +486,19 @@ static DropShade shadeDrops(float2 p, bool shadowLayer, device const float *drop
     // (`fizz` alto), saem tingidas de azul, como gotículas de água de verdade.
     float3 dropTint = mix(float3(1.0), kWaterTint, saturate(fizz));
 
-    // Composição por camadas (premultiplicado, "over"): sombra escura (preta) no fundo,
-    // fragmentos de pedra por cima, realces brancos da superfície por cima, e as gotas
-    // (brancas ou azuis) por cima de tudo.
-    float3 overDark = fragRGB * fragA;               // preto não contribui em rgb
-    float aOverDark = fragA + darkA * (1.0 - fragA);
-    float3 rgbUnderDrops = float3(surfaceHi) + overDark * (1.0 - surfaceHi);
-    float aUnderDrops = surfaceHi + aOverDark * (1.0 - surfaceHi);
+    // Composição por camadas (premultiplicado, "over"), de baixo pra cima: sombra
+    // escura (preta) no fundo, realces brancos da superfície, pedrinhas (opacas —
+    // precisam ficar POR CIMA do brilho da parede/superfície, senão o branco lava a
+    // cor delas e elas somem num brilho qualquer, em vez de parecerem pedras de
+    // verdade) e, por último, as gotas no ar (brancas ou azuis).
+    float3 rgbWithHi = float3(surfaceHi);             // branco, pré-multiplicado por surfaceHi
+    float aWithHi = surfaceHi + darkA * (1.0 - surfaceHi);
 
-    float3 rgb = dropTint * drop.hi + rgbUnderDrops * (1.0 - drop.hi);
-    float alpha = drop.hi + aUnderDrops * (1.0 - drop.hi);
+    float3 rgbWithStone = fragRGB * fragA + rgbWithHi * (1.0 - fragA);
+    float aWithStone = fragA + aWithHi * (1.0 - fragA);
+
+    float3 rgb = dropTint * drop.hi + rgbWithStone * (1.0 - drop.hi);
+    float alpha = drop.hi + aWithStone * (1.0 - drop.hi);
     return half4(half3(rgb), half(alpha));
 }
 

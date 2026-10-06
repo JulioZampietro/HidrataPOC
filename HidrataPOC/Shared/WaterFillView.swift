@@ -61,6 +61,23 @@ enum WaterTuning {
     static let dragPushGain: Float = 2.4     // impulso no campo por pt de deslocamento do arrasto
     static let maxDragPush: Float = 260      // pt/s — limite do impulso de um único arrasto
     static let dragPushWidth: Float = 7      // colunas — largura (sigma) do empurrão em torno do ponto
+
+    // Pedrinhas (explosão do mascote ao bater a meta)
+    static let stoneCount = 10
+    static let stoneMinRadius: Float = 3     // pt
+    static let stoneMaxRadius: Float = 9    // pt
+    static let stoneExplosionSpeed: Float = 380 // pt/s, velocidade de saída da explosão
+    static let stoneGravity: Float = 1000     // pt/s² ao longo de `down` — mais pesada que uma gota, mas
+                                              // freada o bastante pela água pra dar pra ver ela afundando
+    static let stoneDrag: Float = 1.1        // 1/s — arrasto da água, bem maior que o de uma gota no ar
+    static let stoneRestitution: Float = 0.3 // quanto da velocidade sobra ao bater na parede/fundo
+    static let stoneFriction: Float = 3       // 1/s — freio ao longo da parede/fundo, pra ela assentar
+    static let stoneRestSpeed: Float = 60    // pt/s — abaixo disso, zera a velocidade no choque em vez
+                                              // de aplicar `stoneRestitution`. Sem isso, a gravidade
+                                              // realimenta um quique minúsculo pra sempre (ela nunca
+                                              // chega a v=0 de verdade) e a pedra não assenta.
+    static let stoneSpinRestSpeed: Float = 8 // pt/s — abaixo disso, para de girar (senão o resíduo da
+                                              // física continua rodando a pedra mesmo "parada")
 }
 
 extension Notification.Name {
@@ -206,7 +223,8 @@ struct WaterFillView: View, @preconcurrency Animatable {
                             .float(motion.fizz),
                             .float(layer.rawValue),
                             .floatArray(motion.field),
-                            .floatArray(motion.dropletData)
+                            .floatArray(motion.dropletData),
+                            .floatArray(motion.stoneData)
                         )
                     )
             }
@@ -257,6 +275,19 @@ final class WaterMotion {
 
     private static let noDroplets: [Float] = [0, 0, -1, -1]
 
+    /// Pedrinhas para o shader (`shadeStones` em `Bubble.metal`): 4 floats por
+    /// pedra — x, y, raio, ângulo — no mesmo retângulo de `waterSize`.
+    private(set) var stoneData: [Float] = WaterMotion.noStones
+    private static let noStones: [Float] = []
+
+    private struct Stone {
+        var position: SIMD2<Float>   // pt, no retângulo da água (y para baixo)
+        var velocity: SIMD2<Float>   // pt/s
+        var angle: Float = 0
+        var angularVelocity: Float = 0
+        var radius: Float
+    }
+
     private struct Droplet {
         var position: SIMD2<Float>   // pt, no retângulo da água (y para baixo)
         var velocity: SIMD2<Float>   // pt/s
@@ -279,6 +310,7 @@ final class WaterMotion {
     private var velocity = [Float](repeating: 0, count: WaterMotion.columns)
     private var viscousScratch = [Float](repeating: 0, count: WaterMotion.columns)
     private var droplets: [Droplet] = []
+    private var stones: [Stone] = []
     private var level: Float = 0
     private var angle: Float = 0
     private var sensorAngle: Float = 0
@@ -311,6 +343,30 @@ final class WaterMotion {
         droplets.removeAll()
         dropletData = Self.noDroplets
         pendingShake = nil
+    }
+
+    /// Mascote1 "explode" ao bater a meta: nasce em pedrinhas perto do centro do
+    /// recipiente, com um impulso de saída em todas as direções. Dali em diante
+    /// elas só obedecem à gravidade (`updateStones`) — caem e assentam no fundo.
+    func explodeIntoStones(count: Int = WaterTuning.stoneCount) {
+        guard stones.isEmpty else { return }
+        let width = waterSize.width > 0 ? Float(waterSize.width) : 300
+        let height = waterSize.height > 0 ? Float(waterSize.height) : 300
+        let origin = SIMD2<Float>(width / 2, height * 0.35)
+        for _ in 0..<count {
+            let direction = Float.random(in: 0...(2 * .pi))
+            let speed = WaterTuning.stoneExplosionSpeed * Float.random(in: 0.5...1.1)
+            let velocity = SIMD2(cos(direction), sin(direction)) * speed
+            let radius = WaterTuning.stoneMinRadius
+                + (WaterTuning.stoneMaxRadius - WaterTuning.stoneMinRadius) * Float.random(in: 0...1)
+            stones.append(Stone(position: origin, velocity: velocity, angularVelocity: Float.random(in: -6...6), radius: radius))
+        }
+    }
+
+    /// Tira as pedrinhas do fundo (ex.: a meta deixou de estar batida — novo dia —
+    /// e o mascote precisa voltar a aparecer do zero).
+    func clearStones() {
+        stones.removeAll()
     }
 
     /// Sacudida forte sem aparelho (Simulator ▸ Device ▸ Shake): joga a água para um lado,
@@ -430,6 +486,7 @@ final class WaterMotion {
             }
         }
         updateDroplets(dt: dt, frame: frame, width: width, height: height)
+        updateStones(dt: dt, frame: frame, width: width, height: height)
 
         // 3. Equação de onda (leapfrog). O amortecimento uniforme é baixo, para o balanço
         //    ter overshoot e assentar aos poucos; a viscosidade (laplaciano da velocidade)
@@ -468,6 +525,7 @@ final class WaterMotion {
         fizz = max(fizz * exp(-dt / WaterTuning.fizzDecay), WaterTuning.fizzFromAgitation * agitation)
 
         dropletData = packDroplets()
+        stoneData = packStones()
     }
 
     // MARK: - Gotas
@@ -613,6 +671,78 @@ final class WaterMotion {
         droplets.append(contentsOf: spawned.prefix(max(0, WaterTuning.maxDroplets - droplets.count)))
     }
 
+    /// Pedrinhas do mascote explodido: mais pesadas que a água (não flutuam, não
+    /// somem) e bem mais freadas por ela que uma gota no ar. Caem na direção de
+    /// `down` — a mesma gravidade efetiva do sensor que inclina a água — batem
+    /// nas paredes/fundo do recipiente com um pouco de ricochete e assentam por
+    /// atrito; um leve giro proporcional à velocidade dá a impressão de rolar.
+    private func updateStones(dt: Float, frame: SurfaceFrame, width: Float, height: Float) {
+        guard !stones.isEmpty else { return }
+        let gravity = frame.n * WaterTuning.stoneGravity
+        let wallFriction = max(0, 1 - WaterTuning.stoneFriction * dt)
+
+        for i in 0..<stones.count {
+            stones[i].velocity += gravity * dt
+            stones[i].velocity *= exp(-WaterTuning.stoneDrag * dt)
+            stones[i].position += stones[i].velocity * dt
+
+            let r = stones[i].radius
+            var p = stones[i].position
+            var v = stones[i].velocity
+            if p.x < r {
+                p.x = r
+                v.x = abs(v.x) > WaterTuning.stoneRestSpeed ? abs(v.x) * WaterTuning.stoneRestitution : 0
+                v.y *= wallFriction
+            } else if p.x > width - r {
+                p.x = width - r
+                v.x = abs(v.x) > WaterTuning.stoneRestSpeed ? -abs(v.x) * WaterTuning.stoneRestitution : 0
+                v.y *= wallFriction
+            }
+            if p.y < r {
+                p.y = r
+                v.y = abs(v.y) > WaterTuning.stoneRestSpeed ? abs(v.y) * WaterTuning.stoneRestitution : 0
+                v.x *= wallFriction
+            } else if p.y > height - r {
+                p.y = height - r
+                v.y = abs(v.y) > WaterTuning.stoneRestSpeed ? -abs(v.y) * WaterTuning.stoneRestitution : 0
+                v.x *= wallFriction
+            }
+            stones[i].position = p
+            stones[i].velocity = v
+        }
+
+        // Colisão simples entre pedrinhas (empurra pra separar, troca um pouco de velocidade).
+        for i in 0..<stones.count {
+            for j in (i + 1)..<stones.count {
+                let delta = stones[j].position - stones[i].position
+                let dist = Self.length(delta)
+                let minDist = stones[i].radius + stones[j].radius
+                guard dist > 1e-3, dist < minDist else { continue }
+                let normal = delta / dist
+                let overlap = minDist - dist
+                stones[i].position -= normal * (overlap * 0.5)
+                stones[j].position += normal * (overlap * 0.5)
+                let separation = Self.dot(stones[j].velocity - stones[i].velocity, normal)
+                if separation < 0 {
+                    let impulse = normal * (separation * 0.5)
+                    stones[i].velocity += impulse
+                    stones[j].velocity -= impulse
+                }
+            }
+        }
+
+        for i in 0..<stones.count {
+            let speed = Self.length(stones[i].velocity)
+            if speed > WaterTuning.stoneSpinRestSpeed {
+                let spin = min(8, speed / max(stones[i].radius, 1) * 0.6)
+                stones[i].angularVelocity = stones[i].velocity.x >= 0 ? spin : -spin
+                stones[i].angle += stones[i].angularVelocity * dt
+            } else {
+                stones[i].angularVelocity = 0
+            }
+        }
+    }
+
     /// Impacto de uma gota: pequena depressão e impulso para baixo no campo (a equação
     /// de onda transforma isso em ondulação), e, se for rápida, uma ou duas gotinhas
     /// de volta para cima (coroa).
@@ -668,6 +798,16 @@ final class WaterMotion {
             data[1] = min(data[1], drop.position.y - reach)
             data[2] = max(data[2], drop.position.x + reach)
             data[3] = max(data[3], drop.position.y + reach)
+        }
+        return data
+    }
+
+    private func packStones() -> [Float] {
+        guard !stones.isEmpty else { return Self.noStones }
+        var data: [Float] = []
+        data.reserveCapacity(stones.count * 4)
+        for stone in stones {
+            data += [stone.position.x, stone.position.y, stone.radius, stone.angle]
         }
         return data
     }

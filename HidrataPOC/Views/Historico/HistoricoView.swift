@@ -75,6 +75,13 @@ struct HistoricoView: View {
     @State private var tempContext: TemperatureAdjustmentContext?
     @State private var phraseIndex: Int = 0
     @State private var showShare = false
+    @State private var pokeCount: Int = 0
+    @State private var isPoking: Bool = false
+    @State private var overridePhrase: String? = nil
+    @GestureState private var mascotDragOffset: CGSize = .zero
+    @State private var lastMascotDragTranslation: CGSize = .zero
+    @State private var waterMotion = WaterMotion()
+    @State private var explodingMascot: String? = nil
 
     /// Mesmas frases da Home — o mascote precisa falar igual nas duas telas.
     private static let mascotPhrases: [String] = [
@@ -221,25 +228,22 @@ struct HistoricoView: View {
     }
 
     private func topSection(height: CGFloat) -> some View {
-        VStack(spacing: 0) {
-            Spacer(minLength: 0)
-            mascotPlaceholder(height: TabScreenLayout.mascotHeight(forWaterHeight: height))
-        }
-        .padding(.bottom, TabScreenLayout.mascotBottomPadding)
-        .frame(maxWidth: .infinity)
-        .frame(height: height)
+        // O conteúdo do recipiente (mascote + shader da água) não tem fundo opaco
+        // próprio, então uma `.shadow` direta nele sairia recortada e irregular.
+        // Essa forma preenchida com a mesma cor do fundo fica escondida atrás do
+        // recipiente e só deixa a sombra aparecer, contornando-o nos dois temas.
+        mascotPlaceholder(height: TabScreenLayout.mascotHeight(forWaterHeight: height))
+            .frame(maxWidth: .infinity)
+            .frame(height: height, alignment: .center)
         .background {
-            // O conteúdo do recipiente (mascote + shader da água) não tem fundo opaco
-            // próprio, então uma `.shadow` direta nele sairia recortada e irregular.
-            // Essa forma preenchida com a mesma cor do fundo fica escondida atrás do
-            // recipiente e só deixa a sombra aparecer, contornando-o nos dois temas.
             containerShape
                 .fill(AppTheme.screenBackground(for: colorScheme))
         }
         .waterContainer(
             level: todayProgress,
             in: containerShape,
-            bleedsIntoTopSafeArea: true
+            bleedsIntoTopSafeArea: true,
+            motion: waterMotion
         )
     }
 
@@ -250,24 +254,164 @@ struct HistoricoView: View {
                     .resizable()
                     .scaledToFit()
                     .frame(height: height)
+                    // Slot de layout com largura e altura fixas, iguais para todos os
+                    // mascotes: sem isso, cada imagem (recortada no seu próprio contorno,
+                    // com proporção diferente) mudava o tamanho da ZStack e fazia o
+                    // mascote "saltar" de posição ao trocar de estágio.
+                    .frame(width: height * 1.55, height: height, alignment: .center)
+                    .scaleEffect(
+                        x: AppTheme.mascotSizeCorrection(for: mascot) * (isPoking ? 1.18 : 1.0),
+                        y: AppTheme.mascotSizeCorrection(for: mascot) * (isPoking ? 0.82 : 1.0),
+                        anchor: .center
+                    )
+                    .offset(mascotDragOffset)
+                    .animation(.interactiveSpring(response: 0.28, dampingFraction: 0.55), value: mascotDragOffset)
+                    .onTapGesture { pokeMascot() }
+                    .simultaneousGesture(mascotDragGesture)
 
-                MascotSpeechBubble(text: Self.mascotPhrases[phraseIndex])
-                    .offset(x: 8, y: -8)
+                MascotSpeechBubble(text: overridePhrase ?? Self.mascotPhrases[phraseIndex])
+                    .offset(x: 8 + mascotDragOffset.width, y: -8 + mascotDragOffset.height)
+                    .animation(.interactiveSpring(response: 0.28, dampingFraction: 0.55), value: mascotDragOffset)
                     .transition(.scale(scale: 0.8, anchor: .bottomLeading).combined(with: .opacity))
+            } else if let exploding = explodingMascot {
+                // Mascote1 "quebrando": racha em pedaços que voam pra fora e caem, no
+                // instante em que nasce em pedrinhas na água (`waterMotion.explodeIntoStones`).
+                // Mesma correção de tamanho do mascote ao vivo (`scaleEffect` acima) —
+                // sem ela, a imagem nascia no tamanho cheio da caixa, bem maior do que o
+                // mascote normal, e parecia um "zoom" antes de quebrar.
+                let correction = AppTheme.mascotSizeCorrection(for: exploding)
+                MascotShatterView(imageName: exploding, width: height * 1.55 * correction, height: height * correction)
+                    .frame(width: height * 1.55, height: height, alignment: .center)
             } else {
                 // Meta batida: o mascote some, mas o espaço fica para o layout não pular.
                 Color.clear.frame(height: height)
             }
         }
-        .onAppear { phraseIndex = Int.random(in: 0..<Self.mascotPhrases.count) }
+        // Sem isso, a troca de ramo acima (mascote vivo → quebrando → vazio) herdava
+        // a animação de 1,2s do nível da água (`WaterRefractionView`, que envolve todo
+        // esse conteúdo) e o SwiftUI fazia um crossfade longo entre os dois: dava pra
+        // ver o mascote inteiro parado atrás, com o balão, sumindo devagar por trás do
+        // mascote quebrando. Com a animação ambiente cancelada aqui, a troca é instantânea
+        // — só a física dos cacos (que tem sua própria `.animation` explícita) continua animada.
+        .transaction { transaction in
+            transaction.animation = nil
+        }
+        .onAppear {
+            phraseIndex = Int.random(in: 0..<Self.mascotPhrases.count)
+            // `.onChange` abaixo só dispara numa transição ao vivo: se a tela abre
+            // já com a meta batida (de uma sessão anterior), ela nunca viu o
+            // cruzamento, e sem isso o recipiente ficava vazio — nem mascote, nem
+            // pedrinhas. Aqui o estado das pedrinhas é sincronizado com o progresso
+            // atual assim que a tela aparece.
+            syncStonesWithProgress()
+        }
         .task {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(6))
+                guard overridePhrase == nil else { continue }
                 withAnimation(.easeInOut(duration: 0.35)) {
                     phraseIndex = (phraseIndex + 1) % Self.mascotPhrases.count
                 }
             }
         }
+        .onChange(of: todayProgress) { oldValue, newValue in
+            handleGoalTransition(from: oldValue, to: newValue)
+        }
+    }
+
+    /// Ao bater a meta (mascote1 → nenhum mascote), ele "explode": primeiro quebra
+    /// (`MascotShatterView`) e só quando essa quebra está quase no fim é que nascem
+    /// as pedrinhas que caem no fundo do recipiente — uma depois da outra, não as
+    /// duas coisas ao mesmo tempo. Se a meta deixar de estar batida (ex.: novo dia),
+    /// as pedrinhas somem para o mascote voltar do zero.
+    private func handleGoalTransition(from oldValue: Double, to newValue: Double) {
+        if oldValue < 1.0, newValue >= 1.0, let mascot = AppTheme.mascotImageName(for: oldValue) {
+            explodingMascot = mascot
+            UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+            Task {
+                try? await Task.sleep(for: .milliseconds(600))
+                waterMotion.explodeIntoStones()
+                try? await Task.sleep(for: .milliseconds(160))
+                explodingMascot = nil
+            }
+        } else if oldValue >= 1.0, newValue < 1.0 {
+            waterMotion.clearStones()
+        }
+    }
+
+    /// Garante que as pedrinhas batem com o progresso atual ao abrir a tela —
+    /// sem explosão (isso só acontece ao vivo, em `handleGoalTransition`).
+    private func syncStonesWithProgress() {
+        if todayProgress >= 1.0 {
+            waterMotion.explodeIntoStones()
+        } else {
+            waterMotion.clearStones()
+        }
+    }
+
+    private func pokeMascot() {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+
+        withAnimation(.interpolatingSpring(stiffness: 500, damping: 8)) { isPoking = true }
+        Task {
+            try? await Task.sleep(for: .milliseconds(130))
+            withAnimation(.interpolatingSpring(stiffness: 200, damping: 14)) { isPoking = false }
+        }
+
+        pokeCount += 1
+
+        if pokeCount >= 3 {
+            pokeCount = 0
+            withAnimation(.easeInOut(duration: 0.25)) {
+                overridePhrase = "Para de me cutucar zé mané"
+            }
+            Task {
+                try? await Task.sleep(for: .seconds(4))
+                withAnimation(.easeInOut(duration: 0.35)) { overridePhrase = nil }
+            }
+        } else {
+            withAnimation(.easeInOut(duration: 0.25)) {
+                phraseIndex = (phraseIndex + 1) % Self.mascotPhrases.count
+            }
+        }
+    }
+
+    /// Arrastar o mascote: ele acompanha o dedo dentro de um raio curto e, ao soltar,
+    /// a mola o traz de volta à posição original — sempre dentro do recipiente. O
+    /// movimento também empurra a superfície da água (mesmo `WaterMotion` do
+    /// `waterContainer`), como se o mascote estivesse mergulhado nela.
+    private var mascotDragGesture: some Gesture {
+        DragGesture(minimumDistance: 0)
+            .updating($mascotDragOffset) { value, state, _ in
+                state = CGSize(
+                    width: clampedDrag(value.translation.width, limit: 110),
+                    height: clampedDrag(value.translation.height, limit: 45)
+                )
+            }
+            .onChanged { value in
+                let deltaX = value.translation.width - lastMascotDragTranslation.width
+                let deltaY = value.translation.height - lastMascotDragTranslation.height
+                lastMascotDragTranslation = value.translation
+                disturbWaterFromDrag(deltaX: deltaX, deltaY: deltaY)
+            }
+            .onEnded { value in
+                // Soltar "chacoalha" a água com força proporcional a quão longe o
+                // mascote tinha ido, na direção em que ele está voltando para o centro.
+                disturbWaterFromDrag(deltaX: -value.translation.width * 0.6, deltaY: -value.translation.height * 0.6)
+                lastMascotDragTranslation = .zero
+            }
+    }
+
+    private func clampedDrag(_ translation: CGFloat, limit: CGFloat) -> CGFloat {
+        max(-limit, min(limit, translation))
+    }
+
+    private func disturbWaterFromDrag(deltaX: CGFloat, deltaY: CGFloat) {
+        let magnitude = (deltaX * deltaX + deltaY * deltaY).squareRoot()
+        guard magnitude > 0.01 else { return }
+        let sign: CGFloat = deltaY >= 0 ? 1 : -1
+        let strength = Float(magnitude * sign) * WaterTuning.dragPushGain
+        waterMotion.disturb(atU: 0.5, strength: strength)
     }
 
     /// Below this the day cells would get too small; the screen scrolls instead.

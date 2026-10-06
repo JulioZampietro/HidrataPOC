@@ -30,6 +30,7 @@ struct HomeView: View {
     @GestureState private var mascotDragOffset: CGSize = .zero
     @State private var lastMascotDragTranslation: CGSize = .zero
     @State private var waterMotion = WaterMotion()
+    @State private var explodingMascot: String? = nil
 
     private static let mascotPhrases: [String] = [
         "Não bebe água não",
@@ -215,12 +216,38 @@ struct HomeView: View {
                     .offset(x: 8 + mascotDragOffset.width, y: -8 + mascotDragOffset.height)
                     .animation(.interactiveSpring(response: 0.28, dampingFraction: 0.55), value: mascotDragOffset)
                     .transition(.scale(scale: 0.8, anchor: .bottomLeading).combined(with: .opacity))
+            } else if let exploding = explodingMascot {
+                // Mascote1 "quebrando": racha em pedaços que voam pra fora e caem, no
+                // instante em que nasce em pedrinhas na água (`waterMotion.explodeIntoStones`).
+                // Mesma correção de tamanho do mascote ao vivo (`scaleEffect` acima) —
+                // sem ela, a imagem nascia no tamanho cheio da caixa, bem maior do que o
+                // mascote normal, e parecia um "zoom" antes de quebrar.
+                let correction = AppTheme.mascotSizeCorrection(for: exploding)
+                MascotShatterView(imageName: exploding, width: height * 1.55 * correction, height: height * correction)
+                    .frame(width: height * 1.55, height: height, alignment: .center)
             } else {
                 // Meta batida: o mascote some, mas o espaço fica para o layout não pular.
                 Color.clear.frame(height: height)
             }
         }
-        .onAppear { phraseIndex = Int.random(in: 0..<Self.mascotPhrases.count) }
+        // Sem isso, a troca de ramo acima (mascote vivo → quebrando → vazio) herdava
+        // a animação de 1,2s do nível da água (`WaterRefractionView`, que envolve todo
+        // esse conteúdo) e o SwiftUI fazia um crossfade longo entre os dois: dava pra
+        // ver o mascote inteiro parado atrás, com o balão, sumindo devagar por trás do
+        // mascote quebrando. Com a animação ambiente cancelada aqui, a troca é instantânea
+        // — só a física dos cacos (que tem sua própria `.animation` explícita) continua animada.
+        .transaction { transaction in
+            transaction.animation = nil
+        }
+        .onAppear {
+            phraseIndex = Int.random(in: 0..<Self.mascotPhrases.count)
+            // `.onChange` abaixo só dispara numa transição ao vivo: se o app abre
+            // já com a meta batida (de uma sessão anterior), ele nunca viu o
+            // cruzamento, e sem isso o recipiente ficava vazio — nem mascote, nem
+            // pedrinhas. Aqui o estado das pedrinhas é sincronizado com o progresso
+            // atual assim que a tela aparece.
+            syncStonesWithProgress()
+        }
         .task {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(6))
@@ -229,6 +256,39 @@ struct HomeView: View {
                     phraseIndex = (phraseIndex + 1) % Self.mascotPhrases.count
                 }
             }
+        }
+        .onChange(of: progress) { oldValue, newValue in
+            handleGoalTransition(from: oldValue, to: newValue)
+        }
+    }
+
+    /// Garante que as pedrinhas batem com o progresso atual ao abrir a tela —
+    /// sem explosão (isso só acontece ao vivo, em `handleGoalTransition`).
+    private func syncStonesWithProgress() {
+        if progress >= 1.0 {
+            waterMotion.explodeIntoStones()
+        } else {
+            waterMotion.clearStones()
+        }
+    }
+
+    /// Ao bater a meta (mascote1 → nenhum mascote), ele "explode": primeiro quebra
+    /// (`MascotShatterView`) e só quando essa quebra está quase no fim é que nascem
+    /// as pedrinhas que caem no fundo do recipiente — uma depois da outra, não as
+    /// duas coisas ao mesmo tempo. Se a meta deixar de estar batida (ex.: novo dia),
+    /// as pedrinhas somem para o mascote voltar do zero.
+    private func handleGoalTransition(from oldValue: Double, to newValue: Double) {
+        if oldValue < 1.0, newValue >= 1.0, let mascot = AppTheme.mascotImageName(for: oldValue) {
+            explodingMascot = mascot
+            UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+            Task {
+                try? await Task.sleep(for: .milliseconds(100))
+                waterMotion.explodeIntoStones()
+                try? await Task.sleep(for: .milliseconds(160))
+                explodingMascot = nil
+            }
+        } else if oldValue >= 1.0, newValue < 1.0 {
+            waterMotion.clearStones()
         }
     }
 
