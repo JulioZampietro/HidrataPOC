@@ -450,12 +450,6 @@ struct ShareProgressView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Fechar") { dismiss() }
                 }
-                // Fonte do sistema (SF Pro), no estilo padrão de título: o swizzle global
-                // trocaria a barra de navegação para Nunito.
-                ToolbarItem(placement: .principal) {
-                    Text("Compartilhar")
-                        .font(.headline)
-                }
             }
             .onChange(of: layout) { _, _ in resetSaveState() }
             .onChange(of: ink) { _, _ in resetSaveState() }
