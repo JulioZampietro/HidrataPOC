@@ -298,6 +298,43 @@ private struct TransparencyCheckerboard: View {
     }
 }
 
+/// `UIColorPickerViewController` embrulhado para abrir numa sheet de altura
+/// controlada — o `ColorPicker` do SwiftUI abre a própria sheet alta, que cobre a
+/// prévia do cartão. Atualiza a cor enquanto o usuário arrasta.
+private struct SystemColorPicker: UIViewControllerRepresentable {
+    @Binding var color: Color
+    let onDone: () -> Void
+
+    func makeUIViewController(context: Context) -> UIColorPickerViewController {
+        let picker = UIColorPickerViewController()
+        picker.supportsAlpha = false
+        picker.selectedColor = UIColor(color)
+        picker.title = "Cor das letras"
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ picker: UIColorPickerViewController, context: Context) {
+        context.coordinator.parent = self
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
+
+    final class Coordinator: NSObject, UIColorPickerViewControllerDelegate {
+        var parent: SystemColorPicker
+
+        init(parent: SystemColorPicker) { self.parent = parent }
+
+        func colorPickerViewController(_ picker: UIColorPickerViewController, didSelect color: UIColor, continuously: Bool) {
+            parent.color = Color(uiColor: color)
+        }
+
+        func colorPickerViewControllerDidFinish(_ picker: UIColorPickerViewController) {
+            parent.onDone()
+        }
+    }
+}
+
 /// PNG pronto para o `ShareLink` — mantém a transparência do estilo "adesivo".
 private struct SharePNG: Transferable {
     let data: Data
@@ -316,6 +353,7 @@ struct ShareProgressView: View {
     @State private var layout: ShareCardLayout = .cartao
     @State private var ink: ShareCardInk = .branca
     @State private var customInk: Color = accentBlue
+    @State private var isPickingColor = false
     @State private var saveState: SaveState = .idle
 
     private enum SaveState: Equatable {
@@ -340,6 +378,7 @@ struct ShareProgressView: View {
     var body: some View {
         let image = renderedImage
         NavigationStack {
+            GeometryReader { container in
             VStack(spacing: 16) {
                 // Arrasta para o lado (ou toca nas bolinhas) para trocar o layout.
                 TabView(selection: $layout) {
@@ -348,7 +387,10 @@ struct ShareProgressView: View {
                     }
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
-                .frame(maxHeight: .infinity)
+                // Com o seletor de cores aberto (metade de baixo da tela), o cartão
+                // encolhe para caber na metade de cima e continuar visível.
+                .frame(height: isPickingColor ? previewHeightWhilePicking(container) : nil)
+                .frame(maxHeight: .infinity, alignment: .top)
 
                 pageDots
 
@@ -392,6 +434,8 @@ struct ShareProgressView: View {
                 .padding(.bottom, 8)
             }
             .padding(.top, 8)
+            .animation(.easeInOut(duration: 0.3), value: isPickingColor)
+            } // GeometryReader
             .navigationTitle("Compartilhar")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -405,7 +449,23 @@ struct ShareProgressView: View {
                 ink = .personalizada
                 resetSaveState()
             }
+            .sheet(isPresented: $isPickingColor) {
+                SystemColorPicker(color: $customInk, onDone: { isPickingColor = false })
+                    .presentationDetents([.fraction(Self.colorPickerDetent)])
+                    .presentationBackgroundInteraction(.enabled(upThrough: .fraction(Self.colorPickerDetent)))
+                    .presentationDragIndicator(.hidden)
+            }
         }
+    }
+
+    /// Altura do seletor de cores, em fração da tela.
+    private static let colorPickerDetent: CGFloat = 0.5
+
+    /// Espaço entre o topo da área de conteúdo e o topo do seletor de cores.
+    private func previewHeightWhilePicking(_ container: GeometryProxy) -> CGFloat {
+        let screenHeight = container.frame(in: .global).maxY + container.safeAreaInsets.bottom
+        let pickerTop = screenHeight * (1 - Self.colorPickerDetent)
+        return max(pickerTop - container.frame(in: .global).minY - 24, 120)
     }
 
     /// O cartão em escala reduzida; no estilo transparente aparece sobre um
@@ -441,21 +501,34 @@ struct ShareProgressView: View {
         .animation(.easeInOut(duration: 0.2), value: layout)
     }
 
-    /// Cor das letras nos layouts transparentes: branca, preta ou o seletor de cores
-    /// do sistema (a bolinha colorida), que abre ao ser tocado.
+    /// Cor das letras nos layouts transparentes: branca, preta ou uma cor livre (a
+    /// bolinha colorida), que abre o seletor de cores do sistema.
     private var inkPicker: some View {
         HStack(spacing: 14) {
             inkSwatch(.branca, color: .white, label: "Letras brancas")
             inkSwatch(.preta, color: .black, label: "Letras pretas")
 
-            ColorPicker("Outra cor", selection: $customInk, supportsOpacity: false)
-                .labelsHidden()
-                .frame(width: 26, height: 26)
+            // Mesmo visual da bolinha do `ColorPicker`: a cor atual dentro de um anel
+            // de arco-íris.
+            Circle()
+                .fill(customInk)
+                .frame(width: 18, height: 18)
+                .padding(4)
+                .overlay(
+                    Circle().strokeBorder(
+                        AngularGradient(colors: [.red, .yellow, .green, .cyan, .blue, .purple, .red], center: .center),
+                        lineWidth: 3
+                    )
+                )
                 .padding(3)
                 .overlay(Circle().stroke(ink == .personalizada ? accentBlue : .clear, lineWidth: 2.5))
-                // Tocar de novo na mesma cor não dispara `onChange`; marca a seleção aqui.
-                .simultaneousGesture(TapGesture().onEnded { ink = .personalizada })
-                .accessibilityAddTraits(ink == .personalizada ? .isSelected : [])
+                .contentShape(Circle())
+                .onTapGesture {
+                    ink = .personalizada
+                    isPickingColor = true
+                }
+                .accessibilityLabel("Outra cor")
+                .accessibilityAddTraits(ink == .personalizada ? [.isButton, .isSelected] : .isButton)
         }
     }
 
