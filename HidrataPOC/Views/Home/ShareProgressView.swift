@@ -39,24 +39,24 @@ enum ShareCardLayout: String, CaseIterable, Identifiable {
     var isTransparent: Bool { self != .cartao }
 }
 
-/// Cor das letras nos layouts transparentes: brancas para fotos escuras, azul-escuras
-/// para fotos claras. O cartão azul sempre usa branco.
+/// Cor das letras nos layouts transparentes: brancas para fotos escuras, no azul do
+/// app para fotos claras. O cartão azul sempre usa branco.
 enum ShareCardInk: String, CaseIterable, Identifiable {
-    case branca, azulEscuro
+    case branca, azul
 
     var id: String { rawValue }
 
     var color: Color {
         switch self {
         case .branca: return .white
-        case .azulEscuro: return Color(red: 0.04, green: 0.18, blue: 0.42)
+        case .azul: return accentBlue
         }
     }
 
     var label: String {
         switch self {
         case .branca: return "Letras brancas"
-        case .azulEscuro: return "Letras azul-escuras"
+        case .azul: return "Letras azuis"
         }
     }
 }
@@ -284,7 +284,7 @@ struct ShareProgressCard: View {
 }
 
 /// Quadriculado clássico de "fundo transparente" dos editores de imagem. Escuro para
-/// as letras brancas e claro para as azul-escuras, para o texto continuar legível.
+/// as letras brancas e claro para as azuis, para o texto continuar legível.
 private struct TransparencyCheckerboard: View {
     var isLight = false
     var squareSize: CGFloat = 16
@@ -408,7 +408,7 @@ struct ShareProgressView: View {
         GeometryReader { geo in
             let scale = min(geo.size.width / ShareProgressCard.size.width, geo.size.height / ShareProgressCard.size.height)
             ShareProgressCard(snapshot: snapshot, layout: layout, ink: ink)
-                .background { if layout.isTransparent { TransparencyCheckerboard(isLight: ink == .azulEscuro) } }
+                .background { if layout.isTransparent { TransparencyCheckerboard(isLight: ink == .azul) } }
                 .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
                 .scaleEffect(scale)
                 .frame(width: geo.size.width, height: geo.size.height)
@@ -434,7 +434,7 @@ struct ShareProgressView: View {
         .animation(.easeInOut(duration: 0.2), value: layout)
     }
 
-    /// Cor das letras nos layouts transparentes: duas bolinhas, branca e azul-escura.
+    /// Cor das letras nos layouts transparentes: duas bolinhas, branca e azul.
     private var inkPicker: some View {
         HStack(spacing: 14) {
             ForEach(ShareCardInk.allCases) { option in
