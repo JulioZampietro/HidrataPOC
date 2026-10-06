@@ -39,25 +39,18 @@ enum ShareCardLayout: String, CaseIterable, Identifiable {
     var isTransparent: Bool { self != .cartao }
 }
 
-/// Cor das letras nos layouts transparentes: brancas para fotos escuras, no azul do
-/// app para fotos claras. O cartão azul sempre usa branco.
-enum ShareCardInk: String, CaseIterable, Identifiable {
-    case branca, azul
+/// Cor das letras nos layouts transparentes: branca, preta ou uma escolhida pelo
+/// usuário no seletor de cores. O cartão azul sempre usa branco.
+enum ShareCardInk: Hashable {
+    case branca, preta, personalizada
+}
 
-    var id: String { rawValue }
-
-    var color: Color {
-        switch self {
-        case .branca: return .white
-        case .azul: return accentBlue
-        }
-    }
-
-    var label: String {
-        switch self {
-        case .branca: return "Letras brancas"
-        case .azul: return "Letras azuis"
-        }
+extension Color {
+    /// Luminância relativa (0 = preto, 1 = branco), para decidir sombra e fundo da prévia.
+    var luminance: Double {
+        var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0
+        UIColor(self).getRed(&red, green: &green, blue: &blue, alpha: nil)
+        return 0.2126 * red + 0.7152 * green + 0.0722 * blue
     }
 }
 
@@ -66,13 +59,13 @@ enum ShareCardInk: String, CaseIterable, Identifiable {
 struct ShareProgressCard: View {
     let snapshot: ShareProgressSnapshot
     let layout: ShareCardLayout
-    var ink: ShareCardInk = .branca
+    var ink: Color = .white
 
     static let size = CGSize(width: 360, height: 640)
 
     private static let locale = Locale(identifier: "pt_BR")
 
-    private var inkColor: Color { layout.isTransparent ? ink.color : .white }
+    private var inkColor: Color { layout.isTransparent ? ink : .white }
 
     private var dateText: String {
         snapshot.date.formatted(.dateTime.day().month(.wide).locale(Self.locale))
@@ -99,7 +92,7 @@ struct ShareProgressCard: View {
             .foregroundStyle(inkColor)
             // Sombra só nas letras brancas sobre fundo transparente, para destacar sobre
             // fotos claras; nas escuras ficaria borrado.
-            .shadow(color: layout.isTransparent && ink == .branca ? .black.opacity(0.35) : .clear, radius: 6, x: 0, y: 2)
+            .shadow(color: layout.isTransparent && ink.luminance > 0.6 ? .black.opacity(0.35) : .clear, radius: 6, x: 0, y: 2)
             .frame(width: Self.size.width, height: Self.size.height)
             .background {
                 if layout == .cartao {
@@ -322,14 +315,23 @@ struct ShareProgressView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var layout: ShareCardLayout = .cartao
     @State private var ink: ShareCardInk = .branca
+    @State private var customInk: Color = accentBlue
     @State private var saveState: SaveState = .idle
 
     private enum SaveState: Equatable {
         case idle, saving, saved, denied, failed
     }
 
+    private var inkColor: Color {
+        switch ink {
+        case .branca: return .white
+        case .preta: return .black
+        case .personalizada: return customInk
+        }
+    }
+
     private var renderedImage: UIImage? {
-        let renderer = ImageRenderer(content: ShareProgressCard(snapshot: snapshot, layout: layout, ink: ink))
+        let renderer = ImageRenderer(content: ShareProgressCard(snapshot: snapshot, layout: layout, ink: inkColor))
         renderer.scale = 3
         renderer.isOpaque = !layout.isTransparent
         return renderer.uiImage
@@ -399,6 +401,10 @@ struct ShareProgressView: View {
             }
             .onChange(of: layout) { _, _ in resetSaveState() }
             .onChange(of: ink) { _, _ in resetSaveState() }
+            .onChange(of: customInk) { _, _ in
+                ink = .personalizada
+                resetSaveState()
+            }
         }
     }
 
@@ -407,8 +413,9 @@ struct ShareProgressView: View {
     private func preview(_ layout: ShareCardLayout) -> some View {
         GeometryReader { geo in
             let scale = min(geo.size.width / ShareProgressCard.size.width, geo.size.height / ShareProgressCard.size.height)
-            ShareProgressCard(snapshot: snapshot, layout: layout, ink: ink)
-                .background { if layout.isTransparent { TransparencyCheckerboard(isLight: ink == .azul) } }
+            ShareProgressCard(snapshot: snapshot, layout: layout, ink: inkColor)
+                // Letras escuras pedem quadriculado claro, e vice-versa.
+                .background { if layout.isTransparent { TransparencyCheckerboard(isLight: inkColor.luminance < 0.5) } }
                 .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
                 .scaleEffect(scale)
                 .frame(width: geo.size.width, height: geo.size.height)
@@ -434,22 +441,35 @@ struct ShareProgressView: View {
         .animation(.easeInOut(duration: 0.2), value: layout)
     }
 
-    /// Cor das letras nos layouts transparentes: duas bolinhas, branca e azul.
+    /// Cor das letras nos layouts transparentes: branca, preta ou o seletor de cores
+    /// do sistema (a bolinha colorida), que abre ao ser tocado.
     private var inkPicker: some View {
         HStack(spacing: 14) {
-            ForEach(ShareCardInk.allCases) { option in
-                Circle()
-                    .fill(option.color)
-                    .frame(width: 26, height: 26)
-                    .overlay(Circle().stroke(Color.secondary.opacity(0.4), lineWidth: 1))
-                    .padding(3)
-                    .overlay(Circle().stroke(option == ink ? accentBlue : .clear, lineWidth: 2.5))
-                    .contentShape(Circle())
-                    .onTapGesture { withAnimation(.easeInOut(duration: 0.2)) { ink = option } }
-                    .accessibilityLabel(option.label)
-                    .accessibilityAddTraits(option == ink ? [.isButton, .isSelected] : .isButton)
-            }
+            inkSwatch(.branca, color: .white, label: "Letras brancas")
+            inkSwatch(.preta, color: .black, label: "Letras pretas")
+
+            ColorPicker("Outra cor", selection: $customInk, supportsOpacity: false)
+                .labelsHidden()
+                .frame(width: 26, height: 26)
+                .padding(3)
+                .overlay(Circle().stroke(ink == .personalizada ? accentBlue : .clear, lineWidth: 2.5))
+                // Tocar de novo na mesma cor não dispara `onChange`; marca a seleção aqui.
+                .simultaneousGesture(TapGesture().onEnded { ink = .personalizada })
+                .accessibilityAddTraits(ink == .personalizada ? .isSelected : [])
         }
+    }
+
+    private func inkSwatch(_ option: ShareCardInk, color: Color, label: String) -> some View {
+        Circle()
+            .fill(color)
+            .frame(width: 26, height: 26)
+            .overlay(Circle().stroke(Color.secondary.opacity(0.4), lineWidth: 1))
+            .padding(3)
+            .overlay(Circle().stroke(option == ink ? accentBlue : .clear, lineWidth: 2.5))
+            .contentShape(Circle())
+            .onTapGesture { withAnimation(.easeInOut(duration: 0.2)) { ink = option } }
+            .accessibilityLabel(label)
+            .accessibilityAddTraits(option == ink ? [.isButton, .isSelected] : .isButton)
     }
 
     private func resetSaveState() {
