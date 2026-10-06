@@ -13,6 +13,7 @@ struct HidrataPOCApp: App {
 
     init() {
         applyNunitoGlobally()
+        applySystemFontToNavigationBars()
         UNUserNotificationCenter.current().delegate = notificationDelegate
         NotificationScheduler.shared.registerCategories()
         BackgroundRefreshService.register()

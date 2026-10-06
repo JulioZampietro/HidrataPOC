@@ -24,6 +24,29 @@ func applyNunitoGlobally() {
         to: #selector(UIFont.nunito_preferredFont(forTextStyle:compatibleWith:)))
 }
 
+/// Mantém a barra de navegação (título e botões como "Fechar", "Salvar") em SF Pro,
+/// apesar da troca global por Nunito — é a barra dos sheets do app. As fontes vêm de
+/// descritores do sistema, que não passam pelos métodos trocados acima.
+@MainActor
+func applySystemFontToNavigationBars() {
+    let navigationBar = UINavigationBar.appearance()
+    navigationBar.titleTextAttributes = [.font: sfPro(.headline)]
+    navigationBar.largeTitleTextAttributes = [.font: sfPro(.largeTitle, traits: .traitBold)]
+
+    let button = sfPro(.body)
+    for state: UIControl.State in [.normal, .highlighted, .disabled, .focused] {
+        UIBarButtonItem.appearance().setTitleTextAttributes([.font: button], for: state)
+    }
+}
+
+private func sfPro(_ style: UIFont.TextStyle, traits: UIFontDescriptor.SymbolicTraits = []) -> UIFont {
+    var descriptor = UIFontDescriptor.preferredFontDescriptor(withTextStyle: style)
+    if !traits.isEmpty, let withTraits = descriptor.withSymbolicTraits(traits) {
+        descriptor = withTraits
+    }
+    return UIFont(descriptor: descriptor, size: 0)
+}
+
 private func swizzleClassMethod(_ cls: AnyClass, from original: Selector, to replacement: Selector) {
     guard
         let originalMethod = class_getClassMethod(cls, original),
