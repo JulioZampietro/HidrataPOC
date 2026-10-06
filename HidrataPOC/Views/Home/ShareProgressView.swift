@@ -450,10 +450,11 @@ struct ShareProgressView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Fechar") { dismiss() }
                 }
-                // Mesma fonte do título dos cards de registro da Home ("Gole", "Copo"…).
+                // Fonte do sistema (SF Pro), no estilo padrão de título: o swizzle global
+                // trocaria a barra de navegação para Nunito.
                 ToolbarItem(placement: .principal) {
                     Text("Compartilhar")
-                        .font(.custom("Nunito", size: 17).weight(.heavy))
+                        .font(.headline)
                 }
             }
             .onChange(of: layout) { _, _ in resetSaveState() }
