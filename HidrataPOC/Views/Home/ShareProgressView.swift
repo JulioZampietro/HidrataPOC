@@ -450,6 +450,11 @@ struct ShareProgressView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Fechar") { dismiss() }
                 }
+                // Mesma fonte do título dos cards de registro da Home ("Gole", "Copo"…).
+                ToolbarItem(placement: .principal) {
+                    Text("Compartilhar")
+                        .font(.custom("Nunito", size: 17).weight(.heavy))
+                }
             }
             .onChange(of: layout) { _, _ in resetSaveState() }
             .onChange(of: ink) { _, _ in resetSaveState() }
