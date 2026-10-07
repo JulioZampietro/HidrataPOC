@@ -77,25 +77,37 @@ enum TabScreenLayout {
     static let spacing: CGFloat = 20
     static let headerHeight: CGFloat = 40
     /// Space between the mascot and the container's bottom edge.
-    static let mascotBottomPadding: CGFloat = 16
+    static let mascotBottomPadding: CGFloat = 0
     /// Space between the container's top edge and the mascot at full size.
     static let mascotTopPadding: CGFloat = 20
     static let maxMascotHeight: CGFloat = 190
+    /// Extra height added only to the container (as slack below the mascot's own
+    /// padded area), so the water container can grow without the mascot growing
+    /// with it — `mascotHeight` subtracts this back out before sizing the mascot.
+    /// Sized to swallow exactly the space the header (streak + share button) used
+    /// to take as its own row (`headerHeight + spacing`): the header now floats as
+    /// an overlay on top of the container instead, so the container grows up into
+    /// that reclaimed space and reaches near the top safe area.
+    static let extraContainerHeight: CGFloat = headerHeight + spacing
 
-    /// The container hugs the full-size mascot; it only gets shorter on screens too
-    /// short to fit everything else.
+    /// The container hugs the full-size mascot (plus `extraContainerHeight` of
+    /// slack, reclaimed from the header's old row); it only gets shorter on
+    /// screens too short to fit everything else.
     static func waterHeight(forVisibleHeight height: CGFloat) -> CGFloat {
-        let fullHeight = mascotTopPadding + maxMascotHeight + mascotBottomPadding
+        let fullHeight = mascotTopPadding + maxMascotHeight + mascotBottomPadding + extraContainerHeight
         return min(max(height * 0.376, 160), fullHeight)
     }
 
     /// The mascot shrinks with the container on short screens, never past 190 pt.
+    /// `extraContainerHeight` is removed first so the extra slack never reaches the mascot.
     static func mascotHeight(forWaterHeight waterHeight: CGFloat) -> CGFloat {
-        min(max(waterHeight - mascotTopPadding - mascotBottomPadding, 110), maxMascotHeight)
+        min(max(waterHeight - mascotTopPadding - mascotBottomPadding - extraContainerHeight, 110), maxMascotHeight)
     }
 
-    /// Height left for the screen's own content below the water container.
+    /// Height left for the screen's own content below the water container. The
+    /// header no longer has its own row (it overlays the container), so only the
+    /// container and two gaps (above and below it) are subtracted.
     static func contentHeight(forVisibleHeight height: CGFloat) -> CGFloat {
-        height - headerHeight - waterHeight(forVisibleHeight: height) - spacing * 3
+        height - waterHeight(forVisibleHeight: height) - spacing * 2
     }
 }

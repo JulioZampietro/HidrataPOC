@@ -31,6 +31,9 @@ struct HomeView: View {
     @State private var lastMascotDragTranslation: CGSize = .zero
     @State private var waterMotion = WaterMotion()
     @State private var explodingMascot: String? = nil
+    /// Mascote do estágio anterior, só enquanto a transição de bolhas (estilo
+    /// Bob Esponja) de troca de estágio está em andamento — ver `handleGoalTransition`.
+    @State private var bubbleMascot: String? = nil
 
     private static let mascotPhrases: [String] = [
         "Não bebe água não",
@@ -66,9 +69,6 @@ struct HomeView: View {
             GeometryReader { geo in
                 ScrollView {
                     VStack(spacing: TabScreenLayout.spacing) {
-                        headerRow
-                            .padding(.horizontal, 20)
-
                         topSection(height: TabScreenLayout.waterHeight(forVisibleHeight: geo.size.height))
                             .padding(.horizontal, 10)
 
@@ -138,7 +138,7 @@ struct HomeView: View {
             .foregroundStyle(.primary)
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
-            .glassEffect(.regular, in: Capsule())
+            .background(.clear)
 
             Spacer()
 
@@ -176,8 +176,14 @@ struct HomeView: View {
         // O cabeçalho fica fora do conteúdo da água: a refração achata o conteúdo
         // numa imagem e o vidro dos botões deixa de enxergar o fundo (fica escuro).
         mascotPlaceholder(height: TabScreenLayout.mascotHeight(forWaterHeight: height))
+            // Esse respiro abaixo do mascote (antes do `.frame` de altura fixa, pra
+            // não aumentar a altura total do recipiente) é o que o afasta do fundo.
+            .padding(.bottom, TabScreenLayout.mascotBottomPadding)
             .frame(maxWidth: .infinity)
-            .frame(height: height, alignment: .center)
+            // `.bottom` (não `.center`): a altura extra do recipiente (reclamada do
+            // cabeçalho) vira espaço de água acima do mascote, em vez de se dividir
+            // igual entre cima e baixo e empurrar o mascote pra cima do centro.
+            .frame(height: height, alignment: .bottom)
         .background {
             containerShape
                 .fill(AppTheme.screenBackground(for: colorScheme))
@@ -188,6 +194,14 @@ struct HomeView: View {
             bleedsIntoTopSafeArea: true,
             motion: waterMotion
         )
+        // Streak e botão de compartilhar flutuam por cima do recipiente (fora do
+        // `.waterContainer`, então não passam pela refração da água — senão o vidro
+        // dos botões perderia a transparência e ficaria escuro).
+        .overlay(alignment: .top) {
+            headerRow
+                .padding(.horizontal, 10)
+                .padding(.top, 14)
+        }
     }
 
     private func mascotPlaceholder(height: CGFloat) -> some View {
@@ -207,14 +221,23 @@ struct HomeView: View {
                         y: AppTheme.mascotSizeCorrection(for: mascot) * (isPoking ? 0.82 : 1.0),
                         anchor: .center
                     )
+                    // Precisa ser explícita (igual à de `mascotDragOffset` abaixo): o
+                    // `.transaction { animation = nil }` no ZStack pai (pra trocar de
+                    // mascote sem crossfade) zera a animação ambiente de toda a
+                    // subárvore, incluindo o `withAnimation` do toque em `pokeMascot()`
+                    // — sem essa linha, o "cutucão" ficava instantâneo (travado).
+                    .animation(.interpolatingSpring(stiffness: 350, damping: 10), value: isPoking)
                     .offset(mascotDragOffset)
                     .animation(.interactiveSpring(response: 0.28, dampingFraction: 0.55), value: mascotDragOffset)
                     .onTapGesture { pokeMascot() }
                     .simultaneousGesture(mascotDragGesture)
 
                 MascotSpeechBubble(text: overridePhrase ?? Self.mascotPhrases[phraseIndex])
-                    .offset(x: 8 + mascotDragOffset.width, y: -8 + mascotDragOffset.height)
+                    .offset(x: 8 + mascotDragOffset.width, y: -38 + mascotDragOffset.height)
                     .animation(.interactiveSpring(response: 0.28, dampingFraction: 0.55), value: mascotDragOffset)
+                    // Mesmo motivo do `.animation(value: isPoking)` no mascote: precisa
+                    // ser explícita pra sobreviver ao `.transaction` do ZStack pai.
+                    .animation(.easeInOut(duration: 0.3), value: overridePhrase ?? Self.mascotPhrases[phraseIndex])
                     .transition(.scale(scale: 0.8, anchor: .bottomLeading).combined(with: .opacity))
             } else if let exploding = explodingMascot {
                 // Mascote1 "quebrando": racha em pedaços que voam pra fora e caem, no
@@ -228,6 +251,18 @@ struct HomeView: View {
             } else {
                 // Meta batida: o mascote some, mas o espaço fica para o layout não pular.
                 Color.clear.frame(height: height)
+            }
+
+            // Transição de bolhas ao trocar de estágio (mascote5→mascote4 etc.),
+            // estilo Bob Esponja: o mascote novo já está sendo exibido normalmente
+            // no ramo acima; isso sobrepõe o mascote ANTIGO, que a própria view
+            // esconde no auge da cobertura das bolhas, revelando o novo por baixo.
+            // Independe do nível de água real, então funciona igual com o
+            // recipiente cheio ou quase vazio.
+            if let bubbling = bubbleMascot {
+                let correction = AppTheme.mascotSizeCorrection(for: bubbling)
+                MascotBubbleTransitionView(imageName: bubbling, width: height * 1.55 * correction, height: height * correction)
+                    .frame(width: height * 1.55, height: height, alignment: .center)
             }
         }
         // Sem isso, a troca de ramo acima (mascote vivo → quebrando → vazio) herdava
@@ -252,9 +287,7 @@ struct HomeView: View {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(6))
                 guard overridePhrase == nil else { continue }
-                withAnimation(.easeInOut(duration: 0.35)) {
-                    phraseIndex = (phraseIndex + 1) % Self.mascotPhrases.count
-                }
+                phraseIndex = (phraseIndex + 1) % Self.mascotPhrases.count
             }
         }
         .onChange(of: progress) { oldValue, newValue in
@@ -276,9 +309,14 @@ struct HomeView: View {
     /// (`MascotShatterView`) e só quando essa quebra está quase no fim é que nascem
     /// as pedrinhas que caem no fundo do recipiente — uma depois da outra, não as
     /// duas coisas ao mesmo tempo. Se a meta deixar de estar batida (ex.: novo dia),
-    /// as pedrinhas somem para o mascote voltar do zero.
+    /// as pedrinhas somem para o mascote voltar do zero. Entre estágios intermediários
+    /// (mascote5→mascote4 etc., pra cima ou pra baixo, ex. ao excluir um registro),
+    /// a transição de bolhas (`MascotBubbleTransitionView`) cobre a troca.
     private func handleGoalTransition(from oldValue: Double, to newValue: Double) {
-        if oldValue < 1.0, newValue >= 1.0, let mascot = AppTheme.mascotImageName(for: oldValue) {
+        let oldMascot = AppTheme.mascotImageName(for: oldValue)
+        let newMascot = AppTheme.mascotImageName(for: newValue)
+
+        if oldValue < 1.0, newValue >= 1.0, let mascot = oldMascot {
             explodingMascot = mascot
             UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
             Task {
@@ -289,33 +327,38 @@ struct HomeView: View {
             }
         } else if oldValue >= 1.0, newValue < 1.0 {
             waterMotion.clearStones()
+        } else if let old = oldMascot, let new = newMascot, old != new {
+            bubbleMascot = old
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            Task {
+                try? await Task.sleep(for: .milliseconds(1900))
+                bubbleMascot = nil
+            }
         }
     }
 
     private func pokeMascot() {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
 
-        withAnimation(.interpolatingSpring(stiffness: 500, damping: 8)) { isPoking = true }
+        // A curva vem do `.animation(value: isPoking)` junto do `scaleEffect` —
+        // só precisa setar o valor aqui.
+        isPoking = true
         Task {
             try? await Task.sleep(for: .milliseconds(130))
-            withAnimation(.interpolatingSpring(stiffness: 200, damping: 14)) { isPoking = false }
+            isPoking = false
         }
 
         pokeCount += 1
 
         if pokeCount >= 3 {
             pokeCount = 0
-            withAnimation(.easeInOut(duration: 0.25)) {
-                overridePhrase = "Para de me cutucar zé mané"
-            }
+            overridePhrase = "Para de me cutucar zé mané"
             Task {
                 try? await Task.sleep(for: .seconds(4))
-                withAnimation(.easeInOut(duration: 0.35)) { overridePhrase = nil }
+                overridePhrase = nil
             }
         } else {
-            withAnimation(.easeInOut(duration: 0.25)) {
-                phraseIndex = (phraseIndex + 1) % Self.mascotPhrases.count
-            }
+            phraseIndex = (phraseIndex + 1) % Self.mascotPhrases.count
         }
     }
 

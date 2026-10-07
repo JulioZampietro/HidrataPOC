@@ -11,6 +11,10 @@ struct MascotSpeechBubble: View {
 
     var body: some View {
         Text(text)
+            // Sem isso, trocar `text` dentro de uma animação não tem o que
+            // interpolar — o SwiftUI troca o conteúdo instantaneamente por
+            // padrão; isso é o que faz a troca de frase crossfade.
+            .contentTransition(.opacity)
             .font(.custom("Nunito", size: 13).weight(.bold))
             .foregroundStyle(Color(red: 0.4314, green: 0.3647, blue: 0.2667)) // #6E5D44
             .multilineTextAlignment(.leading)
