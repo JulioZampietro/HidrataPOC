@@ -464,7 +464,7 @@ struct HomeView: View {
     private func goleCard(height: CGFloat) -> some View {
         Button { logIntake(.custom(volumeML: 40), cardID: "gole") } label: {
             IntakeCardContent(
-                icon: "drop.fill",
+                icon: .symbol("drop.fill"),
                 title: "Gole",
                 subtitle: "40 mL",
                 isHighlighted: highlightedCard == "gole",
@@ -477,7 +477,7 @@ struct HomeView: View {
     private func intakeCard(_ preset: Constants.IntakePreset, height: CGFloat) -> some View {
         Button { logIntake(preset, cardID: preset.label) } label: {
             IntakeCardContent(
-                icon: iconName(for: preset),
+                icon: intakeIcon(for: preset),
                 title: preset.label,
                 subtitle: "\(preset.volumeML) mL",
                 isHighlighted: highlightedCard == preset.label,
@@ -491,7 +491,7 @@ struct HomeView: View {
         ZStack(alignment: .topTrailing) {
             Button { logIntake(.custom(volumeML: profile.customIntakeML), cardID: "custom") } label: {
                 IntakeCardContent(
-                    icon: "plus",
+                    icon: nil,
                     title: "Outro",
                     subtitle: "\(profile.customIntakeML) mL",
                     isHighlighted: highlightedCard == "custom",
@@ -521,12 +521,12 @@ struct HomeView: View {
         Binding(get: { pendingDeleteLog != nil }, set: { if !$0 { pendingDeleteLog = nil } })
     }
     
-    private func iconName(for preset: Constants.IntakePreset) -> String {
+    private func intakeIcon(for preset: Constants.IntakePreset) -> IntakeCardIcon? {
         switch preset {
-        case .glass: return "mug.fill"
-        case .bottle: return "waterbottle.fill"
-        case .gole: return "drop.fill"
-        case .custom: return "plus"
+        case .glass: return .symbol("mug.fill", mirrored: true)
+        case .bottle: return .bottle
+        case .gole: return .symbol("drop.fill")
+        case .custom: return nil
         }
     }
     
@@ -582,29 +582,45 @@ struct HomeView: View {
 
 // MARK: - IntakeCardContent
 
+/// Ícone de fundo dos cartões de ingestão.
+enum IntakeCardIcon {
+    /// SF Symbol; `mirrored` espelha na horizontal (ex.: alça do copo do lado cortado).
+    case symbol(String, mirrored: Bool = false)
+    /// Garrafa sólida desenhada à mão — o `waterbottle.fill` tem uma gota vazada no meio.
+    case bottle
+
+    /// Quanto do ícone (fração do lado) fica para fora da borda esquerda.
+    var leadingOverflow: CGFloat {
+        switch self {
+        case .symbol(_, mirrored: true): return 0.36 // copo espelhado: empurra mais para a esquerda
+        default: return 0.28
+        }
+    }
+}
+
 struct IntakeCardContent: View {
     @Environment(\.colorScheme) private var colorScheme
-    let icon: String
+    let icon: IntakeCardIcon?
     let title: String
     let subtitle: String
     var isHighlighted: Bool = false
     var height: CGFloat? = nil
 
     private var titleColor: Color {
-        isHighlighted ? .white : (colorScheme == .dark ? .primary : Color(red: 0.3686, green: 0.4667, blue: 0.6078))
+        isHighlighted || icon != nil ? .white : (colorScheme == .dark ? .primary : Color(red: 0.3686, green: 0.4667, blue: 0.6078))
     }
 
     private var subtitleColor: Color {
-        isHighlighted ? Color.white.opacity(0.8) : (colorScheme == .dark ? .secondary : Color(red: 0.3686, green: 0.4667, blue: 0.6078).opacity(0.75))
+        isHighlighted || icon != nil ? Color.white.opacity(0.9) : (colorScheme == .dark ? .secondary : Color(red: 0.3686, green: 0.4667, blue: 0.6078).opacity(0.75))
+    }
+
+    private var backgroundIconColor: Color {
+        isHighlighted ? Color.white.opacity(0.28) : accentBlue
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Image(systemName: icon)
-                .font(icon == "plus" ? .system(size: 30) : .title2)
-                .foregroundStyle(isHighlighted ? .white : accentBlue)
-
-            Spacer(minLength: 12)
+            Spacer(minLength: 0)
 
             Text(title)
                 .font(.custom("Nunito", size: 17).weight(.heavy))
@@ -614,15 +630,77 @@ struct IntakeCardContent: View {
                 .font(.custom("Nunito", size: 15))
                 .foregroundStyle(subtitleColor)
         }
+        // Mantém o texto branco legível onde ele passa do ícone para o fundo claro.
+        .shadow(color: icon != nil && !isHighlighted ? .black.opacity(0.35) : .clear, radius: 3, x: 0, y: 1)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
         .frame(height: height)
+        .background(alignment: .leading) {
+            // Ícone grande como fundo do cartão, deslocado para a esquerda e cortado pela borda.
+            if let icon {
+                GeometryReader { geo in
+                    let side = geo.size.height * 1.15
+                    backgroundIcon(icon)
+                        .foregroundStyle(backgroundIconColor)
+                        .frame(width: side, height: side)
+                        .offset(x: -side * icon.leadingOverflow, y: (geo.size.height - side) / 2 + side * 0.15)
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .accessibilityHidden(true)
+            }
+        }
         .background(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .fill(isHighlighted ? accentBlue : Color(UIColor.secondarySystemBackground))
                 .homeCardShadow()
         )
         .contentShape(RoundedRectangle(cornerRadius: 18))
+    }
+
+    @ViewBuilder
+    private func backgroundIcon(_ icon: IntakeCardIcon) -> some View {
+        switch icon {
+        case let .symbol(name, mirrored):
+            Image(systemName: name)
+                .resizable()
+                .scaledToFit()
+                .fontWeight(.semibold)
+                .scaleEffect(x: mirrored ? -1 : 1, y: 1)
+        case .bottle:
+            BottleShape()
+        }
+    }
+}
+
+/// Garrafa sólida (tampa + gargalo + corpo), mais larga que o SF Symbol para cobrir o texto do cartão.
+private struct BottleShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        func pt(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
+            CGPoint(x: rect.minX + x * rect.width, y: rect.minY + y * rect.height)
+        }
+        var path = Path()
+
+        // Tampa
+        path.addRoundedRect(
+            in: CGRect(origin: pt(0.36, 0.02), size: CGSize(width: rect.width * 0.28, height: rect.height * 0.10)),
+            cornerSize: CGSize(width: rect.width * 0.03, height: rect.width * 0.03),
+            style: .continuous
+        )
+
+        // Gargalo, ombros e corpo
+        path.move(to: pt(0.40, 0.15))
+        path.addLine(to: pt(0.60, 0.15))
+        path.addLine(to: pt(0.60, 0.19))
+        path.addQuadCurve(to: pt(0.81, 0.36), control: pt(0.81, 0.21))
+        path.addLine(to: pt(0.81, 0.88))
+        path.addQuadCurve(to: pt(0.71, 0.98), control: pt(0.81, 0.98))
+        path.addLine(to: pt(0.29, 0.98))
+        path.addQuadCurve(to: pt(0.19, 0.88), control: pt(0.19, 0.98))
+        path.addLine(to: pt(0.19, 0.36))
+        path.addQuadCurve(to: pt(0.40, 0.19), control: pt(0.19, 0.21))
+        path.closeSubpath()
+
+        return path
     }
 }
 
