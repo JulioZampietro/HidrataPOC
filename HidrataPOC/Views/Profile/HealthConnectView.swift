@@ -43,8 +43,8 @@ struct HealthConnectView: View {
             .navigationTitle("Saúde")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Fechar") { dismiss() }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Fechar", systemImage: "xmark") { dismiss() }
                         .font(.custom("Nunito", size: 16).weight(.semibold))
                 }
             }

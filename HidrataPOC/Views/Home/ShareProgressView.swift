@@ -448,7 +448,7 @@ struct ShareProgressView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Fechar") { dismiss() }
+                    Button("Fechar", systemImage: "xmark") { dismiss() }
                 }
             }
             .onChange(of: layout) { _, _ in resetSaveState() }

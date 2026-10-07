@@ -23,8 +23,8 @@ struct ActionButtonTutorialView: View {
             .appScreenBackground()
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Fechar") { dismiss() }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Fechar", systemImage: "xmark") { dismiss() }
                         .font(.custom("Nunito", size: 16).weight(.semibold))
                         .foregroundStyle(accentBlue)
                 }
