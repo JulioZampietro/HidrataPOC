@@ -164,6 +164,35 @@ final class CloudKitSyncService {
         }
     }
 
+    /// Pushed again whenever the scheduler or the policy updates the row (closing the
+    /// slot, resolving its outcome), so it carries its system fields like the others.
+    func push(_ decision: SlotDecision) async {
+        let record = existingOrNewRecord(type: "SlotDecision", id: decision.id, systemFields: decision.ckSystemFields)
+        record["id"] = decision.id.uuidString
+        record["userID"] = decision.userID
+        record["slotFiresAt"] = decision.slotFiresAt
+        record["decidedAt"] = decision.decidedAt
+        record["slotHour"] = decision.slotHour
+        record["actionRaw"] = decision.actionRaw
+        record["propensity"] = decision.propensity
+        record["policyVersion"] = decision.policyVersion
+        record["featuresJSON"] = decision.featuresJSON
+        record["notificationVariant"] = decision.notificationVariant
+        record["notificationEventID"] = decision.notificationEventID
+        record["suppressed"] = decision.suppressed.map { $0 ? 1 : 0 }
+        record["intakeInWindow"] = decision.intakeInWindow.map { $0 ? 1 : 0 }
+        record["resolvedAt"] = decision.resolvedAt
+
+        do {
+            let saved = try await container.publicCloudDatabase.save(record)
+            decision.ckSystemFields = archivedSystemFields(saved)
+            decision.syncStatus = .synced
+        } catch {
+            logger.error("Failed to push SlotDecision \(decision.id, privacy: .public): \(String(describing: error), privacy: .public)")
+            decision.syncStatus = .failed
+        }
+    }
+
     // MARK: - Deletion
 
     /// Deletes one record from the public database — used when a tester removes an
@@ -246,6 +275,11 @@ final class CloudKitSyncService {
         if let interactionEvents = try? context.fetch(FetchDescriptor<UIInteractionEvent>()) {
             for event in interactionEvents where event.syncStatus != .synced {
                 await push(event)
+            }
+        }
+        if let decisions = try? context.fetch(FetchDescriptor<SlotDecision>()) {
+            for decision in decisions where decision.syncStatus != .synced {
+                await push(decision)
             }
         }
         try? context.save()

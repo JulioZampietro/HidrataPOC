@@ -33,6 +33,9 @@ enum BackgroundRefreshService {
 
         let box = BGTaskBox(task)
         let workTask = Task {
+            // Lets the send-time policy decide the day's slots even if the app isn't
+            // opened that day.
+            await NotificationScheduler.shared.ensureTodayScheduled()
             await NotificationScheduler.shared.tick()
             box.task.setTaskCompleted(success: true)
         }

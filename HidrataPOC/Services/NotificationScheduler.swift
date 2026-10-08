@@ -24,6 +24,14 @@ struct PendingSlot: Codable, Equatable {
     /// the next 8h one) is armed (see `NotificationScheduler.armNextSlotIfClear`), so a slot whose
     /// time passes without this set was never sent and gets no `NotificationEvent`.
     var armedAt: Date? = nil
+    /// The send-time policy's decision for this slot (see `PolicyCoordinator`): true =
+    /// don't send. A skip is never handed to the system, but it still goes through
+    /// the delivery rule like a send — `armedAt` set means the rule would have let it
+    /// through — so the policy only learns from slots the rule didn't hold back.
+    /// nil for slots the policy didn't decide (snoozes, older builds): they send.
+    var skip: Bool? = nil
+
+    var isSkip: Bool { skip == true }
 }
 
 /// A swipe-dismiss recorded by `NotificationScheduler.recordDismissal`, waiting to be
@@ -55,6 +63,9 @@ enum SlotAction: Equatable {
     /// Its time has passed without it ever being armed — held back by an unanswered
     /// reminder — so nothing was shown: mark it done without a `NotificationEvent`.
     case dropUnsent
+    /// A slot the send-time policy skipped, whose time has passed: nothing was shown,
+    /// so mark it done without a `NotificationEvent`.
+    case skipped
 }
 
 /// Drives the whole "notification with context" pipeline described in the spec:
@@ -79,6 +90,12 @@ enum SlotAction: Equatable {
 /// only way to guarantee that is to keep just the next slot (plus the next 8h one)
 /// queued with the system, and to queue the one after only once the current one has
 /// been interacted with (`NotificationDelegate` → `armNextSlotIfClear`).
+///
+/// Which fixed hours get a reminder at all is up to the send-time policy (a per-user
+/// Thompson-sampling bandit, see `PolicyCoordinator`): it decides each slot ahead of
+/// time, send or skip, and only sends become notifications. The delivery rule above
+/// then applies to the sends exactly as before. Nothing ever fires in quiet hours
+/// (22h–8h, see `QuietHours`).
 @MainActor
 final class NotificationScheduler {
     static let shared = NotificationScheduler()
@@ -94,8 +111,9 @@ final class NotificationScheduler {
     /// Bumped whenever a build changes how requests are armed in a way that makes
     /// requests queued by an older build wrong (old copy, pushed-back times). On a
     /// mismatch, every pending hydration request is removed and today is re-scheduled.
+    /// 4: slots come from the send-time policy, and 22h is no longer a slot.
     private let schedulingSchemaVersionKey = "notificationSchedulingSchemaVersion"
-    private static let schedulingSchemaVersion = 3
+    private static let schedulingSchemaVersion = 4
     /// Dismissals recorded by `NotificationDelegate` without touching SwiftData (see
     /// `recordDismissal`), resolved on the next tick.
     nonisolated private static let pendingDismissalsKey = "pendingNotificationDismissals"
@@ -107,9 +125,10 @@ final class NotificationScheduler {
     /// also runs from the background dismiss path.
     private let lastMascotImageNameKey = "lastNotificationMascotImageName"
     private let lastMascotDayKey = "lastNotificationMascotDay"
-    /// Slots exist for today and the following days up to this count, so the next
-    /// reminder can be armed from a notification interaction (e.g. a 22h dismiss arms
-    /// tomorrow's 8h) without the app having to run first.
+    /// Without the send-time policy, slots exist for today and the following days up to
+    /// this count, so the next reminder can be armed from a notification interaction
+    /// (e.g. a 20h dismiss arms tomorrow's 8h) without the app having to run first.
+    /// The policy decides through tomorrow's first slot instead (see `PolicyCoordinator`).
     private static let scheduleDaysAhead = 2
     private let center = UNUserNotificationCenter.current()
 
@@ -147,24 +166,28 @@ final class NotificationScheduler {
         (try? await center.requestAuthorization(options: [.alert, .sound, .badge])) ?? false
     }
 
-    /// Creates a slot for each fixed reminder time (`Constants.notificationFixedHours`)
-    /// from now through the next `scheduleDaysAhead` days that doesn't already have one,
-    /// then arms the next slot if nothing is waiting on the tester. Idempotent per fixed
-    /// hour, so it's safe to call on every launch/foreground. Safe to call concurrently
-    /// too — overlapping callers all await the same in-flight work (see
-    /// `inflightEnsureTodayScheduledTask`).
-    func ensureTodayScheduled() async {
+    /// Asks the send-time policy about every fixed reminder time from now through
+    /// tomorrow's first one, and creates a slot for each decision that doesn't already
+    /// have one, then arms the next slot if nothing is waiting on the tester.
+    /// Idempotent per fixed hour, so it's safe to call on every launch/foreground. Safe
+    /// to call concurrently too — overlapping callers all await the same in-flight work
+    /// (see `inflightEnsureTodayScheduledTask`).
+    ///
+    /// `preferCachedWeather` skips the location + WeatherKit round trip (and the
+    /// policy's CloudKit check) — for the notification-response path, which may run in
+    /// a short background launch.
+    func ensureTodayScheduled(preferCachedWeather: Bool = false) async {
         if let inflightEnsureTodayScheduledTask {
             await inflightEnsureTodayScheduledTask.value
             return
         }
-        let task = Task { await self.performEnsureTodayScheduled() }
+        let task = Task { await self.performEnsureTodayScheduled(preferCachedWeather: preferCachedWeather) }
         inflightEnsureTodayScheduledTask = task
         await task.value
         inflightEnsureTodayScheduledTask = nil
     }
 
-    private func performEnsureTodayScheduled() async {
+    private func performEnsureTodayScheduled(preferCachedWeather: Bool) async {
         // No point scheduling reminders (or capturing context for them) before
         // onboarding has created a profile — there's no goal/timezone to reason about
         // yet, and `captureContext` would silently no-op without one.
@@ -177,24 +200,27 @@ final class NotificationScheduler {
 
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: .now)
+        let provider = AppPolicyContextProvider(profile: profile, logs: logs) {
+            preferCachedWeather ? WeatherContextService.shared.cachedContext : await WeatherContextService.shared.currentContext()
+        }
+        let plan = await plannedSlots(profile: profile, provider: provider, refreshParams: !preferCachedWeather)
         let existing = Set(loadPendingSlots().map(\.firesAt))
-        let firesAtTimes = (0..<Self.scheduleDaysAhead)
-            .compactMap { calendar.date(byAdding: .day, value: $0, to: today) }
-            .flatMap { day in
-                Constants.notificationFixedHours.compactMap { calendar.date(bySettingHour: $0, minute: 0, second: 0, of: day) }
-            }
-            .filter { $0 > .now && !existing.contains($0) }
+        let newPlan = plan.filter { $0.firesAt > .now && !existing.contains($0.firesAt) }
 
-        if !firesAtTimes.isEmpty {
-            // Every slot gets its persona copy up front, so whichever one gets armed —
-            // possibly from a background notification response — already has it. The
-            // capture pass a few minutes before firing only refines it. Weather is
-            // unknown for later days, which leaves those to the time-of-day rules.
-            let weather = await WeatherContextService.shared.currentContext()
-            let newSlots = firesAtTimes.map { firesAt in
-                let dayWeather = calendar.isDate(firesAt, inSameDayAs: today) ? weather : nil
-                let variant = Self.selectVariant(firesAt: firesAt, weather: dayWeather, profile: profile, logs: logs)
-                return PendingSlot(id: UUID(), firesAt: firesAt, captured: false, variant: variant.rawValue)
+        if !newPlan.isEmpty {
+            // Every slot that sends gets its persona copy up front, so whichever one
+            // gets armed — possibly from a background notification response — already
+            // has it. The capture pass a few minutes before firing only refines it.
+            // Weather is unknown for later days, which leaves those to the time-of-day
+            // rules.
+            let weather = await provider.currentWeather()
+            let newSlots = newPlan.map { item in
+                if item.skip == true {
+                    return PendingSlot(id: UUID(), firesAt: item.firesAt, captured: false, skip: true)
+                }
+                let dayWeather = calendar.isDate(item.firesAt, inSameDayAs: today) ? weather : nil
+                let variant = Self.selectVariant(firesAt: item.firesAt, weather: dayWeather, profile: profile, logs: logs)
+                return PendingSlot(id: UUID(), firesAt: item.firesAt, captured: false, variant: variant.rawValue, skip: item.skip)
             }
             // Re-read before saving: a tick or snooze may have written the list during
             // the await above, and saving the stale copy would drop its changes.
@@ -217,8 +243,9 @@ final class NotificationScheduler {
     /// - On a scheduling-schema change, removes every pending hydration request (older
     ///   builds queued every slot at once, some with generic copy and pushed-back
     ///   times) and drops the uncaptured future slots they belonged to, so the caller
-    ///   re-creates them. Past uncaptured slots are marked armed, since older builds
-    ///   armed every slot — they were shown and still need recording.
+    ///   re-creates them. Coming from a build older than schema 3, past uncaptured
+    ///   slots are marked armed, since those builds armed every slot — they were shown
+    ///   and still need recording.
     /// - Backfills slots whose `variant` is missing or unreadable, so nothing downstream
     ///   ever has to fall back to the generic copy for a tester who has a profile.
     private func migrateSlotsIfNeeded(profile: UserProfile, logs: [IntakeLog]) async {
@@ -226,7 +253,8 @@ final class NotificationScheduler {
         var slots = loadPendingSlots()
         var didChange = false
 
-        if defaults.integer(forKey: schedulingSchemaVersionKey) != Self.schedulingSchemaVersion {
+        let previousVersion = defaults.integer(forKey: schedulingSchemaVersionKey)
+        if previousVersion != Self.schedulingSchemaVersion {
             let pending = await center.pendingNotificationRequests()
             let staleIDs = pending
                 .filter { $0.content.categoryIdentifier == Constants.NotificationCategory.hydrationReminder }
@@ -236,8 +264,10 @@ final class NotificationScheduler {
             let now = Date.now
             slots = loadPendingSlots()
             slots.removeAll { !$0.captured && $0.firesAt > now }
-            for index in slots.indices where !slots[index].captured && slots[index].armedAt == nil {
-                slots[index].armedAt = slots[index].firesAt
+            if previousVersion < 3 {
+                for index in slots.indices where !slots[index].captured && slots[index].armedAt == nil {
+                    slots[index].armedAt = slots[index].firesAt
+                }
             }
             defaults.removeObject(forKey: legacyScheduledDayKey)
             defaults.set(Self.schedulingSchemaVersion, forKey: schedulingSchemaVersionKey)
@@ -245,7 +275,7 @@ final class NotificationScheduler {
         }
 
         let weather = WeatherContextService.shared.cachedContext
-        for index in slots.indices where slots[index].variant.flatMap(NotificationVariant.init(rawValue:)) == nil {
+        for index in slots.indices where !slots[index].isSkip && slots[index].variant.flatMap(NotificationVariant.init(rawValue:)) == nil {
             slots[index].variant = Self.selectVariant(firesAt: slots[index].firesAt, weather: weather, profile: profile, logs: logs).rawValue
             didChange = true
         }
@@ -253,6 +283,67 @@ final class NotificationScheduler {
         if didChange {
             savePendingSlots(slots)
         }
+    }
+
+    // MARK: - Send-time policy
+
+    /// The upcoming fixed-hour slots and whether each one sends, as decided by the
+    /// send-time policy — or, if the policy has no usable params or fails, every fixed
+    /// hour through `scheduleDaysAhead`, as before the policy existed. Nothing while
+    /// notifications aren't authorized: a "send" would never reach the tester, so its
+    /// outcome would teach the policy nothing.
+    private func plannedSlots(profile: UserProfile, provider: AppPolicyContextProvider, refreshParams: Bool) async -> [(firesAt: Date, skip: Bool?)] {
+        guard await isAuthorizedForNotifications() else { return [] }
+        let context = PersistenceController.context
+        // Before the cycle learns from finished slots, so it knows which ones count.
+        closePolicyDecisions(context: context)
+        let coordinator = PolicyCoordinator(context: context, provider: provider, userID: profile.userID)
+        do {
+            if let decisions = try await coordinator.runCycle(refreshParams: refreshParams) {
+                return decisions.map { ($0.slotFiresAt, !$0.isSend) }
+            }
+        } catch {
+            print("⚠️ NotificationScheduler: send-time policy failed, falling back to every fixed hour: \(error)")
+        }
+
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: .now)
+        return (0..<Self.scheduleDaysAhead)
+            .compactMap { calendar.date(byAdding: .day, value: $0, to: today) }
+            .flatMap { day in
+                Constants.notificationFixedHours.compactMap { calendar.date(bySettingHour: $0, minute: 0, second: 0, of: day) }
+            }
+            .map { ($0, nil) }
+    }
+
+    /// Records, for every policy decision whose slot time has passed, whether the
+    /// delivery rule let it through (`armedAt` set — for a skip, that it would have),
+    /// so the policy only learns from slots the tester could actually have gotten a
+    /// reminder at (see `SlotDecision.suppressed`). `armedAt` is only ever cleared on
+    /// future slots, so it's final once the slot's time has passed.
+    private func closePolicyDecisions(context: ModelContext) {
+        guard let profile = try? context.fetch(FetchDescriptor<UserProfile>()).first else { return }
+        let targetUserID = profile.userID
+        let now = Date.now
+        let predicate = #Predicate<SlotDecision> { $0.userID == targetUserID && $0.suppressed == nil && $0.slotFiresAt <= now }
+        guard let open = try? context.fetch(FetchDescriptor(predicate: predicate)), !open.isEmpty else { return }
+
+        let slots = loadPendingSlots()
+        for decision in open {
+            // No matching slot (dropped after a day without the app running, or a
+            // fallback slot took its place): what reached the tester is unknown, so
+            // it's never learned from.
+            let slot = slots.first { $0.firesAt == decision.slotFiresAt && $0.skip == !decision.isSend }
+            let reached = slot?.armedAt != nil
+            decision.suppressed = !reached
+            if reached, decision.isSend, let slot {
+                // The slot's id is also its NotificationEvent's id.
+                decision.notificationVariant = slot.variant
+                decision.notificationEventID = slot.id.uuidString
+            }
+            decision.syncStatus = .pending
+        }
+        try? context.save()
     }
 
     // MARK: - One reminder at a time
@@ -288,9 +379,14 @@ final class NotificationScheduler {
         let authorized = await isAuthorizedForNotifications()
 
         let slots = loadPendingSlots()
+        // Never arms anything in quiet hours (e.g. a snooze past 22h), and since every
+        // pending request that isn't armed here is removed below, this also clears
+        // any quiet-hours request an older build queued.
+        let params = PolicyStore.shared.loadParams()
+        let armable = slots.filter { QuietHours.allows($0.firesAt, params: params) }
         // Without permission `center.add` fails silently, and the slot would be
         // recorded as sent; leave it unarmed so it's dropped instead.
-        let toArm = authorized ? Self.slotsToArm(slots, now: now, delivered: delivered) : []
+        let toArm = authorized ? Self.slotsToArm(armable, now: now, delivered: delivered) : []
         let toArmIDs = Set(toArm.map(\.id.uuidString))
 
         removePendingRequests(withIdentifiers: pendingIDs.filter { !toArmIDs.contains($0) })
@@ -299,6 +395,14 @@ final class NotificationScheduler {
         }
 
         for slot in toArm where !pendingIDs.contains(slot.id.uuidString) {
+            // A skip is never handed to the system: marking it armed only records that
+            // the delivery rule let it through.
+            if slot.isSkip {
+                if slot.armedAt == nil {
+                    updateSlot(id: slot.id) { $0.armedAt = now }
+                }
+                continue
+            }
             let variant = slot.variant.flatMap(NotificationVariant.init(rawValue:)) ?? .fallbackGeneric
             updateSlot(id: slot.id) { $0.armedAt = now }
             await armSlot(id: slot.id, firesAt: slot.firesAt, variant: variant, sender: cachedMascotSender(title: variant.title, firesAt: slot.firesAt))
@@ -306,9 +410,11 @@ final class NotificationScheduler {
     }
 
     /// The slots that should be queued with the system right now — pure, for tests.
-    /// The earliest future slot, unless a reminder from the current reminder day is
-    /// unanswered (then nothing until the tester acts on it); plus, always, the next
-    /// first-of-day slot, so an unread reminder never silences the next morning.
+    /// The earliest future slot that sends, unless a reminder from the current
+    /// reminder day is unanswered (then nothing until the tester acts on it); plus,
+    /// always, the next first-of-day slot, so an unread reminder never silences the
+    /// next morning. Skipped slots before the next send are included too: nothing
+    /// will be shown before they pass, so the rule lets them through as well.
     nonisolated static func slotsToArm(
         _ slots: [PendingSlot],
         now: Date,
@@ -320,8 +426,11 @@ final class NotificationScheduler {
         let hasUnanswered = delivered.contains { $0.date >= dayStart }
 
         var toArm: [PendingSlot] = []
-        if !hasUnanswered, let next = upcoming.first {
-            toArm.append(next)
+        if !hasUnanswered {
+            for slot in upcoming {
+                toArm.append(slot)
+                if !slot.isSkip { break }
+            }
         }
         if let morning = upcoming.first(where: { isFirstSlotOfDay($0.firesAt, calendar: calendar) }),
            !toArm.contains(morning) {
@@ -362,6 +471,7 @@ final class NotificationScheduler {
         // in Notification Center), which unblocks the next one.
         await armNextSlotIfClear()
         await captureImminentSlots(context: context)
+        closePolicyDecisions(context: context)
         // Before the timeout pass, so a dismissal keeps its real `tempoAteAgirMin`
         // instead of being swept up as a plain timeout.
         await resolvePendingDismissals(context: context)
@@ -397,7 +507,7 @@ final class NotificationScheduler {
                     if let variant { $0.variant = variant.rawValue }
                     $0.captured = true
                 }
-            case .dropUnsent:
+            case .dropUnsent, .skipped:
                 updateSlot(id: slot.id) { $0.captured = true }
             }
         }
@@ -415,6 +525,9 @@ final class NotificationScheduler {
         delivered: [DeliveredReminder]
     ) -> SlotAction {
         guard !slot.captured else { return .wait }
+        if slot.isSkip {
+            return slot.firesAt <= now ? .skipped : .wait
+        }
         if slot.firesAt <= now {
             let wasShown = slot.armedAt != nil || delivered.contains { $0.id == slot.id.uuidString }
             return wasShown ? .recordFired : .dropUnsent

@@ -97,6 +97,16 @@
 		GG11223344556677889900GG /* Nunito.ttf in Resources */ = {isa = PBXBuildFile; fileRef = EE11223344556677889900EE /* Nunito.ttf */; };
 		HH11223344556677889900HH /* HealthKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = II11223344556677889900II /* HealthKitService.swift */; };
 		JJ11223344556677889900JJ /* HealthConnectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = KK11223344556677889900KK /* HealthConnectView.swift */; };
+		0A32D669D718433CBF742D37 /* PolicyParams.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D7C2D41B82DD8C334F89DED /* PolicyParams.swift */; };
+		946DC7DF28CB2F9A4403CA7C /* ThompsonPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 975F7EAC79674C4A3BC1F72D /* ThompsonPolicy.swift */; };
+		96F36B6A9A3A524B130E9C06 /* PolicyStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F90B29641D2FDE688B67911E /* PolicyStore.swift */; };
+		E5D0809277E11A98280CB2EC /* PolicyCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9529B6A1E2B572F922B352A8 /* PolicyCoordinator.swift */; };
+		FB39507F9096ACC2121F23A6 /* AppPolicyContextProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49106A18C95EEC5CFA01767B /* AppPolicyContextProvider.swift */; };
+		A241932E4E9A4774830FCF8C /* policy_params.json in Resources */ = {isa = PBXBuildFile; fileRef = F6DE6AEFDD05AEE4ECEDC8B6 /* policy_params.json */; };
+		6E7E4F17FD8DD2DC28264510 /* SlotDecision.swift in Sources */ = {isa = PBXBuildFile; fileRef = 895A66ADF648A6012778F8B5 /* SlotDecision.swift */; };
+		12CE484794FFC757AC70F60D /* SlotDecision.swift in Sources */ = {isa = PBXBuildFile; fileRef = 895A66ADF648A6012778F8B5 /* SlotDecision.swift */; };
+		656AECD94C3D1D59A81A07F8 /* ThompsonPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E29859AFA6016B9CD4129DD3 /* ThompsonPolicyTests.swift */; };
+		EB873C2FA0B19E03D6A4DE63 /* Fixtures/policy_parity_vectors.json in Resources */ = {isa = PBXBuildFile; fileRef = BBAB78F8BE483135D5CBDEE5 /* Fixtures/policy_parity_vectors.json */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -231,6 +241,15 @@
 		FA12B3C9D0E74A8B1C2D5F6F /* FeatureOnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeatureOnboardingView.swift; sourceTree = "<group>"; };
 		II11223344556677889900II /* HealthKitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitService.swift; sourceTree = "<group>"; };
 		KK11223344556677889900KK /* HealthConnectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthConnectView.swift; sourceTree = "<group>"; };
+		4D7C2D41B82DD8C334F89DED /* PolicyParams.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PolicyParams.swift; sourceTree = "<group>"; };
+		975F7EAC79674C4A3BC1F72D /* ThompsonPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThompsonPolicy.swift; sourceTree = "<group>"; };
+		F90B29641D2FDE688B67911E /* PolicyStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PolicyStore.swift; sourceTree = "<group>"; };
+		9529B6A1E2B572F922B352A8 /* PolicyCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PolicyCoordinator.swift; sourceTree = "<group>"; };
+		49106A18C95EEC5CFA01767B /* AppPolicyContextProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppPolicyContextProvider.swift; sourceTree = "<group>"; };
+		F6DE6AEFDD05AEE4ECEDC8B6 /* policy_params.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = policy_params.json; sourceTree = "<group>"; };
+		895A66ADF648A6012778F8B5 /* SlotDecision.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlotDecision.swift; sourceTree = "<group>"; };
+		E29859AFA6016B9CD4129DD3 /* ThompsonPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThompsonPolicyTests.swift; sourceTree = "<group>"; };
+		BBAB78F8BE483135D5CBDEE5 /* Fixtures/policy_parity_vectors.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Fixtures/policy_parity_vectors.json; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -301,6 +320,8 @@
 				0589AAEA6C294F99934668E1 /* InteractionTrackerTests.swift */,
 				949353F3A50444289F1B24C6 /* NotificationVariantSelectionTests.swift */,
 				7C1D2E3F4A5B6C7D8E9F0A1C /* NotificationSlotDecisionTests.swift */,
+				E29859AFA6016B9CD4129DD3 /* ThompsonPolicyTests.swift */,
+				BBAB78F8BE483135D5CBDEE5 /* Fixtures/policy_parity_vectors.json */,
 			);
 			path = HidrataPOCTests;
 			sourceTree = "<group>";
@@ -406,6 +427,7 @@
 				575F9F9ED22AB3F667CCDDC7 /* SyncStatus.swift */,
 				89E03889516701BE00C6A8E4 /* UserProfile.swift */,
 				F51BAE834F7A497D9A17644C /* UIInteractionEvent.swift */,
+				895A66ADF648A6012778F8B5 /* SlotDecision.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -438,6 +460,7 @@
 				4C12462E0EB83AA10E9243D6 /* App */,
 				A5C2826B791C60DAFC1DD4B3 /* Intents */,
 				947D52ACEA55C75BA6DCC282 /* Models */,
+				E2EAAB16821D6103DFC53C21 /* Policy */,
 				7BD7A632BB06ABF66282B529 /* Services */,
 				540285AFA5CF3741D1F4CAB7 /* Shared */,
 				00C006579CA0523A2042261B /* Support */,
@@ -499,6 +522,19 @@
 			path = HydrationKit;
 			sourceTree = "<group>";
 		};
+		E2EAAB16821D6103DFC53C21 /* Policy */ = {
+			isa = PBXGroup;
+			children = (
+				4D7C2D41B82DD8C334F89DED /* PolicyParams.swift */,
+				975F7EAC79674C4A3BC1F72D /* ThompsonPolicy.swift */,
+				F90B29641D2FDE688B67911E /* PolicyStore.swift */,
+				9529B6A1E2B572F922B352A8 /* PolicyCoordinator.swift */,
+				49106A18C95EEC5CFA01767B /* AppPolicyContextProvider.swift */,
+				F6DE6AEFDD05AEE4ECEDC8B6 /* policy_params.json */,
+			);
+			path = Policy;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -525,6 +561,7 @@
 			buildConfigurationList = B3AD0A0DDDDEF95E15DB0F92 /* Build configuration list for PBXNativeTarget "HidrataPOCTests" */;
 			buildPhases = (
 				86340BA92EB3B6001A8BA5EE /* Sources */,
+				4ACA14ABAA082071A847A3A6 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -629,6 +666,7 @@
 				06C46879FF254B37AC86F09C /* Nunito-Bold.ttf in Resources */,
 				GG11223344556677889900GG /* Nunito.ttf in Resources */,
 				1968D6749D2815CB458BE807 /* Sounds/gulun.caf in Resources */,
+				A241932E4E9A4774830FCF8C /* policy_params.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -637,6 +675,14 @@
 			buildActionMask = 2147483647;
 			files = (
 				6B35FD38E3103ECE4D7321B8 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		4ACA14ABAA082071A847A3A6 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				EB873C2FA0B19E03D6A4DE63 /* Fixtures/policy_parity_vectors.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -661,6 +707,7 @@
 				F08622324B2A40469FE2AC5D /* InteractionTrackerTests.swift in Sources */,
 				15A0FC549FFA47EEA262A4FA /* NotificationVariantSelectionTests.swift in Sources */,
 				7C1D2E3F4A5B6C7D8E9F0A1B /* NotificationSlotDecisionTests.swift in Sources */,
+				656AECD94C3D1D59A81A07F8 /* ThompsonPolicyTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -704,6 +751,12 @@
 				9E0E56EBE65D19A248EAEE28 /* PermissionsCoordinator.swift in Sources */,
 				38B4362930654D550041595B /* Bubble.metal in Sources */,
 				C4D59AF23B75095AE1776740 /* PersistenceController.swift in Sources */,
+				0A32D669D718433CBF742D37 /* PolicyParams.swift in Sources */,
+				946DC7DF28CB2F9A4403CA7C /* ThompsonPolicy.swift in Sources */,
+				96F36B6A9A3A524B130E9C06 /* PolicyStore.swift in Sources */,
+				E5D0809277E11A98280CB2EC /* PolicyCoordinator.swift in Sources */,
+				FB39507F9096ACC2121F23A6 /* AppPolicyContextProvider.swift in Sources */,
+				6E7E4F17FD8DD2DC28264510 /* SlotDecision.swift in Sources */,
 				CCF46130AF549FBA9BBDBAA8 /* ProfileFormView.swift in Sources */,
 				BAD54F5B8B4D14D2F3D4E044 /* ProfileView.swift in Sources */,
 				HH11223344556677889900HH /* HealthKitService.swift in Sources */,
@@ -741,6 +794,7 @@
 				A21C9E6F5B8E4E2D9C7A3F10 /* NotificationVariant.swift in Sources */,
 				75ED8417F44DA378C2F7848E /* PersistenceController.swift in Sources */,
 				7096EB9CD8E24648B9AC6B2B /* UIInteractionEvent.swift in Sources */,
+				12CE484794FFC757AC70F60D /* SlotDecision.swift in Sources */,
 				10A05D5E80D99497B247289A /* SyncStatus.swift in Sources */,
 				82FE3E0466BBD8C5EF72ECE3 /* UserProfile.swift in Sources */,
 				2A1D8B0D2B76B6F3EA0A6273 /* WaterIntakeCalculator.swift in Sources */,
