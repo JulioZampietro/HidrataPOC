@@ -1,6 +1,5 @@
 import SwiftUI
 
-private let accent = Color(red: 0.1098, green: 0.4627, blue: 0.9922)
 
 struct FeatureOnboardingView: View {
     let onDismiss: () -> Void
@@ -34,7 +33,7 @@ struct FeatureOnboardingView: View {
             HStack(spacing: 8) {
                 ForEach(pages.indices, id: \.self) { index in
                     Capsule()
-                        .fill(index == currentPage ? accent : accent.opacity(0.25))
+                        .fill(index == currentPage ? Color.appAccent : Color.appAccent.opacity(0.25))
                         .frame(width: index == currentPage ? 20 : 8, height: 8)
                         .animation(.spring(response: 0.3), value: currentPage)
                 }
@@ -44,11 +43,11 @@ struct FeatureOnboardingView: View {
             if currentPage == pages.count - 1 {
                 HStack(spacing: 6) {
                     Image(systemName: "person.fill")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(accent)
+                        .font(.system(.footnote, weight: .semibold))
+                        .foregroundStyle(Color.appAccentText)
                     Text("Acesse **Perfil** para ver isso novamente a qualquer momento.")
                         .font(.custom("Nunito", size: 13))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.appSecondary)
                 }
                 .padding(.horizontal, 32)
                 .multilineTextAlignment(.center)
@@ -69,7 +68,7 @@ struct FeatureOnboardingView: View {
                     .padding(.vertical, 6)
             }
             .buttonStyle(.glassProminent)
-            .tint(accent)
+            .tint(Color.appAccent)
             .animation(.easeInOut, value: currentPage)
         }
         .padding(.bottom, 36)
@@ -118,15 +117,15 @@ private struct ActionButtonPage: View {
     private var compatibilityBadge: some View {
         HStack(spacing: 8) {
             Image(systemName: "iphone")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(accent)
+                .font(.system(.caption, weight: .semibold))
+                .foregroundStyle(Color.appAccentText)
             Text("iPhone 15 Pro, 16 e posteriores · iOS 18+")
                 .font(.custom("Nunito", size: 13).weight(.semibold))
-                .foregroundStyle(accent)
+                .foregroundStyle(Color.appAccentText)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
-        .background(accent.opacity(0.1), in: Capsule())
+        .background(Color.appAccent.opacity(0.1), in: Capsule())
     }
 
     private var stepsCard: some View {
@@ -151,15 +150,15 @@ private struct ActionButtonPage: View {
         VStack(spacing: 0) {
             HStack(spacing: 14) {
                 ZStack {
-                    Circle().fill(accent).frame(width: 28, height: 28)
+                    Circle().fill(Color.appAccent).frame(width: 28, height: 28)
                     Text("\(number)")
                         .font(.custom("Nunito", size: 13).weight(.heavy))
                         .foregroundStyle(.white)
                 }
                 HStack(spacing: 6) {
                     Image(systemName: icon)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(accent)
+                        .font(.system(.caption, weight: .semibold))
+                        .foregroundStyle(Color.appAccentText)
                     Text(title)
                         .font(.custom("Nunito", size: 14).weight(.semibold))
                         .foregroundStyle(.primary)
@@ -222,8 +221,8 @@ private struct SiriPage: View {
                 VStack(spacing: 0) {
                     HStack(spacing: 10) {
                         Image(systemName: phrase.icon)
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(accent)
+                            .font(.system(.caption, weight: .semibold))
+                            .foregroundStyle(Color.appAccentText)
                             .frame(width: 18)
                         Text(phrase.text)
                             .font(.custom("Nunito", size: 13))
@@ -232,7 +231,7 @@ private struct SiriPage: View {
                         Spacer()
                         Text(phrase.result)
                             .font(.custom("Nunito", size: 12).weight(.bold))
-                            .foregroundStyle(accent)
+                            .foregroundStyle(Color.appAccentText)
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
@@ -249,12 +248,12 @@ private struct SiriPage: View {
     private var tipsRow: some View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: "lock.fill")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.green)
+                .font(.system(.footnote, weight: .semibold))
+                .foregroundStyle(Color.appSuccess)
                 .padding(.top, 1)
             Text("Funciona com a **tela bloqueada** e sem precisar de frases exatas — fale naturalmente.")
                 .font(.custom("Nunito", size: 13))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.appSecondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(14)
@@ -268,11 +267,11 @@ private func pageHeader(icon: String, title: String, subtitle: String) -> some V
     VStack(spacing: 10) {
         ZStack {
             Circle()
-                .fill(accent.opacity(0.12))
+                .fill(Color.appAccent.opacity(0.12))
                 .frame(width: 76, height: 76)
             Image(systemName: icon)
                 .font(.system(size: 34, weight: .semibold))
-                .foregroundStyle(accent)
+                .foregroundStyle(Color.appAccentText)
         }
 
         Text(title)
@@ -281,7 +280,7 @@ private func pageHeader(icon: String, title: String, subtitle: String) -> some V
 
         Text(subtitle)
             .font(.custom("Nunito", size: 15))
-            .foregroundStyle(.secondary)
+            .foregroundStyle(Color.appSecondary)
             .multilineTextAlignment(.center)
             .padding(.horizontal, 16)
     }

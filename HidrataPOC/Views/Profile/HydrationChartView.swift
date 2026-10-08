@@ -18,7 +18,7 @@ struct HydrationChartView: View {
 
             RuleMark(y: .value("Meta", metaDiariaML))
                 .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.appSecondary)
         }
         .chartXAxis {
             AxisMarks(values: .stride(by: .day)) { value in

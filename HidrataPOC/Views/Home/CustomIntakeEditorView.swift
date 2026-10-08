@@ -30,7 +30,7 @@ struct CustomIntakeEditorView: View {
                             .keyboardType(.numberPad)
                             .multilineTextAlignment(.trailing)
                             .frame(width: 90)
-                        Text("mL").foregroundStyle(.secondary)
+                        Text("mL").foregroundStyle(Color.appSecondary)
                     }
 
                     Slider(value: $amountML, in: 50...1500, step: 50) {
@@ -43,6 +43,8 @@ struct CustomIntakeEditorView: View {
                 }
             }
             .navigationTitle("Volume personalizado")
+            .scrollContentBackground(.hidden)
+            .appScreenBackground()
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
