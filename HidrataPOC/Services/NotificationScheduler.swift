@@ -643,6 +643,7 @@ final class NotificationScheduler {
         let notificationEventID = log.notificationEventID
         context.delete(log)
         try? context.save()
+        WidgetSync.reloadWaterTank()
 
         await HealthKitService.shared.delete(logID: logID)
         await CloudKitSyncService.shared.delete(recordType: "IntakeLog", id: logID)
@@ -768,6 +769,9 @@ final class NotificationScheduler {
         // as a custom sound, so it's bundled converted to Linear PCM .caf. Must stay
         // under 30s, or iOS falls back to the default sound.
         content.sound = UNNotificationSound(named: UNNotificationSoundName("gulun.caf"))
+        // Max relevance (0...1): the system uses it to pick which notification to
+        // feature in the Notification Summary and at the top of its group.
+        content.relevanceScore = 1
 
         // Communication Notifications (requires the entitlement in
         // HidrataPOC.entitlements): donating an `INSendMessageIntent` whose sender

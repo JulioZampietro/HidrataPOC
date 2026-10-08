@@ -46,10 +46,10 @@ struct CustomIntakeEditorView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancelar") { dismiss() }
+                    Button("Cancelar", systemImage: "xmark") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Salvar") {
+                    Button("Salvar", systemImage: "checkmark") {
                         onSave(max(50, Int(amountML.rounded())))
                         dismiss()
                     }

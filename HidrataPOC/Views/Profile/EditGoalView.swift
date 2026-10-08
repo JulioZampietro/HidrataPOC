@@ -46,10 +46,10 @@ struct EditGoalView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancelar") { dismiss() }
+                    Button("Cancelar", systemImage: "xmark") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Salvar") {
+                    Button("Salvar", systemImage: "checkmark") {
                         let value = parsedValue.map { min(max($0, 0), Self.maxML) } ?? initialValueML
                         onSave(value)
                         dismiss()

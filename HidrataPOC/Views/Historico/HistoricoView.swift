@@ -843,8 +843,8 @@ struct DayDetailSheet: View {
             .navigationTitle("Detalhe do dia")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Fechar") { dismiss() }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Fechar", systemImage: "xmark") { dismiss() }
                 }
             }
         }

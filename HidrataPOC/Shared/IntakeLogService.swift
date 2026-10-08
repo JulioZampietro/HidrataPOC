@@ -54,6 +54,7 @@ enum IntakeLogService {
             }
         }
         try? context.save()
+        WidgetSync.reloadWaterTank()
 
         await onIntakeRecorded?(log.volumeML, log.timestamp, log.id)
 

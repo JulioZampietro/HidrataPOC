@@ -89,6 +89,10 @@ struct HomeView: View {
             }
         }
         .task { await loadWeather() }
+        // Keeps the Home Screen water tank widget filling against the same goal as the bar.
+        .onChange(of: effectiveGoalML, initial: true) { _, goal in
+            WidgetSync.saveEffectiveGoal(goal)
+        }
         .onAppear {
             guard tempContext == nil else { return }
             Task {
