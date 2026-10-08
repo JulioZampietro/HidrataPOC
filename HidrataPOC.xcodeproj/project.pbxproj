@@ -7,6 +7,11 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		90B88EEE30E6120D1C0931C0 /* WidgetSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0ED3C57B3E0FF922F5677A1F /* WidgetSync.swift */; };
+		DF7AE5DE9B5CAB95B932B397 /* WidgetSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0ED3C57B3E0FF922F5677A1F /* WidgetSync.swift */; };
+		D79129B170440EF290F85C00 /* WaterTankWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA08019528BF7298D9DF4F8C /* WaterTankWidget.swift */; };
+		456A8201CECF4DA1F5B33F5A /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00E817B37463672B4A760387 /* AppTheme.swift */; };
+		6B35FD38E3103ECE4D7321B8 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A0D580C72F1533B3EFE57FD3 /* Assets.xcassets */; };
 		00FFFB683C1484BEDAB9EB23 /* HidrataPOCApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1E20512978CBB3411673F86 /* HidrataPOCApp.swift */; };
 		044AFD6D58D9A11B3600EC06 /* WeatherContextService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 540637DEA5459F68897F943E /* WeatherContextService.swift */; };
 		06C46879FF254B37AC86F09C /* Nunito-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 87F6CEC61D0EB34F2C4E96D3 /* Nunito-Bold.ttf */; };
@@ -151,6 +156,9 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		0ED3C57B3E0FF922F5677A1F /* WidgetSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetSync.swift; sourceTree = "<group>"; };
+		DA08019528BF7298D9DF4F8C /* WaterTankWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaterTankWidget.swift; sourceTree = "<group>"; };
+		A0D580C72F1533B3EFE57FD3 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		00E817B37463672B4A760387 /* AppTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTheme.swift; sourceTree = "<group>"; };
 		0589AAEA6C294F99934668E1 /* InteractionTrackerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractionTrackerTests.swift; sourceTree = "<group>"; };
 		064BE38709D54C95B06FC813 /* NotificationVariant.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationVariant.swift; sourceTree = "<group>"; };
@@ -347,6 +355,7 @@
 				2D3E4F5A6B7C8D9E0F1A2B3C /* MascotSpeechBubble.swift */,
 				CE7F365F2411B00DB1CBCB64 /* MascotShatterView.swift */,
 				B25B4016D397F16E2119D1FF /* WaterFillView.swift */,
+				0ED3C57B3E0FF922F5677A1F /* WidgetSync.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -467,6 +476,8 @@
 				2503669AFFB90410A6F12B75 /* Info.plist */,
 				DE421AF8596C6FF6DD295ED6 /* LogIntakeIntent.swift */,
 				27DADD46B8ED63F7B4C704B4 /* LogIntakeControlIntent.swift */,
+				DA08019528BF7298D9DF4F8C /* WaterTankWidget.swift */,
+				A0D580C72F1533B3EFE57FD3 /* Assets.xcassets */,
 			);
 			path = HydrationWidget;
 			sourceTree = "<group>";
@@ -497,6 +508,7 @@
 			buildPhases = (
 				F5F167EAA8F111031CA002FA /* Sources */,
 				5108A204B4BB55CAD7920E43 /* Frameworks */,
+				117E7D2286227FC315AC721E /* Resources */,
 			);
 			buildRules = (
 			);
@@ -620,6 +632,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		117E7D2286227FC315AC721E /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6B35FD38E3103ECE4D7321B8 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -666,6 +686,7 @@
 				ED310A2AD7021F64EFBB3C64 /* HydrationMath.swift in Sources */,
 				8DE7FD7B97BBF583ACF51FDF /* IntakeLog.swift in Sources */,
 				A6F8E0F841F2C32C7DA91AF1 /* IntakeLogService.swift in Sources */,
+				90B88EEE30E6120D1C0931C0 /* WidgetSync.swift in Sources */,
 				65DAF3C87F6774FC3208F113 /* LiquidBubbleView.swift in Sources */,
 				1D2F3A4B5C6D7E8F9A0B1C2D /* MascotSpeechBubble.swift in Sources */,
 				98ABE434F234B5BFEF1F72D6 /* MascotShatterView.swift in Sources */,
@@ -712,6 +733,9 @@
 				EB788AF77AB02B3393EC1CC6 /* HydrationWidgetBundle.swift in Sources */,
 				AC52395F9A5B66242F66926D /* IntakeLog.swift in Sources */,
 				6B9F8313D8B9172C4DF3C1D0 /* IntakeLogService.swift in Sources */,
+				DF7AE5DE9B5CAB95B932B397 /* WidgetSync.swift in Sources */,
+				D79129B170440EF290F85C00 /* WaterTankWidget.swift in Sources */,
+				456A8201CECF4DA1F5B33F5A /* AppTheme.swift in Sources */,
 				EF078C5CBDCA5F26C2F9D5F8 /* LogIntakeIntent.swift in Sources */,
 				D572116344EF1B76385B5E9B /* NotificationEvent.swift in Sources */,
 				A21C9E6F5B8E4E2D9C7A3F10 /* NotificationVariant.swift in Sources */,
