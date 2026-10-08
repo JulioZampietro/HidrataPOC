@@ -22,23 +22,33 @@ struct MascotBubbleTransitionView: View {
     /// grade inteira (toda coluna, toda linha) está ocupada ao mesmo tempo,
     /// tampando o mascote de ponta a ponta e de baixo a cima. Antes disso a
     /// cortina está "enchendo"; depois, continua subindo e "esvaziando" por
-    /// cima dele, que já é o mascote novo.
-    private static let revealDelay: Double = 0.75
+    /// cima do que estiver atrás dele (mascote novo ou não, dependendo de
+    /// quando quem chama decidir mostrá-lo — ver `handleGoalTransition`).
+    /// Recebido de fora (em vez de uma constante fixa aqui) pra poder ser
+    /// ajustado independente do tempo de aparecer do mascote novo.
+    let revealDelay: Double
 
-    init(imageName: String, width: CGFloat, height: CGFloat) {
+    init(imageName: String, width: CGFloat, height: CGFloat, revealDelay: Double = 0.75) {
         self.imageName = imageName
         self.width = width
         self.height = height
-        _bubbles = State(initialValue: Self.makeBubbles(width: width, height: height))
+        self.revealDelay = revealDelay
+        _bubbles = State(initialValue: Self.makeBubbles(width: width, height: height, revealDelay: revealDelay))
     }
 
     var body: some View {
         ZStack {
             if oldVisible {
+                // Mesma correção de tamanho do mascote ao vivo, mas aplicada só na
+                // imagem (via `scaleEffect`, centrada) — a grade de bolhas abaixo
+                // usa `width`/`height` sem correção, pra ter o mesmo tamanho de
+                // canvas (e portanto o mesmo tempo/distância de cobertura) em
+                // qualquer mascote, em vez de variar com o fator de cada um.
                 Image(imageName)
                     .resizable()
                     .scaledToFit()
                     .frame(width: width, height: height)
+                    .scaleEffect(AppTheme.mascotSizeCorrection(for: imageName), anchor: .center)
             }
 
             ForEach(bubbles) { bubble in
@@ -53,7 +63,7 @@ struct MascotBubbleTransitionView: View {
         .onAppear {
             animate = true
             Task {
-                try? await Task.sleep(for: .milliseconds(Int(Self.revealDelay * 1000)))
+                try? await Task.sleep(for: .milliseconds(Int(revealDelay * 1000)))
                 oldVisible = false
             }
         }
@@ -87,7 +97,7 @@ struct MascotBubbleTransitionView: View {
     /// pra chegar); depois, cada bolha continua reto e sai por cima, então a
     /// cortina "esvazia" de baixo pra cima também — primeiro aparece o novo
     /// mascote na base, por último no topo.
-    private static func makeBubbles(width: CGFloat, height: CGFloat) -> [RisingBubble] {
+    private static func makeBubbles(width: CGFloat, height: CGFloat, revealDelay: Double) -> [RisingBubble] {
         guard width > 0, height > 0 else { return [] }
         let columns = max(6, Int((width / 32).rounded()))
         let rows = 4
@@ -111,7 +121,7 @@ struct MascotBubbleTransitionView: View {
                 // Linha 0 = célula mais perto da base (y grande); linha
                 // `rows-1` = célula mais perto do topo (y pequeno).
                 let restY = height - (CGFloat(row) + 0.5) * rowPitch + CGFloat.random(in: -0.2...0.2) * rowPitch
-                let riseDuration = Double.random(in: 0.58...0.66)
+                let riseDuration = 1.0
 
                 // Fração do trajeto total já percorrida quando a bolha cruza
                 // `restY` — resolvendo o atraso a partir disso, ela está
@@ -160,9 +170,9 @@ private struct RisingBubbleView: View {
             ))
             .animation(.linear(duration: bubble.riseDuration).delay(bubble.delay), value: animate)
             .scaleEffect(animate ? 1.15 : 1.0)
-            .animation(.easeIn(duration: bubble.riseDuration).delay(bubble.delay), value: animate)
+            .animation(.easeIn(duration: bubble.riseDuration * 0.2).delay(bubble.delay + bubble.riseDuration * 0.8), value: animate)
             .opacity(animate ? 0 : 1)
-            .animation(.easeIn(duration: bubble.riseDuration).delay(bubble.delay), value: animate)
+            .animation(.easeIn(duration: bubble.riseDuration * 0.2).delay(bubble.delay + bubble.riseDuration * 0.8), value: animate)
     }
 }
 
@@ -204,9 +214,9 @@ private struct BubbleGlyph: View {
                 .fill(
                     RadialGradient(
                         colors: [
-                            Color.white.opacity(0.05),
-                            Color(red: 0.62, green: 0.85, blue: 1.0).opacity(0.22),
-                            Color.white.opacity(0.08),
+                            Color.white.opacity(0.5),
+                            Color(red: 0.62, green: 0.85, blue: 1.0).opacity(0.55),
+                            Color.white.opacity(0.6),
                         ],
                         center: UnitPoint(x: 0.4, y: 0.38),
                         startRadius: diameter * 0.02,

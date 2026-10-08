@@ -63,7 +63,7 @@ enum WaterTuning {
     static let dragPushWidth: Float = 7      // colunas — largura (sigma) do empurrão em torno do ponto
 
     // Pedrinhas (explosão do mascote ao bater a meta)
-    static let stoneCount = 10
+    static let stoneCount = 21
     static let stoneMinRadius: Float = 3     // pt
     static let stoneMaxRadius: Float = 9    // pt
     static let stoneExplosionSpeed: Float = 380 // pt/s, velocidade de saída da explosão
@@ -72,6 +72,10 @@ enum WaterTuning {
     static let stoneDrag: Float = 1.1        // 1/s — arrasto da água, bem maior que o de uma gota no ar
     static let stoneRestitution: Float = 0.3 // quanto da velocidade sobra ao bater na parede/fundo
     static let stoneFriction: Float = 3       // 1/s — freio ao longo da parede/fundo, pra ela assentar
+
+    // Brincar com as pedrinhas (arrastar o dedo em cima empurra as de perto)
+    static let stonePokeRadius: Float = 46   // pt — além do próprio raio da pedra
+    static let stonePokeStrength: Float = 420 // pt/s² de impulso no toque mais perto
     static let stoneRestSpeed: Float = 60    // pt/s — abaixo disso, zera a velocidade no choque em vez
                                               // de aplicar `stoneRestitution`. Sem isso, a gravidade
                                               // realimenta um quique minúsculo pra sempre (ela nunca
@@ -132,6 +136,27 @@ private struct WaterContainerModifier<S: Shape>: ViewModifier {
                     .animation(.easeInOut(duration: 1.2), value: level)
             }
             .clipShape(shape)
+            // Deixa arrastar o dedo em cima das pedrinhas pra empurrá-las — só na
+            // faixa de baixo (onde elas assentam pela gravidade), pra não disputar
+            // o gesto de rolar a tela com o resto do recipiente. `.simultaneousGesture`
+            // (não `.gesture`) pra não bloquear o scroll quando não há pedra ali.
+            .overlay(alignment: .bottom) {
+                GeometryReader { proxy in
+                    let bleedOffset = max(0, Float(motion.waterSize.height) - Float(proxy.size.height))
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .simultaneousGesture(
+                            DragGesture(minimumDistance: 0)
+                                .onChanged { value in
+                                    motion.pokeStones(at: SIMD2<Float>(
+                                        Float(value.location.x),
+                                        Float(value.location.y) + bleedOffset
+                                    ))
+                                }
+                        )
+                }
+                .frame(height: 140)
+            }
             .onAppear { motion.start() }
             .onDisappear { motion.stop() }
             .onReceive(NotificationCenter.default.publisher(for: .waterDebugShake)) { _ in
@@ -367,6 +392,26 @@ final class WaterMotion {
     /// e o mascote precisa voltar a aparecer do zero).
     func clearStones() {
         stones.removeAll()
+    }
+
+    /// Arrastar o dedo em cima das pedrinhas empurra as de perto, como se desse
+    /// pra brincar com elas — a física normal (`updateStones`) continua cuidando
+    /// da gravidade, das paredes e do assentamento depois do empurrão. `point`
+    /// é no mesmo retângulo de `waterSize` (y para baixo) usado por `Stone.position`.
+    func pokeStones(at point: SIMD2<Float>) {
+        guard !stones.isEmpty else { return }
+        let reach = WaterTuning.stonePokeRadius
+        for i in stones.indices {
+            let delta = stones[i].position - point
+            let distance = Self.length(delta)
+            let threshold = reach + stones[i].radius
+            guard distance < threshold else { continue }
+            // Mais perto do dedo = empurrão mais forte; na borda do alcance, quase nada.
+            let falloff = 1 - distance / threshold
+            let direction = distance > 1e-3 ? delta / distance : SIMD2<Float>(0, -1)
+            stones[i].velocity += direction * (WaterTuning.stonePokeStrength * falloff)
+            stones[i].angularVelocity += Float.random(in: -5...5) * falloff
+        }
     }
 
     /// Sacudida forte sem aparelho (Simulator ▸ Device ▸ Shake): joga a água para um lado,

@@ -21,7 +21,7 @@ constant float kBubbleRiseSpeed     = 65.0; // pt/s de subida (as grandes sobem 
 // Pedrinhas (nascem da "explosão" do mascote ao bater a meta do dia) — a física
 // (gravidade, sacudida, sensor) é simulada no Swift (`WaterMotion.updateStones`);
 // aqui só desenham a posição real que ele manda, já caindo e assentando no fundo.
-constant int    kMaxStones   = 12;    // igual a `WaterTuning.stoneCount`, com folga
+constant int    kMaxStones   = 21;    // igual a `WaterTuning.stoneCount`, com folga
 constant float  kStoneAlpha  = 0.95;  // opacidade (quase opaca — é pedra, não gota)
 constant float3 kStoneColor  = float3(0.71, 0.64, 0.54); // cor média do mascote1.png (bege/caqui)
 // Refração do conteúdo

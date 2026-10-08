@@ -11,8 +11,10 @@ struct MascotShatterView: View {
     let width: CGFloat
     let height: CGFloat
 
-    private static let columns = 4
-    private static let rows = 4
+    // 21 pedaços (7×3) — mesma quantidade de pedras que nascem na água
+    // (`WaterTuning.stoneCount`) quando o mascote explode.
+    private static let columns = 7
+    private static let rows = 3
 
     @State private var pieces: [ShatterPiece]
     @State private var animate = false

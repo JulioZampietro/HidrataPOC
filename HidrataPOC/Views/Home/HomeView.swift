@@ -34,6 +34,11 @@ struct HomeView: View {
     /// Mascote do estágio anterior, só enquanto a transição de bolhas (estilo
     /// Bob Esponja) de troca de estágio está em andamento — ver `handleGoalTransition`.
     @State private var bubbleMascot: String? = nil
+    /// true enquanto o mascote NOVO ainda não deve aparecer (ver
+    /// `newMascotShowDelay` em `handleGoalTransition`) — sem isso, ele ficaria
+    /// vivo por baixo desde o primeiro instante da transição, aparecendo junto
+    /// do antigo pelas folgas transparentes da imagem/bolhas.
+    @State private var newMascotHidden = false
 
     private static let mascotPhrases: [String] = [
         "Não bebe água não",
@@ -69,7 +74,7 @@ struct HomeView: View {
             GeometryReader { geo in
                 ScrollView {
                     VStack(spacing: TabScreenLayout.spacing) {
-                        topSection(height: TabScreenLayout.waterHeight(forVisibleHeight: geo.size.height))
+                        topSection(height: TabScreenLayout.waterHeight(forVisibleHeight: geo.size.height), width: geo.size.width - 20)
                             .padding(.horizontal, 10)
 
                         progressBarButton
@@ -170,12 +175,12 @@ struct HomeView: View {
         UnevenRoundedRectangle(topLeadingRadius: 32, bottomLeadingRadius: 32, bottomTrailingRadius: 32, topTrailingRadius: 32, style: .continuous)
     }
 
-    private func topSection(height: CGFloat) -> some View {
+    private func topSection(height: CGFloat, width: CGFloat) -> some View {
         // Recipiente: vai do topo da tela até logo acima da barra de progresso e
         // enche de água conforme o progresso do dia.
         // O cabeçalho fica fora do conteúdo da água: a refração achata o conteúdo
         // numa imagem e o vidro dos botões deixa de enxergar o fundo (fica escuro).
-        mascotPlaceholder(height: TabScreenLayout.mascotHeight(forWaterHeight: height))
+        mascotPlaceholder(height: TabScreenLayout.mascotHeight(forWaterHeight: height), width: width)
             // Esse respiro abaixo do mascote (antes do `.frame` de altura fixa, pra
             // não aumentar a altura total do recipiente) é o que o afasta do fundo.
             .padding(.bottom, TabScreenLayout.mascotBottomPadding)
@@ -204,9 +209,9 @@ struct HomeView: View {
         }
     }
 
-    private func mascotPlaceholder(height: CGFloat) -> some View {
+    private func mascotPlaceholder(height: CGFloat, width: CGFloat) -> some View {
         ZStack(alignment: .topTrailing) {
-            if let mascot = AppTheme.mascotImageName(for: progress) {
+            if let mascot = AppTheme.mascotImageName(for: progress), !newMascotHidden {
                 Image(mascot)
                     .resizable()
                     .scaledToFit()
@@ -249,20 +254,28 @@ struct HomeView: View {
                 MascotShatterView(imageName: exploding, width: height * 1.55 * correction, height: height * correction)
                     .frame(width: height * 1.55, height: height, alignment: .center)
             } else {
-                // Meta batida: o mascote some, mas o espaço fica para o layout não pular.
-                Color.clear.frame(height: height)
+                // Meta batida (ou mascote novo ainda escondido por `newMascotHidden`
+                // durante a transição de bolhas): o mascote some, mas a largura fica
+                // igual à dos outros branches — sem isso, a ZStack (alignment
+                // .topTrailing) perde a referência de largura, encolhe/estica, e o
+                // mascote parece "deslizar" de lado quando volta a aparecer.
+                Color.clear.frame(width: height * 1.55, height: height)
             }
-
-            // Transição de bolhas ao trocar de estágio (mascote5→mascote4 etc.),
-            // estilo Bob Esponja: o mascote novo já está sendo exibido normalmente
-            // no ramo acima; isso sobrepõe o mascote ANTIGO, que a própria view
-            // esconde no auge da cobertura das bolhas, revelando o novo por baixo.
-            // Independe do nível de água real, então funciona igual com o
-            // recipiente cheio ou quase vazio.
+        }
+        // Transição de bolhas ao trocar de estágio (mascote5→mascote4 etc.),
+        // estilo Bob Esponja: o mascote ANTIGO fica sobreposto aqui, escondido
+        // pela própria view em `oldMascotHideDelay`; o mascote NOVO (ramo acima)
+        // só aparece em `newMascotShowDelay` — os dois tempos são independentes,
+        // ver `handleGoalTransition`. Em `.overlay` (não dentro da ZStack de cima)
+        // pra poder usar a largura cheia do recipiente (`width`, bem maior que a
+        // caixa do mascote) sem fazer a ZStack de cima — que usa esse mesmo
+        // tamanho pra alinhar o mascote com `.topTrailing` — mudar de largura e
+        // deslocar o mascote. Independe do nível de água real, então funciona
+        // igual com o recipiente cheio ou quase vazio.
+        .overlay {
             if let bubbling = bubbleMascot {
-                let correction = AppTheme.mascotSizeCorrection(for: bubbling)
-                MascotBubbleTransitionView(imageName: bubbling, width: height * 1.55 * correction, height: height * correction)
-                    .frame(width: height * 1.55, height: height, alignment: .center)
+                MascotBubbleTransitionView(imageName: bubbling, width: width, height: height, revealDelay: Self.oldMascotHideDelay)
+                    .frame(width: width, height: height)
             }
         }
         // Sem isso, a troca de ramo acima (mascote vivo → quebrando → vazio) herdava
@@ -312,6 +325,22 @@ struct HomeView: View {
     /// as pedrinhas somem para o mascote voltar do zero. Entre estágios intermediários
     /// (mascote5→mascote4 etc., pra cima ou pra baixo, ex. ao excluir um registro),
     /// a transição de bolhas (`MascotBubbleTransitionView`) cobre a troca.
+    /// Tempo (s) até a imagem do mascote ANTIGO (dentro da cortina de bolhas)
+    /// desaparecer. Independente de `newMascotShowDelay` — pode ser maior,
+    /// menor ou igual.
+    private static let oldMascotHideDelay: Double = 0.75
+    /// Tempo (s) até a imagem do mascote NOVO (por baixo de tudo) passar a
+    /// aparecer. Independente de `oldMascotHideDelay` — se for menor, o novo
+    /// aparece ANTES do antigo sumir (os dois ficam visíveis juntos por um
+    /// tempo, sobrepostos pelas bolhas); se for maior, há um intervalo em que
+    /// nenhum dos dois aparece (só a cortina de bolhas, sem mascote atrás).
+    private static let newMascotShowDelay: Double = 0.75
+    /// Tempo (ms) que a view de bolhas inteira continua montada antes de ser
+    /// descartada. Deve ficar sempre >= o maior dos dois tempos acima, somado
+    /// à maior duração de subida de bolha (`riseDuration` em
+    /// `MascotBubbleTransitionView`), senão a animação é cortada antes do fim.
+    private static let mascotBubbleTotalDuration: Int = 1900
+
     private func handleGoalTransition(from oldValue: Double, to newValue: Double) {
         let oldMascot = AppTheme.mascotImageName(for: oldValue)
         let newMascot = AppTheme.mascotImageName(for: newValue)
@@ -327,11 +356,16 @@ struct HomeView: View {
             }
         } else if oldValue >= 1.0, newValue < 1.0 {
             waterMotion.clearStones()
-        } else if let old = oldMascot, let new = newMascot, old != new {
+        } else if let old = oldMascot, let new = newMascot, old != new, newValue > oldValue {
             bubbleMascot = old
+            newMascotHidden = true
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
             Task {
-                try? await Task.sleep(for: .milliseconds(1900))
+                try? await Task.sleep(for: .milliseconds(Int(Self.newMascotShowDelay * 1000)))
+                newMascotHidden = false
+            }
+            Task {
+                try? await Task.sleep(for: .milliseconds(Self.mascotBubbleTotalDuration))
                 bubbleMascot = nil
             }
         }
