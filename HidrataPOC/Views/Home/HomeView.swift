@@ -11,6 +11,7 @@ struct HomeView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.modelContext) private var modelContext
     @Query private var allLogs: [IntakeLog]
+    @Query private var allDailyGoals: [DailyGoal]
     @State private var isLogging = false
     @State private var highlightedCard: String? = nil
     @State private var audioPlayer: AVAudioPlayer?
@@ -53,8 +54,21 @@ struct HomeView: View {
     
     private var consumedToday: Int { HydrationMath.totalML(todayLogs, on: .now) }
     
+    private var dailyGoals: [DailyGoal] {
+        allDailyGoals.filter { $0.userID == profile.userID }
+    }
+
     private var effectiveGoalML: Int {
-        HydrationMath.effectiveGoalML(baseGoalML: profile.metaDiariaML, tempContext: tempContext)
+        HydrationMath.effectiveGoalML(
+            baseGoalML: profile.metaDiariaML,
+            tempContext: tempContext,
+            recordedAdjustmentML: DailyGoalResolver.recordedAdjustmentML(in: dailyGoals, on: .now)
+        )
+    }
+
+    /// Past days are judged against the goal recorded for them, not today's.
+    private var goalResolver: DailyGoalResolver {
+        DailyGoalResolver(goals: dailyGoals, todayGoalML: effectiveGoalML, fallbackGoalML: profile.metaDiariaML)
     }
     
     private var progress: Double {
@@ -63,7 +77,7 @@ struct HomeView: View {
     }
     
     private var streak: Int {
-        HydrationMath.currentStreak(allLogs.filter { $0.userID == profile.userID }, metaDiariaML: profile.metaDiariaML)
+        HydrationMath.currentStreak(allLogs.filter { $0.userID == profile.userID }, goalML: goalResolver.goalML(on:))
     }
     
     var body: some View {
@@ -89,9 +103,11 @@ struct HomeView: View {
             }
         }
         .task { await loadWeather() }
-        // Keeps the Home Screen water tank widget filling against the same goal as the bar.
+        // Keeps the Home Screen water tank widget filling against the same goal as the bar,
+        // and snapshots it as today's goal so later edits never touch this day.
         .onChange(of: effectiveGoalML, initial: true) { _, goal in
             WidgetSync.saveEffectiveGoal(goal)
+            DailyGoal.recordToday(userID: profile.userID, baseGoalML: profile.metaDiariaML, adjustmentML: tempContext?.adjustmentML, context: modelContext)
         }
         .onAppear {
             guard tempContext == nil else { return }

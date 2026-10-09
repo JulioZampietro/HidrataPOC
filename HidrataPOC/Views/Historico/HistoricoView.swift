@@ -35,25 +35,26 @@ struct DiaHistorico: Identifiable {
 }
 
 /// Deriva os dias do histórico a partir dos `IntakeLog` reais do usuário — cada dia
-/// já ocorrido vira uma fração da meta diária (`metaDiariaML`); dias futuros ficam
-/// sem dado (`nil`).
+/// já ocorrido vira uma fração da meta daquele dia (`goals`, ver `DailyGoalResolver`);
+/// dias futuros ficam sem dado (`nil`).
 private enum HistoricoData {
-    static func percentual(for date: Date, logs: [IntakeLog], metaDiariaML: Int, calendar: Calendar) -> Double? {
+    static func percentual(for date: Date, logs: [IntakeLog], goals: DailyGoalResolver, calendar: Calendar) -> Double? {
         let today = calendar.startOfDay(for: .now)
         let dayStart = calendar.startOfDay(for: date)
         guard dayStart <= today else { return nil }
-        guard metaDiariaML > 0 else { return 0 }
+        let goalML = goals.goalML(on: dayStart)
+        guard goalML > 0 else { return 0 }
         let total = HydrationMath.totalML(logs, on: dayStart, calendar: calendar)
-        return Double(total) / Double(metaDiariaML)
+        return Double(total) / Double(goalML)
     }
 
-    static func generateMonth(for monthDate: Date, logs: [IntakeLog], metaDiariaML: Int, calendar: Calendar) -> [DiaHistorico] {
+    static func generateMonth(for monthDate: Date, logs: [IntakeLog], goals: DailyGoalResolver, calendar: Calendar) -> [DiaHistorico] {
         guard let range = calendar.range(of: .day, in: .month, for: monthDate) else { return [] }
 
         return range.compactMap { day in
             guard let date = calendar.date(bySetting: .day, value: day, of: monthDate) else { return nil }
             let dayStart = calendar.startOfDay(for: date)
-            return DiaHistorico(date: dayStart, percentualMeta: percentual(for: dayStart, logs: logs, metaDiariaML: metaDiariaML, calendar: calendar))
+            return DiaHistorico(date: dayStart, percentualMeta: percentual(for: dayStart, logs: logs, goals: goals, calendar: calendar))
         }
     }
 }
@@ -69,6 +70,7 @@ struct HistoricoView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.modelContext) private var modelContext
     @Query private var allLogs: [IntakeLog]
+    @Query private var allDailyGoals: [DailyGoal]
     @State private var displayedMonth = Calendar.current.dateInterval(of: .month, for: .now)?.start ?? .now
     @State private var cardPage: HistoricoCardPage = .calendario
     @State private var selectedDay: DiaHistorico?
@@ -111,8 +113,18 @@ struct HistoricoView: View {
         allLogs.filter { $0.userID == profile.userID }
     }
 
+    private var dailyGoals: [DailyGoal] {
+        allDailyGoals.filter { $0.userID == profile.userID }
+    }
+
+    /// Cada dia passado é julgado pela meta gravada pra ele — editar a meta hoje não
+    /// muda o histórico nem a sequência.
+    private var goalResolver: DailyGoalResolver {
+        DailyGoalResolver(goals: dailyGoals, todayGoalML: effectiveGoalML, fallbackGoalML: profile.metaDiariaML, calendar: calendar)
+    }
+
     private var monthDays: [DiaHistorico] {
-        HistoricoData.generateMonth(for: displayedMonth, logs: userLogs, metaDiariaML: profile.metaDiariaML, calendar: calendar)
+        HistoricoData.generateMonth(for: displayedMonth, logs: userLogs, goals: goalResolver, calendar: calendar)
     }
 
     private var gridCells: [DiaHistorico?] {
@@ -129,13 +141,17 @@ struct HistoricoView: View {
     }
 
     private var streakDias: Int {
-        HydrationMath.currentStreak(userLogs, metaDiariaML: profile.metaDiariaML, calendar: calendar)
+        HydrationMath.currentStreak(userLogs, goalML: goalResolver.goalML(on:), calendar: calendar)
     }
 
     /// Mesma meta ajustada pelo clima usada na Home — sem isso, o nível de água das
     /// duas telas diverge num dia quente (ver `HydrationMath.effectiveGoalML`).
     private var effectiveGoalML: Int {
-        HydrationMath.effectiveGoalML(baseGoalML: profile.metaDiariaML, tempContext: tempContext)
+        HydrationMath.effectiveGoalML(
+            baseGoalML: profile.metaDiariaML,
+            tempContext: tempContext,
+            recordedAdjustmentML: DailyGoalResolver.recordedAdjustmentML(in: dailyGoals, on: .now, calendar: calendar)
+        )
     }
 
     private var consumedToday: Int {
@@ -155,8 +171,10 @@ struct HistoricoView: View {
         return raw.prefix(1).uppercased() + raw.dropFirst()
     }
 
-    private var weeklyChartData: [(day: Date, totalML: Int)] {
-        HydrationMath.dailyTotals(userLogs, days: 7, calendar: calendar)
+    private var weeklyChartData: [(day: Date, totalML: Int, goalML: Int)] {
+        let goals = goalResolver
+        return HydrationMath.dailyTotals(userLogs, days: 7, calendar: calendar)
+            .map { (day: $0.day, totalML: $0.totalML, goalML: goals.goalML(on: $0.day)) }
     }
 
     var body: some View {
@@ -189,7 +207,7 @@ struct HistoricoView: View {
                 .trackSheetLifecycle(.shareProgress, screen: .historico, userID: profile.userID)
         }
         .sheet(item: $selectedDay) { dia in
-            DayDetailSheet(dia: dia, metaDiariaML: profile.metaDiariaML, userID: profile.userID, calendar: calendar)
+            DayDetailSheet(dia: dia, metaDiariaML: goalResolver.goalML(on: dia.date), userID: profile.userID, calendar: calendar)
                 .trackSheetLifecycle(.historicoDayDetail, screen: .historico, userID: profile.userID, metadata: ["date": isoDate(dia.date)])
         }
     }
@@ -570,7 +588,7 @@ struct HistoricoView: View {
                 Spacer()
                 pageToggleButton
             }
-            HydrationChartView(dailyTotals: weeklyChartData, metaDiariaML: profile.metaDiariaML)
+            HydrationChartView(dailyTotals: weeklyChartData)
         }
         .frame(maxHeight: .infinity, alignment: .top)
         .transition(.opacity)

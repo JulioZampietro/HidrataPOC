@@ -456,6 +456,7 @@ struct ProfileView: View {
         profile.atualizadoEm = .now
         profile.syncStatus = .pending
         try? modelContext.save()
+        recordTodayGoal()
         isEditing = false
         InteractionTracker.log("edit_personal_data_save", screen: .profile, userID: profile.userID, context: modelContext)
         Task {
@@ -469,11 +470,18 @@ struct ProfileView: View {
         profile.atualizadoEm = .now
         profile.syncStatus = .pending
         try? modelContext.save()
+        recordTodayGoal()
         InteractionTracker.log("edit_goal_save", screen: .profile, userID: profile.userID, metadata: ["newGoalML": "\(newValue)"], context: modelContext)
         Task {
             await CloudKitSyncService.shared.push(profile)
             try? modelContext.save()
         }
+    }
+
+    /// A goal change only applies from today on: today's `DailyGoal` row takes the new
+    /// base, earlier rows keep the goal those days actually had.
+    private func recordTodayGoal() {
+        DailyGoal.recordToday(userID: profile.userID, baseGoalML: profile.metaDiariaML, adjustmentML: tempContext?.adjustmentML, context: modelContext)
     }
 }
 

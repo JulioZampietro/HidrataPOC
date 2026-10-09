@@ -19,12 +19,15 @@
 		10A05D5E80D99497B247289A /* SyncStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 575F9F9ED22AB3F667CCDDC7 /* SyncStatus.swift */; };
 		12120E76924A8652F17F74B0 /* HydrationKit.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = E25C2DCFF2A32A6FFCA18FE5 /* HydrationKit.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		1296A932E1117A61AB227D6C /* LogIntakeControlIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27DADD46B8ED63F7B4C704B4 /* LogIntakeControlIntent.swift */; };
+		D6A1B2C3D4E5F60718293A4F /* DailyGoalTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6A1B2C3D4E5F60718293A4E /* DailyGoalTests.swift */; };
 		15A0FC549FFA47EEA262A4FA /* NotificationVariantSelectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 949353F3A50444289F1B24C6 /* NotificationVariantSelectionTests.swift */; };
 		7C1D2E3F4A5B6C7D8E9F0A1B /* NotificationSlotDecisionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C1D2E3F4A5B6C7D8E9F0A1C /* NotificationSlotDecisionTests.swift */; };
 		167F52D89A8D0855F585B65D /* NotificationDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71707F70B58A641E997517DB /* NotificationDelegate.swift */; };
 		1968D6749D2815CB458BE807 /* Sounds/gulun.caf in Resources */ = {isa = PBXBuildFile; fileRef = E4D909FF7D95651568F63C58 /* Sounds/gulun.caf */; };
 		1B94AE46986CCE914AAF2327 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = DB825039445C1E23D630B41F /* Assets.xcassets */; };
 		1C683163E637960E88058478 /* UserProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89E03889516701BE00C6A8E4 /* UserProfile.swift */; };
+		D6A1B2C3D4E5F60718293A4C /* DailyGoal.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6A1B2C3D4E5F60718293A4B /* DailyGoal.swift */; };
+		D6A1B2C3D4E5F60718293A4D /* DailyGoal.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6A1B2C3D4E5F60718293A4B /* DailyGoal.swift */; };
 		1C85BCBB6E64AAC5CC36A3FF /* WaterFillView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B25B4016D397F16E2119D1FF /* WaterFillView.swift */; };
 		1D2F3A4B5C6D7E8F9A0B1C2D /* MascotSpeechBubble.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D3E4F5A6B7C8D9E0F1A2B3C /* MascotSpeechBubble.swift */; };
 		98ABE434F234B5BFEF1F72D6 /* MascotShatterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE7F365F2411B00DB1CBCB64 /* MascotShatterView.swift */; };
@@ -194,8 +197,10 @@
 		77D39C48CF3E7F2C6FADD5F4 /* HydrationLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HydrationLiveActivity.swift; sourceTree = "<group>"; };
 		796A17516BBF466280B87A1B /* SheetLifecycleTracking.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetLifecycleTracking.swift; sourceTree = "<group>"; };
 		87F6CEC61D0EB34F2C4E96D3 /* Nunito-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Nunito-Bold.ttf"; sourceTree = "<group>"; };
+		D6A1B2C3D4E5F60718293A4B /* DailyGoal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyGoal.swift; sourceTree = "<group>"; };
 		89E03889516701BE00C6A8E4 /* UserProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserProfile.swift; sourceTree = "<group>"; };
 		8FA657D469BE9DC8A54167C5 /* IntakeLogService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntakeLogService.swift; sourceTree = "<group>"; };
+		D6A1B2C3D4E5F60718293A4E /* DailyGoalTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyGoalTests.swift; sourceTree = "<group>"; };
 		949353F3A50444289F1B24C6 /* NotificationVariantSelectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationVariantSelectionTests.swift; sourceTree = "<group>"; };
 		7C1D2E3F4A5B6C7D8E9F0A1C /* NotificationSlotDecisionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationSlotDecisionTests.swift; sourceTree = "<group>"; };
 		95F0050D87C688CD6A361091 /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constants.swift; sourceTree = "<group>"; };
@@ -301,6 +306,7 @@
 			children = (
 				A751463FEB8FCD28AA160686 /* WaterIntakeCalculatorTests.swift */,
 				0589AAEA6C294F99934668E1 /* InteractionTrackerTests.swift */,
+				D6A1B2C3D4E5F60718293A4E /* DailyGoalTests.swift */,
 				949353F3A50444289F1B24C6 /* NotificationVariantSelectionTests.swift */,
 				7C1D2E3F4A5B6C7D8E9F0A1C /* NotificationSlotDecisionTests.swift */,
 			);
@@ -407,6 +413,7 @@
 				D4DF682424276EED691E73FE /* IntakeLog.swift */,
 				B97525FAC07C838AC2BFCF1F /* NotificationEvent.swift */,
 				575F9F9ED22AB3F667CCDDC7 /* SyncStatus.swift */,
+				D6A1B2C3D4E5F60718293A4B /* DailyGoal.swift */,
 				89E03889516701BE00C6A8E4 /* UserProfile.swift */,
 				F51BAE834F7A497D9A17644C /* UIInteractionEvent.swift */,
 			);
@@ -662,6 +669,7 @@
 				D5CEFFA72BEE705454B64795 /* WaterIntakeCalculatorTests.swift in Sources */,
 				38B4362730654D550041595B /* Bubble.metal in Sources */,
 				F08622324B2A40469FE2AC5D /* InteractionTrackerTests.swift in Sources */,
+				D6A1B2C3D4E5F60718293A4F /* DailyGoalTests.swift in Sources */,
 				15A0FC549FFA47EEA262A4FA /* NotificationVariantSelectionTests.swift in Sources */,
 				7C1D2E3F4A5B6C7D8E9F0A1B /* NotificationSlotDecisionTests.swift in Sources */,
 			);
@@ -717,6 +725,7 @@
 				A8D10111F22B609AB5FA8266 /* SiriTutorialView.swift in Sources */,
 				DCF58E734DC63F0D68382F0D /* SyncStatus.swift in Sources */,
 				1C683163E637960E88058478 /* UserProfile.swift in Sources */,
+				D6A1B2C3D4E5F60718293A4C /* DailyGoal.swift in Sources */,
 				50D08C3D5EA73F9F85F1EA6A /* WaterIntakeCalculator.swift in Sources */,
 				322E3A00D8FD3C5C771E2221 /* WeatherContext.swift in Sources */,
 				044AFD6D58D9A11B3600EC06 /* WeatherContextService.swift in Sources */,
@@ -747,6 +756,7 @@
 				7096EB9CD8E24648B9AC6B2B /* UIInteractionEvent.swift in Sources */,
 				10A05D5E80D99497B247289A /* SyncStatus.swift in Sources */,
 				82FE3E0466BBD8C5EF72ECE3 /* UserProfile.swift in Sources */,
+				D6A1B2C3D4E5F60718293A4D /* DailyGoal.swift in Sources */,
 				2A1D8B0D2B76B6F3EA0A6273 /* WaterIntakeCalculator.swift in Sources */,
 				E99D10C4C6CAA04B92BBBBF7 /* WeatherContext.swift in Sources */,
 				7BF46EBBAC10831198475513 /* LogIntakeControlIntent.swift in Sources */,

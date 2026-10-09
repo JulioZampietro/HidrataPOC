@@ -65,9 +65,10 @@ enum HydrationMath {
     /// Meta diária ajustada pelo clima (`baseGoalML` + o ajuste de temperatura do dia).
     /// Centralizado aqui pra Home e Histórico calcularem o mesmo nível de água/progresso
     /// do dia a partir do mesmo `TemperatureAdjustmentContext`, em vez de cada tela ter
-    /// sua própria conta e divergir entre si.
-    static func effectiveGoalML(baseGoalML: Int, tempContext: TemperatureAdjustmentContext?) -> Int {
-        baseGoalML + (tempContext?.adjustmentML ?? 0)
+    /// sua própria conta e divergir entre si. Sem previsão carregada, usa o ajuste já
+    /// gravado pra hoje (`DailyGoal`), pra meta não "pular" enquanto o clima carrega.
+    static func effectiveGoalML(baseGoalML: Int, tempContext: TemperatureAdjustmentContext?, recordedAdjustmentML: Int? = nil) -> Int {
+        baseGoalML + (tempContext?.adjustmentML ?? recordedAdjustmentML ?? 0)
     }
 
     static func dailyTotals(_ logs: [IntakeLog], days: Int, calendar: Calendar = .current, now: Date = .now) -> [(day: Date, totalML: Int)] {
@@ -80,18 +81,19 @@ enum HydrationMath {
     }
 
     /// Consecutive days, walking backward from today, whose total intake met or
-    /// exceeded `metaDiariaML`. If today's goal is already met, today counts; if
-    /// not yet (user may still drink more), the count starts from yesterday so the
-    /// streak is not broken mid-day. `logs` should already be filtered to the target user.
-    static func currentStreak(_ logs: [IntakeLog], metaDiariaML: Int, calendar: Calendar = .current, now: Date = .now, maxDays: Int = 365) -> Int {
-        guard metaDiariaML > 0 else { return 0 }
+    /// exceeded that day's own goal (`goalML(day)` — see `DailyGoalResolver`, so a goal
+    /// edited today never re-judges past days). If today's goal is already met, today
+    /// counts; if not yet (user may still drink more), the count starts from yesterday
+    /// so the streak is not broken mid-day. `logs` should already be filtered to the
+    /// target user.
+    static func currentStreak(_ logs: [IntakeLog], goalML: (Date) -> Int, calendar: Calendar = .current, now: Date = .now, maxDays: Int = 365) -> Int {
         let today = calendar.startOfDay(for: now)
-        let todayMet = totalML(logs, on: today, calendar: calendar) >= metaDiariaML
+        let todayMet = metGoal(logs, on: today, goalML: goalML, calendar: calendar)
         guard let startDate = todayMet ? today : calendar.date(byAdding: .day, value: -1, to: today) else { return 0 }
         var count = 0
         var checkDate = startDate
         for _ in 0..<maxDays {
-            guard totalML(logs, on: checkDate, calendar: calendar) >= metaDiariaML else { break }
+            guard metGoal(logs, on: checkDate, goalML: goalML, calendar: calendar) else { break }
             count += 1
             guard let previous = calendar.date(byAdding: .day, value: -1, to: checkDate) else { break }
             checkDate = previous
@@ -102,10 +104,15 @@ enum HydrationMath {
     /// Há uma sequência ativa vinda de antes de hoje (`currentStreak` contando só até
     /// ontem é > 0) e hoje ainda não bateu a meta — ou seja, ela quebra se o dia acabar
     /// assim. Usa `firesAt` (não `.now`) pra ser puro e testável com qualquer horário.
-    static func isStreakAtRisk(_ logs: [IntakeLog], metaDiariaML: Int, calendar: Calendar = .current, firesAt: Date) -> Bool {
-        guard metaDiariaML > 0 else { return false }
-        guard totalML(logs, on: firesAt, calendar: calendar) < metaDiariaML else { return false }
+    static func isStreakAtRisk(_ logs: [IntakeLog], goalML: (Date) -> Int, calendar: Calendar = .current, firesAt: Date) -> Bool {
+        guard !metGoal(logs, on: firesAt, goalML: goalML, calendar: calendar) else { return false }
+        guard goalML(firesAt) > 0 else { return false }
         guard let yesterday = calendar.date(byAdding: .day, value: -1, to: calendar.startOfDay(for: firesAt)) else { return false }
-        return currentStreak(logs, metaDiariaML: metaDiariaML, calendar: calendar, now: yesterday) > 0
+        return currentStreak(logs, goalML: goalML, calendar: calendar, now: yesterday) > 0
+    }
+
+    private static func metGoal(_ logs: [IntakeLog], on day: Date, goalML: (Date) -> Int, calendar: Calendar) -> Bool {
+        let goal = goalML(day)
+        return goal > 0 && totalML(logs, on: day, calendar: calendar) >= goal
     }
 }
