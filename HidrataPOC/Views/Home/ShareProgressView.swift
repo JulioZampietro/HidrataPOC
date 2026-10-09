@@ -496,12 +496,14 @@ struct ShareProgressView: View {
 
     /// Indicador de página: uma bolinha por layout, a atual alongada e em azul.
     private var pageDots: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 0) {
             ForEach(ShareCardLayout.allCases) { option in
                 Capsule()
-                    .fill(option == layout ? Color.appAccent : Color.secondary.opacity(0.3))
+                    .fill(option == layout ? Color.appAccent : Color.appControlOutline)
                     .frame(width: option == layout ? 22 : 8, height: 8)
-                    .contentShape(Rectangle().inset(by: -8))
+                    .padding(.horizontal, 6)
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
                     .onTapGesture { withAnimation(.easeInOut) { layout = option } }
                     .accessibilityLabel(option.label)
                     .accessibilityAddTraits(option == layout ? [.isButton, .isSelected] : .isButton)
@@ -513,7 +515,7 @@ struct ShareProgressView: View {
     /// Cor das letras nos layouts transparentes: branca, preta ou uma cor livre (a
     /// bolinha colorida), que abre o seletor de cores do sistema.
     private var inkPicker: some View {
-        HStack(spacing: 14) {
+        HStack(spacing: 2) {
             inkSwatch(.branca, color: .white, label: "Letras brancas")
             inkSwatch(.preta, color: .black, label: "Letras pretas")
 
@@ -531,7 +533,8 @@ struct ShareProgressView: View {
                 )
                 .padding(3)
                 .overlay(Circle().stroke(ink == .personalizada ? Color.appAccent : .clear, lineWidth: 2.5))
-                .contentShape(Circle())
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
                 .onTapGesture {
                     ink = .personalizada
                     isPickingColor = true
@@ -545,10 +548,11 @@ struct ShareProgressView: View {
         Circle()
             .fill(color)
             .frame(width: 26, height: 26)
-            .overlay(Circle().stroke(Color.secondary.opacity(0.4), lineWidth: 1))
+            .overlay(Circle().stroke(Color.appControlOutline, lineWidth: 1))
             .padding(3)
             .overlay(Circle().stroke(option == ink ? Color.appAccent : .clear, lineWidth: 2.5))
-            .contentShape(Circle())
+            .frame(width: 44, height: 44)
+            .contentShape(Rectangle())
             .onTapGesture { withAnimation(.easeInOut(duration: 0.2)) { ink = option } }
             .accessibilityLabel(label)
             .accessibilityAddTraits(option == ink ? [.isButton, .isSelected] : .isButton)

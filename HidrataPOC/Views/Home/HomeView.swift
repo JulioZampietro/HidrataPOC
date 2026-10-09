@@ -8,6 +8,11 @@ struct HomeView: View {
     
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    // Medidas que acompanham o tamanho do texto: com Dynamic Type grande o rótulo da barra
+    // e o ícone do cabeçalho não podem ser cortados por uma altura fixa.
+    @ScaledMetric(relativeTo: .subheadline) private var progressBarHeight: CGFloat = 52
+    private let headerButtonSize = TabScreenLayout.headerHeight // alvo mínimo de 44 pt; não cresce com o texto
     @Query private var allLogs: [IntakeLog]
     @Query private var allDailyGoals: [DailyGoal]
     @State private var isLogging = false
@@ -171,15 +176,15 @@ struct HomeView: View {
             } label: {
                 Image(systemName: "square.and.arrow.up")
                     .font(.system(.subheadline, weight: .semibold))
+                    .dynamicTypeSize(...DynamicTypeSize.xxxLarge) // o ícone cabe no círculo de 44 pt
                     .foregroundStyle(Color.appAccentText)
-                    .frame(width: 40, height: 40)
+                    .frame(width: headerButtonSize, height: headerButtonSize)
                     .glassEffect(.regular.interactive(), in: Circle())
             }
             .accessibilityLabel("Compartilhar")
         }
     }
     
-    private let progressBarHeight: CGFloat = 52
     private let intakeGridSpacing: CGFloat = 12
 
     /// The two rows of intake cards share what's left below the progress bar, so the
@@ -474,13 +479,14 @@ struct HomeView: View {
                 // trilha, elevada com a mesma sombra dos cartões de ingestão
                 Capsule()
                     .fill(AppTheme.progressTrack(for: colorScheme))
-                    .frame(height: 52)
+                    .frame(height: progressBarHeight)
+                    .overlay { Capsule().strokeBorder(Color.appControlOutline, lineWidth: 1) }
                     .homeCardShadow()
                 
                 // preenchimento azul
                 Capsule()
                     .fill(Color.appAccent)
-                    .frame(width: barWidth, height: 52)
+                    .frame(width: barWidth, height: progressBarHeight)
                     .animation(.easeOut(duration: 0.4), value: progress)
                 
                 // Texto escuro sobre a trilha e branco sobre o preenchimento azul: a mesma
@@ -489,17 +495,21 @@ struct HomeView: View {
                 progressLabel(color: Color.appOnTrack)
                 progressLabel(color: .white)
                     .mask(alignment: .leading) {
-                        Capsule().frame(width: barWidth, height: 52)
+                        Capsule().frame(width: barWidth, height: progressBarHeight)
                     }
 
                 // Indica que a barra é tocável (abre os registros de hoje). Fica branco
                 // quando o preenchimento azul já chegou embaixo dele.
-                Image(systemName: "info.circle")
-                    .font(.system(.body, weight: .semibold))
-                    .foregroundStyle(barWidth >= geo.size.width - 36 ? Color.white : Color.appOnTrack)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-                    .padding(.trailing, 18)
-                    .accessibilityHidden(true)
+                // Nos tamanhos de acessibilidade o texto ocupa a barra toda e o ícone passaria
+                // por cima dele; a barra continua tocável (rótulo e dica no botão).
+                if !dynamicTypeSize.isAccessibilitySize {
+                    Image(systemName: "info.circle")
+                        .font(.system(.body, weight: .semibold))
+                        .foregroundStyle(barWidth >= geo.size.width - 36 ? Color.white : Color.appOnTrack)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                        .padding(.trailing, 18)
+                        .accessibilityHidden(true)
+                }
             }
         }
         .frame(height: progressBarHeight)
@@ -510,9 +520,9 @@ struct HomeView: View {
             .font(AppFont.subheadlineHeavy)
             .foregroundStyle(color)
             .lineLimit(1)
-            .minimumScaleFactor(0.6)
+            .minimumScaleFactor(0.75) // 15 pt × 0.75 ≈ 11 pt: o menor texto do app (HIG)
             .padding(.leading, 18)
-            .padding(.trailing, 52)
+            .padding(.trailing, dynamicTypeSize.isAccessibilitySize ? 18 : 52)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
@@ -574,10 +584,10 @@ struct HomeView: View {
                     .symbolRenderingMode(.hierarchical)
                     .font(.system(size: 30))
                     .foregroundStyle(Color.appAccentText)
-                    .padding(4)
+                    .padding(7) // 30 pt de ícone + 7 de cada lado = alvo de 44 pt
             }
             .buttonStyle(.plain)
-            .padding(6)
+            .padding(3)
             .accessibilityLabel("Editar volume do botão personalizado")
         }
     }
@@ -673,12 +683,13 @@ struct IntakeCardContent: View {
     var isHighlighted: Bool = false
     var height: CGFloat? = nil
 
-    private var titleColor: Color {
-        isHighlighted || icon != nil ? .white : (colorScheme == .dark ? .primary : Color.appMutedInk)
+    /// Tinta do texto sobre o cartão liso (fora do ícone).
+    private var titleInk: Color {
+        isHighlighted ? .white : (colorScheme == .dark ? .primary : Color.appMutedInk)
     }
 
-    private var subtitleColor: Color {
-        isHighlighted || icon != nil ? Color.white : Color.appMutedInk
+    private var subtitleInk: Color {
+        isHighlighted ? .white : Color.appMutedInk
     }
 
     private var backgroundIconColor: Color {
@@ -686,6 +697,36 @@ struct IntakeCardContent: View {
     }
 
     var body: some View {
+        // Texto escuro sobre o cartão e branco sobre o ícone azul: o mesmo texto é
+        // desenhado duas vezes e a versão branca é recortada no formato do ícone (a
+        // mesma ideia da barra de progresso). Assim cada letra tem contraste com o que
+        // está atrás, mesmo quando o texto passa da borda do ícone para o cartão claro.
+        textBlock(title: titleInk, subtitle: subtitleInk)
+            .overlay {
+                if let icon, !isHighlighted {
+                    textBlock(title: .white, subtitle: .white)
+                        .mask { iconLayer(icon) }
+                        .accessibilityHidden(true)
+                }
+            }
+            .background(alignment: .leading) {
+                // Ícone grande como fundo do cartão, deslocado para a esquerda e cortado pela borda.
+                if let icon {
+                    iconLayer(icon)
+                        .foregroundStyle(backgroundIconColor)
+                        .accessibilityHidden(true)
+                }
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(isHighlighted ? Color.appAccent : Color(UIColor.secondarySystemBackground))
+                    .homeCardShadow()
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 18))
+    }
+
+    /// `minHeight` (e não `height`): o cartão cresce com o Dynamic Type em vez de cortar o texto.
+    private func textBlock(title titleColor: Color, subtitle subtitleColor: Color) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Spacer(minLength: 0)
 
@@ -697,31 +738,19 @@ struct IntakeCardContent: View {
                 .font(AppFont.subheadline)
                 .foregroundStyle(subtitleColor)
         }
-        // Mantém o texto branco legível onde ele passa do ícone para o fundo claro.
-        .shadow(color: icon != nil && !isHighlighted ? .black.opacity(0.35) : .clear, radius: 3, x: 0, y: 1)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
-        .frame(height: height)
-        .background(alignment: .leading) {
-            // Ícone grande como fundo do cartão, deslocado para a esquerda e cortado pela borda.
-            if let icon {
-                GeometryReader { geo in
-                    let side = geo.size.height * 1.15
-                    backgroundIcon(icon)
-                        .foregroundStyle(backgroundIconColor)
-                        .frame(width: side, height: side)
-                        .offset(x: -side * icon.leadingOverflow, y: (geo.size.height - side) / 2 + side * 0.15)
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                .accessibilityHidden(true)
-            }
+        .frame(minHeight: height)
+    }
+
+    private func iconLayer(_ icon: IntakeCardIcon) -> some View {
+        GeometryReader { geo in
+            let side = geo.size.height * 1.15
+            backgroundIcon(icon)
+                .frame(width: side, height: side)
+                .offset(x: -side * icon.leadingOverflow, y: (geo.size.height - side) / 2 + side * 0.15)
         }
-        .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(isHighlighted ? Color.appAccent : Color(UIColor.secondarySystemBackground))
-                .homeCardShadow()
-        )
-        .contentShape(RoundedRectangle(cornerRadius: 18))
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
     @ViewBuilder

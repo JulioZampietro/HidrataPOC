@@ -23,6 +23,9 @@ struct MascotSpeechBubble: View {
             .padding(.vertical, 8)
             .padding(.bottom, tailHeight)
             .frame(maxWidth: 150)
+            // Fala de enfeite sobre o recipiente, ao lado do botão de compartilhar: nos
+            // tamanhos de acessibilidade ela crescia por cima do botão e do mascote.
+            .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
             .background(
                 SpeechBubbleShape(
                     cornerRadius: 14,

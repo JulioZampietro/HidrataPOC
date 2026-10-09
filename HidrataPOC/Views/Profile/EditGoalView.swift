@@ -11,6 +11,7 @@ struct EditGoalView: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var text: String
+    @ScaledMetric(relativeTo: .body) private var fieldWidth: CGFloat = 90
     private let initialValueML: Int
 
     private static let maxML = 10000
@@ -35,7 +36,7 @@ struct EditGoalView: View {
                         TextField("mL", text: $text)
                             .keyboardType(.numberPad)
                             .multilineTextAlignment(.trailing)
-                            .frame(width: 90)
+                            .frame(width: fieldWidth)
                         Text("mL").foregroundStyle(Color.appSecondary)
                     }
                 } footer: {
@@ -49,6 +50,7 @@ struct EditGoalView: View {
             .scrollContentBackground(.hidden)
             .appScreenBackground()
             .navigationBarTitleDisplayMode(.inline)
+            .keyboardDoneToolbar()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancelar", systemImage: "xmark") { dismiss() }

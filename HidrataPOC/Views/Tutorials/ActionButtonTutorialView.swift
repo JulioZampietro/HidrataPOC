@@ -5,6 +5,7 @@ import UIKit
 struct ActionButtonTutorialView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
+    @ScaledMetric(relativeTo: .subheadline) private var stepBadgeSize: CGFloat = 32
 
     var body: some View {
         NavigationStack {
@@ -116,7 +117,7 @@ struct ActionButtonTutorialView: View {
                 ZStack {
                     Circle()
                         .fill(Color.appAccent)
-                        .frame(width: 32, height: 32)
+                        .frame(width: stepBadgeSize, height: stepBadgeSize)
                     Text("\(number)")
                         .font(AppFont.subheadlineHeavy)
                         .foregroundStyle(.white)

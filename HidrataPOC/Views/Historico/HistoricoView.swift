@@ -49,6 +49,7 @@ private enum HistoricoCardPage {
 }
 
 struct HistoricoView: View {
+    private let headerButtonSize = TabScreenLayout.headerHeight // alvo mínimo de 44 pt; não cresce com o texto
     let profile: UserProfile
 
     @Environment(\.colorScheme) private var colorScheme
@@ -220,8 +221,9 @@ struct HistoricoView: View {
             } label: {
                 Image(systemName: "square.and.arrow.up")
                     .font(.system(.subheadline, weight: .semibold))
+                    .dynamicTypeSize(...DynamicTypeSize.xxxLarge) // o ícone cabe no círculo de 44 pt
                     .foregroundStyle(Color.appAccentText)
-                    .frame(width: 40, height: 40)
+                    .frame(width: headerButtonSize, height: headerButtonSize)
                     .glassEffect(.regular.interactive(), in: Circle())
             }
             .accessibilityLabel("Compartilhar")
@@ -511,6 +513,10 @@ struct HistoricoView: View {
             }
         }
         .padding(20)
+        // O calendário tem células de tamanho fixo e o cartão uma altura calculada: nos
+        // tamanhos de acessibilidade os números e o título do mês estourariam. O teto é
+        // o maior tamanho "normal"; o resto da tela continua escalando livremente.
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
         .frame(height: height)
         .background(RoundedRectangle(cornerRadius: 24, style: .continuous)
             .fill(Color(UIColor.secondarySystemBackground))
@@ -585,6 +591,7 @@ struct HistoricoView: View {
                     changeMonth(by: -1)
                 } label: {
                     Image(systemName: "chevron.left")
+                        .touchTarget()
                 }
                 .accessibilityLabel("Mês anterior")
 
@@ -597,6 +604,7 @@ struct HistoricoView: View {
                     changeMonth(by: 1)
                 } label: {
                     Image(systemName: "chevron.right")
+                        .touchTarget()
                 }
                 .accessibilityLabel("Próximo mês")
             }
@@ -629,6 +637,7 @@ struct HistoricoView: View {
                 .foregroundStyle(Color.appAccentText)
                 .frame(width: 26, height: 26)
                 .background(Color.appAccent.opacity(0.12), in: Circle())
+                .touchTarget(visibleSize: 26)
         }
         .accessibilityLabel(cardPage == .calendario ? "Ver estatísticas dos últimos 7 dias" : "Voltar para o calendário")
     }
@@ -695,11 +704,19 @@ private struct DayCell: View {
             ZStack(alignment: .bottom) {
                 FillSwatch(percentual: dia.percentualMeta, cornerRadius: 12)
 
-                Text("\(dayNumber)")
-                    .font(AppFont.displayNumber)
-                    .foregroundStyle(numberColor)
-                    .shadow(color: numberShadow, radius: 1, x: 0, y: 0)
-                    .frame(width: geo.size.width, height: geo.size.height)
+                dayLabel(color: trackInk, in: geo.size)
+
+                // No claro o número é azul sobre a trilha e branco sobre o preenchimento: o
+                // mesmo número é desenhado duas vezes e a versão branca é recortada na
+                // altura do preenchimento (a mesma ideia da barra de progresso da Home).
+                // Isso vale em qualquer percentual — com ~50% a fronteira passa bem no
+                // meio do dígito, e uma cor única perdia contraste numa das metades.
+                if needsFillLayer {
+                    dayLabel(color: .white, in: geo.size)
+                        .mask(alignment: .bottom) {
+                            Rectangle().frame(width: geo.size.width, height: geo.size.height * clampedFill)
+                        }
+                }
             }
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
@@ -710,24 +727,29 @@ private struct DayCell: View {
         .frame(height: height)
     }
 
+    private func dayLabel(color: Color, in size: CGSize) -> some View {
+        Text("\(dayNumber)")
+            .font(AppFont.displayNumber)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8) // 14 pt × 0.8 ≈ 11 pt (mínimo do HIG)
+            .foregroundStyle(color)
+            .frame(width: size.width, height: size.height)
+    }
+
     private var todayRingColor: Color {
         dia.bateuMeta ? .white : Color.appAccent
     }
 
-    /// Cor única do número: branco quando o preenchimento domina (≥ 50%),
-    /// caso contrário azul de marca (light) ou branco (dark) sobre a trilha clara.
-    private var numberColor: Color {
+    /// Tinta do número sobre a trilha (a parte ainda não preenchida). No escuro a trilha
+    /// é o azul de marca a 32% sobre o cartão escuro e o preenchimento é o azul cheio:
+    /// branco passa de 5:1 nos dois, então não precisa de segunda camada.
+    private var trackInk: Color {
         if dia.isFuturo { return Color.appSecondary }
-        if clampedFill >= 0.5 { return .white }
         return colorScheme == .dark ? .white : Color.appAccentText
     }
 
-    /// Sombra sutil que garante legibilidade na faixa de transição (~30–70%).
-    private var numberShadow: Color {
-        if dia.isFuturo { return .clear }
-        return clampedFill >= 0.5
-            ? .black.opacity(0.25)
-            : (colorScheme == .dark ? .black.opacity(0.3) : .clear)
+    private var needsFillLayer: Bool {
+        !dia.isFuturo && clampedFill > 0 && colorScheme != .dark
     }
 }
 
@@ -915,7 +937,9 @@ private struct IntakeRow: View {
 
             Button(role: .destructive, action: onDelete) {
                 Image(systemName: "trash")
-                    .foregroundStyle(.red)
+                    .foregroundStyle(Color.appDestructive)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Apagar registro das \(timeLabel)")
@@ -928,4 +952,35 @@ private struct IntakeRow: View {
     let profile = UserProfile(userID: "preview", idade: 25, genero: nil, pesoKg: 70, alturaCm: 170, fusoHorario: "America/Sao_Paulo", metaDiariaML: 2450)
     return HistoricoView(profile: profile)
         .modelContainer(for: IntakeLog.self, inMemory: true)
+}
+
+extension View {
+    /// Amplia a área de toque para o mínimo de 44×44 pt do HIG sem mexer no desenho nem no
+    /// espaço que o controle ocupa no layout: a margem negativa devolve o excesso, e o
+    /// `contentShape` faz a área extra continuar recebendo toques.
+    func touchTarget(visibleSize: CGFloat? = nil) -> some View {
+        modifier(TouchTargetModifier(visibleSize: visibleSize))
+    }
+}
+
+private struct TouchTargetModifier: ViewModifier {
+    let visibleSize: CGFloat?
+    private let minimum: CGFloat = 44
+
+    func body(content: Content) -> some View {
+        if let visibleSize {
+            let extra = max(0, minimum - visibleSize) / 2
+            content
+                .frame(width: minimum, height: minimum)
+                .contentShape(Rectangle())
+                .padding(-extra)
+        } else {
+            // Ícone sem moldura própria: mede 44×44 e devolve o excesso na horizontal.
+            content
+                .frame(width: minimum, height: minimum)
+                .contentShape(Rectangle())
+                .padding(.horizontal, -16)
+                .padding(.vertical, -13)
+        }
+    }
 }

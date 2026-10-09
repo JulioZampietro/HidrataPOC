@@ -82,7 +82,7 @@ struct HealthConnectView: View {
     private var connectSection: some View {
         VStack(spacing: 16) {
             VStack(spacing: 8) {
-                infoRow(icon: "arrow.down.circle.fill", color: .blue,
+                infoRow(icon: "arrow.down.circle.fill", color: Color.appAccentText,
                         text: "Importa água registrada em outros apps (MyFitnessPal, Apple Watch…)")
                 infoRow(icon: "arrow.up.circle.fill", color: Color.appAccentText,
                         text: "Envia cada gole registrado aqui para o seu histórico no Saúde")

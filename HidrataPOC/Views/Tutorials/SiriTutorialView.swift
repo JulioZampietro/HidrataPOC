@@ -2,6 +2,7 @@ import SwiftUI
 
 
 struct SiriTutorialView: View {
+    @ScaledMetric(relativeTo: .callout) private var iconTileSize: CGFloat = 36
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
 
@@ -97,7 +98,7 @@ struct SiriTutorialView: View {
                 ZStack {
                     RoundedRectangle(cornerRadius: 10)
                         .fill(Color.appAccent.opacity(0.12))
-                        .frame(width: 36, height: 36)
+                        .frame(width: iconTileSize, height: iconTileSize)
                     Image(systemName: icon)
                         .font(.system(.callout, weight: .semibold))
                         .foregroundStyle(Color.appAccentText)
@@ -198,7 +199,7 @@ struct SiriTutorialView: View {
             tipRow(icon: "lock.fill", color: Color.appSuccess, text: "Funciona com a **tela bloqueada**.", isLast: false)
             tipRow(icon: "questionmark.circle.fill", color: Color.appAccentText, text: "Se não falar a quantidade, a Siri pergunta.", isLast: false)
             tipRow(icon: "mic.fill", color: Color.appWarning, text: "Não precisa de frase exata — fale naturalmente.", isLast: false)
-            tipRow(icon: "number", color: .blue, text: "Funciona com números: \"3 copos\", \"dois goles\".", isLast: true)
+            tipRow(icon: "number", color: Color.appAccentText, text: "Funciona com números: \"3 copos\", \"dois goles\".", isLast: true)
         }
         .background(RoundedRectangle(cornerRadius: 20, style: .continuous)
             .fill(Color(UIColor.secondarySystemBackground))

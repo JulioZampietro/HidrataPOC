@@ -8,7 +8,7 @@ struct ConsentView: View {
             VStack(alignment: .leading, spacing: 20) {
                 Image(systemName: "drop.circle.fill")
                     .font(.system(size: 56))
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(Color.appAccentText)
                     .accessibilityHidden(true)
 
                 Text("Antes de começar")
@@ -53,7 +53,7 @@ struct ConsentView: View {
             Text(text)
         } icon: {
             Image(systemName: icon)
-                .foregroundStyle(.blue)
+                .foregroundStyle(Color.appAccentText)
         }
         .font(AppFont.subheadline)
     }
