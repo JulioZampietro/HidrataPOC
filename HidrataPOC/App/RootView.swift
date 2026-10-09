@@ -14,10 +14,7 @@ struct RootView: View {
     var body: some View {
         Group {
             if !hasAcceptedConsent {
-                ConsentView(onAccept: {
-                    hasAcceptedConsent = true
-                    Task { await PermissionsCoordinator.requestAll() }
-                })
+                ConsentView(onAccept: { hasAcceptedConsent = true })
             } else if let profile {
                 mainContent(profile: profile)
                     .onAppear { startLiveActivityIfNeeded(for: profile) }
@@ -26,7 +23,10 @@ struct RootView: View {
                         get: { !hasSeenFeatureOnboarding },
                         set: { _ in }
                     )) {
-                        FeatureOnboardingView { hasSeenFeatureOnboarding = true }
+                        FeatureOnboardingView {
+                            hasSeenFeatureOnboarding = true
+                            requestPermissionsAfterOnboarding(for: profile)
+                        }
                     }
             } else {
                 OnboardingView()
@@ -48,7 +48,19 @@ struct RootView: View {
                 ProfileView(profile: profile)
             }
         }
-        .tint(tabBarBlue)
+        .tint(Color.appAccentText)
+    }
+
+    /// As permissões do sistema só são pedidas depois que o onboarding inteiro terminou
+    /// (consentimento, perfil e tutorial de funcionalidades).
+    private func requestPermissionsAfterOnboarding(for profile: UserProfile) {
+        Task {
+            await PermissionsCoordinator.requestAll()
+            _ = await HealthKitService.shared.requestAuthorization()
+            if HealthKitService.shared.isAuthorized {
+                await HealthKitService.shared.syncFromHealthKit(userID: profile.userID, context: modelContext)
+            }
+        }
     }
 
     private func startLiveActivityIfNeeded(for profile: UserProfile) {
@@ -58,7 +70,6 @@ struct RootView: View {
     }
 }
 
-private let tabBarBlue = Color(red: 0.1098, green: 0.4627, blue: 0.9922)
 
 #Preview {
     RootView()

@@ -84,7 +84,7 @@ final class NotificationScheduler {
     static let shared = NotificationScheduler()
 
     /// How far ahead of a slot's fire time we start trying to capture context, so
-    /// there's headroom for the WeatherKit/EventKit network round trip to finish.
+    /// there's headroom for the WeatherKit network round trip to finish.
     nonisolated private static let captureLeadMinutes = 10
 
     private let defaultsKey = "pendingNotificationSlots"
@@ -450,7 +450,6 @@ final class NotificationScheduler {
         let weather = preferCachedWeather
             ? WeatherContextService.shared.cachedContext
             : await WeatherContextService.shared.currentContext()
-        let calendarContext = CalendarContextService.shared.currentContext(around: firesAt)
 
         let targetUserID = profile.userID
         let logs = (try? context.fetch(FetchDescriptor<IntakeLog>(predicate: #Predicate { $0.userID == targetUserID }))) ?? []
@@ -477,8 +476,9 @@ final class NotificationScheduler {
             temperaturaC: weather?.temperaturaC ?? 0,
             umidadeRelativa: weather?.umidadeRelativa ?? 0,
             sensacaoTermicaC: weather?.sensacaoTermicaC ?? 0,
-            ocupadoNoMomento: calendarContext?.ocupadoNoMomento ?? false,
-            densidadeEventosDia: calendarContext?.densidadeEventosDia ?? 0,
+            // Calendar context is no longer collected; fields kept so the stored/CloudKit schema is unchanged.
+            ocupadoNoMomento: false,
+            densidadeEventosDia: 0,
             deficitAcumuladoML: deficit,
             tempoDesdeUltimoRegistroMin: minutesSinceLast,
             notificationVariant: variant
@@ -551,8 +551,8 @@ final class NotificationScheduler {
         try? context.save()
     }
 
-    /// Records a swipe-dismiss without touching SwiftData, location, WeatherKit,
-    /// EventKit or CloudKit. `.customDismissAction` wakes the app in the background —
+    /// Records a swipe-dismiss without touching SwiftData, location, WeatherKit
+    /// or CloudKit. `.customDismissAction` wakes the app in the background —
     /// often from the lock screen — with very little time, and running the full
     /// capture path there is a crash risk (watchdog kill, or the store being
     /// unavailable while locked). Resolved on the next tick by `resolvePendingDismissals`.

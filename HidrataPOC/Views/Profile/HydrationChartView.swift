@@ -27,7 +27,7 @@ struct HydrationChartView: View {
                 )
                 .interpolationMethod(.stepCenter)
                 .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.appSecondary)
             }
         }
         .chartXAxis {

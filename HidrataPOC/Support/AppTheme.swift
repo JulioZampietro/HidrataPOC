@@ -5,6 +5,7 @@ import SwiftUI
 /// mode — um tom hardcoded único não funciona nos dois modos, então cada
 /// modo tem sua própria cor explícita.
 enum AppTheme {
+    // As cores do app ficam em `Color.app*` (abaixo) — trocar uma cor é mexer só ali.
     static let screenBackgroundLight = Color(red: 0.90, green: 0.94, blue: 0.98)
     static let screenBackgroundDark = Color(red: 0.06, green: 0.08, blue: 0.13)
 
@@ -64,8 +65,10 @@ extension AppTheme {
     static func progressTrack(for colorScheme: ColorScheme) -> Color {
         colorScheme == .dark
             ? Color(red: 0.24, green: 0.30, blue: 0.40)
-            : Color(red: 0.75, green: 0.78, blue: 0.82)
+            : trackLight
     }
+
+    static let trackLight = Color(red: 0.75, green: 0.78, blue: 0.82)
 }
 
 /// Vertical layout shared by Home and Histórico: header, water container, then the
@@ -110,4 +113,53 @@ enum TabScreenLayout {
     static func contentHeight(forVisibleHeight height: CGFloat) -> CGFloat {
         height - waterHeight(forVisibleHeight: height) - spacing * 2
     }
+}
+
+// MARK: - Paleta
+
+extension Color {
+    /// Cor dinâmica: `light` no modo claro, `dark` no escuro.
+    static func adaptive(light: Color, dark: Color) -> Color {
+        Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(dark) : UIColor(light) })
+    }
+
+    /// Azul de marca para **preenchimentos** (barra, cartões, botões, calendário).
+    /// Com texto branco por cima dá 5,0:1.
+    static let appAccent = Color(red: 0.08, green: 0.40, blue: 0.93)
+
+    /// Azul para **texto e ícones** sobre o fundo do app / cartões (≥ 4,5:1 nos dois
+    /// modos). Mais escuro que `appAccent` no claro e mais claro no escuro.
+    static let appAccentText = adaptive(
+        light: Color(red: 0.05, green: 0.34, blue: 0.82),
+        dark: Color(red: 0.45, green: 0.70, blue: 1.0)
+    )
+
+    /// Texto secundário: no claro é mais escuro que o `.secondary` do sistema (que dá
+    /// ~3,3:1 sobre os cartões); no escuro é o próprio `.secondary`.
+    static let appSecondary = adaptive(
+        light: Color(red: 0.33, green: 0.35, blue: 0.40),
+        dark: Color(red: 0.60, green: 0.60, blue: 0.64)
+    )
+
+    /// Texto secundário "de marca" (azul-acinzentado) dos cartões de ingestão.
+    static let appMutedInk = adaptive(
+        light: Color(red: 0.28, green: 0.36, blue: 0.50),
+        dark: Color(red: 0.60, green: 0.60, blue: 0.64)
+    )
+
+    /// Texto/ícone por cima da trilha da barra de progresso (parte ainda não preenchida).
+    static let appOnTrack = adaptive(
+        light: Color(red: 0.06, green: 0.08, blue: 0.13),
+        dark: .white
+    )
+
+    /// Laranja e verde de aviso/sucesso legíveis sobre fundo claro.
+    static let appWarning = adaptive(light: Color(red: 0.65, green: 0.32, blue: 0.0), dark: .orange)
+    static let appSuccess = adaptive(light: Color(red: 0.08, green: 0.45, blue: 0.22), dark: .green)
+
+    /// Cinza de ícones decorativos secundários (chevrons).
+    static let appChevron = appSecondary
+
+    /// Tracejado que separa linhas dos cartões do Perfil e dos tutoriais.
+    static let appDivider = AppTheme.trackLight.opacity(0.6)
 }

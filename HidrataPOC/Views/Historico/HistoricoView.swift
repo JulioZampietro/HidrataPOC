@@ -4,10 +4,8 @@ import SwiftUI
 
 /// Azul de marca usado no calendário do histórico (preenchimento, anel do dia
 /// atual e contador de metas batidas).
-private let calendarBlue = Color(red: 0.1098, green: 0.4627, blue: 0.9922)
 
 /// Mesmo azul de accent da HomeView — usado na topBar para manter os botões idênticos.
-private let accentBlue = Color(red: 0.1098, green: 0.4627, blue: 0.9922)
 
 private extension Font {
     static func baloo2ExtraBold(_ size: CGFloat) -> Font {
@@ -217,7 +215,7 @@ struct HistoricoView: View {
             HStack(spacing: 6) {
                 Image(systemName: "drop.fill")
                     .font(.custom("Nunito", size: 12))
-                    .foregroundStyle(accentBlue)
+                    .foregroundStyle(Color.appAccentText)
                 Text("\(streakDias)")
                     .font(.custom("Nunito", size: 15).bold())
                 Text("dias")
@@ -235,8 +233,8 @@ struct HistoricoView: View {
                 showShare = true
             } label: {
                 Image(systemName: "square.and.arrow.up")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(accentBlue)
+                    .font(.system(.subheadline, weight: .semibold))
+                    .foregroundStyle(Color.appAccentText)
                     .frame(width: 40, height: 40)
                     .glassEffect(.regular.interactive(), in: Circle())
             }
@@ -624,7 +622,7 @@ struct HistoricoView: View {
 
             Text("\(metasBatidasCount) metas batidas")
                 .font(.nunitoExtraBold(12.5))
-                .foregroundStyle(calendarBlue)
+                .foregroundStyle(Color.appAccentText)
 
             pageToggleButton
         }
@@ -642,9 +640,9 @@ struct HistoricoView: View {
         } label: {
             Image(systemName: cardPage == .calendario ? "chevron.right" : "chevron.left")
                 .font(.caption.bold())
-                .foregroundStyle(calendarBlue)
+                .foregroundStyle(Color.appAccentText)
                 .frame(width: 26, height: 26)
-                .background(calendarBlue.opacity(0.12), in: Circle())
+                .background(Color.appAccent.opacity(0.12), in: Circle())
         }
         .accessibilityLabel(cardPage == .calendario ? "Ver estatísticas dos últimos 7 dias" : "Voltar para o calendário")
     }
@@ -669,7 +667,7 @@ struct HistoricoView: View {
             ForEach(Array(weekdaySymbols.enumerated()), id: \.offset) { _, symbol in
                 Text(symbol)
                     .font(.nunitoExtraBold(11.5))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.appSecondary)
                     .frame(maxWidth: .infinity)
             }
         }
@@ -727,15 +725,15 @@ private struct DayCell: View {
     }
 
     private var todayRingColor: Color {
-        dia.bateuMeta ? .white : calendarBlue
+        dia.bateuMeta ? .white : Color.appAccent
     }
 
     /// Cor única do número: branco quando o preenchimento domina (≥ 50%),
     /// caso contrário azul de marca (light) ou branco (dark) sobre a trilha clara.
     private var numberColor: Color {
-        if dia.isFuturo { return .secondary }
+        if dia.isFuturo { return Color.appSecondary }
         if clampedFill >= 0.5 { return .white }
-        return colorScheme == .dark ? .white : calendarBlue
+        return colorScheme == .dark ? .white : Color.appAccentText
     }
 
     /// Sombra sutil que garante legibilidade na faixa de transição (~30–70%).
@@ -764,7 +762,7 @@ private struct FillSwatch: View {
             ZStack(alignment: .bottom) {
                 trackColor
                 if percentual != nil {
-                    calendarBlue
+                    Color.appAccent
                         .frame(height: geo.size.height * clampedFill)
                 }
             }
@@ -776,8 +774,8 @@ private struct FillSwatch: View {
     /// já é escuro — sem isso a trilha ficaria quase preta e o texto branco
     /// perderia contraste contra ela.
     private var trackColor: Color {
-        guard percentual != nil else { return Color(.systemGray4) }
-        return colorScheme == .dark ? calendarBlue.opacity(0.32) : Color(red: 0.8863, green: 0.9333, blue: 0.9922)
+        guard percentual != nil else { return Color(.systemGray5) }
+        return colorScheme == .dark ? Color.appAccent.opacity(0.32) : Color(red: 0.8863, green: 0.9333, blue: 0.9922)
     }
 }
 
@@ -832,13 +830,13 @@ struct DayDetailSheet: View {
                             .font(.baloo2ExtraBold(21))
                         Text("\(totalML) mL de \(metaDiariaML) mL da meta")
                             .font(.nunitoExtraBold(13))
-                            .foregroundStyle(atingiuMeta ? calendarBlue : .secondary)
+                            .foregroundStyle(atingiuMeta ? Color.appAccentText : Color.appSecondary)
                     }
 
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Consumo ao longo do dia")
                             .font(.nunitoExtraBold(12.5))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.appSecondary)
 
                         Chart {
                             ForEach(hourlyBreakdown, id: \.hour) { entry in
@@ -846,7 +844,7 @@ struct DayDetailSheet: View {
                                     x: .value("Hora", String(format: "%02d:00", entry.hour)),
                                     y: .value("mL", entry.ml)
                                 )
-                                .foregroundStyle(calendarBlue)
+                                .foregroundStyle(Color.appAccentText)
                                 .cornerRadius(4)
                             }
                         }
@@ -872,12 +870,12 @@ struct DayDetailSheet: View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Registros do dia")
                 .font(.nunitoExtraBold(12.5))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.appSecondary)
 
             if logs.isEmpty {
                 Text("Nenhum registro neste dia.")
                     .font(.nunitoBold(12.5))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.appSecondary)
                     .padding(.vertical, 12)
             } else {
                 VStack(spacing: 0) {
@@ -915,16 +913,16 @@ private struct IntakeRow: View {
         HStack(spacing: 12) {
             Image(systemName: "drop.fill")
                 .font(.footnote)
-                .foregroundStyle(calendarBlue)
+                .foregroundStyle(Color.appAccentText)
                 .frame(width: 30, height: 30)
-                .background(calendarBlue.opacity(0.12), in: Circle())
+                .background(Color.appAccent.opacity(0.12), in: Circle())
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(timeLabel)
                     .font(.nunitoExtraBold(13))
                 Text("\(log.tipoEntrada.capitalized) · \(log.volumeML) mL")
                     .font(.nunitoBold(12.5))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.appSecondary)
             }
 
             Spacer()

@@ -1,6 +1,5 @@
 import SwiftUI
 
-private let siriPurple = Color(red: 0.1098, green: 0.4627, blue: 0.9922)
 
 struct SiriTutorialView: View {
     @Environment(\.dismiss) private var dismiss
@@ -59,7 +58,7 @@ struct SiriTutorialView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Fechar", systemImage: "xmark") { dismiss() }
                         .font(.custom("Nunito", size: 16).weight(.semibold))
-                        .foregroundStyle(siriPurple)
+                        .foregroundStyle(Color.appAccentText)
                 }
             }
         }
@@ -71,11 +70,11 @@ struct SiriTutorialView: View {
         VStack(spacing: 10) {
             ZStack {
                 Circle()
-                    .fill(siriPurple.opacity(0.12))
+                    .fill(Color.appAccent.opacity(0.12))
                     .frame(width: 80, height: 80)
                 Image(systemName: "waveform.circle.fill")
                     .font(.system(size: 44))
-                    .foregroundStyle(siriPurple)
+                    .foregroundStyle(Color.appAccentText)
             }
             .padding(.top, 8)
 
@@ -85,7 +84,7 @@ struct SiriTutorialView: View {
 
             Text("Registre água sem tirar o celular do bolso — funciona com a tela bloqueada.")
                 .font(.custom("Nunito", size: 15))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.appSecondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 16)
         }
@@ -98,11 +97,11 @@ struct SiriTutorialView: View {
             HStack(spacing: 10) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 10)
-                        .fill(siriPurple.opacity(0.12))
+                        .fill(Color.appAccent.opacity(0.12))
                         .frame(width: 36, height: 36)
                     Image(systemName: icon)
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(siriPurple)
+                        .font(.system(.callout, weight: .semibold))
+                        .foregroundStyle(Color.appAccentText)
                 }
 
                 Text(title)
@@ -116,7 +115,7 @@ struct SiriTutorialView: View {
                     .foregroundStyle(.white)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
-                    .background(siriPurple, in: Capsule())
+                    .background(Color.appAccent, in: Capsule())
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 14)
@@ -126,7 +125,7 @@ struct SiriTutorialView: View {
                 path.addLine(to: CGPoint(x: 10000, y: 0))
             }
             .stroke(
-                Color(red: 0.75, green: 0.78, blue: 0.82).opacity(0.6),
+                Color.appDivider,
                 style: StrokeStyle(lineWidth: 1, dash: [6, 4])
             )
             .frame(height: 1)
@@ -147,8 +146,8 @@ struct SiriTutorialView: View {
         VStack(spacing: 0) {
             HStack(spacing: 10) {
                 Image(systemName: "waveform")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(siriPurple)
+                    .font(.system(.caption, weight: .semibold))
+                    .foregroundStyle(Color.appAccentText)
                     .frame(width: 18)
 
                 Text("\"\(text)\"")
@@ -160,7 +159,7 @@ struct SiriTutorialView: View {
 
                 Text(result)
                     .font(.custom("Nunito", size: 12).weight(.bold))
-                    .foregroundStyle(siriPurple)
+                    .foregroundStyle(Color.appAccentText)
                     .monospacedDigit()
             }
             .padding(.horizontal, 18)
@@ -191,15 +190,15 @@ struct SiriTutorialView: View {
                 path.addLine(to: CGPoint(x: 10000, y: 0))
             }
             .stroke(
-                Color(red: 0.75, green: 0.78, blue: 0.82).opacity(0.6),
+                Color.appDivider,
                 style: StrokeStyle(lineWidth: 1, dash: [6, 4])
             )
             .frame(height: 1)
             .padding(.horizontal, 18)
 
-            tipRow(icon: "lock.fill", color: .green, text: "Funciona com a **tela bloqueada**.", isLast: false)
-            tipRow(icon: "questionmark.circle.fill", color: siriPurple, text: "Se não falar a quantidade, a Siri pergunta.", isLast: false)
-            tipRow(icon: "mic.fill", color: .orange, text: "Não precisa de frase exata — fale naturalmente.", isLast: false)
+            tipRow(icon: "lock.fill", color: Color.appSuccess, text: "Funciona com a **tela bloqueada**.", isLast: false)
+            tipRow(icon: "questionmark.circle.fill", color: Color.appAccentText, text: "Se não falar a quantidade, a Siri pergunta.", isLast: false)
+            tipRow(icon: "mic.fill", color: Color.appWarning, text: "Não precisa de frase exata — fale naturalmente.", isLast: false)
             tipRow(icon: "number", color: .blue, text: "Funciona com números: \"3 copos\", \"dois goles\".", isLast: true)
         }
         .background(RoundedRectangle(cornerRadius: 20, style: .continuous)
@@ -211,14 +210,14 @@ struct SiriTutorialView: View {
         VStack(spacing: 0) {
             HStack(alignment: .top, spacing: 12) {
                 Image(systemName: icon)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(.subheadline, weight: .semibold))
                     .foregroundStyle(color)
                     .frame(width: 20)
                     .padding(.top, 1)
 
                 Text(text)
                     .font(.custom("Nunito", size: 14))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.appSecondary)
                     .fixedSize(horizontal: false, vertical: true)
 
                 Spacer()
