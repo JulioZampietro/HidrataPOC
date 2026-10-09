@@ -119,10 +119,10 @@ struct ProfileFormView: View {
                         }
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Sincronizar com Saúde")
-                                .fontWeight(.semibold)
+                                .font(AppFont.calloutStrong)
                                 .foregroundStyle(Color.primary)
                             Text("Importa sexo biológico, nascimento, peso e altura")
-                                .font(.caption)
+                                .font(AppFont.caption)
                                 .foregroundStyle(Color.appSecondary)
                         }
                     }
@@ -170,7 +170,7 @@ struct ProfileFormView: View {
                     Text("cm").foregroundStyle(Color.appSecondary)
                 }
             } header: {
-                Text("Sobre você").foregroundStyle(Color.appSecondary)
+                Text("Sobre você").font(AppFont.footnote).foregroundStyle(Color.appSecondary)
             }
 
             Section {
@@ -181,6 +181,7 @@ struct ProfileFormView: View {
                 }
             } footer: {
                 Text("Usado apenas para calcular sua necessidade diária de água.")
+                    .font(AppFont.footnote)
                     .foregroundStyle(Color.appSecondary)
             }
 
@@ -199,6 +200,7 @@ struct ProfileFormView: View {
             } footer: {
                 if resetGoal {
                     Text("A meta será redefinida para \(metaDiariaML) mL ao salvar.")
+                        .font(AppFont.footnote)
                         .foregroundStyle(Color.appSecondary)
                 }
             }
@@ -225,12 +227,13 @@ struct ProfileFormView: View {
                     onSave(ProfileFormValues(idade: finalIdade, genero: genero, pesoKg: finalPeso, alturaCm: finalAltura, customIntakeML: customIntakeML, storedGoalML: initialValues.storedGoalML, resetGoalToCalculated: resetGoal))
                 }
                 .frame(maxWidth: .infinity)
-                .fontWeight(.semibold)
+                .font(AppFont.calloutStrong)
                 .foregroundStyle(.white)
                 .listRowBackground(Color.appAccent)
             }
             .id("confirmSection")
         }
+        .font(AppFont.body)
         .navigationTitle(title)
         .scrollContentBackground(.hidden)
         .appScreenBackground()

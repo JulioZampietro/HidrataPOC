@@ -44,7 +44,6 @@ struct HealthConnectView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Fechar", systemImage: "xmark") { dismiss() }
-                        .font(.custom("Nunito", size: 16).weight(.semibold))
                 }
             }
             .task { isAuthorized = service.isAuthorized }
@@ -67,14 +66,14 @@ struct HealthConnectView: View {
     private var statusSection: some View {
         VStack(spacing: 6) {
             Text("App Saúde")
-                .font(.custom("Nunito", size: 22).weight(.heavy))
+                .font(AppFont.title2)
 
             HStack(spacing: 6) {
                 Circle()
                     .fill(isAuthorized ? Color.appSuccess : Color.appWarning)
                     .frame(width: 8, height: 8)
                 Text(isAuthorized ? "Conectado" : "Não conectado")
-                    .font(.custom("Nunito", size: 14))
+                    .font(AppFont.subheadline)
                     .foregroundStyle(Color.appSecondary)
             }
         }
@@ -93,7 +92,7 @@ struct HealthConnectView: View {
                 Task { await authorize() }
             } label: {
                 Text("Conectar ao Saúde")
-                    .font(.custom("Nunito", size: 16).weight(.bold))
+                    .font(AppFont.calloutStrong)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 8)
             }
@@ -108,12 +107,12 @@ struct HealthConnectView: View {
                 infoRow(icon: "checkmark.circle.fill", color: Color.appSuccess,
                         text: "Seus registros de água são enviados automaticamente ao Saúde")
                 infoRow(icon: "arrow.triangle.2.circlepath", color: Color.appAccentText,
-                        text: "Água adicionada por outros apps é importada ao abrir o Hidrата")
+                        text: "Água adicionada por outros apps é importada ao abrir o Hidrata")
             }
 
             if let lastSync = lastSyncFormatted {
                 Text("Última sincronização \(lastSync)")
-                    .font(.custom("Nunito", size: 12))
+                    .font(AppFont.caption)
                     .foregroundStyle(Color.appSecondary)
             }
 
@@ -126,11 +125,11 @@ struct HealthConnectView: View {
                             .tint(.white)
                     } else if justSynced {
                         Label("Sincronizado", systemImage: "checkmark")
-                            .font(.custom("Nunito", size: 16).weight(.bold))
+                            .font(AppFont.calloutStrong)
                             .foregroundStyle(.white)
                     } else {
                         Text("Sincronizar agora")
-                            .font(.custom("Nunito", size: 16).weight(.bold))
+                            .font(AppFont.calloutStrong)
                             .foregroundStyle(.white)
                     }
                 }
@@ -145,7 +144,7 @@ struct HealthConnectView: View {
 
     private var unavailableSection: some View {
         Text("O app Saúde não está disponível neste dispositivo.")
-            .font(.custom("Nunito", size: 15))
+            .font(AppFont.subheadline)
             .foregroundStyle(Color.appSecondary)
             .multilineTextAlignment(.center)
             .padding(.horizontal, 16)
@@ -158,7 +157,7 @@ struct HealthConnectView: View {
                 .foregroundStyle(color)
                 .frame(width: 28)
             Text(text)
-                .font(.custom("Nunito", size: 14))
+                .font(AppFont.subheadline)
                 .foregroundStyle(Color.appSecondary)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer()

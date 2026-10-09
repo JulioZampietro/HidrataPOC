@@ -46,7 +46,7 @@ struct FeatureOnboardingView: View {
                         .font(.system(.footnote, weight: .semibold))
                         .foregroundStyle(Color.appAccentText)
                     Text("Acesse **Perfil** para ver isso novamente a qualquer momento.")
-                        .font(.custom("Nunito", size: 13))
+                        .font(AppFont.footnote)
                         .foregroundStyle(Color.appSecondary)
                 }
                 .padding(.horizontal, 32)
@@ -63,7 +63,7 @@ struct FeatureOnboardingView: View {
                 }
             } label: {
                 Text(currentPage < pages.count - 1 ? "Próximo" : "Começar")
-                    .font(.custom("Nunito", size: 16).weight(.bold))
+                    .font(AppFont.calloutStrong)
                     .padding(.horizontal, 32)
                     .padding(.vertical, 6)
             }
@@ -120,7 +120,7 @@ private struct ActionButtonPage: View {
                 .font(.system(.caption, weight: .semibold))
                 .foregroundStyle(Color.appAccentText)
             Text("iPhone 15 Pro, 16 e posteriores · iOS 18+")
-                .font(.custom("Nunito", size: 13).weight(.semibold))
+                .font(AppFont.footnoteStrong)
                 .foregroundStyle(Color.appAccentText)
         }
         .padding(.horizontal, 14)
@@ -152,7 +152,7 @@ private struct ActionButtonPage: View {
                 ZStack {
                     Circle().fill(Color.appAccent).frame(width: 28, height: 28)
                     Text("\(number)")
-                        .font(.custom("Nunito", size: 13).weight(.heavy))
+                        .font(AppFont.footnoteStrong)
                         .foregroundStyle(.white)
                 }
                 HStack(spacing: 6) {
@@ -160,7 +160,7 @@ private struct ActionButtonPage: View {
                         .font(.system(.caption, weight: .semibold))
                         .foregroundStyle(Color.appAccentText)
                     Text(title)
-                        .font(.custom("Nunito", size: 14).weight(.semibold))
+                        .font(AppFont.subheadlineStrong)
                         .foregroundStyle(.primary)
                 }
                 Spacer()
@@ -208,7 +208,7 @@ private struct SiriPage: View {
         VStack(spacing: 0) {
             HStack {
                 Text("Frases que funcionam")
-                    .font(.custom("Nunito", size: 15).weight(.heavy))
+                    .font(AppFont.subheadlineHeavy)
                     .foregroundStyle(.primary)
                 Spacer()
             }
@@ -225,12 +225,12 @@ private struct SiriPage: View {
                             .foregroundStyle(Color.appAccentText)
                             .frame(width: 18)
                         Text(phrase.text)
-                            .font(.custom("Nunito", size: 13))
+                            .font(AppFont.footnote)
                             .foregroundStyle(.primary)
                             .fixedSize(horizontal: false, vertical: true)
                         Spacer()
                         Text(phrase.result)
-                            .font(.custom("Nunito", size: 12).weight(.bold))
+                            .font(AppFont.captionStrong)
                             .foregroundStyle(Color.appAccentText)
                     }
                     .padding(.horizontal, 16)
@@ -252,7 +252,7 @@ private struct SiriPage: View {
                 .foregroundStyle(Color.appSuccess)
                 .padding(.top, 1)
             Text("Funciona com a **tela bloqueada** e sem precisar de frases exatas — fale naturalmente.")
-                .font(.custom("Nunito", size: 13))
+                .font(AppFont.footnote)
                 .foregroundStyle(Color.appSecondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -275,11 +275,11 @@ private func pageHeader(icon: String, title: String, subtitle: String) -> some V
         }
 
         Text(title)
-            .font(.custom("Nunito", size: 26).weight(.heavy))
+            .font(AppFont.title)
             .foregroundStyle(.primary)
 
         Text(subtitle)
-            .font(.custom("Nunito", size: 15))
+            .font(AppFont.subheadline)
             .foregroundStyle(Color.appSecondary)
             .multilineTextAlignment(.center)
             .padding(.horizontal, 16)

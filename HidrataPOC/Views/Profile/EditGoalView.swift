@@ -40,9 +40,11 @@ struct EditGoalView: View {
                     }
                 } footer: {
                     Text("Se você editar seus dados pessoais (idade, peso, altura ou gênero) depois, a meta diária será recalculada automaticamente e substituirá este valor.")
+                        .font(AppFont.footnote)
                         .foregroundStyle(Color.appSecondary)
                 }
             }
+            .font(AppFont.body)
             .navigationTitle("Editar meta diária")
             .scrollContentBackground(.hidden)
             .appScreenBackground()

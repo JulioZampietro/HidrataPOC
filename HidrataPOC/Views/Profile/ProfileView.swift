@@ -100,19 +100,19 @@ struct ProfileView: View {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Sua meta diária é")
-                        .font(.custom("Nunito", size: 14))
+                        .font(AppFont.subheadline)
                         .foregroundStyle(Color.appSecondary)
 
                     HStack(alignment: .lastTextBaseline, spacing: 4) {
                         Text("\(profile.metaDiariaML)")
-                            .font(.custom("Nunito", size: 40).weight(.heavy))
+                            .font(AppFont.metric)
                             .foregroundStyle(.primary)
                         Text("mL")
-                            .font(.custom("Nunito", size: 18).weight(.semibold))
+                            .font(AppFont.title3)
                             .foregroundStyle(Color.appSecondary)
                         if let adjustment = tempContext?.adjustmentML, adjustment > 0 {
                             Text("+ \(adjustment) mL")
-                                .font(.custom("Nunito", size: 13).weight(.semibold))
+                                .font(AppFont.footnoteStrong)
                                 .foregroundStyle(Color.appWarning)
                         }
                     }
@@ -133,7 +133,7 @@ struct ProfileView: View {
                     showGoalExplainer = true
                 } label: {
                     Text("Entender minha meta")
-                        .font(.custom("Nunito", size: 15).weight(.bold))
+                        .font(AppFont.subheadlineStrong)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 6)
                 }
@@ -144,7 +144,7 @@ struct ProfileView: View {
                     isEditingGoal = true
                 } label: {
                     Text("Editar")
-                        .font(.custom("Nunito", size: 15).weight(.semibold))
+                        .font(AppFont.subheadlineStrong)
                         .padding(.vertical, 6)
                         .padding(.horizontal, 8)
                 }
@@ -167,10 +167,10 @@ struct ProfileView: View {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Configurar lembretes")
-                        .font(.custom("Nunito", size: 17).weight(.heavy))
+                        .font(AppFont.headline)
 
                     Text("O monstro te provoca quando\nvocê esquece de beber")
-                        .font(.custom("Nunito", size: 13))
+                        .font(AppFont.footnote)
                         .opacity(0.85)
                         .lineSpacing(2)
                         .fixedSize(horizontal: false, vertical: true)
@@ -199,7 +199,7 @@ struct ProfileView: View {
         } label: {
             HStack {
                 Text("Como usar o botão de ação")
-                    .font(.custom("Nunito", size: 16).weight(.semibold))
+                    .font(AppFont.calloutStrong)
                     .foregroundStyle(.primary)
 
                 Spacer()
@@ -230,7 +230,7 @@ struct ProfileView: View {
         } label: {
             HStack {
                 Text("Como usar a Siri")
-                    .font(.custom("Nunito", size: 16).weight(.semibold))
+                    .font(AppFont.calloutStrong)
                     .foregroundStyle(.primary)
 
                 Spacer()
@@ -262,7 +262,7 @@ struct ProfileView: View {
         } label: {
             HStack {
                 Text("Conectar ao Saúde")
-                    .font(.custom("Nunito", size: 16).weight(.semibold))
+                    .font(AppFont.calloutStrong)
                     .foregroundStyle(.primary)
 
                 Spacer()
@@ -299,7 +299,7 @@ struct ProfileView: View {
             } label: {
                 HStack {
                     Label("Debug: testar notificação do mascote", systemImage: "ladybug")
-                        .font(.custom("Nunito", size: 16).weight(.semibold))
+                        .font(AppFont.calloutStrong)
                         .foregroundStyle(.primary)
                     Spacer()
                 }
@@ -313,7 +313,7 @@ struct ProfileView: View {
 
             if let debugNotificationStatus {
                 Text(debugNotificationStatus)
-                    .font(.custom("Nunito", size: 13))
+                    .font(AppFont.footnote)
                     .foregroundStyle(Color.appSecondary)
                     .padding(.horizontal, 6)
             }
@@ -324,7 +324,7 @@ struct ProfileView: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
                 Label("Debug: ajuste climático", systemImage: "cloud.sun")
-                    .font(.custom("Nunito", size: 14).weight(.bold))
+                    .font(AppFont.subheadlineStrong)
                     .foregroundStyle(Color.appSecondary)
                 Spacer()
             }
@@ -345,7 +345,7 @@ struct ProfileView: View {
                 }
             } else {
                 Text("Carregando dados do clima…")
-                    .font(.custom("Nunito", size: 13))
+                    .font(AppFont.footnote)
                     .foregroundStyle(Color.appSecondary)
                     .padding(.horizontal, 18)
                     .padding(.vertical, 14)
@@ -360,11 +360,11 @@ struct ProfileView: View {
     private func debugRow(label: String, value: String, highlight: Bool = false) -> some View {
         HStack {
             Text(label)
-                .font(.custom("Nunito", size: 13))
+                .font(AppFont.footnote)
                 .foregroundStyle(Color.appSecondary)
             Spacer()
             Text(value)
-                .font(.custom("Nunito", size: 13).weight(.bold))
+                .font(AppFont.footnoteStrong)
                 .foregroundStyle(highlight ? Color.appWarning : Color.primary)
         }
         .padding(.horizontal, 18)
@@ -378,7 +378,7 @@ struct ProfileView: View {
         VStack(spacing: 0) {
             HStack {
                 Text("DADOS PESSOAIS")
-                    .font(.custom("Nunito", size: 12).weight(.bold))
+                    .font(AppFont.captionStrong)
                     .foregroundStyle(Color.appAccentText)
                     .tracking(1)
 
@@ -388,7 +388,7 @@ struct ProfileView: View {
                     isEditing = true
                 } label: {
                     Text("Editar")
-                        .font(.custom("Nunito", size: 15).weight(.semibold))
+                        .font(AppFont.subheadlineStrong)
                         .foregroundStyle(Color.appAccentText)
                 }
                 .buttonStyle(.plain)
@@ -412,13 +412,13 @@ struct ProfileView: View {
         VStack(spacing: 0) {
             HStack {
                 Text(label)
-                    .font(.custom("Nunito", size: 16))
+                    .font(AppFont.callout)
                     .foregroundStyle(.primary)
 
                 Spacer()
 
                 Text(value)
-                    .font(.custom("Nunito", size: 16).weight(.bold))
+                    .font(AppFont.calloutStrong)
                     .foregroundStyle(.primary)
             }
             .padding(.horizontal, 18)
@@ -501,27 +501,27 @@ private struct GoalExplainerView: View {
                     .padding(.top, 32)
 
                 Text("Sua meta diária")
-                    .font(.custom("Nunito", size: 22).weight(.heavy))
+                    .font(AppFont.title2)
 
                 VStack(spacing: 6) {
                     HStack(alignment: .lastTextBaseline, spacing: 6) {
                         Text("\(goalML) mL")
-                            .font(.custom("Nunito", size: 40).weight(.heavy))
+                            .font(AppFont.metric)
                             .foregroundStyle(Color.appAccentText)
                         if adjustmentML > 0 {
                             Text("+ \(adjustmentML) mL")
-                                .font(.custom("Nunito", size: 15).weight(.semibold))
+                                .font(AppFont.subheadlineStrong)
                                 .foregroundStyle(Color.appWarning)
                         }
                     }
 
                     Text(isManual ? "definida por você manualmente" : "calculada com base no seu perfil")
-                        .font(.custom("Nunito", size: 14))
+                        .font(AppFont.subheadline)
                         .foregroundStyle(Color.appSecondary)
 
                     if adjustmentML > 0 {
                         Text("+ \(adjustmentML) mL por conta do clima hoje")
-                            .font(.custom("Nunito", size: 13))
+                            .font(AppFont.footnote)
                             .foregroundStyle(Color.appWarning)
                     }
                 }
@@ -531,7 +531,7 @@ private struct GoalExplainerView: View {
                         ? "Esta meta foi definida por você manualmente. Se editar seus dados pessoais (peso, altura, idade ou sexo), ela será recalculada automaticamente."
                         : "A quantidade ideal de água depende do seu peso, altura, idade, gênero e temperatura no dia. Você pode ajustar seus dados no perfil para recalcular a meta."
                 )
-                .font(.custom("Nunito", size: 15))
+                .font(AppFont.subheadline)
                 .foregroundStyle(Color.appSecondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
@@ -542,7 +542,7 @@ private struct GoalExplainerView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Fechar", systemImage: "xmark") { dismiss() }
-                        .font(.custom("Nunito", size: 16).weight(.semibold))
+                        .font(AppFont.calloutStrong)
                 }
             }
         }

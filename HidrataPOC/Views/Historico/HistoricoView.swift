@@ -7,20 +7,6 @@ import SwiftUI
 
 /// Mesmo azul de accent da HomeView — usado na topBar para manter os botões idênticos.
 
-private extension Font {
-    static func baloo2ExtraBold(_ size: CGFloat) -> Font {
-        .custom("Baloo2-ExtraBold", size: size)
-    }
-
-    static func nunitoExtraBold(_ size: CGFloat) -> Font {
-        .custom("Nunito-ExtraBold", size: size)
-    }
-
-    static func nunitoBold(_ size: CGFloat) -> Font {
-        .custom("Nunito-Bold", size: size)
-    }
-}
-
 struct DiaHistorico: Identifiable {
     let id = UUID()
     let date: Date
@@ -214,12 +200,12 @@ struct HistoricoView: View {
         HStack {
             HStack(spacing: 6) {
                 Image(systemName: "drop.fill")
-                    .font(.custom("Nunito", size: 12))
+                    .font(AppFont.caption)
                     .foregroundStyle(Color.appAccentText)
                 Text("\(streakDias)")
-                    .font(.custom("Nunito", size: 15).bold())
+                    .font(AppFont.subheadlineStrong)
                 Text("dias")
-                    .font(.custom("Nunito", size: 15))
+                    .font(AppFont.subheadline)
             }
             .foregroundStyle(.primary)
             .padding(.horizontal, 14)
@@ -582,7 +568,7 @@ struct HistoricoView: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
                 Text("Últimos 7 dias")
-                    .font(.baloo2ExtraBold(21))
+                    .font(AppFont.displayTitle)
                 Spacer()
                 pageToggleButton
             }
@@ -603,7 +589,7 @@ struct HistoricoView: View {
                 .accessibilityLabel("Mês anterior")
 
                 Text(monthTitle)
-                    .font(.baloo2ExtraBold(21))
+                    .font(AppFont.displayTitle)
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
 
@@ -621,7 +607,7 @@ struct HistoricoView: View {
             Spacer()
 
             Text("\(metasBatidasCount) metas batidas")
-                .font(.nunitoExtraBold(12.5))
+                .font(AppFont.footnoteStrong)
                 .foregroundStyle(Color.appAccentText)
 
             pageToggleButton
@@ -666,7 +652,7 @@ struct HistoricoView: View {
         HStack {
             ForEach(Array(weekdaySymbols.enumerated()), id: \.offset) { _, symbol in
                 Text(symbol)
-                    .font(.nunitoExtraBold(11.5))
+                    .font(AppFont.captionStrong)
                     .foregroundStyle(Color.appSecondary)
                     .frame(maxWidth: .infinity)
             }
@@ -710,7 +696,7 @@ private struct DayCell: View {
                 FillSwatch(percentual: dia.percentualMeta, cornerRadius: 12)
 
                 Text("\(dayNumber)")
-                    .font(.baloo2ExtraBold(14))
+                    .font(AppFont.displayNumber)
                     .foregroundStyle(numberColor)
                     .shadow(color: numberShadow, radius: 1, x: 0, y: 0)
                     .frame(width: geo.size.width, height: geo.size.height)
@@ -827,15 +813,15 @@ struct DayDetailSheet: View {
                 VStack(alignment: .leading, spacing: 24) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(dateTitle)
-                            .font(.baloo2ExtraBold(21))
+                            .font(AppFont.displayTitle)
                         Text("\(totalML) mL de \(metaDiariaML) mL da meta")
-                            .font(.nunitoExtraBold(13))
+                            .font(AppFont.footnoteStrong)
                             .foregroundStyle(atingiuMeta ? Color.appAccentText : Color.appSecondary)
                     }
 
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Consumo ao longo do dia")
-                            .font(.nunitoExtraBold(12.5))
+                            .font(AppFont.footnoteStrong)
                             .foregroundStyle(Color.appSecondary)
 
                         Chart {
@@ -869,12 +855,12 @@ struct DayDetailSheet: View {
     private var intakeList: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Registros do dia")
-                .font(.nunitoExtraBold(12.5))
+                .font(AppFont.footnoteStrong)
                 .foregroundStyle(Color.appSecondary)
 
             if logs.isEmpty {
                 Text("Nenhum registro neste dia.")
-                    .font(.nunitoBold(12.5))
+                    .font(AppFont.footnoteStrong)
                     .foregroundStyle(Color.appSecondary)
                     .padding(.vertical, 12)
             } else {
@@ -919,9 +905,9 @@ private struct IntakeRow: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(timeLabel)
-                    .font(.nunitoExtraBold(13))
+                    .font(AppFont.footnoteStrong)
                 Text("\(log.tipoEntrada.capitalized) · \(log.volumeML) mL")
-                    .font(.nunitoBold(12.5))
+                    .font(AppFont.footnoteStrong)
                     .foregroundStyle(Color.appSecondary)
             }
 

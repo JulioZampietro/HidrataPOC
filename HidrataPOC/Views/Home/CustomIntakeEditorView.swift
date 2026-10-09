@@ -42,6 +42,7 @@ struct CustomIntakeEditorView: View {
                     }
                 }
             }
+            .font(AppFont.body)
             .navigationTitle("Volume personalizado")
             .scrollContentBackground(.hidden)
             .appScreenBackground()

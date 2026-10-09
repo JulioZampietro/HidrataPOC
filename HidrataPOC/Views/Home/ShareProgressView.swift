@@ -132,11 +132,11 @@ struct ShareProgressCard: View {
 
             VStack(spacing: 6) {
                 Text("bebi hoje")
-                    .font(.custom("Nunito", size: 17).weight(.semibold))
+                    .font(AppFont.fixed(17, .semibold))
                     .opacity(0.85)
                 amount(size: 72)
                 Text(snapshot.progress >= 1 ? "Meta batida! 🎉" : "de \(goalText) mL · \(percentText)")
-                    .font(.custom("Nunito", size: 17).weight(.bold))
+                    .font(AppFont.fixed(17, .bold))
             }
 
             progressBar
@@ -153,12 +153,12 @@ struct ShareProgressCard: View {
     private var minimalistaLayout: some View {
         VStack(spacing: 10) {
             Text("HIDRATA")
-                .font(.custom("Nunito", size: 14).weight(.heavy))
+                .font(AppFont.fixed(14, .heavy))
                 .tracking(4)
                 .opacity(0.9)
             VStack(spacing: 0) {
                 Text("bebi hoje")
-                    .font(.custom("Nunito", size: 18).weight(.semibold))
+                    .font(AppFont.fixed(18, .semibold))
                     .opacity(0.85)
                 amount(size: 64)
             }
@@ -179,11 +179,11 @@ struct ShareProgressCard: View {
                     .rotationEffect(.degrees(-90))
                 VStack(spacing: 2) {
                     Text("bebi hoje")
-                        .font(.custom("Nunito", size: 15).weight(.semibold))
+                        .font(AppFont.fixed(15, .semibold))
                         .opacity(0.85)
                     amount(size: 46)
                     Text(snapshot.progress >= 1 ? "Meta batida! 🎉" : "\(percentText) da meta")
-                        .font(.custom("Nunito", size: 15).weight(.bold))
+                        .font(AppFont.fixed(15, .bold))
                 }
             }
             .frame(width: 230, height: 230)
@@ -203,7 +203,7 @@ struct ShareProgressCard: View {
                 Text("HIDRATA")
                     .tracking(3)
             }
-            .font(.custom("Nunito", size: 14).weight(.heavy))
+            .font(AppFont.fixed(14, .heavy))
 
             stat(label: "Bebi hoje", value: consumedText, unit: "mL")
             HStack(alignment: .top, spacing: 32) {
@@ -221,10 +221,10 @@ struct ShareProgressCard: View {
     private var header: some View {
         VStack(spacing: 4) {
             Text("HIDRATA")
-                .font(.custom("Nunito", size: 15).weight(.heavy))
+                .font(AppFont.fixed(15, .heavy))
                 .tracking(4)
             Text(dateText)
-                .font(.custom("Nunito", size: 15).weight(.semibold))
+                .font(AppFont.fixed(15, .semibold))
                 .opacity(0.85)
         }
     }
@@ -232,9 +232,9 @@ struct ShareProgressCard: View {
     private func amount(size: CGFloat) -> some View {
         HStack(alignment: .lastTextBaseline, spacing: 6) {
             Text(consumedText)
-                .font(.custom("Nunito", size: size).weight(.heavy))
+                .font(AppFont.fixed(size, .heavy))
             Text("mL")
-                .font(.custom("Nunito", size: size * 0.36).weight(.bold))
+                .font(AppFont.fixed(size * 0.36, .bold))
         }
     }
 
@@ -243,21 +243,21 @@ struct ShareProgressCard: View {
             Image(systemName: "drop.fill")
             Text(streakText)
         }
-        .font(.custom("Nunito", size: 16).weight(.bold))
+        .font(AppFont.fixed(16, .bold))
     }
 
     private func stat(label: String, value: String, unit: String?) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(label.uppercased())
-                .font(.custom("Nunito", size: 12).weight(.bold))
+                .font(AppFont.fixed(12, .bold))
                 .tracking(1.5)
                 .opacity(0.85)
             HStack(alignment: .lastTextBaseline, spacing: 4) {
                 Text(value)
-                    .font(.custom("Nunito", size: 40).weight(.heavy))
+                    .font(AppFont.fixed(40, .heavy))
                 if let unit {
                     Text(unit)
-                        .font(.custom("Nunito", size: 16).weight(.bold))
+                        .font(AppFont.fixed(16, .bold))
                 }
             }
         }
@@ -400,7 +400,7 @@ struct ShareProgressView: View {
 
                 if let footnote = saveFootnote {
                     Text(footnote)
-                        .font(.footnote)
+                        .font(AppFont.footnote)
                         .foregroundStyle(Color.appSecondary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 20)
@@ -428,7 +428,7 @@ struct ShareProgressView: View {
                     }
                 }
                 .controlSize(.large)
-                .fontWeight(.semibold)
+                .font(AppFont.calloutStrong)
                 .padding(.horizontal, 20)
                 .padding(.bottom, 8)
             }

@@ -151,12 +151,12 @@ struct HomeView: View {
         HStack {
             HStack(spacing: 6) {
                 Image(systemName: "drop.fill")
-                    .font(.custom("Nunito", size: 12))
+                    .font(AppFont.caption)
                     .foregroundStyle(Color.appAccentText)
                 Text("\(streak)")
-                    .font(.custom("Nunito", size: 15).bold())
+                    .font(AppFont.subheadlineStrong)
                 Text("dias")
-                    .font(.custom("Nunito", size: 15))
+                    .font(AppFont.subheadline)
             }
             .foregroundStyle(.primary)
             .padding(.horizontal, 14)
@@ -507,7 +507,7 @@ struct HomeView: View {
     
     private func progressLabel(color: Color) -> some View {
         Text("\(consumedToday) mL / \(effectiveGoalML) mL")
-            .font(.custom("Nunito", size: 15).weight(.heavy))
+            .font(AppFont.subheadlineHeavy)
             .foregroundStyle(color)
             .lineLimit(1)
             .minimumScaleFactor(0.6)
@@ -690,11 +690,11 @@ struct IntakeCardContent: View {
             Spacer(minLength: 0)
 
             Text(title)
-                .font(.custom("Nunito", size: 17).weight(.heavy))
+                .font(AppFont.headline)
                 .foregroundStyle(titleColor)
 
             Text(subtitle)
-                .font(.custom("Nunito", size: 15))
+                .font(AppFont.subheadline)
                 .foregroundStyle(subtitleColor)
         }
         // Mantém o texto branco legível onde ele passa do ícone para o fundo claro.
