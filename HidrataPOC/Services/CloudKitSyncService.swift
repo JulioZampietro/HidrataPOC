@@ -81,7 +81,7 @@ final class CloudKitSyncService {
         record["atualizadoEm"] = profile.atualizadoEm
 
         do {
-            let saved = try await container.publicCloudDatabase.save(record)
+            let saved = try await saveResolvingConflict(record)
             profile.ckSystemFields = archivedSystemFields(saved)
             profile.syncStatus = .synced
         } catch {
@@ -137,7 +137,7 @@ final class CloudKitSyncService {
         record["notificationVariant"] = event.notificationVariant
 
         do {
-            let saved = try await container.publicCloudDatabase.save(record)
+            let saved = try await saveResolvingConflict(record)
             event.ckSystemFields = archivedSystemFields(saved)
             event.syncStatus = .synced
         } catch {
@@ -155,7 +155,7 @@ final class CloudKitSyncService {
         record["metadataJSON"] = event.metadataJSON
 
         do {
-            let saved = try await container.publicCloudDatabase.save(record)
+            let saved = try await saveResolvingConflict(record)
             event.ckSystemFields = archivedSystemFields(saved)
             event.syncStatus = .synced
         } catch {
@@ -252,6 +252,24 @@ final class CloudKitSyncService {
     }
 
     // MARK: - Helpers
+
+    /// Saves `record`; if the server already holds a newer copy, re-applies this push's
+    /// fields onto that copy and saves once more. Without this, a row whose earlier save
+    /// landed but whose response was lost (or that raced another push of the same row,
+    /// e.g. `captureContext` and `resolveInteraction` for one `NotificationEvent`) would
+    /// stay `.failed` for good: every `flushPending` retry rebuilds the record from the
+    /// same stale `ckSystemFields` and hits `.serverRecordChanged` again.
+    private func saveResolvingConflict(_ record: CKRecord) async throws -> CKRecord {
+        do {
+            return try await container.publicCloudDatabase.save(record)
+        } catch let error as CKError where error.code == .serverRecordChanged {
+            guard let serverRecord = error.serverRecord else { throw error }
+            for key in record.changedKeys() {
+                serverRecord[key] = record[key]
+            }
+            return try await container.publicCloudDatabase.save(serverRecord)
+        }
+    }
 
     private func recordID(for id: UUID) -> CKRecord.ID {
         CKRecord.ID(recordName: id.uuidString)
