@@ -480,7 +480,13 @@ struct HomeView: View {
                 Capsule()
                     .fill(AppTheme.progressTrack(for: colorScheme))
                     .frame(height: progressBarHeight)
-                    .overlay { Capsule().strokeBorder(Color.appControlOutline, lineWidth: 1) }
+                    // Contorno só no escuro, onde a trilha azul-marinho quase some no fundo;
+                    // no claro a trilha cinza aparece sozinha, sem borda.
+                    .overlay {
+                        if colorScheme == .dark {
+                            Capsule().strokeBorder(Color.appControlOutline, lineWidth: 1)
+                        }
+                    }
                     .homeCardShadow()
                 
                 // preenchimento azul
@@ -489,14 +495,8 @@ struct HomeView: View {
                     .frame(width: barWidth, height: progressBarHeight)
                     .animation(.easeOut(duration: 0.4), value: progress)
                 
-                // Texto escuro sobre a trilha e branco sobre o preenchimento azul: a mesma
-                // frase é desenhada duas vezes e a versão branca é recortada na largura
-                // do preenchimento, então cada letra tem contraste com o que está atrás.
-                progressLabel(color: Color.appOnTrack)
+                // Texto sempre branco, sobre a trilha e sobre o preenchimento.
                 progressLabel(color: .white)
-                    .mask(alignment: .leading) {
-                        Capsule().frame(width: barWidth, height: progressBarHeight)
-                    }
 
                 // Indica que a barra é tocável (abre os registros de hoje). Fica branco
                 // quando o preenchimento azul já chegou embaixo dele.
