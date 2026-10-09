@@ -75,6 +75,7 @@ enum WaterTuning {
 
     // Brincar com as pedrinhas (arrastar o dedo em cima empurra as de perto)
     static let stonePokeRadius: Float = 80   // pt — além do próprio raio da pedra
+    static let stonePokeBandHeight: CGFloat = 140 // pt — faixa de baixo do recipiente onde o dedo empurra as pedrinhas
     static let stonePokeStrength: Float = 420 // pt/s² de impulso no toque mais perto
     static let stoneRestSpeed: Float = 60    // pt/s — abaixo disso, zera a velocidade no choque em vez
                                               // de aplicar `stoneRestitution`. Sem isso, a gravidade
@@ -124,6 +125,7 @@ private struct WaterContainerModifier<S: Shape>: ViewModifier {
     var externalMotion: WaterMotion?
 
     @State private var internalMotion = WaterMotion()
+    @State private var containerHeight: CGFloat = 0
 
     private var motion: WaterMotion { externalMotion ?? internalMotion }
 
@@ -139,27 +141,22 @@ private struct WaterContainerModifier<S: Shape>: ViewModifier {
                     .animation(.easeInOut(duration: 1.2), value: level)
             }
             .clipShape(shape)
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { containerHeight = $0 }
             // Deixa arrastar o dedo em cima das pedrinhas pra empurrá-las — só na
-            // faixa de baixo (onde elas assentam pela gravidade), pra não disputar
-            // o gesto de rolar a tela com o resto do recipiente. `.simultaneousGesture`
-            // (não `.gesture`) pra não bloquear o scroll quando não há pedra ali.
-            .overlay(alignment: .bottom) {
-                GeometryReader { proxy in
-                    let bleedOffset = max(0, Float(motion.waterSize.height) - Float(proxy.size.height))
-                    Color.clear
-                        .contentShape(Rectangle())
-                        .simultaneousGesture(
-                            DragGesture(minimumDistance: 0)
-                                .onChanged { value in
-                                    motion.pokeStones(at: SIMD2<Float>(
-                                        Float(value.location.x),
-                                        Float(value.location.y) + bleedOffset
-                                    ))
-                                }
-                        )
-                }
-                .frame(height: 140)
-            }
+            // faixa de baixo (onde elas assentam pela gravidade). Fica no próprio
+            // recipiente como `.simultaneousGesture`, e não numa camada por cima: uma
+            // camada roubava os toques do mascote (e de tudo mais) naquela faixa.
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { value in
+                        guard value.location.y >= containerHeight - WaterTuning.stonePokeBandHeight else { return }
+                        let bleedOffset = max(0, Float(motion.waterSize.height) - Float(containerHeight))
+                        motion.pokeStones(at: SIMD2<Float>(
+                            Float(value.location.x),
+                            Float(value.location.y) + bleedOffset
+                        ))
+                    }
+            )
             .onAppear { motion.start() }
             .onDisappear { motion.stop() }
             .onReceive(NotificationCenter.default.publisher(for: .waterDebugShake)) { _ in

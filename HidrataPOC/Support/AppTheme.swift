@@ -96,19 +96,22 @@ enum TabScreenLayout {
     /// an overlay on top of the container instead, so the container grows up into
     /// that reclaimed space and reaches near the top safe area.
     static let extraContainerHeight: CGFloat = headerHeight + spacing
+    /// Altura a mais no aquário (tirada dos cartões de baixo), só como água acima do
+    /// mascote — `mascotHeight` também desconta isso, então o mascote não cresce.
+    static let extraTankHeight: CGFloat = 40
 
     /// The container hugs the full-size mascot (plus `extraContainerHeight` of
     /// slack, reclaimed from the header's old row); it only gets shorter on
     /// screens too short to fit everything else.
     static func waterHeight(forVisibleHeight height: CGFloat) -> CGFloat {
-        let fullHeight = mascotTopPadding + maxMascotHeight + mascotBottomPadding + extraContainerHeight
-        return min(max(height * 0.376, 160), fullHeight)
+        let fullHeight = mascotTopPadding + maxMascotHeight + mascotBottomPadding + extraContainerHeight + extraTankHeight
+        return min(max(height * 0.42, 160), fullHeight)
     }
 
     /// The mascot shrinks with the container on short screens, never past 190 pt.
     /// `extraContainerHeight` is removed first so the extra slack never reaches the mascot.
     static func mascotHeight(forWaterHeight waterHeight: CGFloat) -> CGFloat {
-        min(max(waterHeight - mascotTopPadding - mascotBottomPadding - extraContainerHeight, 110), maxMascotHeight)
+        min(max(waterHeight - mascotTopPadding - mascotBottomPadding - extraContainerHeight - extraTankHeight, 110), maxMascotHeight)
     }
 
     /// Height left for the screen's own content below the water container. The

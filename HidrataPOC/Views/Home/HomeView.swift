@@ -25,6 +25,8 @@ struct HomeView: View {
     @State private var showActionButtonTutorial = false
     @State private var showTodayLogs = false
     @State private var showShare = false
+    @State private var showCosmetics = false
+    @AppStorage(Cosmetic.grass.storageKey) private var grassEquipped = false
     @State private var weather: WeatherContext?
     @State private var isLoadingWeather = true
     @State private var tempContext: TemperatureAdjustmentContext?
@@ -152,6 +154,7 @@ struct HomeView: View {
                 .trackSheetLifecycle(.shareProgress, screen: .home, userID: profile.userID)
         }
         .sheet(isPresented: $showActionButtonTutorial) { ActionButtonTutorialView() }
+        .sheet(isPresented: $showCosmetics) { CosmeticsView(streak: streak) }
         .sheet(isPresented: $showTodayLogs) {
             // Same goal as the bar (base + temperature adjustment), so the sheet's
             // "X mL de Y mL" matches what the user just tapped.
@@ -185,6 +188,18 @@ struct HomeView: View {
             Spacer()
 
             Button {
+                InteractionTracker.log("home_cosmetics_tap", screen: .home, userID: profile.userID, context: modelContext)
+                showCosmetics = true
+            } label: {
+                Image(systemName: "paintbrush.fill")
+                    .font(.system(.subheadline, weight: .semibold))
+                    .foregroundStyle(Color.appAccentText)
+                    .frame(width: 40, height: 40)
+                    .glassEffect(.regular.interactive(), in: Circle())
+            }
+            .accessibilityLabel("Cosméticos")
+
+            Button {
                 InteractionTracker.log("home_share_tap", screen: .home, userID: profile.userID, context: modelContext)
                 showShare = true
             } label: {
@@ -208,6 +223,8 @@ struct HomeView: View {
         return max((gridHeight - intakeGridSpacing) / 2, 116)
     }
 
+    private var showsGrass: Bool { grassEquipped && Cosmetic.grass.isUnlocked(streak: streak) }
+
     private var containerShape: UnevenRoundedRectangle {
         UnevenRoundedRectangle(topLeadingRadius: 32, bottomLeadingRadius: 32, bottomTrailingRadius: 32, topTrailingRadius: 32, style: .continuous)
     }
@@ -226,6 +243,17 @@ struct HomeView: View {
             // cabeçalho) vira espaço de água acima do mascote, em vez de se dividir
             // igual entre cima e baixo e empurrar o mascote pra cima do centro.
             .frame(height: height, alignment: .bottom)
+            // Cosmético "Gramadinho": no fundo do aquário, atrás do mascote e dentro
+            // do conteúdo da água (então ondula junto com a refração). Só aparece
+            // desbloqueado — se a streak zerar, some mesmo que continue equipado.
+            .background(alignment: .bottom) {
+                if showsGrass {
+                    GrassView()
+                        .frame(height: 44)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+            }
+            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showsGrass)
         .background {
             containerShape
                 .fill(AppTheme.screenBackground(for: colorScheme))
@@ -300,6 +328,10 @@ struct HomeView: View {
                     .animation(.interpolatingSpring(stiffness: 350, damping: 10), value: isPoking)
                     .offset(mascotDragOffset)
                     .animation(.interactiveSpring(response: 0.28, dampingFraction: 0.55), value: mascotDragOffset)
+                    // Área de toque maior que o desenho: o `scaleEffect` acima encolhe
+                    // a imagem (e o toque junto) pra ~55–65% do slot; aqui o toque
+                    // volta a valer em 85% do slot, com folga em volta do mascote.
+                    .contentShape(Rectangle().scale(0.85))
                     .onTapGesture { pokeMascot() }
                     .simultaneousGesture(mascotDragGesture)
 
