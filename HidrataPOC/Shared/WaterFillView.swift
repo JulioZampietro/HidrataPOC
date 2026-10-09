@@ -74,12 +74,15 @@ enum WaterTuning {
     static let stoneFriction: Float = 3       // 1/s — freio ao longo da parede/fundo, pra ela assentar
 
     // Brincar com as pedrinhas (arrastar o dedo em cima empurra as de perto)
-    static let stonePokeRadius: Float = 46   // pt — além do próprio raio da pedra
+    static let stonePokeRadius: Float = 80   // pt — além do próprio raio da pedra
     static let stonePokeStrength: Float = 420 // pt/s² de impulso no toque mais perto
     static let stoneRestSpeed: Float = 60    // pt/s — abaixo disso, zera a velocidade no choque em vez
                                               // de aplicar `stoneRestitution`. Sem isso, a gravidade
                                               // realimenta um quique minúsculo pra sempre (ela nunca
                                               // chega a v=0 de verdade) e a pedra não assenta.
+    static let stoneGatherStiffness: Float = 90 // 1/s² — mola que puxa as pedrinhas pro meio (`gatherStones`)
+    static let stoneGatherDamping: Float = 11   // 1/s — amortecimento dessa mola (sem quicar muito)
+    static let stoneGatheredRadius: Float = 40  // pt — todas a até essa distância do ponto = "juntas"
     static let stoneSpinRestSpeed: Float = 8 // pt/s — abaixo disso, para de girar (senão o resíduo da
                                               // física continua rodando a pedra mesmo "parada")
 }
@@ -336,6 +339,9 @@ final class WaterMotion {
     private var viscousScratch = [Float](repeating: 0, count: WaterMotion.columns)
     private var droplets: [Droplet] = []
     private var stones: [Stone] = []
+    /// Ponto (no retângulo da água) pra onde as pedrinhas estão sendo puxadas — ver
+    /// `gatherStones()`. nil = física normal (gravidade, paredes).
+    private var stoneGatherTarget: SIMD2<Float>?
     private var level: Float = 0
     private var angle: Float = 0
     private var sensorAngle: Float = 0
@@ -388,10 +394,46 @@ final class WaterMotion {
         }
     }
 
+    /// Pedrinhas soltas, já paradas espalhadas pelo fundo — o estado de onde o mascote
+    /// se monta ao abrir o app com 0 mL. Nascem um pouco acima do fundo, sem
+    /// velocidade, e a física (`updateStones`) só as deixa assentar.
+    func scatterStonesAtRest(count: Int = WaterTuning.stoneCount) {
+        guard stones.isEmpty else { return }
+        let width = waterSize.width > 0 ? Float(waterSize.width) : 300
+        let height = waterSize.height > 0 ? Float(waterSize.height) : 300
+        for _ in 0..<count {
+            let radius = WaterTuning.stoneMinRadius
+                + (WaterTuning.stoneMaxRadius - WaterTuning.stoneMinRadius) * Float.random(in: 0...1)
+            let position = SIMD2<Float>(
+                Float.random(in: radius...(width - radius)),
+                height - radius - Float.random(in: 0...16)
+            )
+            stones.append(Stone(position: position, velocity: .zero, angle: Float.random(in: 0...(2 * .pi)), radius: radius))
+        }
+    }
+
+    /// Puxa as pedrinhas pro centro horizontal do recipiente, `heightAboveBottom` pt
+    /// acima do fundo (o centro do mascote), e as mantém amontoadas ali até
+    /// `clearStones()`. Medido a partir do fundo porque o topo da água invade a safe
+    /// area. Usado logo antes delas virarem o mascote ao abrir o app.
+    func gatherStones(heightAboveBottom: CGFloat) {
+        let width = waterSize.width > 0 ? Float(waterSize.width) : 300
+        let height = waterSize.height > 0 ? Float(waterSize.height) : 300
+        stoneGatherTarget = SIMD2<Float>(width / 2, max(0, height - Float(heightAboveBottom)))
+    }
+
+    /// true quando todas as pedrinhas puxadas por `gatherStones` já chegaram a até
+    /// `WaterTuning.stoneGatheredRadius` do ponto — ou seja, já estão juntas no meio.
+    var stonesGathered: Bool {
+        guard let target = stoneGatherTarget, !stones.isEmpty else { return false }
+        return stones.allSatisfy { Self.length($0.position - target) <= WaterTuning.stoneGatheredRadius }
+    }
+
     /// Tira as pedrinhas do fundo (ex.: a meta deixou de estar batida — novo dia —
     /// e o mascote precisa voltar a aparecer do zero).
     func clearStones() {
         stones.removeAll()
+        stoneGatherTarget = nil
     }
 
     /// Arrastar o dedo em cima das pedrinhas empurra as de perto, como se desse
@@ -727,6 +769,14 @@ final class WaterMotion {
         let wallFriction = max(0, 1 - WaterTuning.stoneFriction * dt)
 
         for i in 0..<stones.count {
+            // Sendo puxadas pro meio: uma mola amortecida no lugar da gravidade, sem
+            // paredes — a colisão entre pedrinhas (abaixo) as deixa amontoadas.
+            if let target = stoneGatherTarget {
+                stones[i].velocity += (target - stones[i].position) * (WaterTuning.stoneGatherStiffness * dt)
+                stones[i].velocity *= exp(-WaterTuning.stoneGatherDamping * dt)
+                stones[i].position += stones[i].velocity * dt
+                continue
+            }
             stones[i].velocity += gravity * dt
             stones[i].velocity *= exp(-WaterTuning.stoneDrag * dt)
             stones[i].position += stones[i].velocity * dt

@@ -188,6 +188,7 @@ struct HistoricoView: View {
                             .padding(.horizontal)
                     }
                     .padding(.bottom, TabScreenLayout.spacing)
+                    .disableScrollBounce()
                 }
                 .scrollBounceBehavior(.basedOnSize)
             }

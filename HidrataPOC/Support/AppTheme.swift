@@ -115,6 +115,40 @@ enum TabScreenLayout {
     }
 }
 
+// MARK: - Scroll sem bounce
+
+extension View {
+    /// Impede que o usuário arraste a tela inteira para baixo (o "bounce" do
+    /// `UIScrollView` por trás do `ScrollView`). Quando o conteúdo não cabe na
+    /// tela, o scroll continua funcionando normalmente — só some o elástico.
+    func disableScrollBounce() -> some View {
+        background(ScrollBounceDisabler())
+    }
+}
+
+/// Sobe na hierarquia de views até achar o `UIScrollView` do `ScrollView` que
+/// envolve esta view e desliga o `bounces` dele.
+private struct ScrollBounceDisabler: UIViewRepresentable {
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+        view.isUserInteractionEnabled = false
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {
+        DispatchQueue.main.async {
+            var current = uiView.superview
+            while let view = current {
+                if let scrollView = view as? UIScrollView {
+                    scrollView.bounces = false
+                    return
+                }
+                current = view.superview
+            }
+        }
+    }
+}
+
 // MARK: - Paleta
 
 extension Color {

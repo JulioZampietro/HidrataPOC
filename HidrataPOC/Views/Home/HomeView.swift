@@ -7,6 +7,7 @@ struct HomeView: View {
     let profile: UserProfile
     
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.scenePhase) private var scenePhase
     @Environment(\.modelContext) private var modelContext
     @Query private var allLogs: [IntakeLog]
     @Query private var allDailyGoals: [DailyGoal]
@@ -38,6 +39,18 @@ struct HomeView: View {
     /// vivo por baixo desde o primeiro instante da transição, aparecendo junto
     /// do antigo pelas folgas transparentes da imagem/bolhas.
     @State private var newMascotHidden = false
+    /// true enquanto a montagem do mascote (pedrinhas se juntando, ver
+    /// `MascotShatterView(assembles:)`) ainda deve rodar. Começa true pra pegar a
+    /// abertura do app; volta a true ao voltar do background. Só tem efeito com 0 mL.
+    @State private var mascotAssemblyPending = true
+    /// Durante a montagem: false enquanto só as pedrinhas soltas aparecem no fundo
+    /// (`looseStonesDuration`), true quando os cacos começam a voar e se juntar.
+    @State private var mascotAssemblyStarted = false
+    /// Tempo (s) que as pedrinhas ficam soltas no fundo antes de serem puxadas pro meio.
+    private static let looseStonesDuration: Double = 1.0
+    /// Tempo máximo (s) esperando as pedrinhas se juntarem no meio — normalmente elas
+    /// chegam antes (`WaterMotion.stonesGathered`) e o mascote já começa a se formar.
+    private static let stonesGatherTimeout: Double = 1.5
 
     private static let mascotPhrases: [String] = [
         "Não bebe água não",
@@ -96,6 +109,7 @@ struct HomeView: View {
                             .padding(.horizontal, 20)
                     }
                     .padding(.bottom, TabScreenLayout.spacing)
+                    .disableScrollBounce()
                 }
                 .scrollBounceBehavior(.basedOnSize)
             }
@@ -229,7 +243,36 @@ struct HomeView: View {
 
     private func mascotPlaceholder(height: CGFloat, width: CGFloat) -> some View {
         ZStack(alignment: .topTrailing) {
-            if let mascot = AppTheme.mascotImageName(for: progress), !newMascotHidden {
+            if mascotAssemblyPending, consumedToday == 0, let assembling = AppTheme.mascotImageName(for: 0) {
+                // Abrindo o app com 0 mL: o inverso da explosão — os cacos sobem e se
+                // juntam no meio, formando o primeiro mascote. Mesmo tamanho/correção
+                // do mascote vivo, então a troca pro ramo de baixo no fim é invisível.
+                // Antes disso, as pedrinhas ficam soltas no fundo por
+                // `looseStonesDuration`, são puxadas pro meio e, assim que se juntam
+                // (`WaterMotion.stonesGathered`), somem e os cacos se abrem dali.
+                let correction = AppTheme.mascotSizeCorrection(for: assembling)
+                ZStack {
+                    if mascotAssemblyStarted {
+                        MascotShatterView(imageName: assembling, width: height * 1.55 * correction, height: height * correction, assembles: true)
+                    }
+                }
+                .frame(width: height * 1.55, height: height, alignment: .center)
+                .task {
+                    waterMotion.scatterStonesAtRest()
+                    try? await Task.sleep(for: .seconds(Self.looseStonesDuration))
+                    waterMotion.gatherStones(heightAboveBottom: TabScreenLayout.mascotBottomPadding + height / 2)
+                    let gatherStart = Date.now
+                    while !waterMotion.stonesGathered, Date.now.timeIntervalSince(gatherStart) < Self.stonesGatherTimeout {
+                        try? await Task.sleep(for: .milliseconds(16))
+                    }
+                    waterMotion.clearStones()
+                    mascotAssemblyStarted = true
+                    try? await Task.sleep(for: .seconds(MascotShatterView.assembleDuration))
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                    mascotAssemblyPending = false
+                    mascotAssemblyStarted = false
+                }
+            } else if let mascot = AppTheme.mascotImageName(for: progress), !newMascotHidden {
                 Image(mascot)
                     .resizable()
                     .scaledToFit()
@@ -313,6 +356,15 @@ struct HomeView: View {
             // pedrinhas. Aqui o estado das pedrinhas é sincronizado com o progresso
             // atual assim que a tela aparece.
             syncStonesWithProgress()
+            // Já abriu com água registrada: não há montagem, e ela não deve disparar
+            // depois só porque um registro foi excluído e o total voltou a 0.
+            if consumedToday > 0 { mascotAssemblyPending = false }
+        }
+        .onChange(of: scenePhase) { oldPhase, newPhase in
+            // Voltar do background conta como "abrir o app" de novo.
+            if oldPhase == .background, newPhase != .background, consumedToday == 0 {
+                mascotAssemblyPending = true
+            }
         }
         .task {
             while !Task.isCancelled {
@@ -483,20 +535,12 @@ struct HomeView: View {
                     .frame(width: barWidth, height: 52)
                     .animation(.easeOut(duration: 0.4), value: progress)
                 
-                // Texto escuro sobre a trilha e branco sobre o preenchimento azul: a mesma
-                // frase é desenhada duas vezes e a versão branca é recortada na largura
-                // do preenchimento, então cada letra tem contraste com o que está atrás.
-                progressLabel(color: Color.appOnTrack)
                 progressLabel(color: .white)
-                    .mask(alignment: .leading) {
-                        Capsule().frame(width: barWidth, height: 52)
-                    }
 
-                // Indica que a barra é tocável (abre os registros de hoje). Fica branco
-                // quando o preenchimento azul já chegou embaixo dele.
+                // Indica que a barra é tocável (abre os registros de hoje).
                 Image(systemName: "info.circle")
                     .font(.system(.body, weight: .semibold))
-                    .foregroundStyle(barWidth >= geo.size.width - 36 ? Color.white : Color.appOnTrack)
+                    .foregroundStyle(.white)
                     .frame(maxWidth: .infinity, alignment: .trailing)
                     .padding(.trailing, 18)
                     .accessibilityHidden(true)
