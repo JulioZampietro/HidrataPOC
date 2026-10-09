@@ -1,6 +1,5 @@
 import SwiftUI
 
-private let accentBlue = Color(red: 0.286, green: 0.498, blue: 0.714)
 
 /// Biological sex ("Sexo" in the UI). Still persisted under `UserProfile.genero`;
 /// legacy values from the old gender options (nonbinary, self-identify, decline to
@@ -120,17 +119,18 @@ struct ProfileFormView: View {
                         }
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Sincronizar com Saúde")
-                                .foregroundStyle(.primary)
+                                .fontWeight(.semibold)
+                                .foregroundStyle(Color.primary)
                             Text("Importa sexo biológico, nascimento, peso e altura")
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Color.appSecondary)
                         }
                     }
                 }
                 .disabled(isFetchingFromHealth)
             }
 
-            Section("Sobre você") {
+            Section {
                 HStack {
                     Text("Idade")
                     Spacer()
@@ -141,7 +141,7 @@ struct ProfileFormView: View {
                         .onChange(of: idadeText) { _, val in
                             if let n = Int(val), (10...120).contains(n) { idade = n }
                         }
-                    Text("anos").foregroundStyle(.secondary)
+                    Text("anos").foregroundStyle(Color.appSecondary)
                 }
 
                 HStack {
@@ -154,7 +154,7 @@ struct ProfileFormView: View {
                         .onChange(of: pesoText) { _, val in
                             if let n = Self.parseDecimal(val) { pesoKg = n }
                         }
-                    Text("kg").foregroundStyle(.secondary)
+                    Text("kg").foregroundStyle(Color.appSecondary)
                 }
 
                 HStack {
@@ -167,8 +167,10 @@ struct ProfileFormView: View {
                         .onChange(of: alturaText) { _, val in
                             if let n = Self.parseDecimal(val) { alturaCm = n }
                         }
-                    Text("cm").foregroundStyle(.secondary)
+                    Text("cm").foregroundStyle(Color.appSecondary)
                 }
+            } header: {
+                Text("Sobre você").foregroundStyle(Color.appSecondary)
             }
 
             Section {
@@ -179,6 +181,7 @@ struct ProfileFormView: View {
                 }
             } footer: {
                 Text("Usado apenas para calcular sua necessidade diária de água.")
+                    .foregroundStyle(Color.appSecondary)
             }
 
             Section {
@@ -188,7 +191,7 @@ struct ProfileFormView: View {
                 if let stored = initialValues.storedGoalML, stored != metaDiariaML {
                     if resetGoal {
                         Button("Manter meta manual — \(stored) mL") { resetGoal = false }
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.appSecondary)
                     } else {
                         Button("Redefinir para meta calculada — \(metaDiariaML) mL") { resetGoal = true }
                     }
@@ -196,6 +199,7 @@ struct ProfileFormView: View {
             } footer: {
                 if resetGoal {
                     Text("A meta será redefinida para \(metaDiariaML) mL ao salvar.")
+                        .foregroundStyle(Color.appSecondary)
                 }
             }
 
@@ -208,7 +212,7 @@ struct ProfileFormView: View {
                             .keyboardType(.numberPad)
                             .multilineTextAlignment(.trailing)
                             .frame(width: 90)
-                        Text("mL").foregroundStyle(.secondary)
+                        Text("mL").foregroundStyle(Color.appSecondary)
                     }
                 }
             }
@@ -223,12 +227,17 @@ struct ProfileFormView: View {
                 .frame(maxWidth: .infinity)
                 .fontWeight(.semibold)
                 .foregroundStyle(.white)
-                .listRowBackground(accentBlue)
+                .listRowBackground(Color.appAccent)
             }
             .id("confirmSection")
         }
         .navigationTitle(title)
+        .scrollContentBackground(.hidden)
+        .appScreenBackground()
         .navigationBarTitleDisplayMode(.inline)
+        // Number/decimal pads have no return key, so let a tap outside or a scroll dismiss the keyboard.
+        .scrollDismissesKeyboard(.interactively)
+        .background(DismissKeyboardOnTap())
         .onChange(of: isFetchingFromHealth) { _, isFetching in
             guard !isFetching else { return }
             withAnimation(.easeInOut(duration: 0.5)) {
@@ -255,6 +264,41 @@ struct ProfileFormView: View {
     private static func formatDecimal(_ value: Double) -> String {
         let formatted = String(format: value.truncatingRemainder(dividingBy: 1) == 0 ? "%.0f" : "%.1f", value)
         return formatted
+    }
+}
+
+/// Fecha o teclado ao tocar fora de um campo de texto. Usa um reconhecedor de UIKit na
+/// janela (sem cancelar toques) em vez de um gesto do SwiftUI no `Form`, que pode
+/// engolir os toques dos botões das linhas.
+private struct DismissKeyboardOnTap: UIViewRepresentable {
+    func makeUIView(context: Context) -> TapAttachingView { TapAttachingView() }
+    func updateUIView(_ uiView: TapAttachingView, context: Context) {}
+
+    final class TapAttachingView: UIView, UIGestureRecognizerDelegate {
+        private lazy var recognizer: UITapGestureRecognizer = {
+            let tap = UITapGestureRecognizer(target: self, action: #selector(dismissKeyboard))
+            tap.cancelsTouchesInView = false
+            tap.delegate = self
+            return tap
+        }()
+
+        override func didMoveToWindow() {
+            super.didMoveToWindow()
+            recognizer.view?.removeGestureRecognizer(recognizer)
+            window?.addGestureRecognizer(recognizer)
+        }
+
+        @objc private func dismissKeyboard() {
+            window?.endEditing(true)
+        }
+
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+            !(touch.view is UITextField || touch.view is UITextView)
+        }
+
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool {
+            true
+        }
     }
 }
 

@@ -1,7 +1,6 @@
 import SwiftData
 import SwiftUI
 
-private let accentBlue = Color(red: 0.1098, green: 0.4627, blue: 0.9922)
 
 struct ProfileView: View {
     let profile: UserProfile
@@ -102,7 +101,7 @@ struct ProfileView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Sua meta diária é")
                         .font(.custom("Nunito", size: 14))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.appSecondary)
 
                     HStack(alignment: .lastTextBaseline, spacing: 4) {
                         Text("\(profile.metaDiariaML)")
@@ -110,11 +109,11 @@ struct ProfileView: View {
                             .foregroundStyle(.primary)
                         Text("mL")
                             .font(.custom("Nunito", size: 18).weight(.semibold))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.appSecondary)
                         if let adjustment = tempContext?.adjustmentML, adjustment > 0 {
                             Text("+ \(adjustment) mL")
                                 .font(.custom("Nunito", size: 13).weight(.semibold))
-                                .foregroundStyle(.orange)
+                                .foregroundStyle(Color.appWarning)
                         }
                     }
                 }
@@ -139,7 +138,7 @@ struct ProfileView: View {
                         .padding(.vertical, 6)
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(accentBlue)
+                .tint(Color.appAccent)
 
                 Button {
                     isEditingGoal = true
@@ -150,7 +149,7 @@ struct ProfileView: View {
                         .padding(.horizontal, 8)
                 }
                 .buttonStyle(.bordered)
-                .tint(accentBlue)
+                .tint(Color.appAccentText)
             }
         }
         .padding(18)
@@ -181,7 +180,7 @@ struct ProfileView: View {
                 Spacer()
 
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.system(.callout, weight: .semibold))
             }
             .foregroundStyle(.white)
             .padding(.horizontal, 6)
@@ -189,7 +188,7 @@ struct ProfileView: View {
         }
         .buttonStyle(.glassProminent)
         .buttonBorderShape(.roundedRectangle(radius: 20))
-        .tint(accentBlue)
+        .tint(Color.appAccent)
     }
 
     // MARK: - Live Activities Row
@@ -206,8 +205,8 @@ struct ProfileView: View {
                 Spacer()
 
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(Color(red: 0.55, green: 0.58, blue: 0.63))
+                    .font(.system(.subheadline, weight: .semibold))
+                    .foregroundStyle(Color.appChevron)
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 16)
@@ -237,8 +236,8 @@ struct ProfileView: View {
                 Spacer()
 
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(Color(red: 0.55, green: 0.58, blue: 0.63))
+                    .font(.system(.subheadline, weight: .semibold))
+                    .foregroundStyle(Color.appChevron)
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 16)
@@ -269,8 +268,8 @@ struct ProfileView: View {
                 Spacer()
 
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(Color(red: 0.55, green: 0.58, blue: 0.63))
+                    .font(.system(.subheadline, weight: .semibold))
+                    .foregroundStyle(Color.appChevron)
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 16)
@@ -315,7 +314,7 @@ struct ProfileView: View {
             if let debugNotificationStatus {
                 Text(debugNotificationStatus)
                     .font(.custom("Nunito", size: 13))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.appSecondary)
                     .padding(.horizontal, 6)
             }
         }
@@ -326,7 +325,7 @@ struct ProfileView: View {
             HStack {
                 Label("Debug: ajuste climático", systemImage: "cloud.sun")
                     .font(.custom("Nunito", size: 14).weight(.bold))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.appSecondary)
                 Spacer()
             }
             .padding(.horizontal, 18)
@@ -347,7 +346,7 @@ struct ProfileView: View {
             } else {
                 Text("Carregando dados do clima…")
                     .font(.custom("Nunito", size: 13))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.appSecondary)
                     .padding(.horizontal, 18)
                     .padding(.vertical, 14)
             }
@@ -362,11 +361,11 @@ struct ProfileView: View {
         HStack {
             Text(label)
                 .font(.custom("Nunito", size: 13))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.appSecondary)
             Spacer()
             Text(value)
                 .font(.custom("Nunito", size: 13).weight(.bold))
-                .foregroundStyle(highlight ? .orange : .primary)
+                .foregroundStyle(highlight ? Color.appWarning : Color.primary)
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 8)
@@ -380,7 +379,7 @@ struct ProfileView: View {
             HStack {
                 Text("DADOS PESSOAIS")
                     .font(.custom("Nunito", size: 12).weight(.bold))
-                    .foregroundStyle(accentBlue)
+                    .foregroundStyle(Color.appAccentText)
                     .tracking(1)
 
                 Spacer()
@@ -390,7 +389,7 @@ struct ProfileView: View {
                 } label: {
                     Text("Editar")
                         .font(.custom("Nunito", size: 15).weight(.semibold))
-                        .foregroundStyle(accentBlue)
+                        .foregroundStyle(Color.appAccentText)
                 }
                 .buttonStyle(.plain)
             }
@@ -432,7 +431,7 @@ struct ProfileView: View {
                         path.addLine(to: CGPoint(x: geo.size.width, y: 0))
                     }
                     .stroke(
-                        Color(red: 0.75, green: 0.78, blue: 0.82).opacity(0.6),
+                        Color.appDivider,
                         style: StrokeStyle(lineWidth: 1, dash: [6, 4])
                     )
                 }
@@ -456,6 +455,7 @@ struct ProfileView: View {
         profile.atualizadoEm = .now
         profile.syncStatus = .pending
         try? modelContext.save()
+        recordTodayGoal()
         isEditing = false
         InteractionTracker.log("edit_personal_data_save", screen: .profile, userID: profile.userID, context: modelContext)
         Task {
@@ -469,11 +469,18 @@ struct ProfileView: View {
         profile.atualizadoEm = .now
         profile.syncStatus = .pending
         try? modelContext.save()
+        recordTodayGoal()
         InteractionTracker.log("edit_goal_save", screen: .profile, userID: profile.userID, metadata: ["newGoalML": "\(newValue)"], context: modelContext)
         Task {
             await CloudKitSyncService.shared.push(profile)
             try? modelContext.save()
         }
+    }
+
+    /// A goal change only applies from today on: today's `DailyGoal` row takes the new
+    /// base, earlier rows keep the goal those days actually had.
+    private func recordTodayGoal() {
+        DailyGoal.recordToday(userID: profile.userID, baseGoalML: profile.metaDiariaML, adjustmentML: tempContext?.adjustmentML, context: modelContext)
     }
 }
 
@@ -490,7 +497,7 @@ private struct GoalExplainerView: View {
             VStack(spacing: 24) {
                 Image(systemName: "drop.fill")
                     .font(.system(size: 56))
-                    .foregroundStyle(accentBlue)
+                    .foregroundStyle(Color.appAccentText)
                     .padding(.top, 32)
 
                 Text("Sua meta diária")
@@ -500,22 +507,22 @@ private struct GoalExplainerView: View {
                     HStack(alignment: .lastTextBaseline, spacing: 6) {
                         Text("\(goalML) mL")
                             .font(.custom("Nunito", size: 40).weight(.heavy))
-                            .foregroundStyle(accentBlue)
+                            .foregroundStyle(Color.appAccentText)
                         if adjustmentML > 0 {
                             Text("+ \(adjustmentML) mL")
                                 .font(.custom("Nunito", size: 15).weight(.semibold))
-                                .foregroundStyle(.orange)
+                                .foregroundStyle(Color.appWarning)
                         }
                     }
 
                     Text(isManual ? "definida por você manualmente" : "calculada com base no seu perfil")
                         .font(.custom("Nunito", size: 14))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.appSecondary)
 
                     if adjustmentML > 0 {
                         Text("+ \(adjustmentML) mL por conta do clima hoje")
                             .font(.custom("Nunito", size: 13))
-                            .foregroundStyle(.orange.opacity(0.85))
+                            .foregroundStyle(Color.appWarning)
                     }
                 }
 
@@ -525,7 +532,7 @@ private struct GoalExplainerView: View {
                         : "A quantidade ideal de água depende do seu peso, altura, idade, gênero e temperatura no dia. Você pode ajustar seus dados no perfil para recalcular a meta."
                 )
                 .font(.custom("Nunito", size: 15))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.appSecondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
 

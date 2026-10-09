@@ -2,7 +2,6 @@ import Photos
 import SwiftUI
 import UniformTypeIdentifiers
 
-private let accentBlue = Color(red: 0.1098, green: 0.4627, blue: 0.9922)
 
 /// O que vai no cartão de compartilhamento — tirado de Home/Histórico no momento
 /// em que o botão é tocado.
@@ -97,7 +96,7 @@ struct ShareProgressCard: View {
             .background {
                 if layout == .cartao {
                     LinearGradient(
-                        colors: [Color(red: 0.36, green: 0.68, blue: 1.0), accentBlue, Color(red: 0.05, green: 0.27, blue: 0.66)],
+                        colors: [Color(red: 0.36, green: 0.68, blue: 1.0), Color.appAccent, Color(red: 0.05, green: 0.27, blue: 0.66)],
                         startPoint: .top,
                         endPoint: .bottom
                     )
@@ -352,7 +351,7 @@ struct ShareProgressView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var layout: ShareCardLayout = .cartao
     @State private var ink: ShareCardInk = .branca
-    @State private var customInk: Color = accentBlue
+    @State private var customInk: Color = Color.appAccent
     @State private var isPickingColor = false
     @State private var saveState: SaveState = .idle
 
@@ -402,7 +401,7 @@ struct ShareProgressView: View {
                 if let footnote = saveFootnote {
                     Text(footnote)
                         .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.appSecondary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 20)
                 }
@@ -500,7 +499,7 @@ struct ShareProgressView: View {
         HStack(spacing: 8) {
             ForEach(ShareCardLayout.allCases) { option in
                 Capsule()
-                    .fill(option == layout ? accentBlue : Color.secondary.opacity(0.3))
+                    .fill(option == layout ? Color.appAccent : Color.secondary.opacity(0.3))
                     .frame(width: option == layout ? 22 : 8, height: 8)
                     .contentShape(Rectangle().inset(by: -8))
                     .onTapGesture { withAnimation(.easeInOut) { layout = option } }
@@ -531,7 +530,7 @@ struct ShareProgressView: View {
                     )
                 )
                 .padding(3)
-                .overlay(Circle().stroke(ink == .personalizada ? accentBlue : .clear, lineWidth: 2.5))
+                .overlay(Circle().stroke(ink == .personalizada ? Color.appAccent : .clear, lineWidth: 2.5))
                 .contentShape(Circle())
                 .onTapGesture {
                     ink = .personalizada
@@ -548,7 +547,7 @@ struct ShareProgressView: View {
             .frame(width: 26, height: 26)
             .overlay(Circle().stroke(Color.secondary.opacity(0.4), lineWidth: 1))
             .padding(3)
-            .overlay(Circle().stroke(option == ink ? accentBlue : .clear, lineWidth: 2.5))
+            .overlay(Circle().stroke(option == ink ? Color.appAccent : .clear, lineWidth: 2.5))
             .contentShape(Circle())
             .onTapGesture { withAnimation(.easeInOut(duration: 0.2)) { ink = option } }
             .accessibilityLabel(label)

@@ -84,7 +84,7 @@ final class NotificationScheduler {
     static let shared = NotificationScheduler()
 
     /// How far ahead of a slot's fire time we start trying to capture context, so
-    /// there's headroom for the WeatherKit/EventKit network round trip to finish.
+    /// there's headroom for the WeatherKit network round trip to finish.
     nonisolated private static let captureLeadMinutes = 10
 
     private let defaultsKey = "pendingNotificationSlots"
@@ -99,8 +99,6 @@ final class NotificationScheduler {
     /// Dismissals recorded by `NotificationDelegate` without touching SwiftData (see
     /// `recordDismissal`), resolved on the next tick.
     nonisolated private static let pendingDismissalsKey = "pendingNotificationDismissals"
-    private let adjustmentValueKey = "lastTemperatureAdjustmentML"
-    private let adjustmentDayKey = "lastTemperatureAdjustmentDay"
     private let renderedMascotKey = "pendingNotificationsRenderedMascot"
     /// Last mascot asset computed from real progress, with its day — lets
     /// `armNextSlotIfClear` pick an avatar without SwiftData or WeatherKit, since it
@@ -191,9 +189,10 @@ final class NotificationScheduler {
             // capture pass a few minutes before firing only refines it. Weather is
             // unknown for later days, which leaves those to the time-of-day rules.
             let weather = await WeatherContextService.shared.currentContext()
+            let goals = goalResolver(for: profile, context: PersistenceController.context)
             let newSlots = firesAtTimes.map { firesAt in
                 let dayWeather = calendar.isDate(firesAt, inSameDayAs: today) ? weather : nil
-                let variant = Self.selectVariant(firesAt: firesAt, weather: dayWeather, profile: profile, logs: logs)
+                let variant = Self.selectVariant(firesAt: firesAt, weather: dayWeather, profile: profile, logs: logs, goals: goals)
                 return PendingSlot(id: UUID(), firesAt: firesAt, captured: false, variant: variant.rawValue)
             }
             // Re-read before saving: a tick or snooze may have written the list during
@@ -245,8 +244,9 @@ final class NotificationScheduler {
         }
 
         let weather = WeatherContextService.shared.cachedContext
+        let goals = goalResolver(for: profile, context: PersistenceController.context)
         for index in slots.indices where slots[index].variant.flatMap(NotificationVariant.init(rawValue:)) == nil {
-            slots[index].variant = Self.selectVariant(firesAt: slots[index].firesAt, weather: weather, profile: profile, logs: logs).rawValue
+            slots[index].variant = Self.selectVariant(firesAt: slots[index].firesAt, weather: weather, profile: profile, logs: logs, goals: goals).rawValue
             didChange = true
         }
 
@@ -450,7 +450,6 @@ final class NotificationScheduler {
         let weather = preferCachedWeather
             ? WeatherContextService.shared.cachedContext
             : await WeatherContextService.shared.currentContext()
-        let calendarContext = CalendarContextService.shared.currentContext(around: firesAt)
 
         let targetUserID = profile.userID
         let logs = (try? context.fetch(FetchDescriptor<IntakeLog>(predicate: #Predicate { $0.userID == targetUserID }))) ?? []
@@ -467,7 +466,7 @@ final class NotificationScheduler {
         if alreadyFired, let armed {
             variant = armed
         } else {
-            variant = Self.selectVariant(firesAt: firesAt, weather: weather, profile: profile, logs: logs, keeping: armed)
+            variant = Self.selectVariant(firesAt: firesAt, weather: weather, profile: profile, logs: logs, goals: goalResolver(for: profile, context: context), keeping: armed)
         }
 
         let event = NotificationEvent(
@@ -477,8 +476,9 @@ final class NotificationScheduler {
             temperaturaC: weather?.temperaturaC ?? 0,
             umidadeRelativa: weather?.umidadeRelativa ?? 0,
             sensacaoTermicaC: weather?.sensacaoTermicaC ?? 0,
-            ocupadoNoMomento: calendarContext?.ocupadoNoMomento ?? false,
-            densidadeEventosDia: calendarContext?.densidadeEventosDia ?? 0,
+            // Calendar context is no longer collected; fields kept so the stored/CloudKit schema is unchanged.
+            ocupadoNoMomento: false,
+            densidadeEventosDia: 0,
             deficitAcumuladoML: deficit,
             tempoDesdeUltimoRegistroMin: minutesSinceLast,
             notificationVariant: variant
@@ -506,11 +506,15 @@ final class NotificationScheduler {
     /// easy to unit test with fixed inputs. `static`/non-private so
     /// `NotificationSchedulerVariantSelectionTests` can call it without going through
     /// the whole scheduling pipeline.
+    ///
+    /// `goals` judges each past day of the streak against its own recorded goal; nil
+    /// falls back to `profile.metaDiariaML` for every day.
     static func selectVariant(
         firesAt: Date,
         weather: WeatherContext?,
         profile: UserProfile,
         logs: [IntakeLog],
+        goals: DailyGoalResolver? = nil,
         calendar: Calendar = .current,
         keeping: NotificationVariant? = nil
     ) -> NotificationVariant {
@@ -518,7 +522,8 @@ final class NotificationScheduler {
         let isEvening = hour >= Constants.notificationEveningStartHour
         let isMorning = hour < Constants.notificationMorningEndHour
 
-        if isEvening, HydrationMath.isStreakAtRisk(logs, metaDiariaML: profile.metaDiariaML, calendar: calendar, firesAt: firesAt) {
+        let goalML: (Date) -> Int = goals.map { $0.goalML(on:) } ?? { _ in profile.metaDiariaML }
+        if isEvening, HydrationMath.isStreakAtRisk(logs, goalML: goalML, calendar: calendar, firesAt: firesAt) {
             return .streakRiskEvening
         }
         if let temp = weather?.temperaturaC {
@@ -546,8 +551,8 @@ final class NotificationScheduler {
         try? context.save()
     }
 
-    /// Records a swipe-dismiss without touching SwiftData, location, WeatherKit,
-    /// EventKit or CloudKit. `.customDismissAction` wakes the app in the background —
+    /// Records a swipe-dismiss without touching SwiftData, location, WeatherKit
+    /// or CloudKit. `.customDismissAction` wakes the app in the background —
     /// often from the lock screen — with very little time, and running the full
     /// capture path there is a crash risk (watchdog kill, or the store being
     /// unavailable while locked). Resolved on the next tick by `resolvePendingDismissals`.
@@ -688,7 +693,7 @@ final class NotificationScheduler {
         let targetUserID = profile.userID
         let logs = (try? context.fetch(FetchDescriptor<IntakeLog>(predicate: #Predicate { $0.userID == targetUserID }))) ?? []
         let weather = WeatherContextService.shared.cachedContext
-        return Self.selectVariant(firesAt: firesAt, weather: weather, profile: profile, logs: logs)
+        return Self.selectVariant(firesAt: firesAt, weather: weather, profile: profile, logs: logs, goals: goalResolver(for: profile, context: context))
     }
 
     private func resolveTimedOutEvents(context: ModelContext) async {
@@ -919,21 +924,38 @@ final class NotificationScheduler {
 
     /// Home's goal is the base goal plus today's temperature adjustment; the
     /// notification's mascot has to be picked against that same number or it lands in a
-    /// different progress bucket than the one on screen. The forecast needs
-    /// location/network, so the last adjustment fetched today is kept as a fallback for
-    /// background paths where that lookup fails.
+    /// different progress bucket than the one on screen. A fresh forecast is recorded as
+    /// today's `DailyGoal` (so days the app isn't opened still get their own goal); when
+    /// the lookup fails (background paths without location/network), the adjustment
+    /// already recorded for today is used instead.
     private func effectiveGoalML(for profile: UserProfile) async -> Int {
-        let defaults = UserDefaults.standard
-        let today = Calendar.current.startOfDay(for: .now)
-        if let fresh = await WeatherContextService.shared.temperatureAdjustmentContext()?.adjustmentML {
-            defaults.set(fresh, forKey: adjustmentValueKey)
-            defaults.set(today, forKey: adjustmentDayKey)
-            return profile.metaDiariaML + fresh
+        let context = PersistenceController.context
+        let fresh = await WeatherContextService.shared.temperatureAdjustmentContext()?.adjustmentML
+        if let fresh {
+            DailyGoal.recordToday(userID: profile.userID, baseGoalML: profile.metaDiariaML, adjustmentML: fresh, context: context)
         }
-        if let day = defaults.object(forKey: adjustmentDayKey) as? Date, Calendar.current.isDate(day, inSameDayAs: today) {
-            return profile.metaDiariaML + defaults.integer(forKey: adjustmentValueKey)
-        }
-        return profile.metaDiariaML
+        return HydrationMath.effectiveGoalML(baseGoalML: profile.metaDiariaML, tempContext: nil, recordedAdjustmentML: fresh ?? recordedAdjustmentML(for: profile, context: context))
+    }
+
+    private func recordedAdjustmentML(for profile: UserProfile, context: ModelContext) -> Int? {
+        DailyGoalResolver.recordedAdjustmentML(in: dailyGoals(for: profile, context: context), on: .now)
+    }
+
+    private func dailyGoals(for profile: UserProfile, context: ModelContext) -> [DailyGoal] {
+        let targetUserID = profile.userID
+        return (try? context.fetch(FetchDescriptor<DailyGoal>(predicate: #Predicate { $0.userID == targetUserID }))) ?? []
+    }
+
+    /// Per-day goals for the streak checks in `selectVariant`, without a forecast fetch —
+    /// today uses the adjustment already recorded for it.
+    private func goalResolver(for profile: UserProfile, context: ModelContext) -> DailyGoalResolver {
+        let goals = dailyGoals(for: profile, context: context)
+        let todayGoalML = HydrationMath.effectiveGoalML(
+            baseGoalML: profile.metaDiariaML,
+            tempContext: nil,
+            recordedAdjustmentML: DailyGoalResolver.recordedAdjustmentML(in: goals, on: .now)
+        )
+        return DailyGoalResolver(goals: goals, todayGoalML: todayGoalML, fallbackGoalML: profile.metaDiariaML)
     }
 
     // MARK: - Debug

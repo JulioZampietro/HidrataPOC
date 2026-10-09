@@ -26,12 +26,12 @@ struct ConsentView: View {
                     consentRow(icon: "person.text.rectangle", text: "Idade, peso, altura e meta diária de hidratação.")
                     consentRow(icon: "drop", text: "Cada registro de consumo de água, manual ou por notificação.")
                     consentRow(icon: "bell.badge", text: "Horário e sua interação com cada notificação enviada.")
-                    consentRow(icon: "cloud.sun", text: "Clima local e se você está ocupado (sem detalhes da sua agenda) no momento de cada notificação.")
+                    consentRow(icon: "cloud.sun", text: "Clima local no momento de cada notificação.")
                 }
 
                 Text("Nenhum dado de saúde sensível (sono via wearable, batimentos, etc.) é coletado. Os dados ficam associados a um identificador anônimo, não ao seu nome.")
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.appSecondary)
 
                 Button("Concordo em participar") {
                     onAccept()
@@ -42,6 +42,7 @@ struct ConsentView: View {
             }
             .padding()
         }
+        .appScreenBackground()
     }
 
     private func consentRow(icon: String, text: String) -> some View {

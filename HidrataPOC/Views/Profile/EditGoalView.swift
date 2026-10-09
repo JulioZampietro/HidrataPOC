@@ -36,13 +36,16 @@ struct EditGoalView: View {
                             .keyboardType(.numberPad)
                             .multilineTextAlignment(.trailing)
                             .frame(width: 90)
-                        Text("mL").foregroundStyle(.secondary)
+                        Text("mL").foregroundStyle(Color.appSecondary)
                     }
                 } footer: {
                     Text("Se você editar seus dados pessoais (idade, peso, altura ou gênero) depois, a meta diária será recalculada automaticamente e substituirá este valor.")
+                        .foregroundStyle(Color.appSecondary)
                 }
             }
             .navigationTitle("Editar meta diária")
+            .scrollContentBackground(.hidden)
+            .appScreenBackground()
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

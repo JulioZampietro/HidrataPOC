@@ -1,7 +1,6 @@
 import SwiftData
 import SwiftUI
 
-private let accentBlue = Color(red: 0.1098, green: 0.4627, blue: 0.9922)
 
 struct HealthConnectView: View {
     let profile: UserProfile
@@ -72,11 +71,11 @@ struct HealthConnectView: View {
 
             HStack(spacing: 6) {
                 Circle()
-                    .fill(isAuthorized ? Color.green : Color.orange)
+                    .fill(isAuthorized ? Color.appSuccess : Color.appWarning)
                     .frame(width: 8, height: 8)
                 Text(isAuthorized ? "Conectado" : "Não conectado")
                     .font(.custom("Nunito", size: 14))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.appSecondary)
             }
         }
     }
@@ -86,7 +85,7 @@ struct HealthConnectView: View {
             VStack(spacing: 8) {
                 infoRow(icon: "arrow.down.circle.fill", color: .blue,
                         text: "Importa água registrada em outros apps (MyFitnessPal, Apple Watch…)")
-                infoRow(icon: "arrow.up.circle.fill", color: accentBlue,
+                infoRow(icon: "arrow.up.circle.fill", color: Color.appAccentText,
                         text: "Envia cada gole registrado aqui para o seu histórico no Saúde")
             }
 
@@ -99,23 +98,23 @@ struct HealthConnectView: View {
                     .padding(.vertical, 8)
             }
             .buttonStyle(.borderedProminent)
-            .tint(accentBlue)
+            .tint(Color.appAccent)
         }
     }
 
     private var connectedSection: some View {
         VStack(spacing: 16) {
             VStack(spacing: 8) {
-                infoRow(icon: "checkmark.circle.fill", color: .green,
+                infoRow(icon: "checkmark.circle.fill", color: Color.appSuccess,
                         text: "Seus registros de água são enviados automaticamente ao Saúde")
-                infoRow(icon: "arrow.triangle.2.circlepath", color: accentBlue,
+                infoRow(icon: "arrow.triangle.2.circlepath", color: Color.appAccentText,
                         text: "Água adicionada por outros apps é importada ao abrir o Hidrата")
             }
 
             if let lastSync = lastSyncFormatted {
                 Text("Última sincronização \(lastSync)")
                     .font(.custom("Nunito", size: 12))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.appSecondary)
             }
 
             Button {
@@ -139,7 +138,7 @@ struct HealthConnectView: View {
                 .padding(.vertical, 8)
             }
             .buttonStyle(.borderedProminent)
-            .tint(isSyncing ? Color.gray : accentBlue)
+            .tint(isSyncing ? Color.gray : Color.appAccent)
             .disabled(isSyncing || justSynced)
         }
     }
@@ -147,7 +146,7 @@ struct HealthConnectView: View {
     private var unavailableSection: some View {
         Text("O app Saúde não está disponível neste dispositivo.")
             .font(.custom("Nunito", size: 15))
-            .foregroundStyle(.secondary)
+            .foregroundStyle(Color.appSecondary)
             .multilineTextAlignment(.center)
             .padding(.horizontal, 16)
     }
@@ -160,7 +159,7 @@ struct HealthConnectView: View {
                 .frame(width: 28)
             Text(text)
                 .font(.custom("Nunito", size: 14))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.appSecondary)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer()
         }

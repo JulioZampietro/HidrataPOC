@@ -1,7 +1,6 @@
 import SwiftUI
 import UIKit
 
-private let accentBlue = Color(red: 0.1098, green: 0.4627, blue: 0.9922)
 
 struct ActionButtonTutorialView: View {
     @Environment(\.dismiss) private var dismiss
@@ -26,7 +25,7 @@ struct ActionButtonTutorialView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Fechar", systemImage: "xmark") { dismiss() }
                         .font(.custom("Nunito", size: 16).weight(.semibold))
-                        .foregroundStyle(accentBlue)
+                        .foregroundStyle(Color.appAccentText)
                 }
             }
         }
@@ -38,11 +37,11 @@ struct ActionButtonTutorialView: View {
         VStack(spacing: 10) {
             ZStack {
                 Circle()
-                    .fill(accentBlue.opacity(0.12))
+                    .fill(Color.appAccent.opacity(0.12))
                     .frame(width: 80, height: 80)
                 Image(systemName: "button.vertical.left.press.fill")
                     .font(.system(size: 36, weight: .semibold))
-                    .foregroundStyle(accentBlue)
+                    .foregroundStyle(Color.appAccentText)
             }
             .padding(.top, 8)
 
@@ -52,7 +51,7 @@ struct ActionButtonTutorialView: View {
 
             Text("Registre água com um toque lateral — sem desbloquear o iPhone.")
                 .font(.custom("Nunito", size: 15))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.appSecondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 16)
         }
@@ -64,14 +63,14 @@ struct ActionButtonTutorialView: View {
         HStack(spacing: 8) {
             Image(systemName: "iphone")
                 .font(.custom("Nunito", size: 13))
-                .foregroundStyle(accentBlue)
+                .foregroundStyle(Color.appAccentText)
             Text("iPhone 15 Pro, 16 e posteriores · iOS 18+")
                 .font(.custom("Nunito", size: 13).weight(.semibold))
-                .foregroundStyle(accentBlue)
+                .foregroundStyle(Color.appAccentText)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 9)
-        .background(accentBlue.opacity(0.1), in: Capsule())
+        .background(Color.appAccent.opacity(0.1), in: Capsule())
     }
 
     // MARK: - Steps Card
@@ -117,7 +116,7 @@ struct ActionButtonTutorialView: View {
             HStack(alignment: .top, spacing: 14) {
                 ZStack {
                     Circle()
-                        .fill(accentBlue)
+                        .fill(Color.appAccent)
                         .frame(width: 32, height: 32)
                     Text("\(number)")
                         .font(.custom("Nunito", size: 14).weight(.heavy))
@@ -128,15 +127,15 @@ struct ActionButtonTutorialView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 6) {
                         Image(systemName: icon)
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(accentBlue)
+                            .font(.system(.footnote, weight: .semibold))
+                            .foregroundStyle(Color.appAccentText)
                         Text(title)
                             .font(.custom("Nunito", size: 15).weight(.bold))
                             .foregroundStyle(.primary)
                     }
                     Text(description)
                         .font(.custom("Nunito", size: 13))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.appSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
@@ -152,7 +151,7 @@ struct ActionButtonTutorialView: View {
                         path.addLine(to: CGPoint(x: geo.size.width, y: 0))
                     }
                     .stroke(
-                        Color(red: 0.75, green: 0.78, blue: 0.82).opacity(0.6),
+                        Color.appDivider,
                         style: StrokeStyle(lineWidth: 1, dash: [6, 4])
                     )
                 }
@@ -168,7 +167,7 @@ struct ActionButtonTutorialView: View {
         Button(action: openActionButtonSettings) {
             HStack(spacing: 8) {
                 Image(systemName: "arrow.up.right.square")
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.system(.callout, weight: .semibold))
                 Text("Abrir Ajustes")
                     .font(.custom("Nunito", size: 16).weight(.bold))
             }
@@ -176,7 +175,7 @@ struct ActionButtonTutorialView: View {
             .padding(.vertical, 8)
         }
         .buttonStyle(.borderedProminent)
-        .tint(accentBlue)
+        .tint(Color.appAccent)
     }
 
     // MARK: - Actions

@@ -64,7 +64,7 @@ of the box. `project.yml` now uses `com.hidratapoc` — update the rest as below
 
 - **Background notification timing is best-effort.** iOS gives local notifications
   no exact-time background hook — `BGAppRefreshTask` is opportunistic. Context
-  (weather/calendar/deficit) is captured a few minutes ahead of each reminder while
+  (weather/deficit) is captured a few minutes ahead of each reminder while
   the app is foregrounded, via a best-effort background refresh task, or — as a
   last resort — synchronously the moment a tester interacts with a notification
   whose context was never pre-captured. No interaction is ever left without a

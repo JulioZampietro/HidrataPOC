@@ -4,10 +4,8 @@ import SwiftUI
 
 /// Azul de marca usado no calendário do histórico (preenchimento, anel do dia
 /// atual e contador de metas batidas).
-private let calendarBlue = Color(red: 0.1098, green: 0.4627, blue: 0.9922)
 
 /// Mesmo azul de accent da HomeView — usado na topBar para manter os botões idênticos.
-private let accentBlue = Color(red: 0.1098, green: 0.4627, blue: 0.9922)
 
 private extension Font {
     static func baloo2ExtraBold(_ size: CGFloat) -> Font {
@@ -35,25 +33,26 @@ struct DiaHistorico: Identifiable {
 }
 
 /// Deriva os dias do histórico a partir dos `IntakeLog` reais do usuário — cada dia
-/// já ocorrido vira uma fração da meta diária (`metaDiariaML`); dias futuros ficam
-/// sem dado (`nil`).
+/// já ocorrido vira uma fração da meta daquele dia (`goals`, ver `DailyGoalResolver`);
+/// dias futuros ficam sem dado (`nil`).
 private enum HistoricoData {
-    static func percentual(for date: Date, logs: [IntakeLog], metaDiariaML: Int, calendar: Calendar) -> Double? {
+    static func percentual(for date: Date, logs: [IntakeLog], goals: DailyGoalResolver, calendar: Calendar) -> Double? {
         let today = calendar.startOfDay(for: .now)
         let dayStart = calendar.startOfDay(for: date)
         guard dayStart <= today else { return nil }
-        guard metaDiariaML > 0 else { return 0 }
+        let goalML = goals.goalML(on: dayStart)
+        guard goalML > 0 else { return 0 }
         let total = HydrationMath.totalML(logs, on: dayStart, calendar: calendar)
-        return Double(total) / Double(metaDiariaML)
+        return Double(total) / Double(goalML)
     }
 
-    static func generateMonth(for monthDate: Date, logs: [IntakeLog], metaDiariaML: Int, calendar: Calendar) -> [DiaHistorico] {
+    static func generateMonth(for monthDate: Date, logs: [IntakeLog], goals: DailyGoalResolver, calendar: Calendar) -> [DiaHistorico] {
         guard let range = calendar.range(of: .day, in: .month, for: monthDate) else { return [] }
 
         return range.compactMap { day in
             guard let date = calendar.date(bySetting: .day, value: day, of: monthDate) else { return nil }
             let dayStart = calendar.startOfDay(for: date)
-            return DiaHistorico(date: dayStart, percentualMeta: percentual(for: dayStart, logs: logs, metaDiariaML: metaDiariaML, calendar: calendar))
+            return DiaHistorico(date: dayStart, percentualMeta: percentual(for: dayStart, logs: logs, goals: goals, calendar: calendar))
         }
     }
 }
@@ -69,6 +68,7 @@ struct HistoricoView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.modelContext) private var modelContext
     @Query private var allLogs: [IntakeLog]
+    @Query private var allDailyGoals: [DailyGoal]
     @State private var displayedMonth = Calendar.current.dateInterval(of: .month, for: .now)?.start ?? .now
     @State private var cardPage: HistoricoCardPage = .calendario
     @State private var selectedDay: DiaHistorico?
@@ -111,8 +111,18 @@ struct HistoricoView: View {
         allLogs.filter { $0.userID == profile.userID }
     }
 
+    private var dailyGoals: [DailyGoal] {
+        allDailyGoals.filter { $0.userID == profile.userID }
+    }
+
+    /// Cada dia passado é julgado pela meta gravada pra ele — editar a meta hoje não
+    /// muda o histórico nem a sequência.
+    private var goalResolver: DailyGoalResolver {
+        DailyGoalResolver(goals: dailyGoals, todayGoalML: effectiveGoalML, fallbackGoalML: profile.metaDiariaML, calendar: calendar)
+    }
+
     private var monthDays: [DiaHistorico] {
-        HistoricoData.generateMonth(for: displayedMonth, logs: userLogs, metaDiariaML: profile.metaDiariaML, calendar: calendar)
+        HistoricoData.generateMonth(for: displayedMonth, logs: userLogs, goals: goalResolver, calendar: calendar)
     }
 
     private var gridCells: [DiaHistorico?] {
@@ -129,13 +139,17 @@ struct HistoricoView: View {
     }
 
     private var streakDias: Int {
-        HydrationMath.currentStreak(userLogs, metaDiariaML: profile.metaDiariaML, calendar: calendar)
+        HydrationMath.currentStreak(userLogs, goalML: goalResolver.goalML(on:), calendar: calendar)
     }
 
     /// Mesma meta ajustada pelo clima usada na Home — sem isso, o nível de água das
     /// duas telas diverge num dia quente (ver `HydrationMath.effectiveGoalML`).
     private var effectiveGoalML: Int {
-        HydrationMath.effectiveGoalML(baseGoalML: profile.metaDiariaML, tempContext: tempContext)
+        HydrationMath.effectiveGoalML(
+            baseGoalML: profile.metaDiariaML,
+            tempContext: tempContext,
+            recordedAdjustmentML: DailyGoalResolver.recordedAdjustmentML(in: dailyGoals, on: .now, calendar: calendar)
+        )
     }
 
     private var consumedToday: Int {
@@ -155,8 +169,10 @@ struct HistoricoView: View {
         return raw.prefix(1).uppercased() + raw.dropFirst()
     }
 
-    private var weeklyChartData: [(day: Date, totalML: Int)] {
-        HydrationMath.dailyTotals(userLogs, days: 7, calendar: calendar)
+    private var weeklyChartData: [(day: Date, totalML: Int, goalML: Int)] {
+        let goals = goalResolver
+        return HydrationMath.dailyTotals(userLogs, days: 7, calendar: calendar)
+            .map { (day: $0.day, totalML: $0.totalML, goalML: goals.goalML(on: $0.day)) }
     }
 
     var body: some View {
@@ -189,7 +205,7 @@ struct HistoricoView: View {
                 .trackSheetLifecycle(.shareProgress, screen: .historico, userID: profile.userID)
         }
         .sheet(item: $selectedDay) { dia in
-            DayDetailSheet(dia: dia, metaDiariaML: profile.metaDiariaML, userID: profile.userID, calendar: calendar)
+            DayDetailSheet(dia: dia, metaDiariaML: goalResolver.goalML(on: dia.date), userID: profile.userID, calendar: calendar)
                 .trackSheetLifecycle(.historicoDayDetail, screen: .historico, userID: profile.userID, metadata: ["date": isoDate(dia.date)])
         }
     }
@@ -199,7 +215,7 @@ struct HistoricoView: View {
             HStack(spacing: 6) {
                 Image(systemName: "drop.fill")
                     .font(.custom("Nunito", size: 12))
-                    .foregroundStyle(accentBlue)
+                    .foregroundStyle(Color.appAccentText)
                 Text("\(streakDias)")
                     .font(.custom("Nunito", size: 15).bold())
                 Text("dias")
@@ -217,8 +233,8 @@ struct HistoricoView: View {
                 showShare = true
             } label: {
                 Image(systemName: "square.and.arrow.up")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(accentBlue)
+                    .font(.system(.subheadline, weight: .semibold))
+                    .foregroundStyle(Color.appAccentText)
                     .frame(width: 40, height: 40)
                     .glassEffect(.regular.interactive(), in: Circle())
             }
@@ -570,7 +586,7 @@ struct HistoricoView: View {
                 Spacer()
                 pageToggleButton
             }
-            HydrationChartView(dailyTotals: weeklyChartData, metaDiariaML: profile.metaDiariaML)
+            HydrationChartView(dailyTotals: weeklyChartData)
         }
         .frame(maxHeight: .infinity, alignment: .top)
         .transition(.opacity)
@@ -606,7 +622,7 @@ struct HistoricoView: View {
 
             Text("\(metasBatidasCount) metas batidas")
                 .font(.nunitoExtraBold(12.5))
-                .foregroundStyle(calendarBlue)
+                .foregroundStyle(Color.appAccentText)
 
             pageToggleButton
         }
@@ -624,9 +640,9 @@ struct HistoricoView: View {
         } label: {
             Image(systemName: cardPage == .calendario ? "chevron.right" : "chevron.left")
                 .font(.caption.bold())
-                .foregroundStyle(calendarBlue)
+                .foregroundStyle(Color.appAccentText)
                 .frame(width: 26, height: 26)
-                .background(calendarBlue.opacity(0.12), in: Circle())
+                .background(Color.appAccent.opacity(0.12), in: Circle())
         }
         .accessibilityLabel(cardPage == .calendario ? "Ver estatísticas dos últimos 7 dias" : "Voltar para o calendário")
     }
@@ -651,7 +667,7 @@ struct HistoricoView: View {
             ForEach(Array(weekdaySymbols.enumerated()), id: \.offset) { _, symbol in
                 Text(symbol)
                     .font(.nunitoExtraBold(11.5))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.appSecondary)
                     .frame(maxWidth: .infinity)
             }
         }
@@ -709,15 +725,15 @@ private struct DayCell: View {
     }
 
     private var todayRingColor: Color {
-        dia.bateuMeta ? .white : calendarBlue
+        dia.bateuMeta ? .white : Color.appAccent
     }
 
     /// Cor única do número: branco quando o preenchimento domina (≥ 50%),
     /// caso contrário azul de marca (light) ou branco (dark) sobre a trilha clara.
     private var numberColor: Color {
-        if dia.isFuturo { return .secondary }
+        if dia.isFuturo { return Color.appSecondary }
         if clampedFill >= 0.5 { return .white }
-        return colorScheme == .dark ? .white : calendarBlue
+        return colorScheme == .dark ? .white : Color.appAccentText
     }
 
     /// Sombra sutil que garante legibilidade na faixa de transição (~30–70%).
@@ -746,7 +762,7 @@ private struct FillSwatch: View {
             ZStack(alignment: .bottom) {
                 trackColor
                 if percentual != nil {
-                    calendarBlue
+                    Color.appAccent
                         .frame(height: geo.size.height * clampedFill)
                 }
             }
@@ -758,8 +774,8 @@ private struct FillSwatch: View {
     /// já é escuro — sem isso a trilha ficaria quase preta e o texto branco
     /// perderia contraste contra ela.
     private var trackColor: Color {
-        guard percentual != nil else { return Color(.systemGray4) }
-        return colorScheme == .dark ? calendarBlue.opacity(0.32) : Color(red: 0.8863, green: 0.9333, blue: 0.9922)
+        guard percentual != nil else { return Color(.systemGray5) }
+        return colorScheme == .dark ? Color.appAccent.opacity(0.32) : Color(red: 0.8863, green: 0.9333, blue: 0.9922)
     }
 }
 
@@ -814,13 +830,13 @@ struct DayDetailSheet: View {
                             .font(.baloo2ExtraBold(21))
                         Text("\(totalML) mL de \(metaDiariaML) mL da meta")
                             .font(.nunitoExtraBold(13))
-                            .foregroundStyle(atingiuMeta ? calendarBlue : .secondary)
+                            .foregroundStyle(atingiuMeta ? Color.appAccentText : Color.appSecondary)
                     }
 
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Consumo ao longo do dia")
                             .font(.nunitoExtraBold(12.5))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.appSecondary)
 
                         Chart {
                             ForEach(hourlyBreakdown, id: \.hour) { entry in
@@ -828,7 +844,7 @@ struct DayDetailSheet: View {
                                     x: .value("Hora", String(format: "%02d:00", entry.hour)),
                                     y: .value("mL", entry.ml)
                                 )
-                                .foregroundStyle(calendarBlue)
+                                .foregroundStyle(Color.appAccentText)
                                 .cornerRadius(4)
                             }
                         }
@@ -854,12 +870,12 @@ struct DayDetailSheet: View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Registros do dia")
                 .font(.nunitoExtraBold(12.5))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.appSecondary)
 
             if logs.isEmpty {
                 Text("Nenhum registro neste dia.")
                     .font(.nunitoBold(12.5))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.appSecondary)
                     .padding(.vertical, 12)
             } else {
                 VStack(spacing: 0) {
@@ -897,16 +913,16 @@ private struct IntakeRow: View {
         HStack(spacing: 12) {
             Image(systemName: "drop.fill")
                 .font(.footnote)
-                .foregroundStyle(calendarBlue)
+                .foregroundStyle(Color.appAccentText)
                 .frame(width: 30, height: 30)
-                .background(calendarBlue.opacity(0.12), in: Circle())
+                .background(Color.appAccent.opacity(0.12), in: Circle())
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(timeLabel)
                     .font(.nunitoExtraBold(13))
                 Text("\(log.tipoEntrada.capitalized) · \(log.volumeML) mL")
                     .font(.nunitoBold(12.5))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.appSecondary)
             }
 
             Spacer()

@@ -36,10 +36,13 @@ struct HidrataPOCApp: App {
     }
 
     private func setUpOnLaunch() async {
-        // Only prompt for permissions once the tester has already accepted the
-        // consent screen in a prior session — never on the very first launch, before
-        // they've agreed to participate.
-        if UserDefaults.standard.bool(forKey: "hasAcceptedConsent") {
+        // Only prompt for permissions once onboarding is fully done (consent accepted,
+        // profile created, feature tour seen). On the first run RootView requests them
+        // itself when the tour is dismissed; this covers later launches.
+        let hasProfile = ((try? PersistenceController.context.fetchCount(FetchDescriptor<UserProfile>())) ?? 0) > 0
+        if UserDefaults.standard.bool(forKey: "hasAcceptedConsent"),
+           UserDefaults.standard.bool(forKey: "hasSeenFeatureOnboarding"),
+           hasProfile {
             await PermissionsCoordinator.requestAll()
         }
         await NotificationScheduler.shared.ensureTodayScheduled()

@@ -2,8 +2,6 @@ import AVFoundation
 import SwiftData
 import SwiftUI
 
-//private let accentBlue = Color(red: 0.1098, green: 0.4627, blue: 0.9922)
-private let accentBlue = Color(red: 0.1098, green: 0.4627, blue: 0.9922)
 
 struct HomeView: View {
     let profile: UserProfile
@@ -11,6 +9,7 @@ struct HomeView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.modelContext) private var modelContext
     @Query private var allLogs: [IntakeLog]
+    @Query private var allDailyGoals: [DailyGoal]
     @State private var isLogging = false
     @State private var highlightedCard: String? = nil
     @State private var audioPlayer: AVAudioPlayer?
@@ -53,8 +52,21 @@ struct HomeView: View {
     
     private var consumedToday: Int { HydrationMath.totalML(todayLogs, on: .now) }
     
+    private var dailyGoals: [DailyGoal] {
+        allDailyGoals.filter { $0.userID == profile.userID }
+    }
+
     private var effectiveGoalML: Int {
-        HydrationMath.effectiveGoalML(baseGoalML: profile.metaDiariaML, tempContext: tempContext)
+        HydrationMath.effectiveGoalML(
+            baseGoalML: profile.metaDiariaML,
+            tempContext: tempContext,
+            recordedAdjustmentML: DailyGoalResolver.recordedAdjustmentML(in: dailyGoals, on: .now)
+        )
+    }
+
+    /// Past days are judged against the goal recorded for them, not today's.
+    private var goalResolver: DailyGoalResolver {
+        DailyGoalResolver(goals: dailyGoals, todayGoalML: effectiveGoalML, fallbackGoalML: profile.metaDiariaML)
     }
     
     private var progress: Double {
@@ -63,7 +75,7 @@ struct HomeView: View {
     }
     
     private var streak: Int {
-        HydrationMath.currentStreak(allLogs.filter { $0.userID == profile.userID }, metaDiariaML: profile.metaDiariaML)
+        HydrationMath.currentStreak(allLogs.filter { $0.userID == profile.userID }, goalML: goalResolver.goalML(on:))
     }
     
     var body: some View {
@@ -89,9 +101,11 @@ struct HomeView: View {
             }
         }
         .task { await loadWeather() }
-        // Keeps the Home Screen water tank widget filling against the same goal as the bar.
+        // Keeps the Home Screen water tank widget filling against the same goal as the bar,
+        // and snapshots it as today's goal so later edits never touch this day.
         .onChange(of: effectiveGoalML, initial: true) { _, goal in
             WidgetSync.saveEffectiveGoal(goal)
+            DailyGoal.recordToday(userID: profile.userID, baseGoalML: profile.metaDiariaML, adjustmentML: tempContext?.adjustmentML, context: modelContext)
         }
         .onAppear {
             guard tempContext == nil else { return }
@@ -138,7 +152,7 @@ struct HomeView: View {
             HStack(spacing: 6) {
                 Image(systemName: "drop.fill")
                     .font(.custom("Nunito", size: 12))
-                    .foregroundStyle(accentBlue)
+                    .foregroundStyle(Color.appAccentText)
                 Text("\(streak)")
                     .font(.custom("Nunito", size: 15).bold())
                 Text("dias")
@@ -156,8 +170,8 @@ struct HomeView: View {
                 showShare = true
             } label: {
                 Image(systemName: "square.and.arrow.up")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(accentBlue)
+                    .font(.system(.subheadline, weight: .semibold))
+                    .foregroundStyle(Color.appAccentText)
                     .frame(width: 40, height: 40)
                     .glassEffect(.regular.interactive(), in: Circle())
             }
@@ -465,20 +479,24 @@ struct HomeView: View {
                 
                 // preenchimento azul
                 Capsule()
-                    .fill(accentBlue)
+                    .fill(Color.appAccent)
                     .frame(width: barWidth, height: 52)
                     .animation(.easeOut(duration: 0.4), value: progress)
                 
-                Text("\(consumedToday) mL / \(effectiveGoalML) mL")
-                    .font(.custom("Nunito", size: 15).weight(.heavy))
-                    .foregroundStyle(.white)
-                    .padding(.leading, 18)
+                // Texto escuro sobre a trilha e branco sobre o preenchimento azul: a mesma
+                // frase é desenhada duas vezes e a versão branca é recortada na largura
+                // do preenchimento, então cada letra tem contraste com o que está atrás.
+                progressLabel(color: Color.appOnTrack)
+                progressLabel(color: .white)
+                    .mask(alignment: .leading) {
+                        Capsule().frame(width: barWidth, height: 52)
+                    }
 
                 // Indica que a barra é tocável (abre os registros de hoje). Fica branco
                 // quando o preenchimento azul já chegou embaixo dele.
                 Image(systemName: "info.circle")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(barWidth >= geo.size.width - 36 ? .white : accentBlue)
+                    .font(.system(.body, weight: .semibold))
+                    .foregroundStyle(barWidth >= geo.size.width - 36 ? Color.white : Color.appOnTrack)
                     .frame(maxWidth: .infinity, alignment: .trailing)
                     .padding(.trailing, 18)
                     .accessibilityHidden(true)
@@ -487,6 +505,17 @@ struct HomeView: View {
         .frame(height: progressBarHeight)
     }
     
+    private func progressLabel(color: Color) -> some View {
+        Text("\(consumedToday) mL / \(effectiveGoalML) mL")
+            .font(.custom("Nunito", size: 15).weight(.heavy))
+            .foregroundStyle(color)
+            .lineLimit(1)
+            .minimumScaleFactor(0.6)
+            .padding(.leading, 18)
+            .padding(.trailing, 52)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     private func intakeGrid(cardHeight: CGFloat) -> some View {
         LazyVGrid(
             columns: [GridItem(.flexible(), spacing: intakeGridSpacing), GridItem(.flexible(), spacing: intakeGridSpacing)],
@@ -544,7 +573,7 @@ struct HomeView: View {
                 Image(systemName: "pencil.circle.fill")
                     .symbolRenderingMode(.hierarchical)
                     .font(.system(size: 30))
-                    .foregroundStyle(accentBlue)
+                    .foregroundStyle(Color.appAccentText)
                     .padding(4)
             }
             .buttonStyle(.plain)
@@ -645,15 +674,15 @@ struct IntakeCardContent: View {
     var height: CGFloat? = nil
 
     private var titleColor: Color {
-        isHighlighted || icon != nil ? .white : (colorScheme == .dark ? .primary : Color(red: 0.3686, green: 0.4667, blue: 0.6078))
+        isHighlighted || icon != nil ? .white : (colorScheme == .dark ? .primary : Color.appMutedInk)
     }
 
     private var subtitleColor: Color {
-        isHighlighted || icon != nil ? Color.white.opacity(0.9) : (colorScheme == .dark ? .secondary : Color(red: 0.3686, green: 0.4667, blue: 0.6078).opacity(0.75))
+        isHighlighted || icon != nil ? Color.white : Color.appMutedInk
     }
 
     private var backgroundIconColor: Color {
-        isHighlighted ? Color.white.opacity(0.28) : accentBlue
+        isHighlighted ? Color.white.opacity(0.28) : Color.appAccent
     }
 
     var body: some View {
@@ -689,7 +718,7 @@ struct IntakeCardContent: View {
         }
         .background(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(isHighlighted ? accentBlue : Color(UIColor.secondarySystemBackground))
+                .fill(isHighlighted ? Color.appAccent : Color(UIColor.secondarySystemBackground))
                 .homeCardShadow()
         )
         .contentShape(RoundedRectangle(cornerRadius: 18))
