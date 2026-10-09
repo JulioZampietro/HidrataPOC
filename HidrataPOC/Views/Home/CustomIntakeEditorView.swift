@@ -9,6 +9,7 @@ struct CustomIntakeEditorView: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var amountML: Double
+    @ScaledMetric(relativeTo: .body) private var fieldWidth: CGFloat = 90
 
     init(initialValueML: Int, onSave: @escaping (Int) -> Void) {
         self.onSave = onSave
@@ -29,7 +30,7 @@ struct CustomIntakeEditorView: View {
                         TextField("mL", value: amountField, format: .number)
                             .keyboardType(.numberPad)
                             .multilineTextAlignment(.trailing)
-                            .frame(width: 90)
+                            .frame(width: fieldWidth)
                         Text("mL").foregroundStyle(Color.appSecondary)
                     }
 
@@ -42,10 +43,12 @@ struct CustomIntakeEditorView: View {
                     }
                 }
             }
+            .font(AppFont.body)
             .navigationTitle("Volume personalizado")
             .scrollContentBackground(.hidden)
             .appScreenBackground()
             .navigationBarTitleDisplayMode(.inline)
+            .keyboardDoneToolbar()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancelar", systemImage: "xmark") { dismiss() }

@@ -11,6 +11,7 @@ struct EditGoalView: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var text: String
+    @ScaledMetric(relativeTo: .body) private var fieldWidth: CGFloat = 90
     private let initialValueML: Int
 
     private static let maxML = 10000
@@ -35,18 +36,21 @@ struct EditGoalView: View {
                         TextField("mL", text: $text)
                             .keyboardType(.numberPad)
                             .multilineTextAlignment(.trailing)
-                            .frame(width: 90)
+                            .frame(width: fieldWidth)
                         Text("mL").foregroundStyle(Color.appSecondary)
                     }
                 } footer: {
                     Text("Se você editar seus dados pessoais (idade, peso, altura ou gênero) depois, a meta diária será recalculada automaticamente e substituirá este valor.")
+                        .font(AppFont.footnote)
                         .foregroundStyle(Color.appSecondary)
                 }
             }
+            .font(AppFont.body)
             .navigationTitle("Editar meta diária")
             .scrollContentBackground(.hidden)
             .appScreenBackground()
             .navigationBarTitleDisplayMode(.inline)
+            .keyboardDoneToolbar()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancelar", systemImage: "xmark") { dismiss() }

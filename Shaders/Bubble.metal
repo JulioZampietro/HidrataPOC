@@ -386,6 +386,15 @@ static StoneShade shadeStones(float2 p, device const float *stones, int count) {
 
     if (inside <= 0.0) {
         float dropA = drop.hi + drop.dark * (1.0 - drop.hi);
+        // Pedrinhas também aparecem fora da água — ex.: soltas no fundo do recipiente
+        // vazio (0 mL), antes de se juntarem no mascote ao abrir o app. Mesma
+        // composição de baixo (pedra por baixo, gota por cima), só sem a água.
+        if (front >= 0.5 && stoneCount > 0) {
+            StoneShade dry = shadeStones(position, stones, stoneCount);
+            float3 rgb = float3(drop.hi) + dry.rgb * dry.a * (1.0 - drop.hi);
+            float alpha = drop.hi + dry.a * (1.0 - drop.hi);
+            return half4(half3(rgb), half(saturate(max(alpha, dropA))));
+        }
         return half4(half3(drop.hi), half(saturate(dropA)));
     }
 

@@ -6,10 +6,20 @@ import SwiftUI
 /// fora do centro, puxado um pouco pra baixo (gravidade), girando e sumindo — sem
 /// nunca voltar: é uma animação só, de ida. Cada instância é efêmera (nasce quando
 /// o mascote explode e morre logo depois) e não se repete.
+///
+/// Com `assembles: true` a animação roda ao contrário: os cacos nascem pequenos e
+/// amontoados no centro (onde as pedrinhas acabaram de se juntar, ver
+/// `WaterMotion.gatherStones`) e se abrem até se encaixar, formando o mascote
+/// inteiro — usado ao abrir o app com 0 mL. Dura `assembleDuration`.
 struct MascotShatterView: View {
     let imageName: String
     let width: CGFloat
     let height: CGFloat
+    var assembles: Bool = false
+
+    /// Tempo total (s) até o último caco se encaixar no modo `assembles`.
+    static let assembleDuration: Double = 0.95
+    private static let assembleMaxDelay: Double = 0.25
 
     // 21 pedaços (7×3) — mesma quantidade de pedras que nascem na água
     // (`WaterTuning.stoneCount`) quando o mascote explode.
@@ -19,12 +29,17 @@ struct MascotShatterView: View {
     @State private var pieces: [ShatterPiece]
     @State private var animate = false
 
-    init(imageName: String, width: CGFloat, height: CGFloat) {
+    init(imageName: String, width: CGFloat, height: CGFloat, assembles: Bool = false) {
         self.imageName = imageName
         self.width = width
         self.height = height
+        self.assembles = assembles
         _pieces = State(initialValue: Self.makePieces(width: width, height: height))
     }
+
+    /// true = cacos fora do lugar. Na explosão isso é o estado final; na montagem,
+    /// o inicial.
+    private var scattered: Bool { assembles ? !animate : animate }
 
     var body: some View {
         ZStack {
@@ -38,13 +53,11 @@ struct MascotShatterView: View {
                     .scaledToFit()
                     .frame(width: width, height: height)
                     .clipShape(ShardShape(points: piece.corners))
-                    .rotationEffect(.degrees(animate ? piece.spin : 0), anchor: piece.anchor)
-                    .offset(
-                        x: animate ? piece.direction.width * piece.distance : 0,
-                        y: animate ? piece.direction.height * piece.distance : 0
-                    )
-                    .opacity(animate ? 0 : 1)
-                    .animation(.easeIn(duration: 0.6).delay(piece.delay), value: animate)
+                    .scaleEffect(assembles && scattered ? 0.3 : 1, anchor: piece.anchor)
+                    .rotationEffect(.degrees(scattered ? piece.spin : 0), anchor: piece.anchor)
+                    .offset(scattered ? scatteredOffset(for: piece) : .zero)
+                    .opacity(scattered && !assembles ? 0 : 1)
+                    .animation(pieceAnimation(for: piece), value: animate)
             }
         }
         .frame(width: width, height: height)
@@ -54,6 +67,29 @@ struct MascotShatterView: View {
         // "voltar pro lugar" num fade por cima do resultado já quebrado).
         .transition(.identity)
         .onAppear { animate = true }
+    }
+
+    /// Onde o caco está quando fora do lugar. Explosão: longe, pra fora e pra baixo.
+    /// Montagem: amontoado no centro da imagem (com um tremor pra não ficarem todos
+    /// exatamente no mesmo ponto).
+    private func scatteredOffset(for piece: ShatterPiece) -> CGSize {
+        if assembles {
+            return CGSize(
+                width: width / 2 - piece.anchor.x * width + piece.direction.width * 6,
+                height: height / 2 - piece.anchor.y * height + piece.direction.height * 6
+            )
+        }
+        return CGSize(width: piece.direction.width * piece.distance, height: piece.direction.height * piece.distance)
+    }
+
+    /// Explosão: acelera pra fora (easeIn). Montagem: desacelera ao chegar no lugar
+    /// (easeOut), com os cacos mais dessincronizados pra parecer que vão "se juntando".
+    private func pieceAnimation(for piece: ShatterPiece) -> Animation {
+        if assembles {
+            let duration = Self.assembleDuration - Self.assembleMaxDelay
+            return .easeOut(duration: duration).delay(piece.delay / 0.07 * Self.assembleMaxDelay)
+        }
+        return .easeIn(duration: 0.6).delay(piece.delay)
     }
 
     private struct ShatterPiece: Identifiable {

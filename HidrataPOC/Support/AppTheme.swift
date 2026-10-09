@@ -61,11 +61,14 @@ extension View {
 }
 
 extension AppTheme {
-    /// Trilha da barra de progresso: cinza-claro no light, azul-acinzentado escuro no dark.
+    /// Trilha da barra de progresso: cinza-claro no light, azul-acinzentado bem escuro no
+    /// dark. Os dois tons foram escolhidos para o preenchimento `appAccent` se destacar
+    /// da trilha com ≥ 3:1 (WCAG 1.4.11) — 3,4:1 no claro e 3,2:1 no escuro — e o texto
+    /// branco/escuro por cima seguir acima de 10:1.
     static func progressTrack(for colorScheme: ColorScheme) -> Color {
         colorScheme == .dark
-            ? Color(red: 0.24, green: 0.30, blue: 0.40)
-            : trackLight
+            ? Color(red: 0.10, green: 0.13, blue: 0.20)
+            : Color(red: 0.80, green: 0.83, blue: 0.87)
     }
 
     static let trackLight = Color(red: 0.75, green: 0.78, blue: 0.82)
@@ -78,7 +81,8 @@ extension AppTheme {
 /// left. Below the minimums (very short screens, large text) the screens scroll.
 enum TabScreenLayout {
     static let spacing: CGFloat = 20
-    static let headerHeight: CGFloat = 40
+    /// 44 pt: o menor alvo de toque do HIG (o botão de compartilhar do cabeçalho).
+    static let headerHeight: CGFloat = 44
     /// Space between the mascot and the container's bottom edge.
     static let mascotBottomPadding: CGFloat = 0
     /// Space between the container's top edge and the mascot at full size.
@@ -92,19 +96,22 @@ enum TabScreenLayout {
     /// an overlay on top of the container instead, so the container grows up into
     /// that reclaimed space and reaches near the top safe area.
     static let extraContainerHeight: CGFloat = headerHeight + spacing
+    /// Altura a mais no aquário (tirada dos cartões de baixo), só como água acima do
+    /// mascote — `mascotHeight` também desconta isso, então o mascote não cresce.
+    static let extraTankHeight: CGFloat = 40
 
     /// The container hugs the full-size mascot (plus `extraContainerHeight` of
     /// slack, reclaimed from the header's old row); it only gets shorter on
     /// screens too short to fit everything else.
     static func waterHeight(forVisibleHeight height: CGFloat) -> CGFloat {
-        let fullHeight = mascotTopPadding + maxMascotHeight + mascotBottomPadding + extraContainerHeight
-        return min(max(height * 0.376, 160), fullHeight)
+        let fullHeight = mascotTopPadding + maxMascotHeight + mascotBottomPadding + extraContainerHeight + extraTankHeight
+        return min(max(height * 0.42, 160), fullHeight)
     }
 
     /// The mascot shrinks with the container on short screens, never past 190 pt.
     /// `extraContainerHeight` is removed first so the extra slack never reaches the mascot.
     static func mascotHeight(forWaterHeight waterHeight: CGFloat) -> CGFloat {
-        min(max(waterHeight - mascotTopPadding - mascotBottomPadding - extraContainerHeight, 110), maxMascotHeight)
+        min(max(waterHeight - mascotTopPadding - mascotBottomPadding - extraContainerHeight - extraTankHeight, 110), maxMascotHeight)
     }
 
     /// Height left for the screen's own content below the water container. The
@@ -112,6 +119,40 @@ enum TabScreenLayout {
     /// container and two gaps (above and below it) are subtracted.
     static func contentHeight(forVisibleHeight height: CGFloat) -> CGFloat {
         height - waterHeight(forVisibleHeight: height) - spacing * 2
+    }
+}
+
+// MARK: - Scroll sem bounce
+
+extension View {
+    /// Impede que o usuário arraste a tela inteira para baixo (o "bounce" do
+    /// `UIScrollView` por trás do `ScrollView`). Quando o conteúdo não cabe na
+    /// tela, o scroll continua funcionando normalmente — só some o elástico.
+    func disableScrollBounce() -> some View {
+        background(ScrollBounceDisabler())
+    }
+}
+
+/// Sobe na hierarquia de views até achar o `UIScrollView` do `ScrollView` que
+/// envolve esta view e desliga o `bounces` dele.
+private struct ScrollBounceDisabler: UIViewRepresentable {
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+        view.isUserInteractionEnabled = false
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {
+        DispatchQueue.main.async {
+            var current = uiView.superview
+            while let view = current {
+                if let scrollView = view as? UIScrollView {
+                    scrollView.bounces = false
+                    return
+                }
+                current = view.superview
+            }
+        }
     }
 }
 
@@ -157,9 +198,35 @@ extension Color {
     static let appWarning = adaptive(light: Color(red: 0.65, green: 0.32, blue: 0.0), dark: .orange)
     static let appSuccess = adaptive(light: Color(red: 0.08, green: 0.45, blue: 0.22), dark: .green)
 
+    /// Vermelho de ações destrutivas (apagar): o `.red` do sistema dá ~3,3:1 sobre os
+    /// cartões; estes passam de 4,5:1 nos dois modos.
+    static let appDestructive = adaptive(
+        light: Color(red: 0.745, green: 0.098, blue: 0.078),
+        dark: Color(red: 1.0, green: 0.51, blue: 0.47)
+    )
+
+    /// Bolinhas de página inativas e contornos de controles: precisam de ≥ 3:1 contra o
+    /// fundo (elemento gráfico, WCAG 1.4.11) — o `.secondary` a 30% dava ~1,5:1.
+    static let appControlOutline = appSecondary.opacity(0.7)
+
     /// Cinza de ícones decorativos secundários (chevrons).
     static let appChevron = appSecondary
 
     /// Tracejado que separa linhas dos cartões do Perfil e dos tutoriais.
     static let appDivider = AppTheme.trackLight.opacity(0.6)
+}
+
+// MARK: - Cartões
+
+extension View {
+    /// Cartão de conteúdo padrão do app: fundo secundário do sistema com a sombra suave
+    /// dos cartões do Perfil. Conteúdo não usa Liquid Glass — o vidro fica para controles
+    /// e navegação (HIG).
+    func appCardBackground(cornerRadius: CGFloat = 18) -> some View {
+        background(
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .fill(Color(UIColor.secondarySystemBackground))
+                .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4)
+        )
+    }
 }

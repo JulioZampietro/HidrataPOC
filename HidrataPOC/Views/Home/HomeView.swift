@@ -7,7 +7,13 @@ struct HomeView: View {
     let profile: UserProfile
     
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.scenePhase) private var scenePhase
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    // Medidas que acompanham o tamanho do texto: com Dynamic Type grande o rótulo da barra
+    // e o ícone do cabeçalho não podem ser cortados por uma altura fixa.
+    @ScaledMetric(relativeTo: .subheadline) private var progressBarHeight: CGFloat = 52
+    private let headerButtonSize = TabScreenLayout.headerHeight // alvo mínimo de 44 pt; não cresce com o texto
     @Query private var allLogs: [IntakeLog]
     @Query private var allDailyGoals: [DailyGoal]
     @State private var isLogging = false
@@ -19,6 +25,8 @@ struct HomeView: View {
     @State private var showActionButtonTutorial = false
     @State private var showTodayLogs = false
     @State private var showShare = false
+    @State private var showCosmetics = false
+    @AppStorage(Cosmetic.grass.storageKey) private var grassEquipped = false
     @State private var weather: WeatherContext?
     @State private var isLoadingWeather = true
     @State private var tempContext: TemperatureAdjustmentContext?
@@ -38,6 +46,18 @@ struct HomeView: View {
     /// vivo por baixo desde o primeiro instante da transição, aparecendo junto
     /// do antigo pelas folgas transparentes da imagem/bolhas.
     @State private var newMascotHidden = false
+    /// true enquanto a montagem do mascote (pedrinhas se juntando, ver
+    /// `MascotShatterView(assembles:)`) ainda deve rodar. Começa true pra pegar a
+    /// abertura do app; volta a true ao voltar do background. Só tem efeito com 0 mL.
+    @State private var mascotAssemblyPending = true
+    /// Durante a montagem: false enquanto só as pedrinhas soltas aparecem no fundo
+    /// (`looseStonesDuration`), true quando os cacos começam a voar e se juntar.
+    @State private var mascotAssemblyStarted = false
+    /// Tempo (s) que as pedrinhas ficam soltas no fundo antes de serem puxadas pro meio.
+    private static let looseStonesDuration: Double = 1.0
+    /// Tempo máximo (s) esperando as pedrinhas se juntarem no meio — normalmente elas
+    /// chegam antes (`WaterMotion.stonesGathered`) e o mascote já começa a se formar.
+    private static let stonesGatherTimeout: Double = 1.5
 
     private static let mascotPhrases: [String] = [
         "Não bebe água não",
@@ -96,6 +116,7 @@ struct HomeView: View {
                             .padding(.horizontal, 20)
                     }
                     .padding(.bottom, TabScreenLayout.spacing)
+                    .disableScrollBounce()
                 }
                 .scrollBounceBehavior(.basedOnSize)
             }
@@ -133,6 +154,7 @@ struct HomeView: View {
                 .trackSheetLifecycle(.shareProgress, screen: .home, userID: profile.userID)
         }
         .sheet(isPresented: $showActionButtonTutorial) { ActionButtonTutorialView() }
+        .sheet(isPresented: $showCosmetics) { CosmeticsView(streak: streak) }
         .sheet(isPresented: $showTodayLogs) {
             // Same goal as the bar (base + temperature adjustment), so the sheet's
             // "X mL de Y mL" matches what the user just tapped.
@@ -151,12 +173,12 @@ struct HomeView: View {
         HStack {
             HStack(spacing: 6) {
                 Image(systemName: "drop.fill")
-                    .font(.custom("Nunito", size: 12))
+                    .font(AppFont.caption)
                     .foregroundStyle(Color.appAccentText)
                 Text("\(streak)")
-                    .font(.custom("Nunito", size: 15).bold())
+                    .font(AppFont.subheadlineStrong)
                 Text("dias")
-                    .font(.custom("Nunito", size: 15))
+                    .font(AppFont.subheadline)
             }
             .foregroundStyle(.primary)
             .padding(.horizontal, 14)
@@ -166,20 +188,32 @@ struct HomeView: View {
             Spacer()
 
             Button {
+                InteractionTracker.log("home_cosmetics_tap", screen: .home, userID: profile.userID, context: modelContext)
+                showCosmetics = true
+            } label: {
+                Image(systemName: "paintbrush.fill")
+                    .font(.system(.subheadline, weight: .semibold))
+                    .foregroundStyle(Color.appAccentText)
+                    .frame(width: 40, height: 40)
+                    .glassEffect(.regular.interactive(), in: Circle())
+            }
+            .accessibilityLabel("Cosméticos")
+
+            Button {
                 InteractionTracker.log("home_share_tap", screen: .home, userID: profile.userID, context: modelContext)
                 showShare = true
             } label: {
                 Image(systemName: "square.and.arrow.up")
                     .font(.system(.subheadline, weight: .semibold))
+                    .dynamicTypeSize(...DynamicTypeSize.xxxLarge) // o ícone cabe no círculo de 44 pt
                     .foregroundStyle(Color.appAccentText)
-                    .frame(width: 40, height: 40)
+                    .frame(width: headerButtonSize, height: headerButtonSize)
                     .glassEffect(.regular.interactive(), in: Circle())
             }
             .accessibilityLabel("Compartilhar")
         }
     }
     
-    private let progressBarHeight: CGFloat = 52
     private let intakeGridSpacing: CGFloat = 12
 
     /// The two rows of intake cards share what's left below the progress bar, so the
@@ -188,6 +222,8 @@ struct HomeView: View {
         let gridHeight = TabScreenLayout.contentHeight(forVisibleHeight: height) - progressBarHeight - TabScreenLayout.spacing
         return max((gridHeight - intakeGridSpacing) / 2, 116)
     }
+
+    private var showsGrass: Bool { grassEquipped && Cosmetic.grass.isUnlocked(streak: streak) }
 
     private var containerShape: UnevenRoundedRectangle {
         UnevenRoundedRectangle(topLeadingRadius: 32, bottomLeadingRadius: 32, bottomTrailingRadius: 32, topTrailingRadius: 32, style: .continuous)
@@ -207,6 +243,17 @@ struct HomeView: View {
             // cabeçalho) vira espaço de água acima do mascote, em vez de se dividir
             // igual entre cima e baixo e empurrar o mascote pra cima do centro.
             .frame(height: height, alignment: .bottom)
+            // Cosmético "Gramadinho": no fundo do aquário, atrás do mascote e dentro
+            // do conteúdo da água (então ondula junto com a refração). Só aparece
+            // desbloqueado — se a streak zerar, some mesmo que continue equipado.
+            .background(alignment: .bottom) {
+                if showsGrass {
+                    GrassView()
+                        .frame(height: 44)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+            }
+            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showsGrass)
         .background {
             containerShape
                 .fill(AppTheme.screenBackground(for: colorScheme))
@@ -229,7 +276,36 @@ struct HomeView: View {
 
     private func mascotPlaceholder(height: CGFloat, width: CGFloat) -> some View {
         ZStack(alignment: .topTrailing) {
-            if let mascot = AppTheme.mascotImageName(for: progress), !newMascotHidden {
+            if mascotAssemblyPending, consumedToday == 0, let assembling = AppTheme.mascotImageName(for: 0) {
+                // Abrindo o app com 0 mL: o inverso da explosão — os cacos sobem e se
+                // juntam no meio, formando o primeiro mascote. Mesmo tamanho/correção
+                // do mascote vivo, então a troca pro ramo de baixo no fim é invisível.
+                // Antes disso, as pedrinhas ficam soltas no fundo por
+                // `looseStonesDuration`, são puxadas pro meio e, assim que se juntam
+                // (`WaterMotion.stonesGathered`), somem e os cacos se abrem dali.
+                let correction = AppTheme.mascotSizeCorrection(for: assembling)
+                ZStack {
+                    if mascotAssemblyStarted {
+                        MascotShatterView(imageName: assembling, width: height * 1.55 * correction, height: height * correction, assembles: true)
+                    }
+                }
+                .frame(width: height * 1.55, height: height, alignment: .center)
+                .task {
+                    waterMotion.scatterStonesAtRest()
+                    try? await Task.sleep(for: .seconds(Self.looseStonesDuration))
+                    waterMotion.gatherStones(heightAboveBottom: TabScreenLayout.mascotBottomPadding + height / 2)
+                    let gatherStart = Date.now
+                    while !waterMotion.stonesGathered, Date.now.timeIntervalSince(gatherStart) < Self.stonesGatherTimeout {
+                        try? await Task.sleep(for: .milliseconds(16))
+                    }
+                    waterMotion.clearStones()
+                    mascotAssemblyStarted = true
+                    try? await Task.sleep(for: .seconds(MascotShatterView.assembleDuration))
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                    mascotAssemblyPending = false
+                    mascotAssemblyStarted = false
+                }
+            } else if let mascot = AppTheme.mascotImageName(for: progress), !newMascotHidden {
                 Image(mascot)
                     .resizable()
                     .scaledToFit()
@@ -252,6 +328,10 @@ struct HomeView: View {
                     .animation(.interpolatingSpring(stiffness: 350, damping: 10), value: isPoking)
                     .offset(mascotDragOffset)
                     .animation(.interactiveSpring(response: 0.28, dampingFraction: 0.55), value: mascotDragOffset)
+                    // Área de toque maior que o desenho: o `scaleEffect` acima encolhe
+                    // a imagem (e o toque junto) pra ~55–65% do slot; aqui o toque
+                    // volta a valer em 85% do slot, com folga em volta do mascote.
+                    .contentShape(Rectangle().scale(0.85))
                     .onTapGesture { pokeMascot() }
                     .simultaneousGesture(mascotDragGesture)
 
@@ -313,6 +393,15 @@ struct HomeView: View {
             // pedrinhas. Aqui o estado das pedrinhas é sincronizado com o progresso
             // atual assim que a tela aparece.
             syncStonesWithProgress()
+            // Já abriu com água registrada: não há montagem, e ela não deve disparar
+            // depois só porque um registro foi excluído e o total voltou a 0.
+            if consumedToday > 0 { mascotAssemblyPending = false }
+        }
+        .onChange(of: scenePhase) { oldPhase, newPhase in
+            // Voltar do background conta como "abrir o app" de novo.
+            if oldPhase == .background, newPhase != .background, consumedToday == 0 {
+                mascotAssemblyPending = true
+            }
         }
         .task {
             while !Task.isCancelled {
@@ -474,32 +563,36 @@ struct HomeView: View {
                 // trilha, elevada com a mesma sombra dos cartões de ingestão
                 Capsule()
                     .fill(AppTheme.progressTrack(for: colorScheme))
-                    .frame(height: 52)
+                    .frame(height: progressBarHeight)
+                    // Contorno só no escuro, onde a trilha azul-marinho quase some no fundo;
+                    // no claro a trilha cinza aparece sozinha, sem borda.
+                    .overlay {
+                        if colorScheme == .dark {
+                            Capsule().strokeBorder(Color.appControlOutline, lineWidth: 1)
+                        }
+                    }
                     .homeCardShadow()
                 
                 // preenchimento azul
                 Capsule()
                     .fill(Color.appAccent)
-                    .frame(width: barWidth, height: 52)
+                    .frame(width: barWidth, height: progressBarHeight)
                     .animation(.easeOut(duration: 0.4), value: progress)
                 
-                // Texto escuro sobre a trilha e branco sobre o preenchimento azul: a mesma
-                // frase é desenhada duas vezes e a versão branca é recortada na largura
-                // do preenchimento, então cada letra tem contraste com o que está atrás.
-                progressLabel(color: Color.appOnTrack)
+                // Texto sempre branco, sobre a trilha e sobre o preenchimento.
                 progressLabel(color: .white)
-                    .mask(alignment: .leading) {
-                        Capsule().frame(width: barWidth, height: 52)
-                    }
 
-                // Indica que a barra é tocável (abre os registros de hoje). Fica branco
-                // quando o preenchimento azul já chegou embaixo dele.
-                Image(systemName: "info.circle")
-                    .font(.system(.body, weight: .semibold))
-                    .foregroundStyle(barWidth >= geo.size.width - 36 ? Color.white : Color.appOnTrack)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-                    .padding(.trailing, 18)
-                    .accessibilityHidden(true)
+                // Indica que a barra é tocável (abre os registros de hoje).
+                // Nos tamanhos de acessibilidade o texto ocupa a barra toda e o ícone passaria
+                // por cima dele; a barra continua tocável (rótulo e dica no botão).
+                if !dynamicTypeSize.isAccessibilitySize {
+                    Image(systemName: "info.circle")
+                        .font(.system(.body, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                        .padding(.trailing, 18)
+                        .accessibilityHidden(true)
+                }
             }
         }
         .frame(height: progressBarHeight)
@@ -507,12 +600,12 @@ struct HomeView: View {
     
     private func progressLabel(color: Color) -> some View {
         Text("\(consumedToday) mL / \(effectiveGoalML) mL")
-            .font(.custom("Nunito", size: 15).weight(.heavy))
+            .font(AppFont.subheadlineHeavy)
             .foregroundStyle(color)
             .lineLimit(1)
-            .minimumScaleFactor(0.6)
+            .minimumScaleFactor(0.75) // 15 pt × 0.75 ≈ 11 pt: o menor texto do app (HIG)
             .padding(.leading, 18)
-            .padding(.trailing, 52)
+            .padding(.trailing, dynamicTypeSize.isAccessibilitySize ? 18 : 52)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
@@ -574,10 +667,10 @@ struct HomeView: View {
                     .symbolRenderingMode(.hierarchical)
                     .font(.system(size: 30))
                     .foregroundStyle(Color.appAccentText)
-                    .padding(4)
+                    .padding(7) // 30 pt de ícone + 7 de cada lado = alvo de 44 pt
             }
             .buttonStyle(.plain)
-            .padding(6)
+            .padding(3)
             .accessibilityLabel("Editar volume do botão personalizado")
         }
     }
@@ -673,12 +766,13 @@ struct IntakeCardContent: View {
     var isHighlighted: Bool = false
     var height: CGFloat? = nil
 
-    private var titleColor: Color {
-        isHighlighted || icon != nil ? .white : (colorScheme == .dark ? .primary : Color.appMutedInk)
+    /// Tinta do texto sobre o cartão liso (fora do ícone).
+    private var titleInk: Color {
+        isHighlighted ? .white : (colorScheme == .dark ? .primary : Color.appMutedInk)
     }
 
-    private var subtitleColor: Color {
-        isHighlighted || icon != nil ? Color.white : Color.appMutedInk
+    private var subtitleInk: Color {
+        isHighlighted ? .white : Color.appMutedInk
     }
 
     private var backgroundIconColor: Color {
@@ -686,42 +780,60 @@ struct IntakeCardContent: View {
     }
 
     var body: some View {
+        // Texto escuro sobre o cartão e branco sobre o ícone azul: o mesmo texto é
+        // desenhado duas vezes e a versão branca é recortada no formato do ícone (a
+        // mesma ideia da barra de progresso). Assim cada letra tem contraste com o que
+        // está atrás, mesmo quando o texto passa da borda do ícone para o cartão claro.
+        textBlock(title: titleInk, subtitle: subtitleInk)
+            .overlay {
+                if let icon, !isHighlighted {
+                    textBlock(title: .white, subtitle: .white)
+                        .mask { iconLayer(icon) }
+                        .accessibilityHidden(true)
+                }
+            }
+            .background(alignment: .leading) {
+                // Ícone grande como fundo do cartão, deslocado para a esquerda e cortado pela borda.
+                if let icon {
+                    iconLayer(icon)
+                        .foregroundStyle(backgroundIconColor)
+                        .accessibilityHidden(true)
+                }
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(isHighlighted ? Color.appAccent : Color(UIColor.secondarySystemBackground))
+                    .homeCardShadow()
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 18))
+    }
+
+    /// `minHeight` (e não `height`): o cartão cresce com o Dynamic Type em vez de cortar o texto.
+    private func textBlock(title titleColor: Color, subtitle subtitleColor: Color) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Spacer(minLength: 0)
 
             Text(title)
-                .font(.custom("Nunito", size: 17).weight(.heavy))
+                .font(AppFont.headline)
                 .foregroundStyle(titleColor)
 
             Text(subtitle)
-                .font(.custom("Nunito", size: 15))
+                .font(AppFont.subheadline)
                 .foregroundStyle(subtitleColor)
         }
-        // Mantém o texto branco legível onde ele passa do ícone para o fundo claro.
-        .shadow(color: icon != nil && !isHighlighted ? .black.opacity(0.35) : .clear, radius: 3, x: 0, y: 1)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
-        .frame(height: height)
-        .background(alignment: .leading) {
-            // Ícone grande como fundo do cartão, deslocado para a esquerda e cortado pela borda.
-            if let icon {
-                GeometryReader { geo in
-                    let side = geo.size.height * 1.15
-                    backgroundIcon(icon)
-                        .foregroundStyle(backgroundIconColor)
-                        .frame(width: side, height: side)
-                        .offset(x: -side * icon.leadingOverflow, y: (geo.size.height - side) / 2 + side * 0.15)
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                .accessibilityHidden(true)
-            }
+        .frame(minHeight: height)
+    }
+
+    private func iconLayer(_ icon: IntakeCardIcon) -> some View {
+        GeometryReader { geo in
+            let side = geo.size.height * 1.15
+            backgroundIcon(icon)
+                .frame(width: side, height: side)
+                .offset(x: -side * icon.leadingOverflow, y: (geo.size.height - side) / 2 + side * 0.15)
         }
-        .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(isHighlighted ? Color.appAccent : Color(UIColor.secondarySystemBackground))
-                .homeCardShadow()
-        )
-        .contentShape(RoundedRectangle(cornerRadius: 18))
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
     @ViewBuilder
