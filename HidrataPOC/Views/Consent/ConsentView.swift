@@ -8,11 +8,11 @@ struct ConsentView: View {
             VStack(alignment: .leading, spacing: 20) {
                 Image(systemName: "drop.circle.fill")
                     .font(.system(size: 56))
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(Color.appAccentText)
                     .accessibilityHidden(true)
 
                 Text("Antes de começar")
-                    .font(.largeTitle.bold())
+                    .font(AppFont.largeTitle)
 
                 Text("""
                 Este é um app de teste (POC) usado para coletar dados de pesquisa. \
@@ -20,7 +20,7 @@ struct ConsentView: View {
                 água — os dados coletados vão treinar, no futuro, um modelo que escolhe \
                 esses horários automaticamente.
                 """)
-                .font(.body)
+                .font(AppFont.body)
 
                 VStack(alignment: .leading, spacing: 12) {
                     consentRow(icon: "person.text.rectangle", text: "Idade, peso, altura e meta diária de hidratação.")
@@ -30,11 +30,14 @@ struct ConsentView: View {
                 }
 
                 Text("Nenhum dado de saúde sensível (sono via wearable, batimentos, etc.) é coletado. Os dados ficam associados a um identificador anônimo, não ao seu nome.")
-                    .font(.footnote)
+                    .font(AppFont.footnote)
                     .foregroundStyle(Color.appSecondary)
 
-                Button("Concordo em participar") {
+                Button {
                     onAccept()
+                } label: {
+                    Text("Concordo em participar")
+                        .font(AppFont.calloutStrong)
                 }
                 .buttonStyle(.glassProminent)
                 .frame(maxWidth: .infinity)
@@ -50,9 +53,9 @@ struct ConsentView: View {
             Text(text)
         } icon: {
             Image(systemName: icon)
-                .foregroundStyle(.blue)
+                .foregroundStyle(Color.appAccentText)
         }
-        .font(.subheadline)
+        .font(AppFont.subheadline)
     }
 }
 

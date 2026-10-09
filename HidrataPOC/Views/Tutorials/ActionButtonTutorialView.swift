@@ -5,6 +5,7 @@ import UIKit
 struct ActionButtonTutorialView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
+    @ScaledMetric(relativeTo: .subheadline) private var stepBadgeSize: CGFloat = 32
 
     var body: some View {
         NavigationStack {
@@ -24,7 +25,6 @@ struct ActionButtonTutorialView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Fechar", systemImage: "xmark") { dismiss() }
-                        .font(.custom("Nunito", size: 16).weight(.semibold))
                         .foregroundStyle(Color.appAccentText)
                 }
             }
@@ -46,11 +46,11 @@ struct ActionButtonTutorialView: View {
             .padding(.top, 8)
 
             Text("Botão de Ação")
-                .font(.custom("Nunito", size: 24).weight(.heavy))
+                .font(AppFont.title)
                 .foregroundStyle(.primary)
 
             Text("Registre água com um toque lateral — sem desbloquear o iPhone.")
-                .font(.custom("Nunito", size: 15))
+                .font(AppFont.subheadline)
                 .foregroundStyle(Color.appSecondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 16)
@@ -62,10 +62,10 @@ struct ActionButtonTutorialView: View {
     private var compatibilityBadge: some View {
         HStack(spacing: 8) {
             Image(systemName: "iphone")
-                .font(.custom("Nunito", size: 13))
+                .font(AppFont.footnote)
                 .foregroundStyle(Color.appAccentText)
             Text("iPhone 15 Pro, 16 e posteriores · iOS 18+")
-                .font(.custom("Nunito", size: 13).weight(.semibold))
+                .font(AppFont.footnoteStrong)
                 .foregroundStyle(Color.appAccentText)
         }
         .padding(.horizontal, 16)
@@ -117,9 +117,9 @@ struct ActionButtonTutorialView: View {
                 ZStack {
                     Circle()
                         .fill(Color.appAccent)
-                        .frame(width: 32, height: 32)
+                        .frame(width: stepBadgeSize, height: stepBadgeSize)
                     Text("\(number)")
-                        .font(.custom("Nunito", size: 14).weight(.heavy))
+                        .font(AppFont.subheadlineHeavy)
                         .foregroundStyle(.white)
                 }
                 .padding(.top, 2)
@@ -130,11 +130,11 @@ struct ActionButtonTutorialView: View {
                             .font(.system(.footnote, weight: .semibold))
                             .foregroundStyle(Color.appAccentText)
                         Text(title)
-                            .font(.custom("Nunito", size: 15).weight(.bold))
+                            .font(AppFont.subheadlineStrong)
                             .foregroundStyle(.primary)
                     }
                     Text(description)
-                        .font(.custom("Nunito", size: 13))
+                        .font(AppFont.footnote)
                         .foregroundStyle(Color.appSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -169,7 +169,7 @@ struct ActionButtonTutorialView: View {
                 Image(systemName: "arrow.up.right.square")
                     .font(.system(.callout, weight: .semibold))
                 Text("Abrir Ajustes")
-                    .font(.custom("Nunito", size: 16).weight(.bold))
+                    .font(AppFont.calloutStrong)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 8)

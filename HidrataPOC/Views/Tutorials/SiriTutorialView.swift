@@ -2,6 +2,7 @@ import SwiftUI
 
 
 struct SiriTutorialView: View {
+    @ScaledMetric(relativeTo: .callout) private var iconTileSize: CGFloat = 36
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
 
@@ -57,7 +58,6 @@ struct SiriTutorialView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Fechar", systemImage: "xmark") { dismiss() }
-                        .font(.custom("Nunito", size: 16).weight(.semibold))
                         .foregroundStyle(Color.appAccentText)
                 }
             }
@@ -79,11 +79,11 @@ struct SiriTutorialView: View {
             .padding(.top, 8)
 
             Text("Como usar a Siri")
-                .font(.custom("Nunito", size: 24).weight(.heavy))
+                .font(AppFont.title)
                 .foregroundStyle(.primary)
 
             Text("Registre água sem tirar o celular do bolso — funciona com a tela bloqueada.")
-                .font(.custom("Nunito", size: 15))
+                .font(AppFont.subheadline)
                 .foregroundStyle(Color.appSecondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 16)
@@ -98,20 +98,20 @@ struct SiriTutorialView: View {
                 ZStack {
                     RoundedRectangle(cornerRadius: 10)
                         .fill(Color.appAccent.opacity(0.12))
-                        .frame(width: 36, height: 36)
+                        .frame(width: iconTileSize, height: iconTileSize)
                     Image(systemName: icon)
                         .font(.system(.callout, weight: .semibold))
                         .foregroundStyle(Color.appAccentText)
                 }
 
                 Text(title)
-                    .font(.custom("Nunito", size: 17).weight(.heavy))
+                    .font(AppFont.headline)
                     .foregroundStyle(.primary)
 
                 Spacer()
 
                 Text(volume)
-                    .font(.custom("Nunito", size: 13).weight(.bold))
+                    .font(AppFont.footnoteStrong)
                     .foregroundStyle(.white)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
@@ -151,14 +151,14 @@ struct SiriTutorialView: View {
                     .frame(width: 18)
 
                 Text("\"\(text)\"")
-                    .font(.custom("Nunito", size: 14))
+                    .font(AppFont.subheadline)
                     .foregroundStyle(.primary)
                     .fixedSize(horizontal: false, vertical: true)
 
                 Spacer()
 
                 Text(result)
-                    .font(.custom("Nunito", size: 12).weight(.bold))
+                    .font(AppFont.captionStrong)
                     .foregroundStyle(Color.appAccentText)
                     .monospacedDigit()
             }
@@ -178,7 +178,7 @@ struct SiriTutorialView: View {
         VStack(spacing: 0) {
             HStack {
                 Text("Dicas")
-                    .font(.custom("Nunito", size: 17).weight(.heavy))
+                    .font(AppFont.headline)
                     .foregroundStyle(.primary)
                 Spacer()
             }
@@ -199,7 +199,7 @@ struct SiriTutorialView: View {
             tipRow(icon: "lock.fill", color: Color.appSuccess, text: "Funciona com a **tela bloqueada**.", isLast: false)
             tipRow(icon: "questionmark.circle.fill", color: Color.appAccentText, text: "Se não falar a quantidade, a Siri pergunta.", isLast: false)
             tipRow(icon: "mic.fill", color: Color.appWarning, text: "Não precisa de frase exata — fale naturalmente.", isLast: false)
-            tipRow(icon: "number", color: .blue, text: "Funciona com números: \"3 copos\", \"dois goles\".", isLast: true)
+            tipRow(icon: "number", color: Color.appAccentText, text: "Funciona com números: \"3 copos\", \"dois goles\".", isLast: true)
         }
         .background(RoundedRectangle(cornerRadius: 20, style: .continuous)
             .fill(Color(UIColor.secondarySystemBackground))
@@ -216,7 +216,7 @@ struct SiriTutorialView: View {
                     .padding(.top, 1)
 
                 Text(text)
-                    .font(.custom("Nunito", size: 14))
+                    .font(AppFont.subheadline)
                     .foregroundStyle(Color.appSecondary)
                     .fixedSize(horizontal: false, vertical: true)
 

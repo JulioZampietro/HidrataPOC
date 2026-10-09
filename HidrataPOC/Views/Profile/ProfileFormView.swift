@@ -60,6 +60,12 @@ struct ProfileFormValues {
 
 /// Shared between onboarding and the profile-edit sheet — same fields, different title/action.
 struct ProfileFormView: View {
+    // Campos numéricos com largura que acompanha o Dynamic Type (com texto grande, "170" ou
+    // "1500" estourava uma largura fixa).
+    @ScaledMetric(relativeTo: .body) private var ageFieldWidth: CGFloat = 60
+    @ScaledMetric(relativeTo: .body) private var measureFieldWidth: CGFloat = 80
+    @ScaledMetric(relativeTo: .body) private var volumeFieldWidth: CGFloat = 90
+
     let title: String
     let confirmLabel: String
     let initialValues: ProfileFormValues
@@ -119,10 +125,10 @@ struct ProfileFormView: View {
                         }
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Sincronizar com Saúde")
-                                .fontWeight(.semibold)
+                                .font(AppFont.calloutStrong)
                                 .foregroundStyle(Color.primary)
                             Text("Importa sexo biológico, nascimento, peso e altura")
-                                .font(.caption)
+                                .font(AppFont.caption)
                                 .foregroundStyle(Color.appSecondary)
                         }
                     }
@@ -137,7 +143,7 @@ struct ProfileFormView: View {
                     TextField("anos", text: $idadeText)
                         .keyboardType(.numberPad)
                         .multilineTextAlignment(.trailing)
-                        .frame(width: 60)
+                        .frame(width: ageFieldWidth)
                         .onChange(of: idadeText) { _, val in
                             if let n = Int(val), (10...120).contains(n) { idade = n }
                         }
@@ -150,7 +156,7 @@ struct ProfileFormView: View {
                     TextField("kg", text: $pesoText)
                         .keyboardType(.decimalPad)
                         .multilineTextAlignment(.trailing)
-                        .frame(width: 80)
+                        .frame(width: measureFieldWidth)
                         .onChange(of: pesoText) { _, val in
                             if let n = Self.parseDecimal(val) { pesoKg = n }
                         }
@@ -163,14 +169,14 @@ struct ProfileFormView: View {
                     TextField("cm", text: $alturaText)
                         .keyboardType(.decimalPad)
                         .multilineTextAlignment(.trailing)
-                        .frame(width: 80)
+                        .frame(width: measureFieldWidth)
                         .onChange(of: alturaText) { _, val in
                             if let n = Self.parseDecimal(val) { alturaCm = n }
                         }
                     Text("cm").foregroundStyle(Color.appSecondary)
                 }
             } header: {
-                Text("Sobre você").foregroundStyle(Color.appSecondary)
+                Text("Sobre você").font(AppFont.footnote).foregroundStyle(Color.appSecondary)
             }
 
             Section {
@@ -181,6 +187,7 @@ struct ProfileFormView: View {
                 }
             } footer: {
                 Text("Usado apenas para calcular sua necessidade diária de água.")
+                    .font(AppFont.footnote)
                     .foregroundStyle(Color.appSecondary)
             }
 
@@ -199,6 +206,7 @@ struct ProfileFormView: View {
             } footer: {
                 if resetGoal {
                     Text("A meta será redefinida para \(metaDiariaML) mL ao salvar.")
+                        .font(AppFont.footnote)
                         .foregroundStyle(Color.appSecondary)
                 }
             }
@@ -211,7 +219,7 @@ struct ProfileFormView: View {
                         TextField("mL", value: $customIntakeML, format: .number)
                             .keyboardType(.numberPad)
                             .multilineTextAlignment(.trailing)
-                            .frame(width: 90)
+                            .frame(width: volumeFieldWidth)
                         Text("mL").foregroundStyle(Color.appSecondary)
                     }
                 }
@@ -225,18 +233,20 @@ struct ProfileFormView: View {
                     onSave(ProfileFormValues(idade: finalIdade, genero: genero, pesoKg: finalPeso, alturaCm: finalAltura, customIntakeML: customIntakeML, storedGoalML: initialValues.storedGoalML, resetGoalToCalculated: resetGoal))
                 }
                 .frame(maxWidth: .infinity)
-                .fontWeight(.semibold)
+                .font(AppFont.calloutStrong)
                 .foregroundStyle(.white)
                 .listRowBackground(Color.appAccent)
             }
             .id("confirmSection")
         }
+        .font(AppFont.body)
         .navigationTitle(title)
         .scrollContentBackground(.hidden)
         .appScreenBackground()
         .navigationBarTitleDisplayMode(.inline)
         // Number/decimal pads have no return key, so let a tap outside or a scroll dismiss the keyboard.
         .scrollDismissesKeyboard(.interactively)
+        .keyboardDoneToolbar()
         .background(DismissKeyboardOnTap())
         .onChange(of: isFetchingFromHealth) { _, isFetching in
             guard !isFetching else { return }
@@ -264,6 +274,23 @@ struct ProfileFormView: View {
     private static func formatDecimal(_ value: Double) -> String {
         let formatted = String(format: value.truncatingRemainder(dividingBy: 1) == 0 ? "%.0f" : "%.1f", value)
         return formatted
+    }
+}
+
+extension View {
+    /// Botão "Concluído" acima do teclado. Os teclados numéricos (`numberPad`, `decimalPad`)
+    /// não têm tecla de retorno, então sem isso só dava para fechar tocando fora ou rolando
+    /// — o HIG pede uma saída explícita na barra do teclado.
+    func keyboardDoneToolbar() -> some View {
+        toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Concluído") {
+                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                }
+                .font(AppFont.calloutStrong)
+            }
+        }
     }
 }
 
