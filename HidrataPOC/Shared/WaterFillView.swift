@@ -114,7 +114,6 @@ extension View {
     }
 }
 
-
 private struct WaterContainerModifier<S: Shape>: ViewModifier {
     let level: Double
     let shape: S
