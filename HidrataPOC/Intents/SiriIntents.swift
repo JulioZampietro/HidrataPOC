@@ -161,8 +161,9 @@ struct HidrataPOCShortcuts: AppShortcutsProvider {
                 "Tomei um copo de \(.applicationName)",
                 "Acabei de tomar um copo de \(.applicationName)",
                 "Registra um copo no \(.applicationName)",
-                "Bebi um copo d'água no \(.applicationName)",
-                "Tomei um copo d'água no \(.applicationName)",
+                "Bebi um copo de água no \(.applicationName)",
+                "Tomei um copo de água no \(.applicationName)",
+                "Bebi um copo no \(.applicationName)",
             ],
             shortTitle: "Registrar Copo",
             systemImageName: "mug.fill"
@@ -177,7 +178,7 @@ struct HidrataPOCShortcuts: AppShortcutsProvider {
                 "Acabei minha garrafa no \(.applicationName)",
                 "Terminei uma garrafa de \(.applicationName)",
                 "Registra uma garrafa no \(.applicationName)",
-                "Bebi uma garrafa d'água no \(.applicationName)",
+                "Bebi uma garrafa de água no \(.applicationName)",
             ],
             shortTitle: "Registrar Garrafa",
             systemImageName: "waterbottle.fill"
