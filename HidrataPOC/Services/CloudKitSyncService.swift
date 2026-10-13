@@ -294,6 +294,11 @@ final class CloudKitSyncService {
     /// two devices that each created a profile still converge on one record.
     private let profileRecordName = "UserProfile"
     private var privateSyncTask: Task<Bool, Never>?
+    /// Set when CloudKit answers a private save with a retry-after (iCloud storage
+    /// full — `quotaExceeded` — or rate limiting): further saves are skipped until
+    /// then, leaving rows `.failed` for a later `flushPending`, instead of hitting the
+    /// server again on every foreground. Reads (restore) aren't affected.
+    private let privateBackoffUntilKey = "cloudKitPrivateBackoffUntil"
 
     private func privateRecordID(_ name: String) -> CKRecord.ID {
         CKRecord.ID(recordName: name, zoneID: privateZoneID)
@@ -381,6 +386,9 @@ final class CloudKitSyncService {
     /// this per-user copy. Returns the record names that were saved.
     private func savePrivate(_ records: [CKRecord]) async -> Set<String> {
         var saved: Set<String> = []
+        if let until = UserDefaults.standard.object(forKey: privateBackoffUntilKey) as? Date, until > .now {
+            return saved
+        }
         do {
             try await ensurePrivateZone()
             for start in stride(from: 0, to: records.count, by: 300) {
@@ -392,20 +400,29 @@ final class CloudKitSyncService {
                     switch result {
                     case .success: saved.insert(id.recordName)
                     case .failure(let error):
-                        if (error as? CKError)?.code == .zoneNotFound {
-                            UserDefaults.standard.set(false, forKey: privateZoneReadyKey)
-                        }
+                        handlePrivateSaveError(error)
                         logger.error("Private save failed for \(id.recordName, privacy: .public): \(String(describing: error), privacy: .public)")
                     }
                 }
             }
         } catch {
-            if (error as? CKError)?.code == .zoneNotFound {
-                UserDefaults.standard.set(false, forKey: privateZoneReadyKey)
-            }
+            handlePrivateSaveError(error)
             logger.error("Private save failed: \(String(describing: error), privacy: .public)")
         }
         return saved
+    }
+
+    private func handlePrivateSaveError(_ error: Error) {
+        guard let ckError = error as? CKError else { return }
+        if ckError.code == .zoneNotFound {
+            UserDefaults.standard.set(false, forKey: privateZoneReadyKey)
+        }
+        // `quotaExceeded` = the user's iCloud storage is full; nothing the app can fix,
+        // so back off for the server's hint (or an hour) rather than retrying constantly.
+        let delay = ckError.retryAfterSeconds ?? (ckError.code == .quotaExceeded ? 3600 : nil)
+        if let delay {
+            UserDefaults.standard.set(Date.now.addingTimeInterval(delay), forKey: privateBackoffUntilKey)
+        }
     }
 
     private func deletePrivate(recordName: String) async {
