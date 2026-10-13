@@ -21,6 +21,15 @@ final class DailyGoal {
     var adjustmentML: Int
     var atualizadoEm: Date
 
+    /// CloudKit push state (public database), so a reinstall / another device can
+    /// restore the goal history. Defaulted for lightweight migration — existing rows
+    /// come up `.pending` and get uploaded by the next `flushPending`.
+    var syncStatusRaw: String = SyncStatus.pending.rawValue
+    var syncStatus: SyncStatus {
+        get { SyncStatus(rawValue: syncStatusRaw) ?? .pending }
+        set { syncStatusRaw = newValue.rawValue }
+    }
+
     var goalML: Int { baseGoalML + adjustmentML }
 
     init(userID: String, dayKey: String, baseGoalML: Int, adjustmentML: Int) {
@@ -56,6 +65,7 @@ final class DailyGoal {
             existing.baseGoalML = baseGoalML
             existing.adjustmentML = newAdjustment
             existing.atualizadoEm = now
+            existing.syncStatus = .pending
         } else {
             context.insert(DailyGoal(userID: userID, dayKey: key, baseGoalML: baseGoalML, adjustmentML: adjustmentML ?? 0))
         }
