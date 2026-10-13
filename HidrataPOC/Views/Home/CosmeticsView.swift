@@ -3,72 +3,33 @@ import SwiftUI
 /// Itens cosméticos que enfeitam o aquário da Home. Cada um é ligado/desligado
 /// pela aba de cosméticos (`CosmeticsView`) e lembrado entre aberturas do app
 /// (`@AppStorage(item.storageKey)`).
-/// A ordem dos casos é a ordem dos cartões na aba; a ordem de desenho no recipiente
-/// é `layerOrder`. Os desenhos ficam em `AquariumDecorations.swift`.
 enum Cosmetic: String, CaseIterable, Identifiable {
     case grass
-    case lemon
-    case ice
-    case mint
-    case cucumber
-    case berries
-    case fizz
-    case straw
-    case droplets
-    case kidneys
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
         case .grass: "Gramadinho"
-        case .lemon: "Rodelas de limão"
-        case .ice: "Cubos de gelo"
-        case .mint: "Folhas de hortelã"
-        case .cucumber: "Pepino spa"
-        case .berries: "Frutas vermelhas"
-        case .fizz: "Água com gás"
-        case .straw: "Canudinho"
-        case .droplets: "Gotinhas aliadas"
-        case .kidneys: "Torcida dos rins"
         }
     }
 
     var subtitle: String {
         switch self {
         case .grass: "Um tapete verde no fundo do aquário"
-        case .lemon: "O citrato do limão é inimigo da pedra"
-        case .ice: "Pedrinhas do bem, boiando lá em cima"
-        case .mint: "Água saborizada e refrescante"
-        case .cucumber: "Clima de spa no seu copo"
-        case .berries: "Morangos e mirtilos pra dar cor"
-        case .fizz: "Bolhinhas subindo sem parar"
-        case .straw: "Listradinho, mergulhado na água"
-        case .droplets: "Gotas sorridentes ajudando a dissolver"
-        case .kidneys: "Seus rins pulando de alegria"
         }
     }
 
     var systemImage: String {
         switch self {
         case .grass: "leaf.fill"
-        case .lemon: "circle.circle.fill"
-        case .ice: "cube.transparent.fill"
-        case .mint: "leaf"
-        case .cucumber: "smallcircle.filled.circle.fill"
-        case .berries: "heart.fill"
-        case .fizz: "bubbles.and.sparkles.fill"
-        case .straw: "takeoutbag.and.cup.and.straw.fill"
-        case .droplets: "drop.fill"
-        case .kidneys: "hands.clap.fill"
         }
     }
 
-    /// Dias de streak necessários pra desbloquear o item. Por enquanto todos em 1,
-    /// pra dar pra testar tudo — ajustar antes de lançar.
+    /// Dias de streak necessários pra desbloquear o item.
     var requiredStreak: Int {
         switch self {
-        case .grass, .lemon, .ice, .mint, .cucumber, .berries, .fizz, .straw, .droplets, .kidneys: 1
+        case .grass: 1
         }
     }
 
@@ -77,40 +38,6 @@ enum Cosmetic: String, CaseIterable, Identifiable {
     var tint: Color {
         switch self {
         case .grass: Color(red: 0.30, green: 0.69, blue: 0.31)
-        case .lemon: Color(red: 0.92, green: 0.75, blue: 0.05)
-        case .ice: Color(red: 0.45, green: 0.75, blue: 0.95)
-        case .mint: Color(red: 0.20, green: 0.66, blue: 0.38)
-        case .cucumber: Color(red: 0.35, green: 0.62, blue: 0.25)
-        case .berries: Color(red: 0.90, green: 0.22, blue: 0.30)
-        case .fizz: Color(red: 0.30, green: 0.68, blue: 0.95)
-        case .straw: Color(red: 0.95, green: 0.30, blue: 0.40)
-        case .droplets: Color(red: 0.25, green: 0.58, blue: 0.98)
-        case .kidneys: Color(red: 0.88, green: 0.42, blue: 0.45)
-        }
-    }
-
-    /// Ordem de desenho, de trás pra frente: o canudinho atrás de tudo, depois o que
-    /// fica no chão, as bolhas, o que boia e, por cima, as gotinhas e o gelo.
-    var layerOrder: Int {
-        switch self {
-        case .straw: 0
-        case .grass: 1
-        case .kidneys: 2
-        case .fizz: 3
-        case .mint: 4
-        case .cucumber: 5
-        case .berries: 6
-        case .lemon: 7
-        case .droplets: 8
-        case .ice: 9
-        }
-    }
-
-    /// Itens que ficam no chão entram subindo de baixo; o resto só aparece.
-    var sitsOnFloor: Bool {
-        switch self {
-        case .grass, .kidneys: true
-        case .lemon, .ice, .mint, .cucumber, .berries, .fizz, .straw, .droplets: false
         }
     }
 
@@ -278,9 +205,8 @@ struct GrassView: View {
     }
 }
 
-/// Gerador determinístico (SplitMix64) — o gramado (e as bolhinhas) saem iguais
-/// toda vez.
-struct SeededGenerator: RandomNumberGenerator {
+/// Gerador determinístico (SplitMix64) — o gramado sai igual toda vez.
+private struct SeededGenerator: RandomNumberGenerator {
     var state: UInt64
     init(seed: UInt64) { state = seed }
     mutating func next() -> UInt64 {

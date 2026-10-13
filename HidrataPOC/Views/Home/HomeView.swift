@@ -26,6 +26,7 @@ struct HomeView: View {
     @State private var showTodayLogs = false
     @State private var showShare = false
     @State private var showCosmetics = false
+    @AppStorage(Cosmetic.grass.storageKey) private var grassEquipped = false
     @State private var weather: WeatherContext?
     @State private var isLoadingWeather = true
     @State private var tempContext: TemperatureAdjustmentContext?
@@ -222,6 +223,10 @@ struct HomeView: View {
         return max((gridHeight - intakeGridSpacing) / 2, 116)
     }
 
+    private var goalReached: Bool { progress >= 1 }
+
+    private var showsGrass: Bool { grassEquipped && Cosmetic.grass.isUnlocked(streak: streak) }
+
     private var containerShape: UnevenRoundedRectangle {
         UnevenRoundedRectangle(topLeadingRadius: 32, bottomLeadingRadius: 32, bottomTrailingRadius: 32, topTrailingRadius: 32, style: .continuous)
     }
@@ -240,11 +245,29 @@ struct HomeView: View {
             // cabeçalho) vira espaço de água acima do mascote, em vez de se dividir
             // igual entre cima e baixo e empurrar o mascote pra cima do centro.
             .frame(height: height, alignment: .bottom)
-            // Cosméticos equipados: no fundo do aquário, atrás do mascote e dentro
-            // do conteúdo da água (então ondulam junto com a refração).
+            // Cosmético "Gramadinho": no fundo do aquário, atrás do mascote e dentro
+            // do conteúdo da água (então ondula junto com a refração). Só aparece
+            // desbloqueado — se a streak zerar, some mesmo que continue equipado.
             .background(alignment: .bottom) {
-                AquariumDecorationsView(streak: streak, waterLevel: progress)
+                if showsGrass {
+                    GrassView()
+                        .frame(height: 44)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
             }
+            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showsGrass)
+            // Meta do dia batida: os rins aparecem nos cantos de baixo comemorando.
+            // Ficam na frente da grama e, como o resto, dentro da água.
+            .overlay(alignment: .bottom) {
+                if goalReached {
+                    KidneyCheerView()
+                        .frame(height: 80)
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+            }
+            .animation(.spring(response: 0.5, dampingFraction: 0.7), value: goalReached)
         .background {
             containerShape
                 .fill(AppTheme.screenBackground(for: colorScheme))
