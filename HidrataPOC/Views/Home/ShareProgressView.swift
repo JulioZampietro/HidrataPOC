@@ -419,7 +419,7 @@ struct ShareProgressView: View {
                     if let image, let data = image.pngData() {
                         ShareLink(
                             item: SharePNG(data: data),
-                            preview: SharePreview("Meu dia no Hidrata", image: Image(uiImage: image))
+                            preview: SharePreview("Meu dia no Gole", image: Image(uiImage: image))
                         ) {
                             Label("Compartilhar", systemImage: "square.and.arrow.up")
                                 .frame(maxWidth: .infinity)

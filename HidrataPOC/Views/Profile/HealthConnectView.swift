@@ -107,7 +107,7 @@ struct HealthConnectView: View {
                 infoRow(icon: "checkmark.circle.fill", color: Color.appSuccess,
                         text: "Seus registros de água são enviados automaticamente ao Saúde")
                 infoRow(icon: "arrow.triangle.2.circlepath", color: Color.appAccentText,
-                        text: "Água adicionada por outros apps é importada ao abrir o Hidrata")
+                        text: "Água adicionada por outros apps é importada ao abrir o Gole")
             }
 
             if let lastSync = lastSyncFormatted {
