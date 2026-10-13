@@ -142,7 +142,7 @@ private struct ActionButtonPage: View {
                     title: "Selecione \"Controles\"",
                     isLast: false)
             stepRow(number: 4, icon: "plus.circle.fill",
-                    title: "Adicione os controles do Hidrata",
+                    title: "Adicione os controles do Gole",
                     isLast: true)
         }
         .appCardBackground(cornerRadius: 18)
@@ -181,10 +181,10 @@ private struct ActionButtonPage: View {
 
 private struct SiriPage: View {
     private let phrases: [(icon: String, text: String, result: String)] = [
-        ("drop.fill",          "\"Bebi um gole de HidrataPOC\"",    "40 mL"),
-        ("mug.fill","\"Bebi um copo de HidrataPOC\"",    "250 mL"),
-        ("waterbottle.fill",   "\"Bebi uma garrafa de HidrataPOC\"","500 mL"),
-        ("drop.fill",          "\"Bebi 3 goles de HidrataPOC\"",    "120 mL"),
+        ("drop.fill",          "\"Bebi um gole de Gole\"",    "40 mL"),
+        ("mug.fill","\"Bebi um copo de Gole\"",    "250 mL"),
+        ("waterbottle.fill",   "\"Bebi uma garrafa de Gole\"","500 mL"),
+        ("drop.fill",          "\"Bebi 3 goles de Gole\"",    "120 mL"),
     ]
 
     var body: some View {

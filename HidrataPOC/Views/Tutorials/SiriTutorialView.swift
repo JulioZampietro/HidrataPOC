@@ -16,11 +16,11 @@ struct SiriTutorialView: View {
                         title: "Gole",
                         volume: "40 mL",
                         phrases: [
-                            ("Bebi um gole de HidrataPOC", "40 mL"),
-                            ("Tomei um gole de HidrataPOC", "40 mL"),
-                            ("Dei um gole de HidrataPOC", "40 mL"),
-                            ("Bebi 3 goles de HidrataPOC", "120 mL"),
-                            ("Bebi água no HidrataPOC", "40 mL"),
+                            ("Bebi um gole de Gole", "40 mL"),
+                            ("Tomei um gole de Gole", "40 mL"),
+                            ("Dei um gole de Gole", "40 mL"),
+                            ("Bebi 3 goles de Gole", "120 mL"),
+                            ("Bebi água no Gole", "40 mL"),
                         ]
                     )
                     intakeCard(
@@ -28,11 +28,11 @@ struct SiriTutorialView: View {
                         title: "Copo",
                         volume: "250 mL",
                         phrases: [
-                            ("Bebi um copo de HidrataPOC", "250 mL"),
-                            ("Tomei um copo de HidrataPOC", "250 mL"),
-                            ("Registra um copo no HidrataPOC", "250 mL"),
-                            ("Acabei de tomar um copo de HidrataPOC", "250 mL"),
-                            ("Bebi 2 copos de HidrataPOC", "500 mL"),
+                            ("Bebi um copo de Gole", "250 mL"),
+                            ("Tomei um copo de Gole", "250 mL"),
+                            ("Registra um copo no Gole", "250 mL"),
+                            ("Acabei de tomar um copo de Gole", "250 mL"),
+                            ("Bebi 2 copos de Gole", "500 mL"),
                         ]
                     )
                     intakeCard(
@@ -40,11 +40,11 @@ struct SiriTutorialView: View {
                         title: "Garrafa",
                         volume: "500 mL",
                         phrases: [
-                            ("Bebi uma garrafa de HidrataPOC", "500 mL"),
-                            ("Tomei uma garrafa de HidrataPOC", "500 mL"),
-                            ("Terminei uma garrafa de HidrataPOC", "500 mL"),
-                            ("Acabei minha garrafa no HidrataPOC", "500 mL"),
-                            ("Bebi 2 garrafas de HidrataPOC", "1000 mL"),
+                            ("Bebi uma garrafa de Gole", "500 mL"),
+                            ("Tomei uma garrafa de Gole", "500 mL"),
+                            ("Terminei uma garrafa de Gole", "500 mL"),
+                            ("Acabei minha garrafa no Gole", "500 mL"),
+                            ("Bebi 2 garrafas de Gole", "1000 mL"),
                         ]
                     )
                     tipsCard

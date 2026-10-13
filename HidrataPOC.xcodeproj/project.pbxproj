@@ -942,6 +942,7 @@
 				DEVELOPMENT_TEAM = J6WURQU382;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = HidrataPOC/Support/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Gole;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Usamos sua localização para consultar a temperatura e umidade no momento dos lembretes de hidratação.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
@@ -1054,6 +1055,7 @@
 				DEVELOPMENT_TEAM = J6WURQU382;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = HidrataPOC/Support/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Gole;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Usamos sua localização para consultar a temperatura e umidade no momento dos lembretes de hidratação.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;

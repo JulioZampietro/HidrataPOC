@@ -101,8 +101,8 @@ struct ActionButtonTutorialView: View {
             stepRow(
                 number: 4,
                 icon: "plus.circle.fill",
-                title: "Adicione os controles do HidrataPOC",
-                description: "Em \"Controles disponíveis\", encontre HidrataPOC e adicione os controles de hidratação que quiser.",
+                title: "Adicione os controles do Gole",
+                description: "Em \"Controles disponíveis\", encontre Gole e adicione os controles de hidratação que quiser.",
                 isLast: true
             )
         }
