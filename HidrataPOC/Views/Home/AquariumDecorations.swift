@@ -1,11 +1,11 @@
 import SwiftUI
 
-/// Todos os cosméticos equipados, empilhados no fundo do aquário da Home (atrás do
+/// Todos os cosméticos equipados, empilhados no fundo do recipiente da Home (atrás do
 /// mascote e dentro do conteúdo da água, então ondulam junto com a refração).
 /// A ordem de desenho vem de `Cosmetic.layerOrder`, não da ordem da aba.
 struct AquariumDecorationsView: View {
     let streak: Int
-    /// Nível de água do dia (0…1) — os bichinhos que nadam ficam abaixo da superfície.
+    /// Nível de água do dia (0…1) — o que boia fica abaixo da superfície.
     let waterLevel: Double
 
     var body: some View {
@@ -54,398 +54,187 @@ private struct CosmeticLayer: View {
     private var decoration: some View {
         switch item {
         case .grass: GrassView().frame(height: 44)
-        case .shells: ShellsView()
-        case .seaweed: SeaweedView()
-        case .coral: CoralView()
-        case .chest: TreasureChestView()
-        case .bubbles: BubblesView(waterLevel: waterLevel)
-        case .fish: FishSchoolView(waterLevel: waterLevel)
-        case .jellyfish: JellyfishView(waterLevel: waterLevel)
-        case .sunRays: SunRaysView()
-        case .plankton: PlanktonView(waterLevel: waterLevel)
+        case .kidneys: KidneyCheerView()
+        case .straw: StrawView()
+        case .droplets: DropletFriendsView(waterLevel: waterLevel)
+        case .fizz: FizzView(waterLevel: waterLevel)
+        case .ice, .lemon, .mint, .cucumber, .berries:
+            FloatingInfusionView(kind: item, waterLevel: waterLevel)
         }
     }
 }
 
 /// Topo aproximado da água no conteúdo do recipiente. O recipiente real pode se
 /// estender sob a status bar (fica mais alto que o conteúdo), então isso fica um
-/// pouco abaixo da superfície de verdade — o que mantém os bichos submersos.
+/// pouco abaixo da superfície de verdade — o que mantém o que boia submerso.
 private func waterTop(height: CGFloat, level: Double) -> CGFloat {
     height * (1 - CGFloat(min(max(level, 0), 1)))
 }
 
 /// 0 → 1 conforme a faixa de água disponível passa de `minimum` a `minimum + 40` pt:
-/// com pouca água os bichos que nadam somem suavemente em vez de flutuar no ar.
-private func swimOpacity(band: CGFloat, minimum: CGFloat) -> Double {
+/// com pouca água o que boia some suavemente em vez de ficar no ar.
+private func floatOpacity(band: CGFloat, minimum: CGFloat) -> Double {
     Double(min(max((band - minimum) / 40, 0), 1))
 }
 
-// MARK: - Fundo
+private let waterBlue = Color(red: 0.32, green: 0.64, blue: 0.98)
 
-/// Conchinhas espalhadas no chão: uma vieira rosada, uma estrela-do-mar e um
-/// caramujo em espiral.
-struct ShellsView: View {
-    var body: some View {
-        Canvas { context, size in
-            let floor = size.height - 8
-            drawScallop(in: &context, at: CGPoint(x: size.width * 0.36, y: floor), radius: 13)
-            drawStarfish(in: &context, at: CGPoint(x: size.width * 0.63, y: floor - 9), radius: 12)
-            drawSpiral(in: &context, at: CGPoint(x: size.width * 0.52, y: floor - 4), radius: 6)
+// MARK: - Água saborizada (o que boia)
+
+/// Pedaços que boiam na água, como numa jarra de água saborizada: cada `kind`
+/// (gelo, limão, hortelã, pepino, frutas vermelhas) tem o seu conjunto de peças,
+/// em posições e ritmos próprios pra não se sobreporem quando vários estão ligados.
+struct FloatingInfusionView: View {
+    let kind: Cosmetic
+    let waterLevel: Double
+
+    /// `depth`: 0 = colado na superfície, 1 = perto do fundo.
+    private struct Piece { let x: CGFloat; let depth: CGFloat; let size: CGFloat; let phase: Double }
+
+    private var pieces: [Piece] {
+        switch kind {
+        case .ice: [Piece(x: 0.22, depth: 0.02, size: 15, phase: 0), Piece(x: 0.50, depth: 0.0, size: 12, phase: 2.2), Piece(x: 0.80, depth: 0.03, size: 14, phase: 4.1)]
+        case .lemon: [Piece(x: 0.42, depth: 0.70, size: 14, phase: 1.0), Piece(x: 0.68, depth: 0.15, size: 12, phase: 3.0), Piece(x: 0.90, depth: 0.55, size: 13, phase: 5.0)]
+        case .mint: [Piece(x: 0.33, depth: 0.10, size: 11, phase: 0.5), Piece(x: 0.60, depth: 0.42, size: 10, phase: 2.7), Piece(x: 0.08, depth: 0.62, size: 9, phase: 4.4), Piece(x: 0.86, depth: 0.25, size: 10, phase: 1.6)]
+        case .cucumber: [Piece(x: 0.26, depth: 0.50, size: 12, phase: 0.9), Piece(x: 0.76, depth: 0.38, size: 11, phase: 3.6)]
+        case .berries: [Piece(x: 0.40, depth: 0.28, size: 9, phase: 0.3), Piece(x: 0.18, depth: 0.75, size: 8, phase: 2.0), Piece(x: 0.82, depth: 0.72, size: 9, phase: 3.3), Piece(x: 0.56, depth: 0.08, size: 6, phase: 4.8)]
+        default: []
         }
     }
 
-    private func drawScallop(in context: inout GraphicsContext, at base: CGPoint, radius: CGFloat) {
-        var fan = Path()
-        fan.move(to: base)
-        fan.addArc(center: base, radius: radius, startAngle: .degrees(195), endAngle: .degrees(345), clockwise: false)
-        fan.closeSubpath()
-        context.fill(fan, with: .linearGradient(
-            Gradient(colors: [Color(red: 1.0, green: 0.78, blue: 0.80), Color(red: 0.93, green: 0.52, blue: 0.60)]),
-            startPoint: CGPoint(x: base.x, y: base.y - radius), endPoint: base
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1 / 30)) { timeline in
+            let t = timeline.date.timeIntervalSinceReferenceDate
+            Canvas { context, size in
+                let top = waterTop(height: size.height, level: waterLevel) + 14
+                let bottom = size.height - 40
+                let band = max(bottom - top, 0)
+                context.opacity = floatOpacity(band: band, minimum: 0)
+                guard context.opacity > 0 else { return }
+                for (i, piece) in pieces.enumerated() {
+                    let bob = CGFloat(sin(t * 0.9 + piece.phase)) * 4
+                    let drift = CGFloat(sin(t * 0.25 + piece.phase)) * 10
+                    let center = CGPoint(x: size.width * piece.x + drift, y: top + band * piece.depth + bob)
+                    var ctx = context
+                    ctx.translateBy(x: center.x, y: center.y)
+                    ctx.rotate(by: .radians(sin(t * 0.4 + piece.phase) * 0.5 + Double(i)))
+                    draw(in: &ctx, size: piece.size, index: i)
+                }
+            }
+        }
+    }
+
+    private func draw(in ctx: inout GraphicsContext, size r: CGFloat, index: Int) {
+        switch kind {
+        case .ice: drawIce(in: &ctx, r: r)
+        case .lemon: drawCitrusSlice(in: &ctx, r: r,
+                                     rind: Color(red: 0.98, green: 0.84, blue: 0.15),
+                                     flesh: Color(red: 1.0, green: 0.95, blue: 0.55))
+        case .mint: drawLeaf(in: &ctx, r: r)
+        case .cucumber: drawCucumber(in: &ctx, r: r)
+        case .berries: index.isMultiple(of: 2) ? drawStrawberry(in: &ctx, r: r) : drawBlueberry(in: &ctx, r: r)
+        default: break
+        }
+    }
+
+    private func drawIce(in ctx: inout GraphicsContext, r: CGFloat) {
+        let rect = CGRect(x: -r, y: -r, width: r * 2, height: r * 2)
+        let cube = Path(roundedRect: rect, cornerRadius: r * 0.35)
+        ctx.fill(cube, with: .linearGradient(
+            Gradient(colors: [.white.opacity(0.85), Color(red: 0.80, green: 0.93, blue: 1.0).opacity(0.6)]),
+            startPoint: CGPoint(x: -r, y: -r), endPoint: CGPoint(x: r, y: r)
         ))
-        var ridges = Path()
-        for i in 1..<6 {
-            let angle = Angle.degrees(195 + Double(i) * 25).radians
-            ridges.move(to: base)
-            ridges.addLine(to: CGPoint(x: base.x + cos(angle) * radius, y: base.y + sin(angle) * radius))
-        }
-        context.stroke(ridges, with: .color(Color(red: 0.80, green: 0.38, blue: 0.48).opacity(0.7)), lineWidth: 1)
-        context.fill(Path(ellipseIn: CGRect(x: base.x - 4, y: base.y - 3, width: 8, height: 4)),
-                     with: .color(Color(red: 0.85, green: 0.45, blue: 0.53)))
+        ctx.stroke(cube, with: .color(.white), lineWidth: 1.2)
+        var shine = Path()
+        shine.move(to: CGPoint(x: -r * 0.55, y: r * 0.2))
+        shine.addLine(to: CGPoint(x: -r * 0.55, y: -r * 0.55))
+        shine.addLine(to: CGPoint(x: r * 0.2, y: -r * 0.55))
+        ctx.stroke(shine, with: .color(.white), style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
     }
 
-    private func drawStarfish(in context: inout GraphicsContext, at center: CGPoint, radius: CGFloat) {
+    private func drawCitrusSlice(in ctx: inout GraphicsContext, r: CGFloat, rind: Color, flesh: Color) {
+        ctx.fill(Path(ellipseIn: CGRect(x: -r, y: -r, width: r * 2, height: r * 2)), with: .color(rind))
+        ctx.fill(Path(ellipseIn: CGRect(x: -r * 0.84, y: -r * 0.84, width: r * 1.68, height: r * 1.68)), with: .color(.white.opacity(0.9)))
+        for i in 0..<8 {
+            let a0 = Double(i) * .pi / 4 + 0.08, a1 = Double(i + 1) * .pi / 4 - 0.08
+            var wedge = Path()
+            wedge.move(to: .zero)
+            wedge.addArc(center: .zero, radius: r * 0.74, startAngle: .radians(a0), endAngle: .radians(a1), clockwise: false)
+            wedge.closeSubpath()
+            ctx.fill(wedge, with: .color(flesh))
+        }
+    }
+
+    private func drawLeaf(in ctx: inout GraphicsContext, r: CGFloat) {
+        var leaf = Path()
+        leaf.move(to: CGPoint(x: -r, y: 0))
+        leaf.addQuadCurve(to: CGPoint(x: r, y: 0), control: CGPoint(x: 0, y: -r * 1.1))
+        leaf.addQuadCurve(to: CGPoint(x: -r, y: 0), control: CGPoint(x: 0, y: r * 1.1))
+        ctx.fill(leaf, with: .color(Color(red: 0.25, green: 0.72, blue: 0.40)))
+        var vein = Path()
+        vein.move(to: CGPoint(x: -r * 1.25, y: 0))
+        vein.addLine(to: CGPoint(x: r * 0.8, y: 0))
+        for x in [-0.4, 0.0, 0.4] {
+            vein.move(to: CGPoint(x: r * x, y: 0))
+            vein.addLine(to: CGPoint(x: r * (x + 0.3), y: -r * 0.35))
+            vein.move(to: CGPoint(x: r * x, y: 0))
+            vein.addLine(to: CGPoint(x: r * (x + 0.3), y: r * 0.35))
+        }
+        ctx.stroke(vein, with: .color(Color(red: 0.14, green: 0.52, blue: 0.27)), style: StrokeStyle(lineWidth: 1, lineCap: .round))
+    }
+
+    private func drawCucumber(in ctx: inout GraphicsContext, r: CGFloat) {
+        ctx.fill(Path(ellipseIn: CGRect(x: -r, y: -r, width: r * 2, height: r * 2)), with: .color(Color(red: 0.16, green: 0.45, blue: 0.20)))
+        ctx.fill(Path(ellipseIn: CGRect(x: -r * 0.85, y: -r * 0.85, width: r * 1.7, height: r * 1.7)), with: .color(Color(red: 0.78, green: 0.92, blue: 0.62)))
+        ctx.fill(Path(ellipseIn: CGRect(x: -r * 0.5, y: -r * 0.5, width: r, height: r)), with: .color(Color(red: 0.88, green: 0.96, blue: 0.74)))
+        for i in 0..<6 {
+            let a = Double(i) * .pi / 3
+            let p = CGPoint(x: cos(a) * r * 0.32, y: sin(a) * r * 0.32)
+            ctx.fill(Path(ellipseIn: CGRect(x: p.x - 1.2, y: p.y - 1.8, width: 2.4, height: 3.6)), with: .color(Color(red: 0.95, green: 0.98, blue: 0.86)))
+        }
+    }
+
+    private func drawStrawberry(in ctx: inout GraphicsContext, r: CGFloat) {
+        var berry = Path()
+        berry.move(to: CGPoint(x: 0, y: r * 1.2))
+        berry.addCurve(to: CGPoint(x: 0, y: -r * 0.6), control1: CGPoint(x: -r * 1.5, y: r * 0.2), control2: CGPoint(x: -r * 1.0, y: -r * 0.9))
+        berry.addCurve(to: CGPoint(x: 0, y: r * 1.2), control1: CGPoint(x: r * 1.0, y: -r * 0.9), control2: CGPoint(x: r * 1.5, y: r * 0.2))
+        ctx.fill(berry, with: .color(Color(red: 0.92, green: 0.22, blue: 0.28)))
+        for (x, y) in [(-0.4, -0.1), (0.35, -0.05), (0.0, 0.35), (-0.25, 0.6), (0.3, 0.55)] {
+            ctx.fill(Path(ellipseIn: CGRect(x: r * x - 0.8, y: r * y - 1.1, width: 1.6, height: 2.2)), with: .color(Color(red: 1.0, green: 0.88, blue: 0.45)))
+        }
+        var crown = Path()
+        for side in [-1.0, 0.0, 1.0] {
+            crown.move(to: CGPoint(x: 0, y: -r * 0.6))
+            crown.addLine(to: CGPoint(x: r * 0.6 * side, y: -r * (side == 0 ? 1.2 : 0.95)))
+        }
+        ctx.stroke(crown, with: .color(Color(red: 0.25, green: 0.65, blue: 0.30)), style: StrokeStyle(lineWidth: 2.4, lineCap: .round))
+    }
+
+    private func drawBlueberry(in ctx: inout GraphicsContext, r: CGFloat) {
+        ctx.fill(Path(ellipseIn: CGRect(x: -r, y: -r, width: r * 2, height: r * 2)), with: .color(Color(red: 0.28, green: 0.32, blue: 0.68)))
+        ctx.fill(Path(ellipseIn: CGRect(x: -r * 0.6, y: -r * 0.65, width: r * 0.55, height: r * 0.45)), with: .color(.white.opacity(0.35)))
         var star = Path()
-        for i in 0..<10 {
-            let r = i.isMultiple(of: 2) ? radius : radius * 0.45
-            let angle = -Double.pi / 2 + Double(i) * .pi / 5 + 0.2
-            let point = CGPoint(x: center.x + cos(angle) * r, y: center.y + sin(angle) * r)
-            i == 0 ? star.move(to: point) : star.addLine(to: point)
-        }
-        star.closeSubpath()
-        context.fill(star, with: .color(Color(red: 1.0, green: 0.55, blue: 0.25)))
-        context.stroke(star, with: .color(Color(red: 0.88, green: 0.40, blue: 0.15)), style: StrokeStyle(lineWidth: 1.5, lineJoin: .round))
         for i in 0..<5 {
-            let angle = -Double.pi / 2 + Double(i) * 2 * .pi / 5 + 0.2
-            let dot = CGPoint(x: center.x + cos(angle) * radius * 0.5, y: center.y + sin(angle) * radius * 0.5)
-            context.fill(Path(ellipseIn: CGRect(x: dot.x - 1, y: dot.y - 1, width: 2, height: 2)), with: .color(.white.opacity(0.8)))
+            let a = Double(i) * 2 * .pi / 5
+            star.move(to: CGPoint(x: 0, y: -r * 0.55))
+            star.addLine(to: CGPoint(x: cos(a) * r * 0.3, y: -r * 0.55 + sin(a) * r * 0.3))
         }
-    }
-
-    private func drawSpiral(in context: inout GraphicsContext, at center: CGPoint, radius: CGFloat) {
-        context.fill(Path(ellipseIn: CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2)),
-                     with: .color(Color(red: 0.96, green: 0.88, blue: 0.72)))
-        var spiral = Path()
-        for step in 0...40 {
-            let t = Double(step) / 40
-            let angle = t * 4 * .pi
-            let r = radius * 0.9 * (1 - t)
-            let point = CGPoint(x: center.x + cos(angle) * r, y: center.y + sin(angle) * r)
-            step == 0 ? spiral.move(to: point) : spiral.addLine(to: point)
-        }
-        context.stroke(spiral, with: .color(Color(red: 0.72, green: 0.55, blue: 0.38)), lineWidth: 1.2)
-    }
-}
-
-/// Algas nas duas laterais, balançando devagar como se houvesse correnteza.
-struct SeaweedView: View {
-    private struct Strand { let x: CGFloat; let heightFraction: CGFloat; let phase: Double; let color: Color }
-
-    private let strands: [Strand] = [
-        Strand(x: 0.04, heightFraction: 0.42, phase: 0.0, color: Color(red: 0.16, green: 0.58, blue: 0.42)),
-        Strand(x: 0.08, heightFraction: 0.30, phase: 1.3, color: Color(red: 0.24, green: 0.70, blue: 0.48)),
-        Strand(x: 0.12, heightFraction: 0.22, phase: 2.1, color: Color(red: 0.12, green: 0.50, blue: 0.36)),
-        Strand(x: 0.90, heightFraction: 0.26, phase: 0.7, color: Color(red: 0.24, green: 0.70, blue: 0.48)),
-        Strand(x: 0.95, heightFraction: 0.38, phase: 1.9, color: Color(red: 0.16, green: 0.58, blue: 0.42)),
-    ]
-
-    var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 30)) { timeline in
-            let t = timeline.date.timeIntervalSinceReferenceDate
-            Canvas { context, size in
-                for strand in strands {
-                    let segments = 14
-                    let length = size.height * strand.heightFraction
-                    var previous = CGPoint(x: size.width * strand.x, y: size.height + 4)
-                    for s in 1...segments {
-                        let f = CGFloat(s) / CGFloat(segments)
-                        let sway = sin(t * 1.1 + strand.phase + Double(f) * 2.4) * 10 * Double(f)
-                        let point = CGPoint(x: size.width * strand.x + CGFloat(sway), y: size.height + 4 - length * f)
-                        var segment = Path()
-                        segment.move(to: previous)
-                        segment.addLine(to: point)
-                        context.stroke(segment, with: .color(strand.color),
-                                       style: StrokeStyle(lineWidth: 9 - 6 * f, lineCap: .round))
-                        previous = point
-                    }
-                }
-            }
-        }
-    }
-}
-
-/// Recife no canto direito: um coral rosa ramificado e um menor, roxo.
-struct CoralView: View {
-    var body: some View {
-        Canvas { context, size in
-            var rng = SeededGenerator(seed: 42)
-            drawBranch(in: &context, from: CGPoint(x: size.width * 0.74, y: size.height - 4), angle: -.pi / 2 - 0.15,
-                       length: 22, width: 5, depth: 3, color: Color(red: 0.68, green: 0.45, blue: 0.86), rng: &rng)
-            drawBranch(in: &context, from: CGPoint(x: size.width * 0.83, y: size.height - 2), angle: -.pi / 2 + 0.1,
-                       length: 30, width: 7, depth: 4, color: Color(red: 1.0, green: 0.48, blue: 0.52), rng: &rng)
-        }
-    }
-
-    private func drawBranch(in context: inout GraphicsContext, from start: CGPoint, angle: Double, length: CGFloat,
-                            width: CGFloat, depth: Int, color: Color, rng: inout SeededGenerator) {
-        let end = CGPoint(x: start.x + cos(angle) * length, y: start.y + sin(angle) * length)
-        var path = Path()
-        path.move(to: start)
-        path.addLine(to: end)
-        context.stroke(path, with: .color(color), style: StrokeStyle(lineWidth: width, lineCap: .round))
-        guard depth > 0 else {
-            context.fill(Path(ellipseIn: CGRect(x: end.x - width * 0.7, y: end.y - width * 0.7, width: width * 1.4, height: width * 1.4)),
-                         with: .color(color.opacity(0.9)))
-            return
-        }
-        for side in [-1.0, 1.0] {
-            drawBranch(in: &context, from: end, angle: angle + side * Double.random(in: 0.3...0.6, using: &rng),
-                       length: length * CGFloat.random(in: 0.62...0.8, using: &rng), width: width * 0.72,
-                       depth: depth - 1, color: color, rng: &rng)
-        }
-    }
-}
-
-/// Baú do tesouro no canto esquerdo, com moedas e um brilho piscando.
-struct TreasureChestView: View {
-    var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 30)) { timeline in
-            let t = timeline.date.timeIntervalSinceReferenceDate
-            Canvas { context, size in
-                let cx = size.width * 0.22
-                let bottom = size.height - 12
-                let w: CGFloat = 50, bodyH: CGFloat = 26, lidH: CGFloat = 14
-                let wood = Color(red: 0.55, green: 0.33, blue: 0.16)
-                let woodDark = Color(red: 0.40, green: 0.23, blue: 0.10)
-                let gold = Color(red: 1.0, green: 0.80, blue: 0.25)
-
-                // Moedas em volta da base.
-                for (dx, dy) in [(-32.0, 2.0), (-26.0, -1.0), (30.0, 1.0), (35.0, 3.0)] {
-                    context.fill(Path(ellipseIn: CGRect(x: cx + dx - 5, y: bottom + dy - 3, width: 10, height: 5)), with: .color(gold))
-                }
-
-                let bodyRect = CGRect(x: cx - w / 2, y: bottom - bodyH, width: w, height: bodyH)
-                context.fill(Path(roundedRect: bodyRect, cornerRadius: 3), with: .color(wood))
-
-                var lid = Path()
-                lid.move(to: CGPoint(x: cx - w / 2, y: bottom - bodyH))
-                lid.addCurve(to: CGPoint(x: cx + w / 2, y: bottom - bodyH),
-                             control1: CGPoint(x: cx - w / 2, y: bottom - bodyH - lidH * 1.3),
-                             control2: CGPoint(x: cx + w / 2, y: bottom - bodyH - lidH * 1.3))
-                lid.closeSubpath()
-                context.fill(lid, with: .color(woodDark))
-
-                for dx in [-w / 2 + 8, w / 2 - 8] {
-                    let band = CGRect(x: cx + dx - 2.5, y: bottom - bodyH - lidH + 1, width: 5, height: bodyH + lidH - 1)
-                    context.fill(Path(band), with: .color(gold))
-                }
-                context.fill(Path(CGRect(x: cx - w / 2, y: bottom - bodyH - 1.5, width: w, height: 3)), with: .color(gold))
-                context.fill(Path(roundedRect: CGRect(x: cx - 5, y: bottom - bodyH - 2, width: 10, height: 11), cornerRadius: 2), with: .color(gold))
-                context.fill(Path(ellipseIn: CGRect(x: cx - 1.5, y: bottom - bodyH + 2, width: 3, height: 3)), with: .color(woodDark))
-
-                // Brilhinhos que piscam, cada um no seu ritmo.
-                let sparkles: [(CGFloat, CGFloat, Double)] = [(-18, -48, 0), (20, -44, 1.7), (2, -56, 3.1)]
-                for (dx, dy, phase) in sparkles {
-                    let pulse = max(0, sin(t * 2.2 + phase))
-                    guard pulse > 0.05 else { continue }
-                    drawSparkle(in: &context, at: CGPoint(x: cx + dx, y: bottom + dy), size: 7 * pulse, color: gold)
-                }
-            }
-        }
+        ctx.stroke(star, with: .color(Color(red: 0.16, green: 0.18, blue: 0.40)), lineWidth: 1)
     }
 }
 
 // MARK: - Na água
 
-/// Bolhas subindo de dois pontos do fundo até perto da superfície.
-struct BubblesView: View {
+/// Água com gás: muitas bolhinhas pequenas subindo rápido de todo o fundo.
+struct FizzView: View {
     let waterLevel: Double
 
-    var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 30)) { timeline in
-            let t = timeline.date.timeIntervalSinceReferenceDate
-            Canvas { context, size in
-                let top = waterTop(height: size.height, level: waterLevel) + 12
-                let start = size.height - 16
-                guard start - top > 20 else { return }
-                for (sourceIndex, sourceX) in [size.width * 0.24, size.width * 0.86].enumerated() {
-                    let count = 7
-                    for i in 0..<count {
-                        let period = 4.5 + Double(i % 3) * 0.6
-                        let raw = t / period + Double(i) / Double(count) + Double(sourceIndex) * 0.37
-                        let p = raw - floor(raw)
-                        let y = start - (start - top) * CGFloat(p)
-                        let x = sourceX + CGFloat(sin(p * 9 + Double(i))) * 5
-                        let r = 2 + CGFloat(i % 4)
-                        let fade = p > 0.85 ? (1 - p) / 0.15 : min(1, p / 0.1)
-                        let rect = CGRect(x: x - r, y: y - r, width: r * 2, height: r * 2)
-                        context.stroke(Path(ellipseIn: rect), with: .color(.white.opacity(0.75 * fade)), lineWidth: 1.2)
-                        context.fill(Path(ellipseIn: CGRect(x: x - r * 0.45, y: y - r * 0.55, width: r * 0.5, height: r * 0.5)),
-                                     with: .color(.white.opacity(0.8 * fade)))
-                    }
-                }
-            }
-        }
-    }
-}
-
-/// Três peixinhos atravessando o aquário em alturas e velocidades diferentes.
-struct FishSchoolView: View {
-    let waterLevel: Double
-
-    private struct Fish { let speed: Double; let offset: Double; let depth: CGFloat; let size: CGFloat; let color: Color; let leftToRight: Bool }
-
-    private let school: [Fish] = [
-        Fish(speed: 38, offset: 0, depth: 0.25, size: 1.0, color: Color(red: 1.0, green: 0.55, blue: 0.20), leftToRight: true),
-        Fish(speed: 27, offset: 170, depth: 0.60, size: 0.8, color: Color(red: 1.0, green: 0.82, blue: 0.25), leftToRight: false),
-        Fish(speed: 48, offset: 90, depth: 0.85, size: 0.7, color: Color(red: 0.30, green: 0.75, blue: 0.95), leftToRight: true),
-    ]
-
-    var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 30)) { timeline in
-            let t = timeline.date.timeIntervalSinceReferenceDate
-            Canvas { context, size in
-                let top = waterTop(height: size.height, level: waterLevel) + 22
-                let bottom = size.height - 60
-                let band = bottom - top
-                context.opacity = swimOpacity(band: band, minimum: 10)
-                guard context.opacity > 0 else { return }
-                let track = Double(size.width + 80)
-                for (i, fish) in school.enumerated() {
-                    let travelled = (t * fish.speed + fish.offset).truncatingRemainder(dividingBy: track)
-                    let x = fish.leftToRight ? CGFloat(travelled) - 40 : size.width + 40 - CGFloat(travelled)
-                    let y = top + band * fish.depth + CGFloat(sin(t * 1.4 + Double(i) * 2)) * 5
-                    let wiggle = CGFloat(sin(t * 9 + Double(i)))
-                    drawFish(in: &context, at: CGPoint(x: x, y: y), scale: fish.size, color: fish.color,
-                             facingRight: fish.leftToRight, tailWiggle: wiggle)
-                }
-            }
-        }
-    }
-
-    private func drawFish(in context: inout GraphicsContext, at center: CGPoint, scale: CGFloat, color: Color,
-                          facingRight: Bool, tailWiggle: CGFloat) {
-        var ctx = context
-        ctx.translateBy(x: center.x, y: center.y)
-        ctx.scaleBy(x: facingRight ? scale : -scale, y: scale)
-
-        var tail = Path()
-        tail.move(to: CGPoint(x: -9, y: 0))
-        tail.addLine(to: CGPoint(x: -19, y: -7 + tailWiggle * 2))
-        tail.addLine(to: CGPoint(x: -19, y: 7 + tailWiggle * 2))
-        tail.closeSubpath()
-        ctx.fill(tail, with: .color(color.opacity(0.85)))
-
-        ctx.fill(Path(ellipseIn: CGRect(x: -12, y: -7, width: 24, height: 14)), with: .color(color))
-        var fin = Path()
-        fin.move(to: CGPoint(x: -3, y: -6))
-        fin.addQuadCurve(to: CGPoint(x: 5, y: -6), control: CGPoint(x: 0, y: -12))
-        ctx.fill(fin, with: .color(color.opacity(0.85)))
-        ctx.fill(Path(ellipseIn: CGRect(x: 4, y: -3.5, width: 4.5, height: 4.5)), with: .color(.white))
-        ctx.fill(Path(ellipseIn: CGRect(x: 5.6, y: -2.3, width: 2.2, height: 2.2)), with: .color(.black))
-    }
-}
-
-/// Uma água-viva translúcida subindo e descendo devagar, pulsando o sino.
-struct JellyfishView: View {
-    let waterLevel: Double
-
-    var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 30)) { timeline in
-            let t = timeline.date.timeIntervalSinceReferenceDate
-            Canvas { context, size in
-                let top = waterTop(height: size.height, level: waterLevel) + 30
-                let bottom = size.height * 0.62
-                let band = bottom - top
-                context.opacity = swimOpacity(band: band, minimum: 0)
-                guard context.opacity > 0 else { return }
-
-                let cx = size.width * 0.80 + CGFloat(sin(t * 0.3)) * size.width * 0.04
-                let cy = top + band * CGFloat(0.5 + 0.5 * sin(t * 0.45))
-                let pulse = CGFloat(sin(t * 2.6))
-                let bellW = 30 * (1 + 0.08 * pulse)
-                let bellH = 22 * (1 - 0.08 * pulse)
-                let pink = Color(red: 0.95, green: 0.55, blue: 0.85)
-
-                var tentacles = Path()
-                for i in 0..<4 {
-                    let x0 = cx - bellW * 0.3 + CGFloat(i) * bellW * 0.2
-                    tentacles.move(to: CGPoint(x: x0, y: cy))
-                    for step in 1...8 {
-                        let f = CGFloat(step) / 8
-                        let sway = CGFloat(sin(t * 3 + Double(i) + Double(f) * 4)) * 3 * f
-                        tentacles.addLine(to: CGPoint(x: x0 + sway, y: cy + 30 * f))
-                    }
-                }
-                context.stroke(tentacles, with: .color(pink.opacity(0.55)), style: StrokeStyle(lineWidth: 1.6, lineCap: .round))
-
-                var bell = Path()
-                bell.move(to: CGPoint(x: cx - bellW / 2, y: cy))
-                bell.addCurve(to: CGPoint(x: cx + bellW / 2, y: cy),
-                              control1: CGPoint(x: cx - bellW / 2, y: cy - bellH * 1.3),
-                              control2: CGPoint(x: cx + bellW / 2, y: cy - bellH * 1.3))
-                for i in 0..<4 {
-                    let x1 = cx + bellW / 2 - CGFloat(i + 1) * bellW / 4
-                    bell.addQuadCurve(to: CGPoint(x: x1, y: cy), control: CGPoint(x: x1 + bellW / 8, y: cy + 4))
-                }
-                bell.closeSubpath()
-                context.fill(bell, with: .linearGradient(
-                    Gradient(colors: [pink.opacity(0.85), pink.opacity(0.5)]),
-                    startPoint: CGPoint(x: cx, y: cy - bellH), endPoint: CGPoint(x: cx, y: cy)
-                ))
-                context.fill(Path(ellipseIn: CGRect(x: cx - bellW * 0.28, y: cy - bellH * 0.8, width: bellW * 0.22, height: bellH * 0.3)),
-                             with: .color(.white.opacity(0.6)))
-            }
-        }
-    }
-}
-
-/// Feixes de luz entrando pelo topo do aquário, com um brilho que vai e vem.
-struct SunRaysView: View {
-    var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 30)) { timeline in
-            let t = timeline.date.timeIntervalSinceReferenceDate
-            Canvas { context, size in
-                let light = Color(red: 1.0, green: 0.96, blue: 0.75)
-                let rays: [(x: CGFloat, width: CGFloat, phase: Double)] = [(0.18, 26, 0), (0.42, 40, 1.4), (0.66, 22, 2.6), (0.86, 34, 4.0)]
-                for ray in rays {
-                    let shimmer = 0.5 + 0.5 * sin(t * 0.8 + ray.phase)
-                    let topX = size.width * ray.x
-                    let slant = size.height * 0.35
-                    var beam = Path()
-                    beam.move(to: CGPoint(x: topX - ray.width / 2, y: 0))
-                    beam.addLine(to: CGPoint(x: topX + ray.width / 2, y: 0))
-                    beam.addLine(to: CGPoint(x: topX + slant + ray.width, y: size.height))
-                    beam.addLine(to: CGPoint(x: topX + slant - ray.width * 0.2, y: size.height))
-                    beam.closeSubpath()
-                    context.fill(beam, with: .linearGradient(
-                        Gradient(colors: [light.opacity(0.10 + 0.22 * shimmer), light.opacity(0)]),
-                        startPoint: CGPoint(x: topX, y: 0), endPoint: CGPoint(x: topX + slant, y: size.height * 0.9)
-                    ))
-                }
-            }
-        }
-    }
-}
-
-/// Pontinhos bioluminescentes flutuando e piscando — ficam lindos no modo escuro.
-struct PlanktonView: View {
-    let waterLevel: Double
-
-    private let specks: [(x: CGFloat, y: CGFloat, phase: Double)] = {
+    private let bubbles: [(x: CGFloat, period: Double, phase: Double, r: CGFloat)] = {
         var rng = SeededGenerator(seed: 2026)
-        return (0..<28).map { _ in
-            (CGFloat.random(in: 0.04...0.96, using: &rng), CGFloat.random(in: 0...1, using: &rng), Double.random(in: 0...(2 * .pi), using: &rng))
+        return (0..<34).map { _ in
+            (CGFloat.random(in: 0.04...0.96, using: &rng), Double.random(in: 1.8...3.4, using: &rng),
+             Double.random(in: 0...1, using: &rng), CGFloat.random(in: 1...2.6, using: &rng))
         }
     }()
 
@@ -453,31 +242,175 @@ struct PlanktonView: View {
         TimelineView(.animation(minimumInterval: 1 / 30)) { timeline in
             let t = timeline.date.timeIntervalSinceReferenceDate
             Canvas { context, size in
-                let top = waterTop(height: size.height, level: waterLevel) + 8
-                let band = size.height - 8 - top
-                guard band > 10 else { return }
-                let glow = Color(red: 0.55, green: 1.0, blue: 0.92)
-                for speck in specks {
-                    let twinkle = 0.5 + 0.5 * sin(t * 1.8 + speck.phase)
-                    let x = size.width * speck.x + CGFloat(sin(t * 0.3 + speck.phase)) * 8
-                    let y = top + band * speck.y + CGFloat(cos(t * 0.25 + speck.phase)) * 6
-                    context.fill(Path(ellipseIn: CGRect(x: x - 4, y: y - 4, width: 8, height: 8)), with: .color(glow.opacity(0.22 * twinkle)))
-                    context.fill(Path(ellipseIn: CGRect(x: x - 1.3, y: y - 1.3, width: 2.6, height: 2.6)), with: .color(glow.opacity(0.4 + 0.6 * twinkle)))
+                let top = waterTop(height: size.height, level: waterLevel) + 6
+                let start = size.height - 6
+                guard start - top > 16 else { return }
+                for (i, bubble) in bubbles.enumerated() {
+                    let raw = t / bubble.period + bubble.phase
+                    let p = raw - floor(raw)
+                    let y = start - (start - top) * CGFloat(p)
+                    let x = size.width * bubble.x + CGFloat(sin(p * 12 + Double(i))) * 2.5
+                    let fade = p > 0.9 ? (1 - p) / 0.1 : min(1, p / 0.08)
+                    let r = bubble.r * (0.8 + 0.4 * CGFloat(p))
+                    context.fill(Path(ellipseIn: CGRect(x: x - r, y: y - r, width: r * 2, height: r * 2)),
+                                 with: .color(.white.opacity(0.85 * fade)))
                 }
             }
         }
     }
 }
 
-/// Estrelinha de quatro pontas (o brilho do baú).
-private func drawSparkle(in context: inout GraphicsContext, at center: CGPoint, size: CGFloat, color: Color) {
-    var path = Path()
-    path.move(to: CGPoint(x: center.x, y: center.y - size))
-    path.addQuadCurve(to: CGPoint(x: center.x + size, y: center.y), control: center)
-    path.addQuadCurve(to: CGPoint(x: center.x, y: center.y + size), control: center)
-    path.addQuadCurve(to: CGPoint(x: center.x - size, y: center.y), control: center)
-    path.addQuadCurve(to: CGPoint(x: center.x, y: center.y - size), control: center)
-    context.fill(path, with: .color(color))
+/// Gotinhas d'água sorridentes — as aliadas contra a pedra — passeando pela água.
+struct DropletFriendsView: View {
+    let waterLevel: Double
+
+    private struct Friend { let x: CGFloat; let depth: CGFloat; let size: CGFloat; let phase: Double }
+
+    private let friends: [Friend] = [
+        Friend(x: 0.14, depth: 0.25, size: 13, phase: 0),
+        Friend(x: 0.86, depth: 0.45, size: 11, phase: 2.1),
+        Friend(x: 0.30, depth: 0.70, size: 9, phase: 4.0),
+    ]
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1 / 30)) { timeline in
+            let t = timeline.date.timeIntervalSinceReferenceDate
+            Canvas { context, size in
+                let top = waterTop(height: size.height, level: waterLevel) + 26
+                let bottom = size.height - 56
+                let band = bottom - top
+                context.opacity = floatOpacity(band: band, minimum: 0)
+                guard context.opacity > 0 else { return }
+                for friend in friends {
+                    let x = size.width * friend.x + CGFloat(sin(t * 0.5 + friend.phase)) * 14
+                    let y = top + max(band, 0) * friend.depth + CGFloat(sin(t * 1.6 + friend.phase)) * 5
+                    let blink = (t + friend.phase).truncatingRemainder(dividingBy: 4) < 0.15
+                    drawDroplet(in: &context, at: CGPoint(x: x, y: y), r: friend.size,
+                                tilt: sin(t * 1.6 + friend.phase) * 0.15, blinking: blink)
+                }
+            }
+        }
+    }
+
+    private func drawDroplet(in context: inout GraphicsContext, at center: CGPoint, r: CGFloat, tilt: Double, blinking: Bool) {
+        var ctx = context
+        ctx.translateBy(x: center.x, y: center.y)
+        ctx.rotate(by: .radians(tilt))
+
+        var drop = Path()
+        drop.move(to: CGPoint(x: 0, y: -r * 1.6))
+        drop.addCurve(to: CGPoint(x: 0, y: r), control1: CGPoint(x: r * 0.4, y: -r * 0.8), control2: CGPoint(x: r * 1.4, y: r))
+        drop.addCurve(to: CGPoint(x: 0, y: -r * 1.6), control1: CGPoint(x: -r * 1.4, y: r), control2: CGPoint(x: -r * 0.4, y: -r * 0.8))
+        ctx.fill(drop, with: .linearGradient(
+            Gradient(colors: [Color(red: 0.62, green: 0.84, blue: 1.0), waterBlue]),
+            startPoint: CGPoint(x: 0, y: -r * 1.6), endPoint: CGPoint(x: 0, y: r)
+        ))
+        ctx.stroke(drop, with: .color(.white.opacity(0.7)), lineWidth: 1)
+        ctx.fill(Path(ellipseIn: CGRect(x: -r * 0.6, y: -r * 0.55, width: r * 0.3, height: r * 0.45)), with: .color(.white.opacity(0.75)))
+
+        let eyeY = r * 0.05
+        for dx in [-r * 0.3, r * 0.3] {
+            if blinking {
+                var lid = Path()
+                lid.move(to: CGPoint(x: dx - 1.8, y: eyeY))
+                lid.addLine(to: CGPoint(x: dx + 1.8, y: eyeY))
+                ctx.stroke(lid, with: .color(Color(red: 0.08, green: 0.20, blue: 0.40)), style: StrokeStyle(lineWidth: 1.3, lineCap: .round))
+            } else {
+                ctx.fill(Path(ellipseIn: CGRect(x: dx - 1.6, y: eyeY - 2, width: 3.2, height: 4)), with: .color(Color(red: 0.08, green: 0.20, blue: 0.40)))
+            }
+        }
+        var smile = Path()
+        smile.addArc(center: CGPoint(x: 0, y: r * 0.3), radius: r * 0.25, startAngle: .degrees(20), endAngle: .degrees(160), clockwise: false)
+        ctx.stroke(smile, with: .color(Color(red: 0.08, green: 0.20, blue: 0.40)), style: StrokeStyle(lineWidth: 1.3, lineCap: .round))
+    }
+}
+
+/// Canudinho listrado entrando pela borda de cima, do lado direito — acima da água
+/// ele aparece reto, abaixo a refração entorta, como num copo de verdade.
+struct StrawView: View {
+    var body: some View {
+        Canvas { context, size in
+            var straw = Path()
+            straw.move(to: CGPoint(x: size.width + 6, y: size.height * 0.10))
+            straw.addLine(to: CGPoint(x: size.width * 0.95, y: size.height * 0.12))
+            straw.addQuadCurve(to: CGPoint(x: size.width * 0.91, y: size.height * 0.18), control: CGPoint(x: size.width * 0.92, y: size.height * 0.12))
+            straw.addLine(to: CGPoint(x: size.width * 0.80, y: size.height * 0.80))
+            let style = StrokeStyle(lineWidth: 10, lineCap: .round, lineJoin: .round)
+            context.stroke(straw, with: .color(.white), style: style)
+            context.stroke(straw, with: .color(Color(red: 0.95, green: 0.30, blue: 0.40)),
+                           style: StrokeStyle(lineWidth: 10, lineCap: .butt, lineJoin: .round, dash: [7, 7]))
+            context.stroke(straw, with: .color(.white.opacity(0.35)),
+                           style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+        }
+    }
+}
+
+// MARK: - No fundo
+
+/// Os dois rins nos cantos de baixo, pulando e torcendo pra você beber água.
+struct KidneyCheerView: View {
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1 / 30)) { timeline in
+            let t = timeline.date.timeIntervalSinceReferenceDate
+            Canvas { context, size in
+                for (x, mirrored, phase) in [(size.width * 0.11, false, 0.0), (size.width * 0.89, true, 0.45)] {
+                    // Pulinho: sobe rápido, cai devagar, e fica parado um tempinho.
+                    let cycle = (t * 0.9 + phase).truncatingRemainder(dividingBy: 1)
+                    let hop = cycle < 0.35 ? sin(cycle / 0.35 * .pi) : 0
+                    let squash = cycle > 0.35 && cycle < 0.45 ? 0.08 * sin((cycle - 0.35) / 0.1 * .pi) : 0
+                    drawKidney(in: &context, at: CGPoint(x: x, y: size.height - 26 - CGFloat(hop) * 10),
+                               mirrored: mirrored, squash: squash, armsUp: hop > 0.3)
+                }
+            }
+        }
+    }
+
+    private func drawKidney(in context: inout GraphicsContext, at center: CGPoint, mirrored: Bool, squash: Double, armsUp: Bool) {
+        var ctx = context
+        ctx.translateBy(x: center.x, y: center.y)
+        ctx.scaleBy(x: (mirrored ? -1 : 1) * CGFloat(1 + squash), y: CGFloat(1 - squash))
+
+        let skin = Color(red: 0.90, green: 0.45, blue: 0.47)
+        let outline = Color(red: 0.62, green: 0.24, blue: 0.27)
+        let ink = Color(red: 0.32, green: 0.12, blue: 0.14)
+
+        // Bracinhos (atrás do corpo).
+        var arms = Path()
+        let armY: CGFloat = armsUp ? -20 : -2
+        arms.move(to: CGPoint(x: -12, y: -4)); arms.addLine(to: CGPoint(x: -21, y: armY))
+        arms.move(to: CGPoint(x: 10, y: -4)); arms.addLine(to: CGPoint(x: 19, y: armY))
+        ctx.stroke(arms, with: .color(outline), style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+
+        // Corpo em feijão: a reentrância fica do lado de dentro (virado pro centro).
+        var bean = Path()
+        bean.move(to: CGPoint(x: 2, y: -18))
+        bean.addCurve(to: CGPoint(x: 2, y: 18), control1: CGPoint(x: -26, y: -24), control2: CGPoint(x: -26, y: 24))
+        bean.addCurve(to: CGPoint(x: 10, y: 4), control1: CGPoint(x: 12, y: 18), control2: CGPoint(x: 14, y: 10))
+        bean.addQuadCurve(to: CGPoint(x: 10, y: -4), control: CGPoint(x: 5, y: 0))
+        bean.addCurve(to: CGPoint(x: 2, y: -18), control1: CGPoint(x: 14, y: -10), control2: CGPoint(x: 12, y: -18))
+        bean.closeSubpath()
+        ctx.fill(bean, with: .linearGradient(
+            Gradient(colors: [Color(red: 0.97, green: 0.60, blue: 0.60), skin]),
+            startPoint: CGPoint(x: -10, y: -18), endPoint: CGPoint(x: 6, y: 18)
+        ))
+        ctx.stroke(bean, with: .color(outline), lineWidth: 1.5)
+        ctx.fill(Path(ellipseIn: CGRect(x: -14, y: -13, width: 5, height: 7)), with: .color(.white.opacity(0.45)))
+
+        // Rosto (olhos fechadinhos de alegria + sorrisão + bochechas).
+        var face = Path()
+        for dx in [-8.0, 0.0] {
+            face.addArc(center: CGPoint(x: dx, y: -4), radius: 2.2, startAngle: .degrees(200), endAngle: .degrees(340), clockwise: false)
+        }
+        ctx.stroke(face, with: .color(ink), style: StrokeStyle(lineWidth: 1.4, lineCap: .round))
+        var mouth = Path()
+        mouth.move(to: CGPoint(x: -8, y: 2))
+        mouth.addQuadCurve(to: CGPoint(x: 0, y: 2), control: CGPoint(x: -4, y: 8))
+        mouth.closeSubpath()
+        ctx.fill(mouth, with: .color(ink))
+        for dx in [-12.0, 3.5] {
+            ctx.fill(Path(ellipseIn: CGRect(x: dx, y: 0, width: 4, height: 2.5)), with: .color(Color(red: 1.0, green: 0.42, blue: 0.48).opacity(0.7)))
+        }
+    }
 }
 
 #Preview {
