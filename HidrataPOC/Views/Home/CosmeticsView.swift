@@ -3,33 +3,72 @@ import SwiftUI
 /// Itens cosméticos que enfeitam o aquário da Home. Cada um é ligado/desligado
 /// pela aba de cosméticos (`CosmeticsView`) e lembrado entre aberturas do app
 /// (`@AppStorage(item.storageKey)`).
+/// A ordem dos casos é a ordem dos cartões na aba; a ordem de desenho no aquário
+/// é `layerOrder`. Os desenhos ficam em `AquariumDecorations.swift`.
 enum Cosmetic: String, CaseIterable, Identifiable {
     case grass
+    case shells
+    case seaweed
+    case coral
+    case chest
+    case bubbles
+    case fish
+    case jellyfish
+    case sunRays
+    case plankton
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
         case .grass: "Gramadinho"
+        case .shells: "Conchinhas"
+        case .seaweed: "Algas dançantes"
+        case .coral: "Recife de coral"
+        case .chest: "Baú do tesouro"
+        case .bubbles: "Borbulhas"
+        case .fish: "Cardume"
+        case .jellyfish: "Água-viva"
+        case .sunRays: "Raios de sol"
+        case .plankton: "Plâncton brilhante"
         }
     }
 
     var subtitle: String {
         switch self {
         case .grass: "Um tapete verde no fundo do aquário"
+        case .shells: "Vieira, estrela-do-mar e caramujo na areia"
+        case .seaweed: "Balançam com a correnteza nas laterais"
+        case .coral: "Corais coloridos no cantinho direito"
+        case .chest: "Moedas de ouro e um brilho suspeito"
+        case .bubbles: "Bolhinhas subindo até a superfície"
+        case .fish: "Três peixinhos nadando pra lá e pra cá"
+        case .jellyfish: "Flutua devagar, pulsando de leve"
+        case .sunRays: "Feixes de luz entrando pela água"
+        case .plankton: "Pontinhos que brilham — lindo no escuro"
         }
     }
 
     var systemImage: String {
         switch self {
         case .grass: "leaf.fill"
+        case .shells: "star.fill"
+        case .seaweed: "camera.macro"
+        case .coral: "tree.fill"
+        case .chest: "shippingbox.fill"
+        case .bubbles: "bubbles.and.sparkles.fill"
+        case .fish: "fish.fill"
+        case .jellyfish: "umbrella.fill"
+        case .sunRays: "sun.max.fill"
+        case .plankton: "sparkles"
         }
     }
 
-    /// Dias de streak necessários pra desbloquear o item.
+    /// Dias de streak necessários pra desbloquear o item. Por enquanto todos em 1,
+    /// pra dar pra testar tudo — ajustar antes de lançar.
     var requiredStreak: Int {
         switch self {
-        case .grass: 1
+        case .grass, .shells, .seaweed, .coral, .chest, .bubbles, .fish, .jellyfish, .sunRays, .plankton: 1
         }
     }
 
@@ -38,6 +77,40 @@ enum Cosmetic: String, CaseIterable, Identifiable {
     var tint: Color {
         switch self {
         case .grass: Color(red: 0.30, green: 0.69, blue: 0.31)
+        case .shells: Color(red: 1.0, green: 0.55, blue: 0.25)
+        case .seaweed: Color(red: 0.16, green: 0.58, blue: 0.42)
+        case .coral: Color(red: 1.0, green: 0.42, blue: 0.48)
+        case .chest: Color(red: 0.85, green: 0.62, blue: 0.10)
+        case .bubbles: Color(red: 0.25, green: 0.65, blue: 0.95)
+        case .fish: Color(red: 1.0, green: 0.50, blue: 0.15)
+        case .jellyfish: Color(red: 0.88, green: 0.42, blue: 0.80)
+        case .sunRays: Color(red: 0.98, green: 0.72, blue: 0.10)
+        case .plankton: Color(red: 0.10, green: 0.75, blue: 0.70)
+        }
+    }
+
+    /// Ordem de desenho no aquário, de trás pra frente: luz ao fundo, plantas e
+    /// objetos no chão, depois o que nada por cima.
+    var layerOrder: Int {
+        switch self {
+        case .sunRays: 0
+        case .seaweed: 1
+        case .coral: 2
+        case .grass: 3
+        case .chest: 4 // na frente da grama, senão as folhas cobrem o baú
+        case .shells: 5
+        case .jellyfish: 6
+        case .fish: 7
+        case .bubbles: 8
+        case .plankton: 9
+        }
+    }
+
+    /// Itens que ficam no chão entram subindo de baixo; os que nadam só aparecem.
+    var sitsOnFloor: Bool {
+        switch self {
+        case .grass, .shells, .seaweed, .coral, .chest: true
+        case .bubbles, .fish, .jellyfish, .sunRays, .plankton: false
         }
     }
 
@@ -205,8 +278,9 @@ struct GrassView: View {
     }
 }
 
-/// Gerador determinístico (SplitMix64) — o gramado sai igual toda vez.
-private struct SeededGenerator: RandomNumberGenerator {
+/// Gerador determinístico (SplitMix64) — o gramado (e os outros desenhos) saem
+/// iguais toda vez.
+struct SeededGenerator: RandomNumberGenerator {
     var state: UInt64
     init(seed: UInt64) { state = seed }
     mutating func next() -> UInt64 {
