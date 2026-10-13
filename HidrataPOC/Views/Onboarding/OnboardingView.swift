@@ -40,7 +40,7 @@ struct OnboardingView: View {
     }
 }
 
-/// Shown on first launch while `CloudKitSyncService.syncPrivateDatabase` looks for an
+/// Shown on first launch while `CloudKitSyncService.syncFromCloud` looks for an
 /// existing backup. CloudKit fails fast offline, but a slow network could hang here,
 /// so a skip button appears after a few seconds.
 struct ICloudRestoreView: View {

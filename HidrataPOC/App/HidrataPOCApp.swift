@@ -47,7 +47,7 @@ struct HidrataPOCApp: App {
         }
         await NotificationScheduler.shared.ensureTodayScheduled()
         await CloudKitSyncService.shared.flushPending(context: PersistenceController.context)
-        await CloudKitSyncService.shared.syncPrivateDatabase(context: PersistenceController.context)
+        await CloudKitSyncService.shared.syncFromCloud(context: PersistenceController.context)
     }
 
     private func handleScenePhaseChange(_ phase: ScenePhase) {
@@ -57,7 +57,7 @@ struct HidrataPOCApp: App {
                 await NotificationScheduler.shared.ensureTodayScheduled()
                 await CloudKitSyncService.shared.flushPending(context: PersistenceController.context)
                 // Traz o que outro aparelho com a mesma conta iCloud registrou.
-                await CloudKitSyncService.shared.syncPrivateDatabase(context: PersistenceController.context)
+                await CloudKitSyncService.shared.syncFromCloud(context: PersistenceController.context)
                 await NotificationScheduler.shared.tick()
                 await refreshLiveActivity()
                 await syncHealthKitIfAuthorized()

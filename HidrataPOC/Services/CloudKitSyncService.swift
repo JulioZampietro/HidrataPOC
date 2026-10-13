@@ -16,11 +16,10 @@ private let logger = Logger(subsystem: "com.hidratapoc", category: "CloudKitSync
 /// "Authenticated: Create only, no Read" role, which must be configured manually in
 /// the dashboard (not something this app can do from code).
 ///
-/// Separately, the records the user would want back after a reinstall or on another
-/// device (`UserProfile`, `IntakeLog`, `DailyGoal`) are also mirrored to the user's
-/// **private** database, in a custom zone — see "Private backup & restore" below.
-/// That copy is readable only by the user's own iCloud account and is what
-/// `syncPrivateDatabase` pulls back into SwiftData.
+/// The same records also back the restore after a reinstall or on another device
+/// (`syncFromCloud`): CloudKit's default **Creator** role keeps read/write on the
+/// records a user created, so a device can query its own user's rows by `userID`
+/// even though the Authenticated role has no Read.
 ///
 /// Note: the "Create only, no Read" role also means a device can't *fetch* someone
 /// else's record to delete it — but `CKDatabase.delete(withRecordID:)` doesn't need
@@ -38,8 +37,6 @@ final class CloudKitSyncService {
     private struct PendingDeletion: Codable {
         let recordType: String
         let recordName: String
-        /// nil on deletions queued before the private backup existed — those are public.
-        var isPrivate: Bool? = nil
     }
     private let pendingDeletionsKey = "pendingCloudKitDeletions"
 
@@ -75,9 +72,6 @@ final class CloudKitSyncService {
     // MARK: - Per-type pushes
 
     func push(_ profile: UserProfile) async {
-        profile.privateSyncStatus = .pending
-        await pushPrivate(profile)
-
         let record = existingOrNewRecord(type: "UserProfile", id: profile.id, systemFields: profile.ckSystemFields)
         record["userID"] = profile.userID
         record["idade"] = profile.idade
@@ -95,6 +89,11 @@ final class CloudKitSyncService {
             let saved = try await container.publicCloudDatabase.save(record)
             profile.ckSystemFields = archivedSystemFields(saved)
             profile.syncStatus = .synced
+        } catch let error as CKError where error.code == .serverRecordChanged && error.serverRecord != nil {
+            // Another device (same iCloud account) updated this record since our last
+            // save — adopt the server's change tag and let the next flush overwrite it.
+            profile.ckSystemFields = error.serverRecord.map(archivedSystemFields)
+            profile.syncStatus = .failed
         } catch {
             logger.error("Failed to push UserProfile \(profile.id, privacy: .public): \(String(describing: error), privacy: .public)")
             profile.syncStatus = .failed
@@ -102,9 +101,6 @@ final class CloudKitSyncService {
     }
 
     func push(_ log: IntakeLog) async {
-        if log.privateSyncStatus != .synced {
-            await pushPrivate(log)
-        }
         guard log.syncStatus != .synced else { return }
         let record = CKRecord(recordType: "IntakeLog", recordID: recordID(for: log.id))
         record["userID"] = log.userID
@@ -117,6 +113,7 @@ final class CloudKitSyncService {
         record["umidadeRelativa"] = log.umidadeRelativa
         record["sensacaoTermicaC"] = log.sensacaoTermicaC
         record["source"] = log.source
+        record["healthKitUUID"] = log.healthKitUUID
 
         do {
             _ = try await container.publicCloudDatabase.save(record)
@@ -178,6 +175,42 @@ final class CloudKitSyncService {
         }
     }
 
+    /// Upserts by a deterministic record name (one row per user per day), saved with
+    /// `.allKeys` — last writer wins, and the Creator role allows the overwrite.
+    func push(_ goals: [DailyGoal]) async {
+        guard !goals.isEmpty else { return }
+        let records = goals.map { goal -> CKRecord in
+            let record = CKRecord(recordType: "DailyGoal", recordID: CKRecord.ID(recordName: dailyGoalRecordName(goal)))
+            record["userID"] = goal.userID
+            record["dayKey"] = goal.dayKey
+            record["baseGoalML"] = goal.baseGoalML
+            record["adjustmentML"] = goal.adjustmentML
+            record["atualizadoEm"] = goal.atualizadoEm
+            return record
+        }
+        var saved: Set<String> = []
+        do {
+            for start in stride(from: 0, to: records.count, by: 300) {
+                let chunk = Array(records[start..<min(start + 300, records.count)])
+                let (results, _) = try await container.publicCloudDatabase.modifyRecords(
+                    saving: chunk, deleting: [], savePolicy: .allKeys, atomically: false
+                )
+                for (id, result) in results {
+                    if case .success = result { saved.insert(id.recordName) }
+                }
+            }
+        } catch {
+            logger.error("Failed to push DailyGoals: \(String(describing: error), privacy: .public)")
+        }
+        for goal in goals {
+            goal.syncStatus = saved.contains(dailyGoalRecordName(goal)) ? .synced : .failed
+        }
+    }
+
+    private func dailyGoalRecordName(_ goal: DailyGoal) -> String {
+        "DailyGoal-\(goal.userID)-\(goal.dayKey)"
+    }
+
     // MARK: - Deletion
 
     /// Deletes one record from the public database — used when a tester removes an
@@ -185,7 +218,6 @@ final class CloudKitSyncService {
     /// retried by `flushPending`, since the local row is already gone by then and
     /// can't be rediscovered by scanning SwiftData the way a failed push can.
     func delete(recordType: String, id: UUID) async {
-        await deletePrivate(recordName: id.uuidString)
         do {
             _ = try await container.publicCloudDatabase.deleteRecord(withID: recordID(for: id))
         } catch let error as CKError where error.code == .unknownItem {
@@ -197,9 +229,9 @@ final class CloudKitSyncService {
         }
     }
 
-    private func queuePendingDeletion(recordType: String, recordName: String, isPrivate: Bool = false) {
+    private func queuePendingDeletion(recordType: String, recordName: String) {
         var pending = loadPendingDeletions()
-        pending.append(PendingDeletion(recordType: recordType, recordName: recordName, isPrivate: isPrivate))
+        pending.append(PendingDeletion(recordType: recordType, recordName: recordName))
         savePendingDeletions(pending)
     }
 
@@ -210,12 +242,7 @@ final class CloudKitSyncService {
         var stillPending: [PendingDeletion] = []
         for deletion in pending {
             do {
-                if deletion.isPrivate == true {
-                    try await ensurePrivateZone()
-                    _ = try await container.privateCloudDatabase.deleteRecord(withID: privateRecordID(deletion.recordName))
-                } else {
-                    _ = try await container.publicCloudDatabase.deleteRecord(withID: CKRecord.ID(recordName: deletion.recordName))
-                }
+                _ = try await container.publicCloudDatabase.deleteRecord(withID: CKRecord.ID(recordName: deletion.recordName))
             } catch let error as CKError where error.code == .unknownItem {
                 continue // already gone (or never existed) — drop it
             } catch {
@@ -257,22 +284,14 @@ final class CloudKitSyncService {
             for log in logs where log.syncStatus != .synced {
                 await push(log)
             }
-            // Também cobre o backfill único das linhas criadas antes do backup privado
-            // existir (migraram com `privateSyncStatus == .pending`).
-            await pushPrivate(logs.filter { $0.privateSyncStatus != .synced })
-        }
-        if let profiles = try? context.fetch(FetchDescriptor<UserProfile>()) {
-            for profile in profiles where profile.privateSyncStatus != .synced {
-                await pushPrivate(profile)
-            }
-        }
-        if let goals = try? context.fetch(FetchDescriptor<DailyGoal>()) {
-            await pushPrivate(goals.filter { $0.privateSyncStatus != .synced })
         }
         if let events = try? context.fetch(FetchDescriptor<NotificationEvent>()) {
             for event in events where event.syncStatus != .synced {
                 await push(event)
             }
+        }
+        if let goals = try? context.fetch(FetchDescriptor<DailyGoal>()) {
+            await push(goals.filter { $0.syncStatus != .synced })
         }
         if let interactionEvents = try? context.fetch(FetchDescriptor<UIInteractionEvent>()) {
             for event in interactionEvents where event.syncStatus != .synced {
@@ -282,237 +301,93 @@ final class CloudKitSyncService {
         try? context.save()
     }
 
-    // MARK: - Private backup & restore
+    // MARK: - Restore (reinstall / another device)
 
-    /// Custom zone (not the default one) so `recordZoneChanges` can fetch everything
-    /// — or just what changed since the last fetch — without any queryable indexes
-    /// having to be deployed in the CloudKit Dashboard.
-    private let privateZoneID = CKRecordZone.ID(zoneName: "UserData", ownerName: CKCurrentUserDefaultName)
-    private let privateZoneReadyKey = "cloudKitPrivateZoneReady"
-    private let privateChangeTokenKey = "cloudKitPrivateChangeToken"
-    /// The profile is a singleton per iCloud account, so its record name is fixed —
-    /// two devices that each created a profile still converge on one record.
-    private let profileRecordName = "UserProfile"
-    private var privateSyncTask: Task<Bool, Never>?
-    /// Set when CloudKit answers a private save with a retry-after (iCloud storage
-    /// full — `quotaExceeded` — or rate limiting): further saves are skipped until
-    /// then, leaving rows `.failed` for a later `flushPending`, instead of hitting the
-    /// server again on every foreground. Reads (restore) aren't affected.
-    private let privateBackoffUntilKey = "cloudKitPrivateBackoffUntil"
+    /// Last successful pull — absent on a fresh install, which makes the next
+    /// `syncFromCloud` a full restore instead of an incremental one.
+    private let lastPullKey = "cloudKitLastPull"
+    private var pullTask: Task<Bool, Never>?
 
-    private func privateRecordID(_ name: String) -> CKRecord.ID {
-        CKRecord.ID(recordName: name, zoneID: privateZoneID)
-    }
-
-    private func dailyGoalRecordName(_ goal: DailyGoal) -> String { "DailyGoal-\(goal.dayKey)" }
-
-    private func ensurePrivateZone() async throws {
-        guard !UserDefaults.standard.bool(forKey: privateZoneReadyKey) else { return }
-        _ = try await container.privateCloudDatabase.modifyRecordZones(saving: [CKRecordZone(zoneID: privateZoneID)], deleting: [])
-        UserDefaults.standard.set(true, forKey: privateZoneReadyKey)
-    }
-
-    private func privateRecord(for profile: UserProfile) -> CKRecord {
-        let record = CKRecord(recordType: "UserProfile", recordID: privateRecordID(profileRecordName))
-        record["localID"] = profile.id.uuidString
-        record["userID"] = profile.userID
-        record["idade"] = profile.idade
-        record["genero"] = profile.genero
-        record["generoAutoDeclarado"] = profile.generoAutoDeclarado
-        record["pesoKg"] = profile.pesoKg
-        record["alturaCm"] = profile.alturaCm
-        record["fusoHorario"] = profile.fusoHorario
-        record["metaDiariaML"] = profile.metaDiariaML
-        record["customIntakeML"] = profile.customIntakeML
-        record["criadoEm"] = profile.criadoEm
-        record["atualizadoEm"] = profile.atualizadoEm
-        return record
-    }
-
-    private func privateRecord(for log: IntakeLog) -> CKRecord {
-        let record = CKRecord(recordType: "IntakeLog", recordID: privateRecordID(log.id.uuidString))
-        record["userID"] = log.userID
-        record["timestamp"] = log.timestamp
-        record["volumeML"] = log.volumeML
-        record["tipoEntrada"] = log.tipoEntrada
-        record["origem"] = log.origem
-        record["notificationEventID"] = log.notificationEventID
-        record["source"] = log.source
-        record["healthKitUUID"] = log.healthKitUUID
-        record["temperaturaC"] = log.temperaturaC
-        record["umidadeRelativa"] = log.umidadeRelativa
-        record["sensacaoTermicaC"] = log.sensacaoTermicaC
-        return record
-    }
-
-    private func privateRecord(for goal: DailyGoal) -> CKRecord {
-        let record = CKRecord(recordType: "DailyGoal", recordID: privateRecordID(dailyGoalRecordName(goal)))
-        record["localID"] = goal.id.uuidString
-        record["userID"] = goal.userID
-        record["dayKey"] = goal.dayKey
-        record["baseGoalML"] = goal.baseGoalML
-        record["adjustmentML"] = goal.adjustmentML
-        record["atualizadoEm"] = goal.atualizadoEm
-        return record
-    }
-
-    private func pushPrivate(_ profile: UserProfile) async {
-        let ok = await savePrivate([privateRecord(for: profile)])
-        profile.privateSyncStatus = ok.isEmpty ? .failed : .synced
-    }
-
-    private func pushPrivate(_ logs: [IntakeLog]) async {
-        guard !logs.isEmpty else { return }
-        let saved = await savePrivate(logs.map(privateRecord(for:)))
-        for log in logs {
-            log.privateSyncStatus = saved.contains(log.id.uuidString) ? .synced : .failed
-        }
-    }
-
-    private func pushPrivate(_ log: IntakeLog) async {
-        await pushPrivate([log])
-    }
-
-    private func pushPrivate(_ goals: [DailyGoal]) async {
-        guard !goals.isEmpty else { return }
-        let saved = await savePrivate(goals.map(privateRecord(for:)))
-        for goal in goals {
-            goal.privateSyncStatus = saved.contains(dailyGoalRecordName(goal)) ? .synced : .failed
-        }
-    }
-
-    /// Saves in chunks (CloudKit caps a single modify at 400 records) with
-    /// `.allKeys` — last writer wins, so no change-tag bookkeeping is needed for
-    /// this per-user copy. Returns the record names that were saved.
-    private func savePrivate(_ records: [CKRecord]) async -> Set<String> {
-        var saved: Set<String> = []
-        if let until = UserDefaults.standard.object(forKey: privateBackoffUntilKey) as? Date, until > .now {
-            return saved
-        }
-        do {
-            try await ensurePrivateZone()
-            for start in stride(from: 0, to: records.count, by: 300) {
-                let chunk = Array(records[start..<min(start + 300, records.count)])
-                let (results, _) = try await container.privateCloudDatabase.modifyRecords(
-                    saving: chunk, deleting: [], savePolicy: .allKeys, atomically: false
-                )
-                for (id, result) in results {
-                    switch result {
-                    case .success: saved.insert(id.recordName)
-                    case .failure(let error):
-                        handlePrivateSaveError(error)
-                        logger.error("Private save failed for \(id.recordName, privacy: .public): \(String(describing: error), privacy: .public)")
-                    }
-                }
-            }
-        } catch {
-            handlePrivateSaveError(error)
-            logger.error("Private save failed: \(String(describing: error), privacy: .public)")
-        }
-        return saved
-    }
-
-    private func handlePrivateSaveError(_ error: Error) {
-        guard let ckError = error as? CKError else { return }
-        if ckError.code == .zoneNotFound {
-            UserDefaults.standard.set(false, forKey: privateZoneReadyKey)
-        }
-        // `quotaExceeded` = the user's iCloud storage is full; nothing the app can fix,
-        // so back off for the server's hint (or an hour) rather than retrying constantly.
-        let delay = ckError.retryAfterSeconds ?? (ckError.code == .quotaExceeded ? 3600 : nil)
-        if let delay {
-            UserDefaults.standard.set(Date.now.addingTimeInterval(delay), forKey: privateBackoffUntilKey)
-        }
-    }
-
-    private func deletePrivate(recordName: String) async {
-        do {
-            try await ensurePrivateZone()
-            _ = try await container.privateCloudDatabase.deleteRecord(withID: privateRecordID(recordName))
-        } catch let error as CKError where error.code == .unknownItem {
-            // Never backed up — nothing to do.
-        } catch {
-            logger.error("Failed to delete private \(recordName, privacy: .public), queuing retry: \(String(describing: error), privacy: .public)")
-            queuePendingDeletion(recordType: "IntakeLog", recordName: recordName, isPrivate: true)
-        }
-    }
-
-    /// Pulls every change in the user's private zone since the last fetch into
-    /// SwiftData. On a fresh install there's no change token, so this is a full
-    /// restore — profile, every intake and the daily-goal history. On later calls it's
-    /// cheap and picks up what another device with the same iCloud account wrote.
+    /// Pulls this iCloud user's own records from the public database into SwiftData:
+    /// on a fresh install (or a new device) the whole history — profile, every intake,
+    /// the daily-goal snapshots — and afterwards just the recent intakes, so whatever
+    /// another device with the same account logged shows up here too.
     ///
-    /// Returns whether a `UserProfile` exists locally afterwards. Concurrent callers
-    /// share the same in-flight fetch.
+    /// Requires QUERYABLE indexes in the CloudKit Dashboard (both environments):
+    /// `userID` on UserProfile, IntakeLog and DailyGoal, and `timestamp` on IntakeLog.
+    ///
+    /// Deletions aren't propagated between devices: a log deleted on device A stays on
+    /// device B until B is reinstalled (the deleted record is gone from the server, so
+    /// it won't be restored). Returns whether a `UserProfile` exists locally afterwards.
     @discardableResult
-    func syncPrivateDatabase(context: ModelContext) async -> Bool {
-        if let privateSyncTask { return await privateSyncTask.value }
+    func syncFromCloud(context: ModelContext) async -> Bool {
+        if let pullTask { return await pullTask.value }
         let task = Task { @MainActor in
-            await fetchPrivateChanges(context: context)
+            await pull(context: context)
             return ((try? context.fetchCount(FetchDescriptor<UserProfile>())) ?? 0) > 0
         }
-        privateSyncTask = task
-        defer { privateSyncTask = nil }
+        pullTask = task
+        defer { pullTask = nil }
         return await task.value
     }
 
-    private func fetchPrivateChanges(context: ModelContext) async {
-        guard (try? await container.accountStatus()) == .available else {
-            logger.notice("Private sync skipped — no iCloud account available")
+    private func pull(context: ModelContext) async {
+        guard (try? await container.accountStatus()) == .available,
+              let userID = try? await currentUserID() else {
+            logger.notice("syncFromCloud skipped — no iCloud account available")
             return
         }
-        var token = loadPrivateChangeToken()
+        let startedAt = Date.now
+        let lastPull = UserDefaults.standard.object(forKey: lastPullKey) as? Date
         var applied = 0
         do {
-            var moreComing = true
-            while moreComing {
-                let changes: (modificationResultsByID: [CKRecord.ID: Result<CKDatabase.RecordZoneChange.Modification, Error>],
-                              deletions: [CKDatabase.RecordZoneChange.Deletion],
-                              changeToken: CKServerChangeToken,
-                              moreComing: Bool)
-                do {
-                    changes = try await container.privateCloudDatabase.recordZoneChanges(inZoneWith: privateZoneID, since: token)
-                } catch let error as CKError where error.code == .changeTokenExpired {
-                    token = nil
-                    savePrivateChangeToken(nil)
-                    continue
-                }
-                for (_, result) in changes.modificationResultsByID {
-                    if case .success(let modification) = result {
-                        applied += apply(modification.record, context: context) ? 1 : 0
-                    }
-                }
-                for deletion in changes.deletions where deletion.recordType == "IntakeLog" {
-                    applied += applyIntakeLogDeletion(recordName: deletion.recordID.recordName, context: context) ? 1 : 0
-                }
-                try? context.save()
-                token = changes.changeToken
-                savePrivateChangeToken(token)
-                moreComing = changes.moreComing
+            let profiles = try await queryAll("UserProfile", NSPredicate(format: "userID == %@", userID))
+            if let newest = profiles.max(by: { ($0["atualizadoEm"] as? Date ?? .distantPast) < ($1["atualizadoEm"] as? Date ?? .distantPast) }) {
+                applied += applyProfile(newest, context: context) ? 1 : 0
             }
-            UserDefaults.standard.set(true, forKey: privateZoneReadyKey)
-        } catch let error as CKError where error.code == .zoneNotFound {
-            // Nothing was ever backed up for this account — a genuinely new user.
-            UserDefaults.standard.set(false, forKey: privateZoneReadyKey)
+
+            let logPredicate: NSPredicate
+            if let lastPull {
+                // A day of overlap catches logs another device saved with a slightly
+                // older timestamp (offline, slow push) since the last pull.
+                logPredicate = NSPredicate(format: "userID == %@ AND timestamp >= %@", userID, lastPull.addingTimeInterval(-86_400) as NSDate)
+            } else {
+                logPredicate = NSPredicate(format: "userID == %@", userID)
+            }
+            for record in try await queryAll("IntakeLog", logPredicate) {
+                applied += applyIntakeLog(record, context: context) ? 1 : 0
+            }
+
+            for record in try await queryAll("DailyGoal", NSPredicate(format: "userID == %@", userID)) {
+                applied += applyDailyGoal(record, context: context) ? 1 : 0
+            }
+            try? context.save()
+            UserDefaults.standard.set(startedAt, forKey: lastPullKey)
         } catch {
-            logger.error("Private fetch failed: \(String(describing: error), privacy: .public)")
+            try? context.save()
+            logger.error("syncFromCloud failed: \(String(describing: error), privacy: .public)")
         }
         if applied > 0 {
-            logger.notice("Private sync applied \(applied) change(s) from iCloud")
+            logger.notice("syncFromCloud applied \(applied) record(s)")
             WidgetSync.reloadWaterTank()
         }
     }
 
-    /// Upserts one fetched record. Returns whether anything local changed.
-    private func apply(_ record: CKRecord, context: ModelContext) -> Bool {
-        switch record.recordType {
-        case "UserProfile": return applyProfile(record, context: context)
-        case "IntakeLog": return applyIntakeLog(record, context: context)
-        case "DailyGoal": return applyDailyGoal(record, context: context)
-        default: return false
+    private func queryAll(_ recordType: String, _ predicate: NSPredicate) async throws -> [CKRecord] {
+        let database = container.publicCloudDatabase
+        var records: [CKRecord] = []
+        var (results, cursor) = try await database.records(matching: CKQuery(recordType: recordType, predicate: predicate))
+        while true {
+            for (_, result) in results {
+                if case .success(let record) = result { records.append(record) }
+            }
+            guard let next = cursor else { break }
+            (results, cursor) = try await database.records(continuingMatchFrom: next)
         }
+        return records
     }
 
+    /// Upserts the profile, last writer (by `atualizadoEm`) wins.
     private func applyProfile(_ record: CKRecord, context: ModelContext) -> Bool {
         guard let userID = record["userID"] as? String,
               let remoteUpdated = record["atualizadoEm"] as? Date else { return false }
@@ -524,11 +399,13 @@ final class CloudKitSyncService {
             fusoHorario: TimeZone.current.identifier, metaDiariaML: 0
         )
         if existing == nil {
-            if let localID = (record["localID"] as? String).flatMap(UUID.init(uuidString:)) { profile.id = localID }
+            if let id = UUID(uuidString: record.recordID.recordName) { profile.id = id }
             profile.criadoEm = record["criadoEm"] as? Date ?? .now
-            // Already in the public dataset from the device that created it.
-            profile.syncStatus = .synced
             context.insert(profile)
+        }
+        if profile.id.uuidString == record.recordID.recordName {
+            profile.ckSystemFields = archivedSystemFields(record)
+            profile.syncStatus = .synced
         }
         profile.userID = userID
         profile.idade = record["idade"] as? Int ?? profile.idade
@@ -540,16 +417,15 @@ final class CloudKitSyncService {
         profile.metaDiariaML = record["metaDiariaML"] as? Int ?? profile.metaDiariaML
         profile.customIntakeML = record["customIntakeML"] as? Int ?? profile.customIntakeML
         profile.atualizadoEm = remoteUpdated
-        profile.privateSyncStatus = .synced
         return true
     }
 
+    /// Inserts an intake this device doesn't have yet (logs are immutable once created).
     private func applyIntakeLog(_ record: CKRecord, context: ModelContext) -> Bool {
         guard let id = UUID(uuidString: record.recordID.recordName),
               let userID = record["userID"] as? String,
               let timestamp = record["timestamp"] as? Date,
               let volumeML = record["volumeML"] as? Int else { return false }
-        // Intake logs are immutable once created — existing means nothing to do.
         if ((try? context.fetchCount(FetchDescriptor<IntakeLog>(predicate: #Predicate { $0.id == id }))) ?? 0) > 0 { return false }
         let healthKitUUID = record["healthKitUUID"] as? String
         if let healthKitUUID,
@@ -573,19 +449,11 @@ final class CloudKitSyncService {
         log.umidadeRelativa = record["umidadeRelativa"] as? Double
         log.sensacaoTermicaC = record["sensacaoTermicaC"] as? Double
         log.syncStatus = .synced
-        log.privateSyncStatus = .synced
         context.insert(log)
         return true
     }
 
-    private func applyIntakeLogDeletion(recordName: String, context: ModelContext) -> Bool {
-        guard let id = UUID(uuidString: recordName),
-              let log = try? context.fetch(FetchDescriptor<IntakeLog>(predicate: #Predicate { $0.id == id })).first
-        else { return false }
-        context.delete(log)
-        return true
-    }
-
+    /// Upserts one day's goal snapshot, last writer (by `atualizadoEm`) wins.
     private func applyDailyGoal(_ record: CKRecord, context: ModelContext) -> Bool {
         guard let userID = record["userID"] as? String,
               let dayKey = record["dayKey"] as? String,
@@ -598,29 +466,14 @@ final class CloudKitSyncService {
             existing.baseGoalML = baseGoalML
             existing.adjustmentML = adjustmentML
             existing.atualizadoEm = remoteUpdated
-            existing.privateSyncStatus = .synced
+            existing.syncStatus = .synced
         } else {
             let goal = DailyGoal(userID: userID, dayKey: dayKey, baseGoalML: baseGoalML, adjustmentML: adjustmentML)
-            if let localID = (record["localID"] as? String).flatMap(UUID.init(uuidString:)) { goal.id = localID }
             goal.atualizadoEm = remoteUpdated
-            goal.privateSyncStatus = .synced
+            goal.syncStatus = .synced
             context.insert(goal)
         }
         return true
-    }
-
-    private func loadPrivateChangeToken() -> CKServerChangeToken? {
-        guard let data = UserDefaults.standard.data(forKey: privateChangeTokenKey) else { return nil }
-        return try? NSKeyedUnarchiver.unarchivedObject(ofClass: CKServerChangeToken.self, from: data)
-    }
-
-    private func savePrivateChangeToken(_ token: CKServerChangeToken?) {
-        guard let token,
-              let data = try? NSKeyedArchiver.archivedData(withRootObject: token, requiringSecureCoding: true) else {
-            UserDefaults.standard.removeObject(forKey: privateChangeTokenKey)
-            return
-        }
-        UserDefaults.standard.set(data, forKey: privateChangeTokenKey)
     }
 
     // MARK: - Helpers

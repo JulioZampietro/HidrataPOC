@@ -21,13 +21,13 @@ final class DailyGoal {
     var adjustmentML: Int
     var atualizadoEm: Date
 
-    /// Estado do backup no banco **privado** do iCloud do usuário (independente do
-    /// `syncStatus` do banco público de analytics). Defaulted a `.pending` para que,
-    /// na migração, linhas antigas sejam enviadas ao backup no próximo `flushPending`.
-    var privateSyncStatusRaw: String = SyncStatus.pending.rawValue
-    var privateSyncStatus: SyncStatus {
-        get { SyncStatus(rawValue: privateSyncStatusRaw) ?? .pending }
-        set { privateSyncStatusRaw = newValue.rawValue }
+    /// CloudKit push state (public database), so a reinstall / another device can
+    /// restore the goal history. Defaulted for lightweight migration — existing rows
+    /// come up `.pending` and get uploaded by the next `flushPending`.
+    var syncStatusRaw: String = SyncStatus.pending.rawValue
+    var syncStatus: SyncStatus {
+        get { SyncStatus(rawValue: syncStatusRaw) ?? .pending }
+        set { syncStatusRaw = newValue.rawValue }
     }
 
     var goalML: Int { baseGoalML + adjustmentML }
@@ -65,7 +65,7 @@ final class DailyGoal {
             existing.baseGoalML = baseGoalML
             existing.adjustmentML = newAdjustment
             existing.atualizadoEm = now
-            existing.privateSyncStatus = .pending
+            existing.syncStatus = .pending
         } else {
             context.insert(DailyGoal(userID: userID, dayKey: key, baseGoalML: baseGoalML, adjustmentML: adjustmentML ?? 0))
         }

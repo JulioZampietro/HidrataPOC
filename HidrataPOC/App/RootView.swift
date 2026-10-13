@@ -10,7 +10,7 @@ struct RootView: View {
     @State private var selectedTab = 0
 
     /// Fresh install (or a new device): before showing onboarding, look for a backup
-    /// in the user's private iCloud database and restore it.
+    /// in iCloud (CloudKit) and restore it.
     @State private var hasCheckedICloud = false
 
     private var profile: UserProfile? { profiles.first }
@@ -71,7 +71,7 @@ struct RootView: View {
     }
 
     private func restoreFromICloud() async {
-        let restored = await CloudKitSyncService.shared.syncPrivateDatabase(context: modelContext)
+        let restored = await CloudKitSyncService.shared.syncFromCloud(context: modelContext)
         if restored, let profile = profiles.first {
             // Já passou pelo tour antes (em outro aparelho ou antes de reinstalar) — só
             // pede de novo as permissões do sistema, que não sobrevivem à reinstalação.
