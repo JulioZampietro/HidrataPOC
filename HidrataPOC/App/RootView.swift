@@ -9,6 +9,10 @@ struct RootView: View {
 
     @State private var selectedTab = 0
 
+    /// Fresh install (or a new device): before showing onboarding, look for a backup
+    /// in the user's private iCloud database and restore it.
+    @State private var hasCheckedICloud = false
+
     private var profile: UserProfile? { profiles.first }
 
     var body: some View {
@@ -28,6 +32,9 @@ struct RootView: View {
                             requestPermissionsAfterOnboarding(for: profile)
                         }
                     }
+            } else if !hasCheckedICloud {
+                ICloudRestoreView(onSkip: { hasCheckedICloud = true })
+                    .task { await restoreFromICloud() }
             } else {
                 OnboardingView()
             }
@@ -61,6 +68,17 @@ struct RootView: View {
                 await HealthKitService.shared.syncFromHealthKit(userID: profile.userID, context: modelContext)
             }
         }
+    }
+
+    private func restoreFromICloud() async {
+        let restored = await CloudKitSyncService.shared.syncPrivateDatabase(context: modelContext)
+        if restored, let profile = profiles.first {
+            // Já passou pelo tour antes (em outro aparelho ou antes de reinstalar) — só
+            // pede de novo as permissões do sistema, que não sobrevivem à reinstalação.
+            hasSeenFeatureOnboarding = true
+            requestPermissionsAfterOnboarding(for: profile)
+        }
+        hasCheckedICloud = true
     }
 
     private func startLiveActivityIfNeeded(for profile: UserProfile) {

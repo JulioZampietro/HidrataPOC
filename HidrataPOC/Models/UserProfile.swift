@@ -36,6 +36,15 @@ final class UserProfile {
     /// colliding with a fresh `CKRecord(recordType:recordID:)`.
     var ckSystemFields: Data?
 
+    /// Estado do backup no banco **privado** do iCloud do usuário (independente do
+    /// `syncStatus` do banco público de analytics). Defaulted a `.pending` para que,
+    /// na migração, linhas antigas sejam enviadas ao backup no próximo `flushPending`.
+    var privateSyncStatusRaw: String = SyncStatus.pending.rawValue
+    var privateSyncStatus: SyncStatus {
+        get { SyncStatus(rawValue: privateSyncStatusRaw) ?? .pending }
+        set { privateSyncStatusRaw = newValue.rawValue }
+    }
+
     init(
         userID: String,
         idade: Int,
