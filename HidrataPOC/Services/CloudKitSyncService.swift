@@ -16,6 +16,11 @@ private let logger = Logger(subsystem: "com.hidratapoc", category: "CloudKitSync
 /// "Authenticated: Create only, no Read" role, which must be configured manually in
 /// the dashboard (not something this app can do from code).
 ///
+/// The same records also back the restore after a reinstall or on another device
+/// (`syncFromCloud`): CloudKit's default **Creator** role keeps read/write on the
+/// records a user created, so a device can query its own user's rows by `userID`
+/// even though the Authenticated role has no Read.
+///
 /// Note: the "Create only, no Read" role also means a device can't *fetch* someone
 /// else's record to delete it — but `CKDatabase.delete(withRecordID:)` doesn't need
 /// read access to the record, only its ID, which every device already has locally.
@@ -84,6 +89,11 @@ final class CloudKitSyncService {
             let saved = try await container.publicCloudDatabase.save(record)
             profile.ckSystemFields = archivedSystemFields(saved)
             profile.syncStatus = .synced
+        } catch let error as CKError where error.code == .serverRecordChanged && error.serverRecord != nil {
+            // Another device (same iCloud account) updated this record since our last
+            // save — adopt the server's change tag and let the next flush overwrite it.
+            profile.ckSystemFields = error.serverRecord.map(archivedSystemFields)
+            profile.syncStatus = .failed
         } catch {
             logger.error("Failed to push UserProfile \(profile.id, privacy: .public): \(String(describing: error), privacy: .public)")
             profile.syncStatus = .failed
@@ -103,6 +113,7 @@ final class CloudKitSyncService {
         record["umidadeRelativa"] = log.umidadeRelativa
         record["sensacaoTermicaC"] = log.sensacaoTermicaC
         record["source"] = log.source
+        record["healthKitUUID"] = log.healthKitUUID
 
         do {
             _ = try await container.publicCloudDatabase.save(record)
@@ -162,6 +173,42 @@ final class CloudKitSyncService {
             logger.error("Failed to push UIInteractionEvent \(event.id, privacy: .public): \(String(describing: error), privacy: .public)")
             event.syncStatus = .failed
         }
+    }
+
+    /// Upserts by a deterministic record name (one row per user per day), saved with
+    /// `.allKeys` — last writer wins, and the Creator role allows the overwrite.
+    func push(_ goals: [DailyGoal]) async {
+        guard !goals.isEmpty else { return }
+        let records = goals.map { goal -> CKRecord in
+            let record = CKRecord(recordType: "DailyGoal", recordID: CKRecord.ID(recordName: dailyGoalRecordName(goal)))
+            record["userID"] = goal.userID
+            record["dayKey"] = goal.dayKey
+            record["baseGoalML"] = goal.baseGoalML
+            record["adjustmentML"] = goal.adjustmentML
+            record["atualizadoEm"] = goal.atualizadoEm
+            return record
+        }
+        var saved: Set<String> = []
+        do {
+            for start in stride(from: 0, to: records.count, by: 300) {
+                let chunk = Array(records[start..<min(start + 300, records.count)])
+                let (results, _) = try await container.publicCloudDatabase.modifyRecords(
+                    saving: chunk, deleting: [], savePolicy: .allKeys, atomically: false
+                )
+                for (id, result) in results {
+                    if case .success = result { saved.insert(id.recordName) }
+                }
+            }
+        } catch {
+            logger.error("Failed to push DailyGoals: \(String(describing: error), privacy: .public)")
+        }
+        for goal in goals {
+            goal.syncStatus = saved.contains(dailyGoalRecordName(goal)) ? .synced : .failed
+        }
+    }
+
+    private func dailyGoalRecordName(_ goal: DailyGoal) -> String {
+        "DailyGoal-\(goal.userID)-\(goal.dayKey)"
     }
 
     // MARK: - Deletion
@@ -243,12 +290,190 @@ final class CloudKitSyncService {
                 await push(event)
             }
         }
+        if let goals = try? context.fetch(FetchDescriptor<DailyGoal>()) {
+            await push(goals.filter { $0.syncStatus != .synced })
+        }
         if let interactionEvents = try? context.fetch(FetchDescriptor<UIInteractionEvent>()) {
             for event in interactionEvents where event.syncStatus != .synced {
                 await push(event)
             }
         }
         try? context.save()
+    }
+
+    // MARK: - Restore (reinstall / another device)
+
+    /// Last successful pull — absent on a fresh install, which makes the next
+    /// `syncFromCloud` a full restore instead of an incremental one.
+    private let lastPullKey = "cloudKitLastPull"
+    private var pullTask: Task<Bool, Never>?
+
+    /// Pulls this iCloud user's own records from the public database into SwiftData:
+    /// on a fresh install (or a new device) the whole history — profile, every intake,
+    /// the daily-goal snapshots — and afterwards just the recent intakes, so whatever
+    /// another device with the same account logged shows up here too.
+    ///
+    /// Requires QUERYABLE indexes in the CloudKit Dashboard (both environments):
+    /// `userID` on UserProfile, IntakeLog and DailyGoal, and `timestamp` on IntakeLog.
+    ///
+    /// Deletions aren't propagated between devices: a log deleted on device A stays on
+    /// device B until B is reinstalled (the deleted record is gone from the server, so
+    /// it won't be restored). Returns whether a `UserProfile` exists locally afterwards.
+    @discardableResult
+    func syncFromCloud(context: ModelContext) async -> Bool {
+        if let pullTask { return await pullTask.value }
+        let task = Task { @MainActor in
+            await pull(context: context)
+            return ((try? context.fetchCount(FetchDescriptor<UserProfile>())) ?? 0) > 0
+        }
+        pullTask = task
+        defer { pullTask = nil }
+        return await task.value
+    }
+
+    private func pull(context: ModelContext) async {
+        guard (try? await container.accountStatus()) == .available,
+              let userID = try? await currentUserID() else {
+            logger.notice("syncFromCloud skipped — no iCloud account available")
+            return
+        }
+        let startedAt = Date.now
+        let lastPull = UserDefaults.standard.object(forKey: lastPullKey) as? Date
+        var applied = 0
+        do {
+            let profiles = try await queryAll("UserProfile", NSPredicate(format: "userID == %@", userID))
+            if let newest = profiles.max(by: { ($0["atualizadoEm"] as? Date ?? .distantPast) < ($1["atualizadoEm"] as? Date ?? .distantPast) }) {
+                applied += applyProfile(newest, context: context) ? 1 : 0
+            }
+
+            let logPredicate: NSPredicate
+            if let lastPull {
+                // A day of overlap catches logs another device saved with a slightly
+                // older timestamp (offline, slow push) since the last pull.
+                logPredicate = NSPredicate(format: "userID == %@ AND timestamp >= %@", userID, lastPull.addingTimeInterval(-86_400) as NSDate)
+            } else {
+                logPredicate = NSPredicate(format: "userID == %@", userID)
+            }
+            for record in try await queryAll("IntakeLog", logPredicate) {
+                applied += applyIntakeLog(record, context: context) ? 1 : 0
+            }
+
+            for record in try await queryAll("DailyGoal", NSPredicate(format: "userID == %@", userID)) {
+                applied += applyDailyGoal(record, context: context) ? 1 : 0
+            }
+            try? context.save()
+            UserDefaults.standard.set(startedAt, forKey: lastPullKey)
+        } catch {
+            try? context.save()
+            logger.error("syncFromCloud failed: \(String(describing: error), privacy: .public)")
+        }
+        if applied > 0 {
+            logger.notice("syncFromCloud applied \(applied) record(s)")
+            WidgetSync.reloadWaterTank()
+        }
+    }
+
+    private func queryAll(_ recordType: String, _ predicate: NSPredicate) async throws -> [CKRecord] {
+        let database = container.publicCloudDatabase
+        var records: [CKRecord] = []
+        var (results, cursor) = try await database.records(matching: CKQuery(recordType: recordType, predicate: predicate))
+        while true {
+            for (_, result) in results {
+                if case .success(let record) = result { records.append(record) }
+            }
+            guard let next = cursor else { break }
+            (results, cursor) = try await database.records(continuingMatchFrom: next)
+        }
+        return records
+    }
+
+    /// Upserts the profile, last writer (by `atualizadoEm`) wins.
+    private func applyProfile(_ record: CKRecord, context: ModelContext) -> Bool {
+        guard let userID = record["userID"] as? String,
+              let remoteUpdated = record["atualizadoEm"] as? Date else { return false }
+        let existing = try? context.fetch(FetchDescriptor<UserProfile>()).first
+        if let existing, existing.atualizadoEm >= remoteUpdated { return false }
+
+        let profile = existing ?? UserProfile(
+            userID: userID, idade: 0, genero: nil, pesoKg: 0, alturaCm: 0,
+            fusoHorario: TimeZone.current.identifier, metaDiariaML: 0
+        )
+        if existing == nil {
+            if let id = UUID(uuidString: record.recordID.recordName) { profile.id = id }
+            profile.criadoEm = record["criadoEm"] as? Date ?? .now
+            context.insert(profile)
+        }
+        if profile.id.uuidString == record.recordID.recordName {
+            profile.ckSystemFields = archivedSystemFields(record)
+            profile.syncStatus = .synced
+        }
+        profile.userID = userID
+        profile.idade = record["idade"] as? Int ?? profile.idade
+        profile.genero = record["genero"] as? String
+        profile.generoAutoDeclarado = record["generoAutoDeclarado"] as? String
+        profile.pesoKg = record["pesoKg"] as? Double ?? profile.pesoKg
+        profile.alturaCm = record["alturaCm"] as? Double ?? profile.alturaCm
+        profile.fusoHorario = record["fusoHorario"] as? String ?? profile.fusoHorario
+        profile.metaDiariaML = record["metaDiariaML"] as? Int ?? profile.metaDiariaML
+        profile.customIntakeML = record["customIntakeML"] as? Int ?? profile.customIntakeML
+        profile.atualizadoEm = remoteUpdated
+        return true
+    }
+
+    /// Inserts an intake this device doesn't have yet (logs are immutable once created).
+    private func applyIntakeLog(_ record: CKRecord, context: ModelContext) -> Bool {
+        guard let id = UUID(uuidString: record.recordID.recordName),
+              let userID = record["userID"] as? String,
+              let timestamp = record["timestamp"] as? Date,
+              let volumeML = record["volumeML"] as? Int else { return false }
+        if ((try? context.fetchCount(FetchDescriptor<IntakeLog>(predicate: #Predicate { $0.id == id }))) ?? 0) > 0 { return false }
+        let healthKitUUID = record["healthKitUUID"] as? String
+        if let healthKitUUID,
+           ((try? context.fetchCount(FetchDescriptor<IntakeLog>(predicate: #Predicate { $0.healthKitUUID == healthKitUUID }))) ?? 0) > 0 {
+            return false // already imported from Health on this device
+        }
+
+        let log = IntakeLog(
+            userID: userID,
+            timestamp: timestamp,
+            volumeML: volumeML,
+            tipoEntrada: record["tipoEntrada"] as? String ?? "",
+            origem: OrigemRegistro(rawValue: record["origem"] as? String ?? "") ?? .manual,
+            source: record["source"] as? String ?? "app",
+            healthKitUUID: healthKitUUID ?? ""
+        )
+        log.id = id
+        log.healthKitUUID = healthKitUUID
+        log.notificationEventID = record["notificationEventID"] as? String
+        log.temperaturaC = record["temperaturaC"] as? Double
+        log.umidadeRelativa = record["umidadeRelativa"] as? Double
+        log.sensacaoTermicaC = record["sensacaoTermicaC"] as? Double
+        log.syncStatus = .synced
+        context.insert(log)
+        return true
+    }
+
+    /// Upserts one day's goal snapshot, last writer (by `atualizadoEm`) wins.
+    private func applyDailyGoal(_ record: CKRecord, context: ModelContext) -> Bool {
+        guard let userID = record["userID"] as? String,
+              let dayKey = record["dayKey"] as? String,
+              let baseGoalML = record["baseGoalML"] as? Int,
+              let remoteUpdated = record["atualizadoEm"] as? Date else { return false }
+        let adjustmentML = record["adjustmentML"] as? Int ?? 0
+        let existing = try? context.fetch(FetchDescriptor<DailyGoal>(predicate: #Predicate { $0.userID == userID && $0.dayKey == dayKey })).first
+        if let existing {
+            guard existing.atualizadoEm < remoteUpdated else { return false }
+            existing.baseGoalML = baseGoalML
+            existing.adjustmentML = adjustmentML
+            existing.atualizadoEm = remoteUpdated
+            existing.syncStatus = .synced
+        } else {
+            let goal = DailyGoal(userID: userID, dayKey: dayKey, baseGoalML: baseGoalML, adjustmentML: adjustmentML)
+            goal.atualizadoEm = remoteUpdated
+            goal.syncStatus = .synced
+            context.insert(goal)
+        }
+        return true
     }
 
     // MARK: - Helpers

@@ -53,6 +53,12 @@ of the box. `project.yml` now uses `com.hidratapoc` — update the rest as below
      from the dashboard (roles apply to app requests; dashboard access is separate,
      tied to your developer account).
    - Do this in both the Development and Production environments once you deploy.
+   - Keep the default **Creator** role (Read + Write): reinstall / new-device restore
+     (`CloudKitSyncService.syncFromCloud`) queries the user's *own* records by `userID`.
+   - Under Schema → Indexes, add **QUERYABLE** indexes: `userID` on `UserProfile`,
+     `IntakeLog` and `DailyGoal`, and `timestamp` on `IntakeLog` (the `DailyGoal`
+     record type appears after the app pushes its first goal). Without them the
+     restore query fails and the app falls back to onboarding. Deploy to Production too.
 4. **WeatherKit capability** — requires an active, paid Apple Developer Program
    membership. Enable the WeatherKit capability for this App ID in the developer
    portal (Xcode's "+ Capability" does this automatically once you're signed in
