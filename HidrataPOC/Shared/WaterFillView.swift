@@ -142,21 +142,29 @@ private struct WaterContainerModifier<S: Shape>: ViewModifier {
             }
             .clipShape(shape)
             .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { containerHeight = $0 }
-            // Deixa arrastar o dedo em cima das pedrinhas pra empurrá-las — só na
-            // faixa de baixo (onde elas assentam pela gravidade). Fica no próprio
-            // recipiente como `.simultaneousGesture`, e não numa camada por cima: uma
-            // camada roubava os toques do mascote (e de tudo mais) naquela faixa.
-            .simultaneousGesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { value in
-                        guard value.location.y >= containerHeight - WaterTuning.stonePokeBandHeight else { return }
-                        let bleedOffset = max(0, Float(motion.waterSize.height) - Float(containerHeight))
-                        motion.pokeStones(at: SIMD2<Float>(
-                            Float(value.location.x),
-                            Float(value.location.y) + bleedOffset
-                        ))
-                    }
-            )
+            // Deixa arrastar o dedo em cima das pedrinhas pra empurrá-las — só na faixa de
+            // baixo (onde elas assentam pela gravidade). A faixa fica ATRÁS do conteúdo
+            // (`.background`): o mascote e o resto continuam recebendo os toques deles, e o
+            // recipiente inteiro acima da faixa deixa o arrasto passar para o que está atrás
+            // (ex.: a troca de páginas da Home).
+            .background(alignment: .bottom) {
+                Color.clear
+                    .frame(height: WaterTuning.stonePokeBandHeight)
+                    .contentShape(Rectangle())
+                    .gesture(
+                        DragGesture(minimumDistance: 0)
+                            .onChanged { value in
+                                // `value.location` é da própria faixa; o recipiente começa
+                                // `containerHeight - faixa` mais acima.
+                                let y = value.location.y + max(0, containerHeight - WaterTuning.stonePokeBandHeight)
+                                let bleedOffset = max(0, Float(motion.waterSize.height) - Float(containerHeight))
+                                motion.pokeStones(at: SIMD2<Float>(
+                                    Float(value.location.x),
+                                    Float(y) + bleedOffset
+                                ))
+                            }
+                    )
+            }
             .onAppear { motion.start() }
             .onDisappear { motion.stop() }
             .onReceive(NotificationCenter.default.publisher(for: .waterDebugShake)) { _ in

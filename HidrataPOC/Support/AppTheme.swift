@@ -74,51 +74,93 @@ extension AppTheme {
     static let trackLight = Color(red: 0.75, green: 0.78, blue: 0.82)
 }
 
-/// Vertical layout shared by Home and Histórico: header, water container, then the
-/// screen's own content, with the same `spacing` between every block and below the
-/// last one (above the tab bar). Sizes derive from the visible height, so the water
-/// container is identical on both tabs and the bottom content fills exactly what's
-/// left. Below the minimums (very short screens, large text) the screens scroll.
+/// Vertical layout shared by Home and Histórico. There's no tab bar: the water
+/// container is drawn once by `RootView`, fixed on top of both pages, starting `spacing`
+/// below the Dynamic Island, with the header buttons on its top edge; below it, after
+/// `spacing`, comes the page's own content, which ends `spacing` above the bottom safe
+/// area. The content keeps the size it had when the tab bar existed and the water
+/// container stretches to fill the rest, so both pages match. Below the minimums (very
+/// short screens, large text) the container shrinks instead of the pages scrolling.
 enum TabScreenLayout {
     static let spacing: CGFloat = 20
-    /// 44 pt: o menor alvo de toque do HIG (o botão de compartilhar do cabeçalho).
+    /// 44 pt: o menor alvo de toque do HIG (os botões do cabeçalho).
     static let headerHeight: CGFloat = 44
+    /// Inset of the header buttons from the container's edges.
+    static let containerInset: CGFloat = 10
     /// Space between the mascot and the container's bottom edge.
     static let mascotBottomPadding: CGFloat = 0
     /// Space between the container's top edge and the mascot at full size.
     static let mascotTopPadding: CGFloat = 20
     static let maxMascotHeight: CGFloat = 190
-    /// Extra height added only to the container (as slack below the mascot's own
-    /// padded area), so the water container can grow without the mascot growing
-    /// with it — `mascotHeight` subtracts this back out before sizing the mascot.
-    /// Sized to swallow exactly the space the header (streak + share button) used
-    /// to take as its own row (`headerHeight + spacing`): the header now floats as
-    /// an overlay on top of the container instead, so the container grows up into
-    /// that reclaimed space and reaches near the top safe area.
-    static let extraContainerHeight: CGFloat = headerHeight + spacing
-    /// Altura a mais no aquário (tirada dos cartões de baixo), só como água acima do
-    /// mascote — `mascotHeight` também desconta isso, então o mascote não cresce.
-    static let extraTankHeight: CGFloat = 40
+    /// Room above the mascot for its speech bubble.
+    static let speechBubbleAllowance: CGFloat = 38
+    /// How far the Dynamic Island (or notch / status bar) ends above the top safe-area
+    /// edge. There's no API for its frame; this matches the current iPhones.
+    static let dynamicIslandClearance: CGFloat = 12
+    /// Height the removed tab bar took above the bottom safe area. The content below
+    /// the container is still sized as if it were there, so cards don't grow.
+    static let removedTabBarHeight: CGFloat = 49
+    /// Smallest content that fits below the container: Histórico's calendar card (and
+    /// Home's bar + two rows of cards at their minimum).
+    static let minContentHeight: CGFloat = 330
+    /// Height the container held before the tab bar went away, as a share of the screen.
+    private static let legacyWaterShare: CGFloat = 0.42
+    private static let legacyExtraHeight: CGFloat = headerHeight + spacing + 40
 
-    /// The container hugs the full-size mascot (plus `extraContainerHeight` of
-    /// slack, reclaimed from the header's old row); it only gets shorter on
-    /// screens too short to fit everything else.
-    static func waterHeight(forVisibleHeight height: CGFloat) -> CGFloat {
-        let fullHeight = mascotTopPadding + maxMascotHeight + mascotBottomPadding + extraContainerHeight + extraTankHeight
-        return min(max(height * 0.42, 160), fullHeight)
+    /// Distance from the top of the screen to the top of the water container.
+    static func waterTop(safeAreaTop: CGFloat) -> CGFloat {
+        max(safeAreaTop - dynamicIslandClearance, 0) + spacing
     }
 
-    /// The mascot shrinks with the container on short screens, never past 190 pt.
-    /// `extraContainerHeight` is removed first so the extra slack never reaches the mascot.
+    /// Height of the water container: everything between `waterTop` and the content
+    /// below it. `visibleHeight` is the height between the safe areas.
+    static func waterHeight(forVisibleHeight visibleHeight: CGFloat, safeAreaTop: CGFloat) -> CGFloat {
+        let bottom = safeAreaTop + visibleHeight - spacing * 2 - contentHeight(forVisibleHeight: visibleHeight)
+        return max(bottom - waterTop(safeAreaTop: safeAreaTop), minWaterHeight)
+    }
+
+    /// The mascot fills the container below the header buttons (and the room its speech
+    /// bubble needs above it), never past 190 pt.
     static func mascotHeight(forWaterHeight waterHeight: CGFloat) -> CGFloat {
-        min(max(waterHeight - mascotTopPadding - mascotBottomPadding - extraContainerHeight - extraTankHeight, 110), maxMascotHeight)
+        let slot = waterHeight - headerHeight - containerInset - speechBubbleAllowance
+        return min(max(slot - mascotTopPadding - mascotBottomPadding, 110), maxMascotHeight)
     }
 
-    /// Height left for the screen's own content below the water container. The
-    /// header no longer has its own row (it overlays the container), so only the
-    /// container and two gaps (above and below it) are subtracted.
-    static func contentHeight(forVisibleHeight height: CGFloat) -> CGFloat {
-        height - waterHeight(forVisibleHeight: height) - spacing * 2
+    /// Height for the page's own content below the water container — the same it had
+    /// with the tab bar, so it only moves down instead of growing.
+    static func contentHeight(forVisibleHeight visibleHeight: CGFloat) -> CGFloat {
+        let tabBarHeight = visibleHeight - removedTabBarHeight
+        let legacyHeight = tabBarHeight - legacyWaterHeight(forVisibleHeight: tabBarHeight) - spacing * 2
+        return max(legacyHeight, minContentHeight)
+    }
+
+    private static let minWaterHeight: CGFloat = headerHeight + containerInset + speechBubbleAllowance + mascotTopPadding + 110
+
+    /// The container's height in the old layout (tab bar below, header overlaid on it).
+    private static func legacyWaterHeight(forVisibleHeight height: CGFloat) -> CGFloat {
+        let fullHeight = mascotTopPadding + maxMascotHeight + mascotBottomPadding + legacyExtraHeight
+        return min(max(height * legacyWaterShare, 160), fullHeight)
+    }
+}
+
+/// Botão redondo de Liquid Glass usado no topo do recipiente de água (compartilhar,
+/// cosméticos e perfil). Fica por cima da água: o vidro enxerga a água atrás dele e não
+/// ondula com a refração.
+struct GlassCircleButton: View {
+    let systemImage: String
+    let accessibilityLabel: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(.subheadline, weight: .semibold))
+                .dynamicTypeSize(...DynamicTypeSize.xxxLarge) // o ícone cabe no círculo de 44 pt
+                .foregroundStyle(Color.appAccentText)
+                .frame(width: TabScreenLayout.headerHeight, height: TabScreenLayout.headerHeight)
+                .glassEffect(.regular.interactive(), in: Circle())
+        }
+        .accessibilityLabel(accessibilityLabel)
     }
 }
 
