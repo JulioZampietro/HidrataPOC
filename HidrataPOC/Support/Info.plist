@@ -41,8 +41,6 @@
 	<key>UIAppFonts</key>
 	<array>
 		<string>Baloo2-ExtraBold.ttf</string>
-		<string>Nunito-ExtraBold.ttf</string>
-		<string>Nunito-Bold.ttf</string>
 		<string>Nunito.ttf</string>
 	</array>
 	<key>UIBackgroundModes</key>

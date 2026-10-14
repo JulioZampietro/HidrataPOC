@@ -15,7 +15,7 @@ struct HydrationChartView: View {
                     x: .value("Dia", entry.day, unit: .day),
                     y: .value("Consumo", entry.totalML)
                 )
-                .foregroundStyle(.blue)
+                .foregroundStyle(Color.appAccent)
                 .cornerRadius(4)
             }
 

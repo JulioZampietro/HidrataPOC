@@ -71,16 +71,22 @@ extension UIFont {
     }
 
     @objc class func nunito_preferredFont(forTextStyle style: UIFont.TextStyle) -> UIFont {
-        let base = nunito_preferredFont(forTextStyle: style)
-        return UIFont(name: "Nunito", size: base.pointSize) ?? base
+        nunitoMatching(nunito_preferredFont(forTextStyle: style))
     }
 
     @objc class func nunito_preferredFont(
         forTextStyle style: UIFont.TextStyle,
         compatibleWith traitCollection: UITraitCollection?
     ) -> UIFont {
-        let base = nunito_preferredFont(forTextStyle: style, compatibleWith: traitCollection)
-        return UIFont(name: "Nunito", size: base.pointSize) ?? base
+        nunitoMatching(nunito_preferredFont(forTextStyle: style, compatibleWith: traitCollection))
+    }
+
+    /// Nunito no tamanho e no peso da fonte de sistema recebida — sem isso estilos
+    /// como `.headline` (semibold) perdiam o peso e viravam regular.
+    private class func nunitoMatching(_ base: UIFont) -> UIFont {
+        let traits = base.fontDescriptor.object(forKey: .traits) as? [UIFontDescriptor.TraitKey: Any]
+        let weight = (traits?[.weight] as? CGFloat).map(UIFont.Weight.init(rawValue:)) ?? .regular
+        return nunitoFont(size: base.pointSize, weight: weight)
     }
 
     private class func nunitoFont(size: CGFloat, weight: UIFont.Weight) -> UIFont {
@@ -91,29 +97,60 @@ extension UIFont {
     }
 }
 
-// MARK: - SwiftUI convenience
+// MARK: - Catálogo de fontes do app
 
-extension Font {
-    static func nunito(_ style: Font.TextStyle, weight: Font.Weight = .regular) -> Font {
-        .custom("Nunito", size: style.defaultSize, relativeTo: style).weight(weight)
+/// Única porta de entrada para fontes no SwiftUI. As telas usam estes estilos em vez de
+/// `.font(.custom("Nunito", size:))`, então trocar tamanho, peso ou família é mexer só aqui.
+///
+/// Todos os estilos escalam com o Dynamic Type seguindo a curva do `Font.TextStyle`
+/// indicado em `relativeTo`. Só há três pesos — regular, bold e heavy; o Nunito é uma
+/// fonte variável (`Nunito.ttf`), então qualquer peso sai dela sem arquivos estáticos.
+///
+/// Ícones (SF Symbols) continuam usando `.font(.system(...))`: ali a fonte só dimensiona
+/// o símbolo, não é texto.
+enum AppFont {
+    private static let family = "Nunito"
+    private static let displayFamily = "Baloo2-ExtraBold"
+
+    // MARK: Títulos e números
+
+    /// Números grandes (meta diária, estatísticas).
+    static let metric = nunito(40, .heavy, relativeTo: .largeTitle)
+    static let largeTitle = nunito(34, .heavy, relativeTo: .largeTitle)
+    static let title = nunito(26, .heavy, relativeTo: .title)
+    static let title2 = nunito(22, .heavy, relativeTo: .title2)
+    static let title3 = nunito(18, .bold, relativeTo: .title3)
+    /// Título de cartão e rótulo principal de botão grande.
+    static let headline = nunito(17, .heavy, relativeTo: .headline)
+
+    // MARK: Texto corrido
+
+    static let body = nunito(17, .regular, relativeTo: .body)
+    static let callout = nunito(16, .regular, relativeTo: .callout)
+    /// Botões e valores de linhas de lista.
+    static let calloutStrong = nunito(16, .bold, relativeTo: .callout)
+    static let subheadline = nunito(15, .regular, relativeTo: .subheadline)
+    static let subheadlineStrong = nunito(15, .bold, relativeTo: .subheadline)
+    static let subheadlineHeavy = nunito(15, .heavy, relativeTo: .subheadline)
+    static let footnote = nunito(13, .regular, relativeTo: .footnote)
+    static let footnoteStrong = nunito(13, .bold, relativeTo: .footnote)
+    static let caption = nunito(12, .regular, relativeTo: .caption)
+    static let captionStrong = nunito(12, .bold, relativeTo: .caption)
+
+    // MARK: Display (Baloo 2) — títulos do calendário
+
+    static let displayTitle = Font.custom(displayFamily, size: 21, relativeTo: .title2)
+    static let displayNumber = Font.custom(displayFamily, size: 14, relativeTo: .subheadline)
+
+    // MARK: Tamanho fixo
+
+    /// Para arte que não pode mudar com o Dynamic Type — o cartão de compartilhar é
+    /// uma imagem 360×640 e tem que sair igual em qualquer configuração.
+    static func fixed(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
+        .custom(family, fixedSize: size).weight(weight)
     }
-}
 
-private extension Font.TextStyle {
-    var defaultSize: CGFloat {
-        switch self {
-        case .largeTitle:  return 34
-        case .title:       return 28
-        case .title2:      return 22
-        case .title3:      return 20
-        case .headline:    return 17
-        case .body:        return 17
-        case .callout:     return 16
-        case .subheadline: return 15
-        case .footnote:    return 13
-        case .caption:     return 12
-        case .caption2:    return 11
-        @unknown default:  return 17
-        }
+    private static func nunito(_ size: CGFloat, _ weight: Font.Weight, relativeTo style: Font.TextStyle) -> Font {
+        .custom(family, size: size, relativeTo: style).weight(weight)
     }
 }

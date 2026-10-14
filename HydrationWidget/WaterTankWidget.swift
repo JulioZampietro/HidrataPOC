@@ -77,7 +77,8 @@ struct WaterTankProvider: TimelineProvider {
     }
 }
 
-private let accentBlue = Color(red: 0.1098, green: 0.4627, blue: 0.9922)
+/// Mesmo azul de marca do app (`Color.appAccent`): o widget tinha o próprio tom, que já tinha divergido.
+private let accentBlue = Color.appAccent
 
 struct WaterTankWidgetView: View {
     @Environment(\.colorScheme) private var colorScheme
@@ -98,9 +99,11 @@ struct WaterTankWidgetView: View {
                         .scaleEffect(AppTheme.mascotSizeCorrection(for: mascot))
                 } else {
                     // Meta batida: na Home o mascote também some.
+                    // Branco sumia no tema claro (≈1,5:1 sobre a água a 100%); o azul de
+                    // texto da paleta passa de 3:1 nos dois temas (ícone grande).
                     Image(systemName: "checkmark")
                         .font(.system(size: 34, weight: .bold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Color.appAccentText)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)

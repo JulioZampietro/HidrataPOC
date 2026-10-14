@@ -15,7 +15,7 @@ struct MascotSpeechBubble: View {
             // interpolar — o SwiftUI troca o conteúdo instantaneamente por
             // padrão; isso é o que faz a troca de frase crossfade.
             .contentTransition(.opacity)
-            .font(.custom("Nunito", size: 13).weight(.bold))
+            .font(AppFont.footnoteStrong)
             .foregroundStyle(Color(red: 0.4314, green: 0.3647, blue: 0.2667)) // #6E5D44
             .multilineTextAlignment(.leading)
             .fixedSize(horizontal: false, vertical: true)
@@ -23,6 +23,9 @@ struct MascotSpeechBubble: View {
             .padding(.vertical, 8)
             .padding(.bottom, tailHeight)
             .frame(maxWidth: 150)
+            // Fala de enfeite sobre o recipiente, ao lado do botão de compartilhar: nos
+            // tamanhos de acessibilidade ela crescia por cima do botão e do mascote.
+            .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
             .background(
                 SpeechBubbleShape(
                     cornerRadius: 14,

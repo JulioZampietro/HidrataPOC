@@ -18,7 +18,7 @@ struct HydrationLiveActivity: Widget {
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
                     Image(systemName: "drop.fill")
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(Color.appAccentText)
                         .font(.title3)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
@@ -33,12 +33,12 @@ struct HydrationLiveActivity: Widget {
                 }
             } compactLeading: {
                 Image(systemName: "drop.fill")
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(Color.appAccentText)
             } compactTrailing: {
                 EmptyView()
             } minimal: {
                 Image(systemName: "drop.fill")
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(Color.appAccentText)
             }
         }
     }
@@ -71,7 +71,7 @@ private struct OverdueMessage: View {
     var body: some View {
         HStack(spacing: 6) {
             Image(systemName: "drop.fill")
-                .foregroundStyle(.blue)
+                .foregroundStyle(Color.appAccentText)
             Text("Faz uma hora que você não bebe água!")
                 .font(.subheadline.bold())
                 .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
@@ -86,10 +86,12 @@ private struct IntakeButton: View {
     var body: some View {
         Button(intent: LogIntakeIntent(amountML: amountML)) {
             Text(label)
-                .font(.caption.bold())
+                .font(.footnote.bold())
                 .frame(maxWidth: .infinity)
         }
+        // Branco sobre o `.blue` do sistema dava 4,0:1 (3,65:1 no escuro) em texto pequeno;
+        // o azul de marca dá 5,1:1.
         .buttonStyle(.borderedProminent)
-        .tint(.blue)
+        .tint(Color.appAccent)
     }
 }
