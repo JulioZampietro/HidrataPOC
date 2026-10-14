@@ -5,8 +5,6 @@ import SwiftUI
 /// Azul de marca usado no calendário do histórico (preenchimento, anel do dia
 /// atual e contador de metas batidas).
 
-/// Mesmo azul de accent da HomeView — usado na topBar para manter os botões idênticos.
-
 struct DiaHistorico: Identifiable {
     let id = UUID()
     let date: Date
@@ -49,10 +47,8 @@ private enum HistoricoCardPage {
 }
 
 struct HistoricoView: View {
-    private let headerButtonSize = TabScreenLayout.headerHeight // alvo mínimo de 44 pt; não cresce com o texto
     let profile: UserProfile
 
-    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.modelContext) private var modelContext
     @Query private var allLogs: [IntakeLog]
     @Query private var allDailyGoals: [DailyGoal]
@@ -60,30 +56,6 @@ struct HistoricoView: View {
     @State private var cardPage: HistoricoCardPage = .calendario
     @State private var selectedDay: DiaHistorico?
     @State private var tempContext: TemperatureAdjustmentContext?
-    @State private var phraseIndex: Int = 0
-    @State private var showShare = false
-    @State private var pokeCount: Int = 0
-    @State private var isPoking: Bool = false
-    @State private var overridePhrase: String? = nil
-    @GestureState private var mascotDragOffset: CGSize = .zero
-    @State private var lastMascotDragTranslation: CGSize = .zero
-    @State private var waterMotion = WaterMotion()
-    @State private var explodingMascot: String? = nil
-    /// Mascote do estágio anterior, só enquanto a transição de bolhas (estilo
-    /// Bob Esponja) de troca de estágio está em andamento — ver `handleGoalTransition`.
-    @State private var bubbleMascot: String? = nil
-    /// true enquanto o mascote NOVO ainda não deve aparecer (ver
-    /// `newMascotShowDelay` em `handleGoalTransition`) — sem isso, ele ficaria
-    /// vivo por baixo desde o primeiro instante da transição, aparecendo junto
-    /// do antigo pelas folgas transparentes da imagem/bolhas.
-    @State private var newMascotHidden = false
-
-    /// Mesmas frases da Home — o mascote precisa falar igual nas duas telas.
-    private static let mascotPhrases: [String] = [
-        "Não bebe água não",
-
-    ]
-
     private var calendar: Calendar {
         var cal = Calendar(identifier: .gregorian)
         cal.locale = Locale(identifier: "pt_BR")
@@ -125,10 +97,6 @@ struct HistoricoView: View {
         monthDays.filter { $0.bateuMeta }.count
     }
 
-    private var streakDias: Int {
-        HydrationMath.currentStreak(userLogs, goalML: goalResolver.goalML(on:), calendar: calendar)
-    }
-
     /// Mesma meta ajustada pelo clima usada na Home — sem isso, o nível de água das
     /// duas telas diverge num dia quente (ver `HydrationMath.effectiveGoalML`).
     private var effectiveGoalML: Int {
@@ -137,15 +105,6 @@ struct HistoricoView: View {
             tempContext: tempContext,
             recordedAdjustmentML: DailyGoalResolver.recordedAdjustmentML(in: dailyGoals, on: .now, calendar: calendar)
         )
-    }
-
-    private var consumedToday: Int {
-        HydrationMath.totalML(userLogs, on: .now, calendar: calendar)
-    }
-
-    private var todayProgress: Double {
-        guard effectiveGoalML > 0 else { return 0 }
-        return min(1, Double(consumedToday) / Double(effectiveGoalML))
     }
 
     private var monthTitle: String {
@@ -163,34 +122,27 @@ struct HistoricoView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            GeometryReader { geo in
-                ScrollView {
-                    // Same layout as Home (`TabScreenLayout`), so the mascot and water
-                    // match on both tabs and the card ends the same gap above the tab bar.
-                    VStack(spacing: TabScreenLayout.spacing) {
-                        topSection(height: TabScreenLayout.waterHeight(forVisibleHeight: geo.size.height), width: geo.size.width - 20)
-                            .padding(.horizontal, 10)
-                        calendarCard(height: max(TabScreenLayout.contentHeight(forVisibleHeight: geo.size.height), Self.minCalendarCardHeight))
-                            .padding(.horizontal)
-                    }
-                    .padding(.bottom, TabScreenLayout.spacing)
-                    .disableScrollBounce()
-                }
-                .scrollBounceBehavior(.basedOnSize)
+        GeometryReader { geo in
+            // Same layout as Home (`TabScreenLayout`): the water container
+            // (`WaterHeaderView`) is drawn by `RootView`, fixed on top of both pages,
+            // so this only keeps its space; the card ends the same gap above the
+            // bottom safe area.
+            VStack(spacing: TabScreenLayout.spacing) {
+                Color.clear
+                    .frame(height: TabScreenLayout.waterHeight(forVisibleHeight: geo.size.height, safeAreaTop: geo.safeAreaInsets.top))
+                calendarCard(height: TabScreenLayout.contentHeight(forVisibleHeight: geo.size.height))
+                    .padding(.horizontal)
             }
-            .appScreenBackground()
-            .navigationBarHidden(true)
+            .padding(.top, TabScreenLayout.waterTop(safeAreaTop: geo.safeAreaInsets.top))
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .ignoresSafeArea(edges: .top)
         }
+        .appScreenBackground()
         .onAppear {
             guard tempContext == nil else { return }
             Task {
                 tempContext = await WeatherContextService.shared.temperatureAdjustmentContext()
             }
-        }
-        .sheet(isPresented: $showShare) {
-            ShareProgressView(snapshot: ShareProgressSnapshot(consumedML: consumedToday, goalML: effectiveGoalML, streakDias: streakDias))
-                .trackSheetLifecycle(.shareProgress, screen: .historico, userID: profile.userID)
         }
         .sheet(item: $selectedDay) { dia in
             DayDetailSheet(dia: dia, metaDiariaML: goalResolver.goalML(on: dia.date), userID: profile.userID, calendar: calendar)
@@ -198,307 +150,6 @@ struct HistoricoView: View {
         }
     }
 
-    private var topBar: some View {
-        HStack {
-            HStack(spacing: 6) {
-                Image(systemName: "drop.fill")
-                    .font(AppFont.caption)
-                    .foregroundStyle(Color.appAccentText)
-                Text("\(streakDias)")
-                    .font(AppFont.subheadlineStrong)
-                Text("dias")
-                    .font(AppFont.subheadline)
-            }
-            .foregroundStyle(.primary)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
-            .background(AppTheme.screenBackground(for: colorScheme), in: Capsule())
-
-            Spacer()
-
-            Button {
-                InteractionTracker.log("historico_share_tap", screen: .historico, userID: profile.userID, context: modelContext)
-                showShare = true
-            } label: {
-                Image(systemName: "square.and.arrow.up")
-                    .font(.system(.subheadline, weight: .semibold))
-                    .dynamicTypeSize(...DynamicTypeSize.xxxLarge) // o ícone cabe no círculo de 44 pt
-                    .foregroundStyle(Color.appAccentText)
-                    .frame(width: headerButtonSize, height: headerButtonSize)
-                    .glassEffect(.regular.interactive(), in: Circle())
-            }
-            .accessibilityLabel("Compartilhar")
-        }
-    }
-
-    /// Mesmo recipiente da Home (mesma forma, altura e margens), enchendo com o
-    /// progresso do dia. O cabeçalho fica fora do conteúdo da água (a refração
-    /// achata o conteúdo e o vidro dos botões ficaria escuro).
-    private var containerShape: UnevenRoundedRectangle {
-        UnevenRoundedRectangle(topLeadingRadius: 32, bottomLeadingRadius: 32, bottomTrailingRadius: 32, topTrailingRadius: 32, style: .continuous)
-    }
-
-    private func topSection(height: CGFloat, width: CGFloat) -> some View {
-        // O conteúdo do recipiente (mascote + shader da água) não tem fundo opaco
-        // próprio, então uma `.shadow` direta nele sairia recortada e irregular.
-        // Essa forma preenchida com a mesma cor do fundo fica escondida atrás do
-        // recipiente e só deixa a sombra aparecer, contornando-o nos dois temas.
-        mascotPlaceholder(height: TabScreenLayout.mascotHeight(forWaterHeight: height), width: width)
-            // Esse respiro abaixo do mascote (antes do `.frame` de altura fixa, pra
-            // não aumentar a altura total do recipiente) é o que o afasta do fundo.
-            .padding(.bottom, TabScreenLayout.mascotBottomPadding)
-            .frame(maxWidth: .infinity)
-            // `.bottom` (não `.center`): a altura extra do recipiente (reclamada do
-            // cabeçalho) vira espaço de água acima do mascote, em vez de se dividir
-            // igual entre cima e baixo e empurrar o mascote pra cima do centro.
-            .frame(height: height, alignment: .bottom)
-        .background {
-            containerShape
-                .fill(AppTheme.screenBackground(for: colorScheme))
-        }
-        .waterContainer(
-            level: todayProgress,
-            in: containerShape,
-            bleedsIntoTopSafeArea: true,
-            motion: waterMotion
-        )
-        // Streak e botão de compartilhar flutuam por cima do recipiente (fora do
-        // `.waterContainer`, então não passam pela refração da água — senão o vidro
-        // dos botões perderia a transparência e ficaria escuro).
-        .overlay(alignment: .top) {
-            topBar
-                .padding(.horizontal, 10)
-                .padding(.top, 14)
-        }
-    }
-
-    private func mascotPlaceholder(height: CGFloat, width: CGFloat) -> some View {
-        ZStack(alignment: .topTrailing) {
-            if let mascot = AppTheme.mascotImageName(for: todayProgress), !newMascotHidden {
-                Image(mascot)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(height: height)
-                    // Slot de layout com largura e altura fixas, iguais para todos os
-                    // mascotes: sem isso, cada imagem (recortada no seu próprio contorno,
-                    // com proporção diferente) mudava o tamanho da ZStack e fazia o
-                    // mascote "saltar" de posição ao trocar de estágio.
-                    .frame(width: height * 1.55, height: height, alignment: .center)
-                    .scaleEffect(
-                        x: AppTheme.mascotSizeCorrection(for: mascot) * (isPoking ? 1.18 : 1.0),
-                        y: AppTheme.mascotSizeCorrection(for: mascot) * (isPoking ? 0.82 : 1.0),
-                        anchor: .center
-                    )
-                    // Precisa ser explícita (igual à de `mascotDragOffset` abaixo): o
-                    // `.transaction { animation = nil }` no ZStack pai (pra trocar de
-                    // mascote sem crossfade) zera a animação ambiente de toda a
-                    // subárvore, incluindo o `withAnimation` do toque em `pokeMascot()`
-                    // — sem essa linha, o "cutucão" ficava instantâneo (travado).
-                    .animation(.interpolatingSpring(stiffness: 350, damping: 10), value: isPoking)
-                    .offset(mascotDragOffset)
-                    .animation(.interactiveSpring(response: 0.28, dampingFraction: 0.55), value: mascotDragOffset)
-                    .onTapGesture { pokeMascot() }
-                    .simultaneousGesture(mascotDragGesture)
-
-                MascotSpeechBubble(text: overridePhrase ?? Self.mascotPhrases[phraseIndex])
-                    .offset(x: 8 + mascotDragOffset.width, y: -8 + mascotDragOffset.height)
-                    .animation(.interactiveSpring(response: 0.28, dampingFraction: 0.55), value: mascotDragOffset)
-                    // Mesmo motivo do `.animation(value: isPoking)` no mascote: precisa
-                    // ser explícita pra sobreviver ao `.transaction` do ZStack pai.
-                    .animation(.easeInOut(duration: 0.3), value: overridePhrase ?? Self.mascotPhrases[phraseIndex])
-                    .transition(.scale(scale: 0.8, anchor: .bottomLeading).combined(with: .opacity))
-            } else if let exploding = explodingMascot {
-                // Mascote1 "quebrando": racha em pedaços que voam pra fora e caem, no
-                // instante em que nasce em pedrinhas na água (`waterMotion.explodeIntoStones`).
-                // Mesma correção de tamanho do mascote ao vivo (`scaleEffect` acima) —
-                // sem ela, a imagem nascia no tamanho cheio da caixa, bem maior do que o
-                // mascote normal, e parecia um "zoom" antes de quebrar.
-                let correction = AppTheme.mascotSizeCorrection(for: exploding)
-                MascotShatterView(imageName: exploding, width: height * 1.55 * correction, height: height * correction)
-                    .frame(width: height * 1.55, height: height, alignment: .center)
-            } else {
-                // Meta batida (ou mascote novo ainda escondido por `newMascotHidden`
-                // durante a transição de bolhas): o mascote some, mas a largura fica
-                // igual à dos outros branches — sem isso, a ZStack (alignment
-                // .topTrailing) perde a referência de largura, encolhe/estica, e o
-                // mascote parece "deslizar" de lado quando volta a aparecer.
-                Color.clear.frame(width: height * 1.55, height: height)
-            }
-        }
-        // Transição de bolhas ao trocar de estágio (mascote5→mascote4 etc.),
-        // estilo Bob Esponja: o mascote ANTIGO fica sobreposto aqui, escondido
-        // pela própria view em `oldMascotHideDelay`; o mascote NOVO (ramo acima)
-        // só aparece em `newMascotShowDelay` — os dois tempos são independentes,
-        // ver `handleGoalTransition`. Em `.overlay` (não dentro da ZStack de cima)
-        // pra poder usar a largura cheia do recipiente (`width`, bem maior que a
-        // caixa do mascote) sem fazer a ZStack de cima — que usa esse mesmo
-        // tamanho pra alinhar o mascote com `.topTrailing` — mudar de largura e
-        // deslocar o mascote. Independe do nível de água real, então funciona
-        // igual com o recipiente cheio ou quase vazio.
-        .overlay {
-            if let bubbling = bubbleMascot {
-                MascotBubbleTransitionView(imageName: bubbling, width: width, height: height, revealDelay: Self.oldMascotHideDelay)
-                    .frame(width: width, height: height)
-            }
-        }
-        // Sem isso, a troca de ramo acima (mascote vivo → quebrando → vazio) herdava
-        // a animação de 1,2s do nível da água (`WaterRefractionView`, que envolve todo
-        // esse conteúdo) e o SwiftUI fazia um crossfade longo entre os dois: dava pra
-        // ver o mascote inteiro parado atrás, com o balão, sumindo devagar por trás do
-        // mascote quebrando. Com a animação ambiente cancelada aqui, a troca é instantânea
-        // — só a física dos cacos (que tem sua própria `.animation` explícita) continua animada.
-        .transaction { transaction in
-            transaction.animation = nil
-        }
-        .onAppear {
-            phraseIndex = Int.random(in: 0..<Self.mascotPhrases.count)
-            // `.onChange` abaixo só dispara numa transição ao vivo: se a tela abre
-            // já com a meta batida (de uma sessão anterior), ela nunca viu o
-            // cruzamento, e sem isso o recipiente ficava vazio — nem mascote, nem
-            // pedrinhas. Aqui o estado das pedrinhas é sincronizado com o progresso
-            // atual assim que a tela aparece.
-            syncStonesWithProgress()
-        }
-        .task {
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(6))
-                guard overridePhrase == nil else { continue }
-                phraseIndex = (phraseIndex + 1) % Self.mascotPhrases.count
-            }
-        }
-        .onChange(of: todayProgress) { oldValue, newValue in
-            handleGoalTransition(from: oldValue, to: newValue)
-        }
-    }
-
-    /// Ao bater a meta (mascote1 → nenhum mascote), ele "explode": primeiro quebra
-    /// (`MascotShatterView`) e só quando essa quebra está quase no fim é que nascem
-    /// as pedrinhas que caem no fundo do recipiente — uma depois da outra, não as
-    /// duas coisas ao mesmo tempo. Se a meta deixar de estar batida (ex.: novo dia),
-    /// as pedrinhas somem para o mascote voltar do zero. Entre estágios intermediários
-    /// (mascote5→mascote4 etc., pra cima ou pra baixo, ex. ao excluir um registro),
-    /// a transição de bolhas (`MascotBubbleTransitionView`) cobre a troca.
-    /// Tempo (s) até a imagem do mascote ANTIGO (dentro da cortina de bolhas)
-    /// desaparecer. Independente de `newMascotShowDelay` — pode ser maior,
-    /// menor ou igual.
-    private static let oldMascotHideDelay: Double = 0.75
-    /// Tempo (s) até a imagem do mascote NOVO (por baixo de tudo) passar a
-    /// aparecer. Independente de `oldMascotHideDelay` — se for menor, o novo
-    /// aparece ANTES do antigo sumir (os dois ficam visíveis juntos por um
-    /// tempo, sobrepostos pelas bolhas); se for maior, há um intervalo em que
-    /// nenhum dos dois aparece (só a cortina de bolhas, sem mascote atrás).
-    private static let newMascotShowDelay: Double = 0.75
-    /// Tempo (ms) que a view de bolhas inteira continua montada antes de ser
-    /// descartada. Deve ficar sempre >= o maior dos dois tempos acima, somado
-    /// à maior duração de subida de bolha (`riseDuration` em
-    /// `MascotBubbleTransitionView`), senão a animação é cortada antes do fim.
-    private static let mascotBubbleTotalDuration: Int = 1900
-
-    private func handleGoalTransition(from oldValue: Double, to newValue: Double) {
-        let oldMascot = AppTheme.mascotImageName(for: oldValue)
-        let newMascot = AppTheme.mascotImageName(for: newValue)
-
-        if oldValue < 1.0, newValue >= 1.0, let mascot = oldMascot {
-            explodingMascot = mascot
-            UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
-            Task {
-                try? await Task.sleep(for: .milliseconds(600))
-                waterMotion.explodeIntoStones()
-                try? await Task.sleep(for: .milliseconds(160))
-                explodingMascot = nil
-            }
-        } else if oldValue >= 1.0, newValue < 1.0 {
-            waterMotion.clearStones()
-        } else if let old = oldMascot, let new = newMascot, old != new, newValue > oldValue {
-            bubbleMascot = old
-            newMascotHidden = true
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-            Task {
-                try? await Task.sleep(for: .milliseconds(Int(Self.newMascotShowDelay * 1000)))
-                newMascotHidden = false
-            }
-            Task {
-                try? await Task.sleep(for: .milliseconds(Self.mascotBubbleTotalDuration))
-                bubbleMascot = nil
-            }
-        }
-    }
-
-    /// Garante que as pedrinhas batem com o progresso atual ao abrir a tela —
-    /// sem explosão (isso só acontece ao vivo, em `handleGoalTransition`).
-    private func syncStonesWithProgress() {
-        if todayProgress >= 1.0 {
-            waterMotion.explodeIntoStones()
-        } else {
-            waterMotion.clearStones()
-        }
-    }
-
-    private func pokeMascot() {
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-
-        // A curva vem do `.animation(value: isPoking)` junto do `scaleEffect` —
-        // só precisa setar o valor aqui.
-        isPoking = true
-        Task {
-            try? await Task.sleep(for: .milliseconds(130))
-            isPoking = false
-        }
-
-        pokeCount += 1
-
-        if pokeCount >= 3 {
-            pokeCount = 0
-            overridePhrase = "Para de me cutucar zé mané"
-            Task {
-                try? await Task.sleep(for: .seconds(4))
-                overridePhrase = nil
-            }
-        } else {
-            phraseIndex = (phraseIndex + 1) % Self.mascotPhrases.count
-        }
-    }
-
-    /// Arrastar o mascote: ele acompanha o dedo dentro de um raio curto e, ao soltar,
-    /// a mola o traz de volta à posição original — sempre dentro do recipiente. O
-    /// movimento também empurra a superfície da água (mesmo `WaterMotion` do
-    /// `waterContainer`), como se o mascote estivesse mergulhado nela.
-    private var mascotDragGesture: some Gesture {
-        DragGesture(minimumDistance: 0)
-            .updating($mascotDragOffset) { value, state, _ in
-                state = CGSize(
-                    width: clampedDrag(value.translation.width, limit: 110),
-                    height: clampedDrag(value.translation.height, limit: 45)
-                )
-            }
-            .onChanged { value in
-                let deltaX = value.translation.width - lastMascotDragTranslation.width
-                let deltaY = value.translation.height - lastMascotDragTranslation.height
-                lastMascotDragTranslation = value.translation
-                disturbWaterFromDrag(deltaX: deltaX, deltaY: deltaY)
-            }
-            .onEnded { value in
-                // Soltar "chacoalha" a água com força proporcional a quão longe o
-                // mascote tinha ido, na direção em que ele está voltando para o centro.
-                disturbWaterFromDrag(deltaX: -value.translation.width * 0.6, deltaY: -value.translation.height * 0.6)
-                lastMascotDragTranslation = .zero
-            }
-    }
-
-    private func clampedDrag(_ translation: CGFloat, limit: CGFloat) -> CGFloat {
-        max(-limit, min(limit, translation))
-    }
-
-    private func disturbWaterFromDrag(deltaX: CGFloat, deltaY: CGFloat) {
-        let magnitude = (deltaX * deltaX + deltaY * deltaY).squareRoot()
-        guard magnitude > 0.01 else { return }
-        let sign: CGFloat = deltaY >= 0 ? 1 : -1
-        let strength = Float(magnitude * sign) * WaterTuning.dragPushGain
-        waterMotion.disturb(atU: 0.5, strength: strength)
-    }
-
-    /// Below this the day cells would get too small; the screen scrolls instead.
-    private static let minCalendarCardHeight: CGFloat = 330
     private static let gridRowSpacing: CGFloat = 10
     private static let gridColumnSpacing: CGFloat = 8
 
@@ -522,7 +173,6 @@ struct HistoricoView: View {
         .background(RoundedRectangle(cornerRadius: 24, style: .continuous)
             .fill(Color(UIColor.secondarySystemBackground))
             .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4))
-        .simultaneousGesture(cardSwipeGesture)
     }
 
     private var calendarPageContent: some View {
@@ -623,8 +273,8 @@ struct HistoricoView: View {
         }
     }
 
-    /// Setinha que alterna entre o calendário e o gráfico semanal — a mesma
-    /// troca também acontece arrastando o card para o lado (`cardSwipeGesture`).
+    /// Setinha que alterna entre o calendário e o gráfico semanal. Arrastar o card
+    /// para o lado não troca de página: esse gesto volta para a Home.
     private var pageToggleButton: some View {
         Button {
             let toPage = cardPage == .calendario ? "semana" : "calendario"
@@ -641,21 +291,6 @@ struct HistoricoView: View {
                 .touchTarget(visibleSize: 26)
         }
         .accessibilityLabel(cardPage == .calendario ? "Ver estatísticas dos últimos 7 dias" : "Voltar para o calendário")
-    }
-
-    private var cardSwipeGesture: some Gesture {
-        DragGesture(minimumDistance: 30)
-            .onEnded { value in
-                let horizontal = value.translation.width
-                let vertical = value.translation.height
-                guard abs(horizontal) > abs(vertical), abs(horizontal) > 50 else { return }
-
-                let toPage = horizontal < 0 ? "semana" : "calendario"
-                InteractionTracker.log("historico_page_toggle", screen: .historico, userID: profile.userID, metadata: ["method": "swipe", "toPage": toPage], context: modelContext)
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    cardPage = horizontal < 0 ? .semana : .calendario
-                }
-            }
     }
 
     private var weekdayHeader: some View {
