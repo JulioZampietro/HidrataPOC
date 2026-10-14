@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// Os botões do jogo das argolas (esquerdo, direito e o jato central, mais baixo, embaixo),
-/// que ocupam o lugar dos quatro cartões de ingestão quando a meta do dia é batida. Segurar o botão mantém
+/// Os botões do jogo das argolas (seta pra esquerda, seta pra direita e a rajada central),
+/// brancos como os cartões de ingestão, com o ícone azul do app, que ocupam o lugar dos cartões de ingestão quando a meta do dia
+/// é batida. Só o ícone aparece; o nome fica no rótulo de acessibilidade. Segurar o botão mantém
 /// o jato aberto; soltar fecha.
 struct RingGameControls: View {
     let side: RingGameSide
@@ -9,31 +10,38 @@ struct RingGameControls: View {
     var onPressChange: (Bool) -> Void
     var onAccessibilityPulse: () -> Void
 
+    private var symbol: String {
+        switch side {
+        case .left: "arrow.left.circle.fill"
+        case .right: "arrow.right.circle.fill"
+        case .center: "arrow.clockwise.circle.fill"
+        }
+    }
+
     private var title: String {
         switch side {
         case .left: "Esquerda"
         case .right: "Direita"
-        case .center: "Jato central"
+        case .center: "Rajada central"
         }
     }
 
     var body: some View {
-        // O botão central é largo e baixo: ícone e texto lado a lado.
-        let layout = side == .center ? AnyLayout(HStackLayout(spacing: 10)) : AnyLayout(VStackLayout(spacing: 8))
-        layout {
-            Image(systemName: "arrow.up.circle.fill")
-                .font(.system(size: side == .center ? 30 : 44, weight: .semibold))
-                .symbolRenderingMode(.hierarchical)
-            Text(title)
-                .font(AppFont.headline)
-        }
-        .foregroundStyle(isPressed ? .white : Color.appAccentText)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(isPressed ? Color.appAccent : Color(UIColor.secondarySystemBackground))
-                .shadow(color: .black.opacity(0.18), radius: 8, x: 0, y: 4)
-        )
+        // Ícone grande, no tamanho dos desenhos dos cartões de ingestão: seta branca sobre o
+        // círculo azul do app; apertado, as cores se invertem.
+        Image(systemName: symbol)
+            .resizable()
+            .scaledToFit()
+            .fontWeight(.semibold)
+            .symbolRenderingMode(.palette)
+            .foregroundStyle(isPressed ? Color.appAccent : .white, isPressed ? .white : Color.appAccent)
+            .padding(22)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(isPressed ? Color.appAccent : Color(UIColor.secondarySystemBackground))
+                    .shadow(color: .black.opacity(0.18), radius: 8, x: 0, y: 4)
+            )
         .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .scaleEffect(isPressed ? 0.97 : 1)
         .animation(.easeOut(duration: 0.12), value: isPressed)

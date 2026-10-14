@@ -40,6 +40,9 @@ struct HomeView: View {
     /// Jogo das argolas: recompensa por bater a meta do dia (ver `RingGameSimulation`).
     @State private var ringGame = RingGameSimulation()
     @State private var pressedJets = [Bool](repeating: false, count: RingGameSide.allCases.count)
+    /// Com a meta batida, o usuário pode voltar aos botões de ingestão ("Beber água"); tocar no
+    /// recipiente de água traz os botões do jogo de volta. Só vale enquanto a meta está batida.
+    @State private var showsIntakeInsteadOfGame = false
     /// Os quatro cartões de ingestão viram os dois botões do jogo na mesma animação.
     @Namespace private var controlsNamespace
     /// Tempo (s) entre a explosão do mascote e as argolas caírem na água: dá tempo das
@@ -132,6 +135,13 @@ struct HomeView: View {
         .task { await loadWeather() }
         .onChange(of: goalReached, initial: true) { wasReached, isReached in
             handleRingGame(isReached: isReached, isLiveTransition: wasReached != isReached)
+            if !isReached { showsIntakeInsteadOfGame = false }
+        }
+        // Os botões do jogo somem (ex.: "Beber água"): solta qualquer jato que estivesse apertado.
+        .onChange(of: showsGameControls) { _, isShowing in
+            guard !isShowing else { return }
+            pressedJets = [Bool](repeating: false, count: RingGameSide.allCases.count)
+            for side in RingGameSide.allCases { ringGame.setJet(side, open: false) }
         }
         // Keeps the Home Screen water tank widget filling against the same goal as the bar,
         // and snapshots it as today's goal so later edits never touch this day.
@@ -236,6 +246,9 @@ struct HomeView: View {
 
     private var goalReached: Bool { progress >= 1 }
 
+    /// Botões do jogo no lugar dos cartões de ingestão.
+    private var showsGameControls: Bool { goalReached && !showsIntakeInsteadOfGame }
+
     private var showsGrass: Bool { grassEquipped && Cosmetic.grass.isUnlocked(streak: streak) }
 
     private var containerShape: UnevenRoundedRectangle {
@@ -296,6 +309,17 @@ struct HomeView: View {
             in: containerShape,
             bleedsIntoTopSafeArea: true,
             motion: waterMotion
+        )
+        // Voltar pro jogo: com a meta batida e os botões de ingestão à mostra, tocar no
+        // recipiente traz os botões do jogo de volta.
+        .contentShape(containerShape)
+        // `simultaneousGesture`: o próprio recipiente já tem um arrasto (empurrar pedrinhas) e,
+        // com um `onTapGesture` comum, ele ficava com o toque.
+        .simultaneousGesture(
+            TapGesture().onEnded {
+                guard goalReached, showsIntakeInsteadOfGame else { return }
+                withAnimation(.spring(response: 0.6, dampingFraction: 0.85)) { showsIntakeInsteadOfGame = false }
+            }
         )
         // Streak e botão de compartilhar flutuam por cima do recipiente (fora do
         // `.waterContainer`, então não passam pela refração da água — senão o vidro
@@ -668,15 +692,13 @@ struct HomeView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// Os quatro cartões de ingestão; com a meta batida viram os dois botões do jogo das
-    /// argolas. "Gole" vira o botão esquerdo e "Copo" o direito (`matchedGeometryEffect`);
-    /// os outros dois cartões somem.
+    /// Os quatro cartões de ingestão; com a meta batida viram os quatro botões do jogo das
+    /// argolas, no mesmo lugar (`matchedGeometryEffect`): "Gole" → seta pra esquerda, "Copo" →
+    /// seta pra direita, "Garrafa" → jato central e "Outro" → "Beber água", que volta aos
+    /// cartões de ingestão (tocar no recipiente de água volta ao jogo).
     private func bottomControls(cardHeight: CGFloat) -> some View {
         ZStack {
-            if goalReached {
-                // Esquerda/direita ocupam o lugar de "Gole"/"Copo"; o jato central entra embaixo.
-                let totalHeight = cardHeight * 2 + intakeGridSpacing
-                let centerHeight = max(totalHeight * 0.26, 64)
+            if showsGameControls {
                 VStack(spacing: intakeGridSpacing) {
                     HStack(spacing: intakeGridSpacing) {
                         jetButton(.left)
@@ -684,16 +706,22 @@ struct HomeView: View {
                         jetButton(.right)
                             .matchedGeometryEffect(id: "glass", in: controlsNamespace)
                     }
-                    jetButton(.center)
-                        .frame(height: centerHeight)
-                        .transition(.opacity.combined(with: .scale(scale: 0.9, anchor: .bottom)))
+                    .frame(height: cardHeight)
+                    HStack(spacing: intakeGridSpacing) {
+                        jetButton(.center)
+                            .matchedGeometryEffect(id: "bottle", in: controlsNamespace)
+                        RingGameIntakeButton(height: cardHeight) {
+                            withAnimation(.spring(response: 0.6, dampingFraction: 0.85)) { showsIntakeInsteadOfGame = true }
+                        }
+                        .matchedGeometryEffect(id: "custom", in: controlsNamespace)
+                    }
+                    .frame(height: cardHeight)
                 }
-                .frame(height: totalHeight)
             } else {
                 intakeGrid(cardHeight: cardHeight)
             }
         }
-        .animation(.spring(response: 0.6, dampingFraction: 0.85), value: goalReached)
+        .animation(.spring(response: 0.6, dampingFraction: 0.85), value: showsGameControls)
     }
 
     private func intakeGrid(cardHeight: CGFloat) -> some View {
@@ -706,9 +734,9 @@ struct HomeView: View {
             }
             HStack(spacing: intakeGridSpacing) {
                 intakeCard(.bottle, height: cardHeight)
-                    .transition(.opacity)
+                    .matchedGeometryEffect(id: "bottle", in: controlsNamespace)
                 customIntakeCard(height: cardHeight)
-                    .transition(.opacity)
+                    .matchedGeometryEffect(id: "custom", in: controlsNamespace)
             }
         }
     }
@@ -868,7 +896,7 @@ struct IntakeCardContent: View {
     @Environment(\.colorScheme) private var colorScheme
     let icon: IntakeCardIcon?
     let title: String
-    let subtitle: String
+    var subtitle: String?
     var isHighlighted: Bool = false
     var height: CGFloat? = nil
 
@@ -923,9 +951,11 @@ struct IntakeCardContent: View {
                 .font(AppFont.headline)
                 .foregroundStyle(titleColor)
 
-            Text(subtitle)
-                .font(AppFont.subheadline)
-                .foregroundStyle(subtitleColor)
+            if let subtitle {
+                Text(subtitle)
+                    .font(AppFont.subheadline)
+                    .foregroundStyle(subtitleColor)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)

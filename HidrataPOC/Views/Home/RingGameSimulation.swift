@@ -8,8 +8,9 @@ enum RingGameTuning {
     static let ringSpawnInterval: Float = 0.18   // s entre uma argola e a próxima caindo na água
 
     // Física na água
-    static let sinkGravity: Float = 150          // pt/s² ao longo de `down` — quase neutra, afunda devagar
-    static let minimumSink: Float = 0.6          // componente vertical mínima da gravidade (0…1)
+    static let sinkGravity: Float = 150          // pt/s² ao longo de `down` (gravidade efetiva do sensor, a mesma da água) — quase neutra, afunda devagar
+    static let wallRestSpeed: Float = 40         // pt/s — abaixo disso a argola para ao encostar na parede, em vez de quicar
+    static let wallFriction: Float = 2.5         // 1/s — atrito ao longo da parede/fundo
     static let drag: Float = 2.6                 // 1/s — arrasto da água
     static let wallRestitution: Float = 0.35
     static let ringBounce: Float = 0.6           // quanto da velocidade relativa vira ricochete entre argolas
@@ -175,7 +176,6 @@ final class RingGameSimulation {
     // MARK: Geometria (derivada do tamanho do recipiente)
 
     private func isJetOpen(_ index: Int) -> Bool { jetHeld[index] || jetPulse[index] > 0 }
-    private var isAnyJetOpen: Bool { jetHeld.contains(true) || jetPulse.contains { $0 > 0 } }
     private static let jetIndices = 0..<RingGameSide.allCases.count
 
     /// Para que lado o jato se inclina: esquerdo pro meio (+1), direito pro meio (−1), central reto (0).
@@ -258,17 +258,17 @@ final class RingGameSimulation {
                 continue
             }
 
-            // Deriva horizontal: ruído que muda de rumo aos poucos (processo de
-            // Ornstein-Uhlenbeck), diferente pra cada argola. Só no eixo x — nada
-            // sobe ou desce sozinho; subir é coisa dos jatos.
+            // Deriva: ruído que muda de rumo aos poucos (processo de Ornstein-Uhlenbeck),
+            // diferente pra cada argola, sempre perpendicular à gravidade (na tela em pé, é a
+            // horizontal) — nada sobe ou desce sozinho; subir é coisa dos jatos.
             let memory = RingGameTuning.wanderMemory
             let kick = RingGameTuning.wanderStrength * (2 * memory).squareRoot()
             rings[i].wander += SIMD2(Float.random(in: -1...1), 0) * (kick * dt.squareRoot())
                 - rings[i].wander * (memory * dt)
-            // A gravidade inclina com o aparelho, mas nunca aponta pra cima: segurando o
-            // celular de ponta-cabeça ou deitado, as argolas não flutuam sozinhas.
-            let sink = SIMD2<Float>(down.x, max(down.y, RingGameTuning.minimumSink))
-            var accel = sink * RingGameTuning.sinkGravity + rings[i].wander
+            // Gravidade de verdade: a mesma direção que inclina a água (`WaterMotion.down`, do
+            // giroscópio). Inclinando ou virando o aparelho, as argolas caem pro lado de baixo dele.
+            let tangent = SIMD2<Float>(down.y, -down.x)
+            var accel = down * RingGameTuning.sinkGravity + tangent * rings[i].wander.x
             var inJet = false
             for jet in Self.jetIndices where isJetOpen(jet) {
                 let jetAccel = jetAcceleration(at: rings[i].position, jet: jet)
@@ -288,13 +288,17 @@ final class RingGameSimulation {
             rings[i].position += rings[i].velocity * dt
             rings[i].phase += (Self.length(rings[i].velocity) * 0.02 + 0.6) * dt
 
-            // Paredes
+            // Paredes: as quatro valem igual (a gravidade pode apontar pra qualquer lado). Bate
+            // com pouco ricochete, assenta por atrito e, devagar, para de quicar.
             var p = rings[i].position, v = rings[i].velocity
             let restitution = RingGameTuning.wallRestitution
-            if p.x < radius { p.x = radius; v.x = abs(v.x) * restitution }
-            if p.x > width - radius { p.x = width - radius; v.x = -abs(v.x) * restitution }
-            if p.y < radius { p.y = radius; v.y = abs(v.y) * restitution }
-            if p.y > height - radius * 0.5 { p.y = height - radius * 0.5; v.y = 0; v.x *= 0.9 }
+            let rest = RingGameTuning.wallRestSpeed
+            let friction = max(0, 1 - RingGameTuning.wallFriction * dt)
+            let bottomLimit = height - radius * 0.5 // o fundo deixa a argola afundar um pouco entre as pedrinhas
+            if p.x < radius { p.x = radius; v.x = abs(v.x) > rest ? abs(v.x) * restitution : 0; v.y *= friction }
+            if p.x > width - radius { p.x = width - radius; v.x = abs(v.x) > rest ? -abs(v.x) * restitution : 0; v.y *= friction }
+            if p.y < radius { p.y = radius; v.y = abs(v.y) > rest ? abs(v.y) * restitution : 0; v.x *= friction }
+            if p.y > bottomLimit { p.y = bottomLimit; v.y = abs(v.y) > rest ? -abs(v.y) * restitution : 0; v.x *= friction }
 
             // Pinos: cruzar a ponta de cima pra baixo, com o pino dentro do furo, enfia; fora
             // disso o pino é uma parede (a argola desliza pra fora).
@@ -416,12 +420,6 @@ final class RingGameSimulation {
                     let impulse = normal * (closing * RingGameTuning.ringBounce)
                     rings[i].velocity += impulse
                     rings[j].velocity -= impulse
-                }
-                // Empurrar pra separar não pode virar subida — a não ser que um jato esteja aberto
-                // (aí quem sobe é o jato ou a rajada, e uma pilha de argolas precisa poder ser levantada).
-                if !isAnyJetOpen, burstFlash <= 0 {
-                    rings[i].velocity.y = max(rings[i].velocity.y, -8)
-                    rings[j].velocity.y = max(rings[j].velocity.y, -8)
                 }
             }
         }
