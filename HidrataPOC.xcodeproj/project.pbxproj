@@ -100,6 +100,9 @@
 		GG11223344556677889900GG /* Nunito.ttf in Resources */ = {isa = PBXBuildFile; fileRef = EE11223344556677889900EE /* Nunito.ttf */; };
 		HH11223344556677889900HH /* HealthKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = II11223344556677889900II /* HealthKitService.swift */; };
 		JJ11223344556677889900JJ /* HealthConnectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = KK11223344556677889900KK /* HealthConnectView.swift */; };
+		A0DEC0A1B2C3D4E5F6000200 /* RingGameSimulation.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0DEC0A1B2C3D4E5F6000100 /* RingGameSimulation.swift */; };
+		A0DEC0A1B2C3D4E5F6000201 /* RingGameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0DEC0A1B2C3D4E5F6000101 /* RingGameView.swift */; };
+		A0DEC0A1B2C3D4E5F6000202 /* RingGameControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0DEC0A1B2C3D4E5F6000102 /* RingGameControls.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -236,6 +239,9 @@
 		FA12B3C9D0E74A8B1C2D5F6F /* FeatureOnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeatureOnboardingView.swift; sourceTree = "<group>"; };
 		II11223344556677889900II /* HealthKitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitService.swift; sourceTree = "<group>"; };
 		KK11223344556677889900KK /* HealthConnectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthConnectView.swift; sourceTree = "<group>"; };
+		A0DEC0A1B2C3D4E5F6000100 /* RingGameSimulation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RingGameSimulation.swift; sourceTree = "<group>"; };
+		A0DEC0A1B2C3D4E5F6000101 /* RingGameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RingGameView.swift; sourceTree = "<group>"; };
+		A0DEC0A1B2C3D4E5F6000102 /* RingGameControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RingGameControls.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -370,6 +376,9 @@
 			children = (
 				20FA02344B32332B350BC11D /* CustomIntakeEditorView.swift */,
 				A0DEC0A1B2C3D4E5F6000002 /* KidneyCheerView.swift */,
+				A0DEC0A1B2C3D4E5F6000102 /* RingGameControls.swift */,
+				A0DEC0A1B2C3D4E5F6000101 /* RingGameView.swift */,
+				A0DEC0A1B2C3D4E5F6000100 /* RingGameSimulation.swift */,
 				C05E71C5A1B2C3D4E5F60002 /* CosmeticsView.swift */,
 				A9EDD10460D867692F1B0943 /* HomeView.swift */,
 				5A1C0DE25A1C0DE25A1C0DE2 /* ShareProgressView.swift */,
@@ -682,6 +691,9 @@
 				FEF1E8A999A9841C843C2208 /* CustomIntakeEditorView.swift in Sources */,
 				C05E71C5A1B2C3D4E5F60001 /* CosmeticsView.swift in Sources */,
 				A0DEC0A1B2C3D4E5F6000001 /* KidneyCheerView.swift in Sources */,
+				A0DEC0A1B2C3D4E5F6000202 /* RingGameControls.swift in Sources */,
+				A0DEC0A1B2C3D4E5F6000201 /* RingGameView.swift in Sources */,
+				A0DEC0A1B2C3D4E5F6000200 /* RingGameSimulation.swift in Sources */,
 				5A1C0DE15A1C0DE15A1C0DE1 /* ShareProgressView.swift in Sources */,
 				00FFFB683C1484BEDAB9EB23 /* HidrataPOCApp.swift in Sources */,
 				267A40DE9CF3539833AEA14D /* HomeView.swift in Sources */,

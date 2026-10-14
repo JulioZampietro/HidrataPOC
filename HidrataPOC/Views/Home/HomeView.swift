@@ -37,6 +37,14 @@ struct HomeView: View {
     @GestureState private var mascotDragOffset: CGSize = .zero
     @State private var lastMascotDragTranslation: CGSize = .zero
     @State private var waterMotion = WaterMotion()
+    /// Jogo das argolas: recompensa por bater a meta do dia (ver `RingGameSimulation`).
+    @State private var ringGame = RingGameSimulation()
+    @State private var pressedJets = [Bool](repeating: false, count: RingGameSide.allCases.count)
+    /// Os quatro cartões de ingestão viram os dois botões do jogo na mesma animação.
+    @Namespace private var controlsNamespace
+    /// Tempo (s) entre a explosão do mascote e as argolas caírem na água: dá tempo das
+    /// pedrinhas assentarem no fundo, onde continuam durante o jogo.
+    private static let ringGameStartDelay: Double = 1.4
     @State private var explodingMascot: String? = nil
     /// Mascote do estágio anterior, só enquanto a transição de bolhas (estilo
     /// Bob Esponja) de troca de estágio está em andamento — ver `handleGoalTransition`.
@@ -112,7 +120,7 @@ struct HomeView: View {
                         progressBarButton
                             .padding(.horizontal, 20)
 
-                        intakeGrid(cardHeight: intakeCardHeight(forVisibleHeight: geo.size.height))
+                        bottomControls(cardHeight: intakeCardHeight(forVisibleHeight: geo.size.height))
                             .padding(.horizontal, 20)
                     }
                     .padding(.bottom, TabScreenLayout.spacing)
@@ -122,6 +130,9 @@ struct HomeView: View {
             }
         }
         .task { await loadWeather() }
+        .onChange(of: goalReached, initial: true) { wasReached, isReached in
+            handleRingGame(isReached: isReached, isLiveTransition: wasReached != isReached)
+        }
         // Keeps the Home Screen water tank widget filling against the same goal as the bar,
         // and snapshots it as today's goal so later edits never touch this day.
         .onChange(of: effectiveGoalML, initial: true) { _, goal in
@@ -268,6 +279,14 @@ struct HomeView: View {
                 }
             }
             .animation(.spring(response: 0.5, dampingFraction: 0.7), value: goalReached)
+            // Jogo das argolas: no conteúdo do recipiente, então passa pela mesma
+            // refração da água. As pedrinhas (shader) continuam por cima, no fundo.
+            .overlay {
+                if goalReached {
+                    RingGameView(simulation: ringGame, water: waterMotion)
+                        .transition(.opacity)
+                }
+            }
         .background {
             containerShape
                 .fill(AppTheme.screenBackground(for: colorScheme))
@@ -492,6 +511,29 @@ struct HomeView: View {
         }
     }
 
+    /// Liga o jogo quando a meta é batida e desliga quando deixa de estar. Ao vivo, espera
+    /// a explosão do mascote e as pedrinhas assentarem; ao abrir o app já com a meta
+    /// batida, as argolas entram quase direto.
+    private func handleRingGame(isReached: Bool, isLiveTransition: Bool) {
+        if isReached {
+            ringGame.onRoundComplete = {
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                InteractionTracker.log("ring_game_round_complete", screen: .home, userID: profile.userID, context: modelContext)
+            }
+            Task {
+                try? await Task.sleep(for: .seconds(isLiveTransition ? Self.ringGameStartDelay : 0.4))
+                guard goalReached else { return }
+                ringGame.start()
+                if isLiveTransition {
+                    InteractionTracker.log("ring_game_start", screen: .home, userID: profile.userID, context: modelContext)
+                }
+            }
+        } else {
+            ringGame.stop()
+            pressedJets = [Bool](repeating: false, count: RingGameSide.allCases.count)
+        }
+    }
+
     private func pokeMascot() {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
 
@@ -587,11 +629,14 @@ struct HomeView: View {
                     }
                     .homeCardShadow()
                 
-                // preenchimento azul
+                // preenchimento azul — com a meta batida (jogo liberado) ganha um brilho
+                // azul claro e discreto em volta, por trás dele
                 Capsule()
                     .fill(Color.appAccent)
                     .frame(width: barWidth, height: progressBarHeight)
+                    .shadow(color: Color.appAccentLight.opacity(goalReached ? 0.75 : 0), radius: 10)
                     .animation(.easeOut(duration: 0.4), value: progress)
+                    .animation(.easeInOut(duration: 0.6), value: goalReached)
                 
                 // Texto sempre branco, sobre a trilha e sobre o preenchimento.
                 progressLabel(color: .white)
@@ -623,16 +668,63 @@ struct HomeView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func intakeGrid(cardHeight: CGFloat) -> some View {
-        LazyVGrid(
-            columns: [GridItem(.flexible(), spacing: intakeGridSpacing), GridItem(.flexible(), spacing: intakeGridSpacing)],
-            spacing: intakeGridSpacing
-        ) {
-            goleCard(height: cardHeight)
-            intakeCard(.glass, height: cardHeight)
-            intakeCard(.bottle, height: cardHeight)
-            customIntakeCard(height: cardHeight)
+    /// Os quatro cartões de ingestão; com a meta batida viram os dois botões do jogo das
+    /// argolas. "Gole" vira o botão esquerdo e "Copo" o direito (`matchedGeometryEffect`);
+    /// os outros dois cartões somem.
+    private func bottomControls(cardHeight: CGFloat) -> some View {
+        ZStack {
+            if goalReached {
+                // Esquerda/direita ocupam o lugar de "Gole"/"Copo"; o jato central entra embaixo.
+                let totalHeight = cardHeight * 2 + intakeGridSpacing
+                let centerHeight = max(totalHeight * 0.26, 64)
+                VStack(spacing: intakeGridSpacing) {
+                    HStack(spacing: intakeGridSpacing) {
+                        jetButton(.left)
+                            .matchedGeometryEffect(id: "gole", in: controlsNamespace)
+                        jetButton(.right)
+                            .matchedGeometryEffect(id: "glass", in: controlsNamespace)
+                    }
+                    jetButton(.center)
+                        .frame(height: centerHeight)
+                        .transition(.opacity.combined(with: .scale(scale: 0.9, anchor: .bottom)))
+                }
+                .frame(height: totalHeight)
+            } else {
+                intakeGrid(cardHeight: cardHeight)
+            }
         }
+        .animation(.spring(response: 0.6, dampingFraction: 0.85), value: goalReached)
+    }
+
+    private func intakeGrid(cardHeight: CGFloat) -> some View {
+        VStack(spacing: intakeGridSpacing) {
+            HStack(spacing: intakeGridSpacing) {
+                goleCard(height: cardHeight)
+                    .matchedGeometryEffect(id: "gole", in: controlsNamespace)
+                intakeCard(.glass, height: cardHeight)
+                    .matchedGeometryEffect(id: "glass", in: controlsNamespace)
+            }
+            HStack(spacing: intakeGridSpacing) {
+                intakeCard(.bottle, height: cardHeight)
+                    .transition(.opacity)
+                customIntakeCard(height: cardHeight)
+                    .transition(.opacity)
+            }
+        }
+    }
+
+    private func jetButton(_ side: RingGameSide) -> some View {
+        RingGameControls(
+            side: side,
+            isPressed: pressedJets[side.rawValue],
+            onPressChange: { isPressed in
+                guard pressedJets[side.rawValue] != isPressed else { return }
+                pressedJets[side.rawValue] = isPressed
+                ringGame.setJet(side, open: isPressed)
+                if isPressed { UIImpactFeedbackGenerator(style: .light).impactOccurred() }
+            },
+            onAccessibilityPulse: { ringGame.pulseJet(side) }
+        )
     }
 
     private func goleCard(height: CGFloat) -> some View {
