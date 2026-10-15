@@ -32,10 +32,13 @@ struct WaterHeaderView: View {
     @State private var unlockedGameBanner: MiniGame?
     /// Tempo (s) entre a explosão do mascote e o jogo entrar na água.
     private static let gameStartDelay: Double = 1.4
-    @State private var phraseIndex: Int = 0
+    /// Fala que o mascote solta sozinho, sorteada entre as liberadas para a situação (`MascotPhrases`).
+    @State private var idlePhrase = ""
     @State private var pokeCount: Int = 0
     @State private var isPoking: Bool = false
+    /// Fala temporária (cutucão, reação a um gole) que se sobrepõe à `idlePhrase`.
     @State private var overridePhrase: String? = nil
+    @State private var overridePhraseReset: Task<Void, Never>?
     @GestureState private var mascotDragOffset: CGSize = .zero
     @State private var lastMascotDragTranslation: CGSize = .zero
     @State private var waterMotion = WaterMotion()
@@ -60,12 +63,6 @@ struct WaterHeaderView: View {
     /// Tempo máximo (s) esperando as pedrinhas se juntarem no meio — normalmente elas
     /// chegam antes (`WaterMotion.stonesGathered`) e o mascote já começa a se formar.
     private static let stonesGatherTimeout: Double = 1.5
-
-    private static let mascotPhrases: [String] = [
-        "Não bebe água não",
-        "Você nem sente sede né?",
-        "Amo a sensação de boca seca!"
-    ]
 
     private var todayLogs: [IntakeLog] {
         allLogs.filter { $0.userID == profile.userID && Calendar.current.isDateInToday($0.timestamp) }
@@ -94,6 +91,45 @@ struct WaterHeaderView: View {
     private var progress: Double {
         guard effectiveGoalML > 0 else { return 0 }
         return min(1, Double(consumedToday) / Double(effectiveGoalML))
+    }
+
+    // MARK: - Falas do mascote
+
+    /// Situação de agora, que decide quais falas o mascote pode soltar.
+    private var phraseContext: MascotPhraseContext {
+        let lastLog = todayLogs.max { $0.timestamp < $1.timestamp }
+        let stage = AppTheme.mascotStage(for: progress)
+
+        var keptStage = false
+        if let lastLog, effectiveGoalML > 0 {
+            let before = Double(consumedToday - lastLog.volumeML) / Double(effectiveGoalML)
+            keptStage = AppTheme.mascotStage(for: max(0, before)) == stage
+        }
+
+        return MascotPhraseContext(
+            stage: stage,
+            hour: Calendar.current.component(.hour, from: .now),
+            lastIntakeWasGole: (lastLog?.volumeML ?? .max) <= Constants.IntakePreset.gole.volumeML,
+            lastIntakeKeptStage: keptStage,
+            isDryDay: (tempContext?.humidityPct ?? .infinity) < Constants.mascotDryHumidityPct
+        )
+    }
+
+    /// Sorteia a próxima fala, sem repetir a que já está no balão quando há outra.
+    private func pickIdlePhrase() {
+        let options = MascotPhrases.idle(in: phraseContext)
+        idlePhrase = options.filter { $0 != idlePhrase }.randomElement() ?? options.randomElement() ?? ""
+    }
+
+    /// Mostra `phrase` no balão por `seconds`; uma nova fala substitui a anterior.
+    private func say(_ phrase: String, for seconds: Double) {
+        overridePhrase = phrase
+        overridePhraseReset?.cancel()
+        overridePhraseReset = Task {
+            try? await Task.sleep(for: .seconds(seconds))
+            guard !Task.isCancelled else { return }
+            overridePhrase = nil
+        }
     }
 
     private var streak: Int {
@@ -336,14 +372,17 @@ struct WaterHeaderView: View {
                     .onTapGesture { pokeMascot() }
                     .simultaneousGesture(mascotDragGesture)
 
-                MascotSpeechBubble(text: overridePhrase ?? Self.mascotPhrases[phraseIndex])
-                    .offset(x: 8 + mascotDragOffset.width, y: -38 + mascotDragOffset.height)
-                    .animation(.interactiveSpring(response: 0.28, dampingFraction: 0.55), value: mascotDragOffset)
-                    // Mesmo motivo do `.animation(value: isPoking)` no mascote: precisa
-                    // ser explícita pra sobreviver ao `.transaction` do ZStack pai.
-                    .animation(.easeInOut(duration: 0.3), value: overridePhrase ?? Self.mascotPhrases[phraseIndex])
-                    .transition(.scale(scale: 0.8, anchor: .bottomLeading).combined(with: .opacity))
-                    .allowsHitTesting(false)
+                // Vazio só no primeiro quadro, antes do `onAppear` sortear a fala.
+                if let phrase = overridePhrase ?? (idlePhrase.isEmpty ? nil : idlePhrase) {
+                    MascotSpeechBubble(text: phrase)
+                        .offset(x: 8 + mascotDragOffset.width, y: -38 + mascotDragOffset.height)
+                        .animation(.interactiveSpring(response: 0.28, dampingFraction: 0.55), value: mascotDragOffset)
+                        // Mesmo motivo do `.animation(value: isPoking)` no mascote: precisa
+                        // ser explícita pra sobreviver ao `.transaction` do ZStack pai.
+                        .animation(.easeInOut(duration: 0.3), value: phrase)
+                        .transition(.scale(scale: 0.8, anchor: .bottomLeading).combined(with: .opacity))
+                        .allowsHitTesting(false)
+                }
             } else if let exploding = explodingMascot {
                 // Mascote1 "quebrando": racha em pedaços que voam pra fora e caem, no
                 // instante em que nasce em pedrinhas na água (`waterMotion.explodeIntoStones`).
@@ -390,7 +429,7 @@ struct WaterHeaderView: View {
             transaction.animation = nil
         }
         .onAppear {
-            phraseIndex = Int.random(in: 0..<Self.mascotPhrases.count)
+            pickIdlePhrase()
             // `.onChange` abaixo só dispara numa transição ao vivo: se o app abre
             // já com a meta batida (de uma sessão anterior), ele nunca viu o
             // cruzamento, e sem isso o recipiente ficava vazio — nem mascote, nem
@@ -411,11 +450,20 @@ struct WaterHeaderView: View {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(6))
                 guard overridePhrase == nil else { continue }
-                phraseIndex = (phraseIndex + 1) % Self.mascotPhrases.count
+                pickIdlePhrase()
             }
         }
         .onChange(of: progress) { oldValue, newValue in
             handleGoalTransition(from: oldValue, to: newValue)
+        }
+        // Mudou de estágio: a fala do balão passa a ser do estágio novo.
+        .onChange(of: AppTheme.mascotStage(for: progress)) { pickIdlePhrase() }
+        // Chegou o clima do dia (ou mudou a hora): libera as falas de "dia seco".
+        .onChange(of: tempContext?.humidityPct) { pickIdlePhrase() }
+        // Registrou água (por qualquer origem): o mascote reclama por alguns segundos.
+        .onChange(of: consumedToday) { oldValue, newValue in
+            guard newValue > oldValue, let reaction = MascotPhrases.drinkReactions.randomElement() else { return }
+            say(reaction, for: 3)
         }
     }
 
@@ -543,7 +591,6 @@ struct WaterHeaderView: View {
     }
 
     private func pokeMascot() {
-
         // A curva vem do `.animation(value: isPoking)` junto do `scaleEffect` —
         // só precisa setar o valor aqui.
         isPoking = true
@@ -557,14 +604,10 @@ struct WaterHeaderView: View {
         if pokeCount >= 3 {
             Haptic.warning.play() // o mascote reclama
             pokeCount = 0
-            overridePhrase = "Para de me cutucar zé mané"
-            Task {
-                try? await Task.sleep(for: .seconds(4))
-                overridePhrase = nil
-            }
+            say(MascotPhrases.pokeComplaints.randomElement() ?? "", for: 4)
         } else {
             Haptic.poke.play()
-            phraseIndex = (phraseIndex + 1) % Self.mascotPhrases.count
+            say(MascotPhrases.pokes.randomElement() ?? "", for: 2.5)
         }
     }
 
