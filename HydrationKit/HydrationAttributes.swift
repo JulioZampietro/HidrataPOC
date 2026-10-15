@@ -16,8 +16,15 @@ public struct HydrationAttributes: ActivityAttributes {
     /// "within 30 minutes of the 8h system cap" (FR-10) without a separate store.
     public let startedAt: Date
 
-    public init(startedAt: Date) {
+    /// The "backup" variant started after the user swipes the Lock Screen card away
+    /// while still overdue: iOS ends an activity whenever its card is dismissed, so
+    /// this one keeps only the Dynamic Island icon alive and renders an invisible
+    /// Lock Screen presentation.
+    public let isIslandOnly: Bool
+
+    public init(startedAt: Date, isIslandOnly: Bool = false) {
         self.startedAt = startedAt
+        self.isIslandOnly = isIslandOnly
     }
 
     public struct ContentState: Codable, Hashable {
@@ -39,5 +46,21 @@ extension HydrationAttributes.ContentState {
     /// longer needs its own copy of the same check.
     public var isOverdue: Bool {
         Date.now.timeIntervalSince(lastIntakeDate) >= reminderThreshold
+    }
+}
+
+
+/// The Lock Screen always hands Live Activity views `colorScheme == .dark`, whatever the
+/// system appearance is, while `activityBackgroundTint` is resolved against the real
+/// one — so reading the environment gives white text on a light card. The app records
+/// the real system style here (App Group defaults) and the widget reads it, so the card
+/// background and its text are always picked from the same source.
+public enum LockScreenAppearance {
+    private static let key = "systemInterfaceStyleIsDark"
+    private static var defaults: UserDefaults? { UserDefaults(suiteName: "group.com.hidratapoc") }
+
+    public static var isDark: Bool {
+        get { defaults?.bool(forKey: key) ?? true }
+        set { defaults?.set(newValue, forKey: key) }
     }
 }

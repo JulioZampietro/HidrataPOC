@@ -20,6 +20,17 @@ struct CustomIntakeEditorView: View {
         Binding(get: { Int(amountML.rounded()) }, set: { amountML = Double($0) })
     }
 
+    /// Cada passo do controle deslizante dá um "clique"; digitar no campo não passa por aqui.
+    private var sliderValue: Binding<Double> {
+        Binding(
+            get: { amountML },
+            set: { newValue in
+                if newValue != amountML { Haptic.selection.play() }
+                amountML = newValue
+            }
+        )
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -34,7 +45,7 @@ struct CustomIntakeEditorView: View {
                         Text("mL").foregroundStyle(Color.appSecondary)
                     }
 
-                    Slider(value: $amountML, in: 50...1500, step: 50) {
+                    Slider(value: sliderValue, in: 50...1500, step: 50) {
                         Text("Volume")
                     } minimumValueLabel: {
                         Text("50")
@@ -51,7 +62,7 @@ struct CustomIntakeEditorView: View {
             .keyboardDoneToolbar()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancelar", systemImage: "xmark") { dismiss() }
+                    Button("Cancelar", systemImage: "xmark") { Haptic.dismiss.play(); dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Salvar", systemImage: "checkmark") {

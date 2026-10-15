@@ -74,51 +74,93 @@ extension AppTheme {
     static let trackLight = Color(red: 0.75, green: 0.78, blue: 0.82)
 }
 
-/// Vertical layout shared by Home and Histórico: header, water container, then the
-/// screen's own content, with the same `spacing` between every block and below the
-/// last one (above the tab bar). Sizes derive from the visible height, so the water
-/// container is identical on both tabs and the bottom content fills exactly what's
-/// left. Below the minimums (very short screens, large text) the screens scroll.
+/// Vertical layout shared by Home and Histórico. There's no tab bar: the water
+/// container is drawn once by `RootView`, fixed on top of both pages, starting `spacing`
+/// below the Dynamic Island, with the header buttons on its top edge; below it, after
+/// `spacing`, comes the page's own content, which ends `spacing` above the bottom safe
+/// area. The content keeps the size it had when the tab bar existed and the water
+/// container stretches to fill the rest, so both pages match. Below the minimums (very
+/// short screens, large text) the container shrinks instead of the pages scrolling.
 enum TabScreenLayout {
     static let spacing: CGFloat = 20
-    /// 44 pt: o menor alvo de toque do HIG (o botão de compartilhar do cabeçalho).
+    /// 44 pt: o menor alvo de toque do HIG (os botões do cabeçalho).
     static let headerHeight: CGFloat = 44
+    /// Inset of the header buttons from the container's edges.
+    static let containerInset: CGFloat = 10
     /// Space between the mascot and the container's bottom edge.
     static let mascotBottomPadding: CGFloat = 0
     /// Space between the container's top edge and the mascot at full size.
     static let mascotTopPadding: CGFloat = 20
     static let maxMascotHeight: CGFloat = 190
-    /// Extra height added only to the container (as slack below the mascot's own
-    /// padded area), so the water container can grow without the mascot growing
-    /// with it — `mascotHeight` subtracts this back out before sizing the mascot.
-    /// Sized to swallow exactly the space the header (streak + share button) used
-    /// to take as its own row (`headerHeight + spacing`): the header now floats as
-    /// an overlay on top of the container instead, so the container grows up into
-    /// that reclaimed space and reaches near the top safe area.
-    static let extraContainerHeight: CGFloat = headerHeight + spacing
-    /// Altura a mais no aquário (tirada dos cartões de baixo), só como água acima do
-    /// mascote — `mascotHeight` também desconta isso, então o mascote não cresce.
-    static let extraTankHeight: CGFloat = 40
+    /// Room above the mascot for its speech bubble.
+    static let speechBubbleAllowance: CGFloat = 38
+    /// How far the Dynamic Island (or notch / status bar) ends above the top safe-area
+    /// edge. There's no API for its frame; this matches the current iPhones.
+    static let dynamicIslandClearance: CGFloat = 12
+    /// Height the removed tab bar took above the bottom safe area. The content below
+    /// the container is still sized as if it were there, so cards don't grow.
+    static let removedTabBarHeight: CGFloat = 49
+    /// Smallest content that fits below the container: Histórico's calendar card (and
+    /// Home's bar + two rows of cards at their minimum).
+    static let minContentHeight: CGFloat = 330
+    /// Height the container held before the tab bar went away, as a share of the screen.
+    private static let legacyWaterShare: CGFloat = 0.42
+    private static let legacyExtraHeight: CGFloat = headerHeight + spacing + 40
 
-    /// The container hugs the full-size mascot (plus `extraContainerHeight` of
-    /// slack, reclaimed from the header's old row); it only gets shorter on
-    /// screens too short to fit everything else.
-    static func waterHeight(forVisibleHeight height: CGFloat) -> CGFloat {
-        let fullHeight = mascotTopPadding + maxMascotHeight + mascotBottomPadding + extraContainerHeight + extraTankHeight
-        return min(max(height * 0.42, 160), fullHeight)
+    /// Distance from the top of the screen to the top of the water container.
+    static func waterTop(safeAreaTop: CGFloat) -> CGFloat {
+        max(safeAreaTop - dynamicIslandClearance, 0) + spacing
     }
 
-    /// The mascot shrinks with the container on short screens, never past 190 pt.
-    /// `extraContainerHeight` is removed first so the extra slack never reaches the mascot.
+    /// Height of the water container: everything between `waterTop` and the content
+    /// below it. `visibleHeight` is the height between the safe areas.
+    static func waterHeight(forVisibleHeight visibleHeight: CGFloat, safeAreaTop: CGFloat) -> CGFloat {
+        let bottom = safeAreaTop + visibleHeight - spacing * 2 - contentHeight(forVisibleHeight: visibleHeight)
+        return max(bottom - waterTop(safeAreaTop: safeAreaTop), minWaterHeight)
+    }
+
+    /// The mascot fills the container below the header buttons (and the room its speech
+    /// bubble needs above it), never past 190 pt.
     static func mascotHeight(forWaterHeight waterHeight: CGFloat) -> CGFloat {
-        min(max(waterHeight - mascotTopPadding - mascotBottomPadding - extraContainerHeight - extraTankHeight, 110), maxMascotHeight)
+        let slot = waterHeight - headerHeight - containerInset - speechBubbleAllowance
+        return min(max(slot - mascotTopPadding - mascotBottomPadding, 110), maxMascotHeight)
     }
 
-    /// Height left for the screen's own content below the water container. The
-    /// header no longer has its own row (it overlays the container), so only the
-    /// container and two gaps (above and below it) are subtracted.
-    static func contentHeight(forVisibleHeight height: CGFloat) -> CGFloat {
-        height - waterHeight(forVisibleHeight: height) - spacing * 2
+    /// Height for the page's own content below the water container — the same it had
+    /// with the tab bar, so it only moves down instead of growing.
+    static func contentHeight(forVisibleHeight visibleHeight: CGFloat) -> CGFloat {
+        let tabBarHeight = visibleHeight - removedTabBarHeight
+        let legacyHeight = tabBarHeight - legacyWaterHeight(forVisibleHeight: tabBarHeight) - spacing * 2
+        return max(legacyHeight, minContentHeight)
+    }
+
+    private static let minWaterHeight: CGFloat = headerHeight + containerInset + speechBubbleAllowance + mascotTopPadding + 110
+
+    /// The container's height in the old layout (tab bar below, header overlaid on it).
+    private static func legacyWaterHeight(forVisibleHeight height: CGFloat) -> CGFloat {
+        let fullHeight = mascotTopPadding + maxMascotHeight + mascotBottomPadding + legacyExtraHeight
+        return min(max(height * legacyWaterShare, 160), fullHeight)
+    }
+}
+
+/// Botão redondo de Liquid Glass usado no topo do recipiente de água (compartilhar,
+/// cosméticos e perfil). Fica por cima da água: o vidro enxerga a água atrás dele e não
+/// ondula com a refração.
+struct GlassCircleButton: View {
+    let systemImage: String
+    let accessibilityLabel: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(.subheadline, weight: .semibold))
+                .dynamicTypeSize(...DynamicTypeSize.xxxLarge) // o ícone cabe no círculo de 44 pt
+                .foregroundStyle(Color.appAccentText)
+                .frame(width: TabScreenLayout.headerHeight, height: TabScreenLayout.headerHeight)
+                .glassEffect(.regular.interactive(), in: Circle())
+        }
+        .accessibilityLabel(accessibilityLabel)
     }
 }
 
@@ -178,6 +220,13 @@ extension Color {
         dark: Color(red: 0.45, green: 0.70, blue: 1.0)
     )
 
+    /// Mesmo azul de `appAccentText` no claro, mas FIXO (não adapta no escuro) — pra
+    /// texto sobre uma superfície que também é sempre branca nos dois modos (ex.: o
+    /// botão "Entender minha meta"). `appAccentText` ficaria claro demais no escuro
+    /// contra esse branco fixo, já que foi calibrado pra contrastar com o fundo
+    /// adaptável do app, não com branco literal.
+    static let appAccentTextOnWhite = Color(red: 0.05, green: 0.34, blue: 0.82)
+
     /// Texto secundário: no claro é mais escuro que o `.secondary` do sistema (que dá
     /// ~3,3:1 sobre os cartões); no escuro é o próprio `.secondary`.
     static let appSecondary = adaptive(
@@ -201,6 +250,12 @@ extension Color {
     static let appWarning = adaptive(light: Color(red: 0.65, green: 0.32, blue: 0.0), dark: .orange)
     static let appSuccess = adaptive(light: Color(red: 0.08, green: 0.45, blue: 0.22), dark: .green)
 
+    /// Dourado de destaque — não é o `appWarning` (pensado pra texto sobre fundo
+    /// claro): este é fixo, calibrado pra chamar atenção especificamente sobre o
+    /// gradiente de marca (ex. o "+ X mL" do clima no cartão da meta), onde um
+    /// laranja escurecido pro claro ficaria apagado.
+    static let appGoldHighlight = Color(red: 1.0, green: 0.78, blue: 0.30)
+
     /// Vermelho de ações destrutivas (apagar): o `.red` do sistema dá ~3,3:1 sobre os
     /// cartões; estes passam de 4,5:1 nos dois modos.
     static let appDestructive = adaptive(
@@ -219,6 +274,75 @@ extension Color {
     static let appDivider = AppTheme.trackLight.opacity(0.6)
 }
 
+extension Color {
+    /// As três paradas do gradiente de marca, nomeadas pra não duplicar os valores
+    /// entre `LinearGradient.waterHeader` (as três, pra superfícies grandes) e
+    /// `LinearGradient.waterHeaderCompact` (só as duas primeiras, pra selos
+    /// pequenos — ver o comentário de `waterHeaderCompact`).
+    fileprivate static let waterDeep = adaptive(
+        light: Color(red: 0.06, green: 0.22, blue: 0.55),
+        dark: Color(red: 0.05, green: 0.15, blue: 0.34)
+    )
+    fileprivate static let waterMid = adaptive(
+        light: Color(red: 0.08, green: 0.40, blue: 0.93), // appAccent
+        dark: Color(red: 0.12, green: 0.38, blue: 0.86)
+    )
+    fileprivate static let waterLight = adaptive(
+        light: Color(red: 0.40, green: 0.70, blue: 0.99),
+        dark: Color(red: 0.32, green: 0.56, blue: 0.90)
+    )
+}
+
+extension LinearGradient {
+    /// "Água profunda → superfície" — o gradiente de marca do app: cabeçalhos de
+    /// tela cheia (`TankHeader`) e qualquer superfície que hoje seria um azul chapado
+    /// (botões primários, barra de progresso). Cada parada é uma cor adaptável —
+    /// resolve sozinha pro claro ou pro escuro, sem precisar de uma função ciente do
+    /// `colorScheme`. No escuro as paradas são um pouco mais contidas (não só o
+    /// claro escurecido) pra não "brilhar" demais sobre o fundo já escuro do app.
+    static let waterHeader = LinearGradient(
+        colors: [.waterDeep, .waterMid, .waterLight],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+
+    /// Só as duas primeiras paradas (sem a ponta clara) — pra selos pequenos como o
+    /// `DropBadge`. Num `.fill()`, o gradiente se estica pra caber na própria forma,
+    /// então numa forma de ~26×32 pt a versão de três paradas cobria a faixa inteira
+    /// dentro de um espaço minúsculo e a ponta clara (`waterLight`) deixava o número
+    /// branco sem contraste nenhum ali (~2,2:1, abaixo do mínimo). Com só
+    /// `waterDeep`→`waterMid`, o texto branco fica em ≥5:1 em qualquer ponto da forma,
+    /// nos dois modos.
+    static let waterHeaderCompact = LinearGradient(
+        colors: [.waterDeep, .waterMid],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+}
+
+/// Estilo de botão primário em gradiente — a versão "molhada" do `.borderedProminent`
+/// de sempre, pros botões de ação principal que antes eram um azul chapado
+/// (`Color.appAccent`). Respeita `isEnabled` (cinza sólido quando desabilitado, o
+/// mesmo tratamento que `.tint(.gray)` dava antes) e dá feedback de toque por opacidade.
+struct GradientProminentButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+    var cornerRadius: CGFloat = 14
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(.white)
+            .background(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(isEnabled ? AnyShapeStyle(LinearGradient.waterHeader) : AnyShapeStyle(Color.gray))
+            )
+            .opacity(configuration.isPressed ? 0.85 : 1)
+    }
+}
+
+extension ButtonStyle where Self == GradientProminentButtonStyle {
+    static var gradientProminent: GradientProminentButtonStyle { GradientProminentButtonStyle() }
+}
+
 // MARK: - Cartões
 
 extension View {
@@ -230,6 +354,20 @@ extension View {
             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                 .fill(Color(UIColor.secondarySystemBackground))
                 .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4)
+        )
+    }
+
+    /// Cartão "molhado": fundo azul bem claro com contorno fino, em vez de sombra —
+    /// usado nas telas de marca forte (`TankHeader`) pra combinar com o gradiente do
+    /// cabeçalho em vez do cartão neutro padrão do resto do app.
+    func panelBackground(cornerRadius: CGFloat = 20) -> some View {
+        background(
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .fill(Color.appAccent.opacity(0.06))
+                .overlay(
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .strokeBorder(Color.appAccent.opacity(0.16), lineWidth: 1)
+                )
         )
     }
 }

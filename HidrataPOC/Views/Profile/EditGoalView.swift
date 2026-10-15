@@ -53,7 +53,7 @@ struct EditGoalView: View {
             .keyboardDoneToolbar()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancelar", systemImage: "xmark") { dismiss() }
+                    Button("Cancelar", systemImage: "xmark") { Haptic.dismiss.play(); dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Salvar", systemImage: "checkmark") {

@@ -76,6 +76,7 @@ struct ProfileView: View {
                     confirmLabel: "Salvar",
                     initialValues: .from(profile),
                     showsCustomIntakeField: false,
+                    showsCancelButton: true,
                     onSave: save
                 )
             }
@@ -96,25 +97,31 @@ struct ProfileView: View {
 
     // MARK: - Goal Card
 
+    // O cartão da meta é o único lugar da tela que carrega o gradiente — mesma
+    // forma arredondada dos outros cartões da página (sem onda: isso é pro banner
+    // de borda a borda das sheets, aqui o cartão é "flutuante" e fica estranho com
+    // uma borda reta virando onda). O gradiente é o PRÓPRIO fundo do cartão, não um
+    // painel separado atrás com altura chutada — então sempre acompanha o tamanho
+    // real do cartão (Dynamic Type incluso) e nunca corta errado.
     private var goalCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Sua meta diária é")
                         .font(AppFont.subheadline)
-                        .foregroundStyle(Color.appSecondary)
+                        .foregroundStyle(.white.opacity(0.85))
 
                     HStack(alignment: .lastTextBaseline, spacing: 4) {
                         Text("\(profile.metaDiariaML)")
                             .font(AppFont.metric)
-                            .foregroundStyle(.primary)
+                            .foregroundStyle(.white)
                         Text("mL")
                             .font(AppFont.title3)
-                            .foregroundStyle(Color.appSecondary)
+                            .foregroundStyle(.white.opacity(0.85))
                         if let adjustment = tempContext?.adjustmentML, adjustment > 0 {
                             Text("+ \(adjustment) mL")
                                 .font(AppFont.footnoteStrong)
-                                .foregroundStyle(Color.appWarning)
+                                .foregroundStyle(Color.appGoldHighlight)
                         }
                     }
                 }
@@ -131,38 +138,64 @@ struct ProfileView: View {
 
             HStack(spacing: 10) {
                 Button {
+                    Haptic.tap.play()
                     showGoalExplainer = true
                 } label: {
                     Text("Entender minha meta")
                         .font(AppFont.subheadlineStrong)
+                        .foregroundStyle(Color.appAccentTextOnWhite)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 6)
+                        .padding(.vertical, 13)
+                        .background {
+                            // Efeito por DENTRO do botão, não em volta: um brilho
+                            // diagonal confinado à própria forma — nada de
+                            // sombra/halo vazando pra fora.
+                            ZStack {
+                                Color.white
+                                LinearGradient(
+                                    colors: [.white, Color.appAccent.opacity(0.16), .white],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                                RadialGradient(
+                                    colors: [.white.opacity(0.7), .white.opacity(0)],
+                                    center: .topLeading,
+                                    startRadius: 0,
+                                    endRadius: 150
+                                )
+                            }
+                        }
+                        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(Color.appAccent)
+                .buttonStyle(.plain)
 
                 Button {
+                    Haptic.tap.play()
                     isEditingGoal = true
                 } label: {
                     Text("Editar")
                         .font(AppFont.subheadlineStrong)
+                        .foregroundStyle(.white)
                         .padding(.vertical, 6)
                         .padding(.horizontal, 8)
                 }
                 .buttonStyle(.bordered)
-                .tint(Color.appAccentText)
+                .tint(.white)
             }
         }
         .padding(18)
-        .background(RoundedRectangle(cornerRadius: 20, style: .continuous)
-            .fill(Color(UIColor.secondarySystemBackground))
-            .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4))
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(LinearGradient.waterHeader)
+                .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 4)
+        )
     }
 
     // MARK: - Reminders Card
 
     private var remindersCard: some View {
         Button {
+            Haptic.primary.play()
             showReminders = true
         } label: {
             HStack {
@@ -184,18 +217,17 @@ struct ProfileView: View {
                     .font(.system(.callout, weight: .semibold))
             }
             .foregroundStyle(.white)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 8)
+            .padding(.horizontal, 18)
+            .padding(.vertical, 16)
         }
-        .buttonStyle(.glassProminent)
-        .buttonBorderShape(.roundedRectangle(radius: 20))
-        .tint(Color.appAccent)
+        .buttonStyle(GradientProminentButtonStyle(cornerRadius: 20))
     }
 
     // MARK: - Live Activities Row
 
     private var liveActivitiesRow: some View {
         Button {
+            Haptic.tap.play()
             showLiveActivities = true
         } label: {
             HStack {
@@ -227,6 +259,7 @@ struct ProfileView: View {
 
     private var siriRow: some View {
         Button {
+            Haptic.tap.play()
             showSiriTutorial = true
         } label: {
             HStack {
@@ -258,6 +291,7 @@ struct ProfileView: View {
 
     private var healthRow: some View {
         Button {
+            Haptic.tap.play()
             InteractionTracker.log("health_connect_row_tap", screen: .profile, userID: profile.userID, context: modelContext)
             showHealthConnect = true
         } label: {
@@ -386,6 +420,7 @@ struct ProfileView: View {
                 Spacer()
 
                 Button {
+                    Haptic.tap.play()
                     isEditing = true
                 } label: {
                     Text("Editar")
@@ -403,9 +438,7 @@ struct ProfileView: View {
                 dataRow(label: "Peso", value: "\(Int(profile.pesoKg)) kg", isLast: false)
                 dataRow(label: "Altura", value: alturaFormatted, isLast: true)
             }
-            .background(RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color(UIColor.secondarySystemBackground))
-                .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4))
+            .panelBackground(cornerRadius: 18)
         }
     }
 
@@ -445,6 +478,7 @@ struct ProfileView: View {
     // MARK: - Save
 
     private func save(_ values: ProfileFormValues) {
+        Haptic.success.play()
         profile.idade = values.idade
         profile.genero = values.genero?.rawValue
         profile.generoAutoDeclarado = nil
@@ -466,6 +500,7 @@ struct ProfileView: View {
     }
 
     private func saveGoal(_ newValue: Int) {
+        Haptic.success.play()
         profile.metaDiariaML = newValue
         profile.atualizadoEm = .now
         profile.syncStatus = .pending
@@ -491,62 +526,54 @@ private struct GoalExplainerView: View {
     let goalML: Int
     let adjustmentML: Int
     let isManual: Bool
-    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 24) {
-                Image(systemName: "drop.fill")
-                    .font(.system(size: 56))
-                    .foregroundStyle(Color.appAccentText)
-                    .padding(.top, 32)
-
-                Text("Sua meta diária")
-                    .font(AppFont.title2)
-
-                VStack(spacing: 6) {
-                    HStack(alignment: .lastTextBaseline, spacing: 6) {
-                        Text("\(goalML) mL")
-                            .font(AppFont.metric)
-                            .foregroundStyle(Color.appAccentText)
-                        if adjustmentML > 0 {
-                            Text("+ \(adjustmentML) mL")
-                                .font(AppFont.subheadlineStrong)
-                                .foregroundStyle(Color.appWarning)
-                        }
-                    }
-
-                    Text(isManual ? "definida por você manualmente" : "calculada com base no seu perfil")
-                        .font(AppFont.subheadline)
-                        .foregroundStyle(Color.appSecondary)
-
-                    if adjustmentML > 0 {
-                        Text("+ \(adjustmentML) mL por conta do clima hoje")
-                            .font(AppFont.footnote)
-                            .foregroundStyle(Color.appWarning)
-                    }
-                }
-
-                Text(
-                    isManual
-                        ? "Esta meta foi definida por você manualmente. Se editar seus dados pessoais (peso, altura, idade ou sexo), ela será recalculada automaticamente."
-                        : "A quantidade ideal de água depende do seu peso, altura, idade, gênero e temperatura no dia. Você pode ajustar seus dados no perfil para recalcular a meta."
+        TankSheet {
+            VStack(spacing: 20) {
+                CurrentMascotTankHeader(
+                    title: "Sua meta diária",
+                    subtitle: isManual ? "Definida por você manualmente." : "Calculada com base no seu perfil."
                 )
-                .font(AppFont.subheadline)
-                .foregroundStyle(Color.appSecondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
 
-                Spacer()
-            }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Fechar", systemImage: "xmark") { dismiss() }
-                        .font(AppFont.calloutStrong)
+                VStack(spacing: 16) {
+                    goalStat
+
+                    Text(
+                        isManual
+                            ? "Esta meta foi definida por você manualmente. Se editar seus dados pessoais (peso, altura, idade ou sexo), ela será recalculada automaticamente."
+                            : "A quantidade ideal de água depende do seu peso, altura, idade, gênero e temperatura no dia. Você pode ajustar seus dados no perfil para recalcular a meta."
+                    )
+                    .font(AppFont.subheadline)
+                    .foregroundStyle(Color.appSecondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
+                .padding(.horizontal, 20)
+            }
+            .padding(.bottom, 40)
+        }
+    }
+
+    private var goalStat: some View {
+        VStack(spacing: 6) {
+            HStack(alignment: .lastTextBaseline, spacing: 6) {
+                Text("\(goalML) mL")
+                    .font(AppFont.metric)
+                    .foregroundStyle(.primary)
+                if adjustmentML > 0 {
+                    Text("+ \(adjustmentML) mL")
+                        .font(AppFont.subheadlineStrong)
+                        .foregroundStyle(Color.appWarning)
+                }
+            }
+            if adjustmentML > 0 {
+                Text("+ \(adjustmentML) mL por conta do clima hoje")
+                    .font(AppFont.footnote)
+                    .foregroundStyle(Color.appWarning)
             }
         }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 22)
+        .panelBackground()
     }
 }
 

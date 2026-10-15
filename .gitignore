@@ -4,3 +4,8 @@ DerivedData/
 *.xcuserstate
 xcuserdata/
 .swiftpm/
+ml/.venv/
+ml/data/
+ml/out/
+ml/**/__pycache__/
+*.pem

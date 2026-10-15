@@ -7,13 +7,10 @@ struct HomeView: View {
     let profile: UserProfile
     
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.scenePhase) private var scenePhase
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    // Medidas que acompanham o tamanho do texto: com Dynamic Type grande o rótulo da barra
-    // e o ícone do cabeçalho não podem ser cortados por uma altura fixa.
-    @ScaledMetric(relativeTo: .subheadline) private var progressBarHeight: CGFloat = 52
-    private let headerButtonSize = TabScreenLayout.headerHeight // alvo mínimo de 44 pt; não cresce com o texto
+    // Barra e cartões têm tamanho fixo (o do texto em 100%): só o texto dentro deles acompanha
+    // o Dynamic Type, limitado a `controlTextSizeRange` para caber sem ser cortado.
+    private let progressBarHeight: CGFloat = 52
     @Query private var allLogs: [IntakeLog]
     @Query private var allDailyGoals: [DailyGoal]
     @State private var isLogging = false
@@ -24,58 +21,9 @@ struct HomeView: View {
     @State private var showSiriTutorial = false
     @State private var showActionButtonTutorial = false
     @State private var showTodayLogs = false
-    @State private var showShare = false
-    @State private var showCosmetics = false
-    @AppStorage(Cosmetic.grass.storageKey) private var grassEquipped = false
     @State private var weather: WeatherContext?
     @State private var isLoadingWeather = true
     @State private var tempContext: TemperatureAdjustmentContext?
-    @State private var phraseIndex: Int = 0
-    @State private var pokeCount: Int = 0
-    @State private var isPoking: Bool = false
-    @State private var overridePhrase: String? = nil
-    @GestureState private var mascotDragOffset: CGSize = .zero
-    @State private var lastMascotDragTranslation: CGSize = .zero
-    @State private var waterMotion = WaterMotion()
-    /// Jogo das argolas: recompensa por bater a meta do dia (ver `RingGameSimulation`).
-    @State private var ringGame = RingGameSimulation()
-    @State private var pressedJets = [Bool](repeating: false, count: RingGameSide.allCases.count)
-    /// Com a meta batida, o usuário pode voltar aos botões de ingestão ("Beber água"); tocar no
-    /// recipiente de água traz os botões do jogo de volta. Só vale enquanto a meta está batida.
-    @State private var showsIntakeInsteadOfGame = false
-    /// Os quatro cartões de ingestão viram os dois botões do jogo na mesma animação.
-    @Namespace private var controlsNamespace
-    /// Tempo (s) entre a explosão do mascote e as argolas caírem na água: dá tempo das
-    /// pedrinhas assentarem no fundo, onde continuam durante o jogo.
-    private static let ringGameStartDelay: Double = 1.4
-    @State private var explodingMascot: String? = nil
-    /// Mascote do estágio anterior, só enquanto a transição de bolhas (estilo
-    /// Bob Esponja) de troca de estágio está em andamento — ver `handleGoalTransition`.
-    @State private var bubbleMascot: String? = nil
-    /// true enquanto o mascote NOVO ainda não deve aparecer (ver
-    /// `newMascotShowDelay` em `handleGoalTransition`) — sem isso, ele ficaria
-    /// vivo por baixo desde o primeiro instante da transição, aparecendo junto
-    /// do antigo pelas folgas transparentes da imagem/bolhas.
-    @State private var newMascotHidden = false
-    /// true enquanto a montagem do mascote (pedrinhas se juntando, ver
-    /// `MascotShatterView(assembles:)`) ainda deve rodar. Começa true pra pegar a
-    /// abertura do app; volta a true ao voltar do background. Só tem efeito com 0 mL.
-    @State private var mascotAssemblyPending = true
-    /// Durante a montagem: false enquanto só as pedrinhas soltas aparecem no fundo
-    /// (`looseStonesDuration`), true quando os cacos começam a voar e se juntar.
-    @State private var mascotAssemblyStarted = false
-    /// Tempo (s) que as pedrinhas ficam soltas no fundo antes de serem puxadas pro meio.
-    private static let looseStonesDuration: Double = 1.0
-    /// Tempo máximo (s) esperando as pedrinhas se juntarem no meio — normalmente elas
-    /// chegam antes (`WaterMotion.stonesGathered`) e o mascote já começa a se formar.
-    private static let stonesGatherTimeout: Double = 1.5
-
-    private static let mascotPhrases: [String] = [
-        "Não bebe água não",
-        "Você nem sente sede né?",
-        "Amo a sensação de boca seca!"
-        
-    ]
 
     private var todayLogs: [IntakeLog] {
         allLogs.filter { $0.userID == profile.userID && Calendar.current.isDateInToday($0.timestamp) }
@@ -95,54 +43,35 @@ struct HomeView: View {
         )
     }
 
-    /// Past days are judged against the goal recorded for them, not today's.
-    private var goalResolver: DailyGoalResolver {
-        DailyGoalResolver(goals: dailyGoals, todayGoalML: effectiveGoalML, fallbackGoalML: profile.metaDiariaML)
-    }
-    
     private var progress: Double {
         guard effectiveGoalML > 0 else { return 0 }
         return min(1, Double(consumedToday) / Double(effectiveGoalML))
-    }
-    
-    private var streak: Int {
-        HydrationMath.currentStreak(allLogs.filter { $0.userID == profile.userID }, goalML: goalResolver.goalML(on:))
     }
     
     var body: some View {
         ZStack {
             AppTheme.screenBackground(for: colorScheme)
                 .ignoresSafeArea()
-            
+
             GeometryReader { geo in
-                ScrollView {
-                    VStack(spacing: TabScreenLayout.spacing) {
-                        topSection(height: TabScreenLayout.waterHeight(forVisibleHeight: geo.size.height), width: geo.size.width - 20)
-                            .padding(.horizontal, 10)
+                VStack(spacing: TabScreenLayout.spacing) {
+                    // O recipiente de água (`WaterHeaderView`) é desenhado pelo
+                    // `RootView`, fixo por cima das páginas; aqui fica só o espaço dele.
+                    Color.clear
+                        .frame(height: TabScreenLayout.waterHeight(forVisibleHeight: geo.size.height, safeAreaTop: geo.safeAreaInsets.top))
 
-                        progressBarButton
-                            .padding(.horizontal, 20)
+                    progressBarButton
+                        .padding(.horizontal, 20)
 
-                        bottomControls(cardHeight: intakeCardHeight(forVisibleHeight: geo.size.height))
-                            .padding(.horizontal, 20)
-                    }
-                    .padding(.bottom, TabScreenLayout.spacing)
-                    .disableScrollBounce()
+                    intakeGrid(cardHeight: intakeCardHeight(forVisibleHeight: geo.size.height))
+                        .padding(.horizontal, 20)
                 }
-                .scrollBounceBehavior(.basedOnSize)
+                .padding(.top, TabScreenLayout.waterTop(safeAreaTop: geo.safeAreaInsets.top))
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .ignoresSafeArea(edges: .top)
             }
         }
         .task { await loadWeather() }
-        .onChange(of: goalReached, initial: true) { wasReached, isReached in
-            handleRingGame(isReached: isReached, isLiveTransition: wasReached != isReached)
-            if !isReached { showsIntakeInsteadOfGame = false }
-        }
-        // Os botões do jogo somem (ex.: "Beber água"): solta qualquer jato que estivesse apertado.
-        .onChange(of: showsGameControls) { _, isShowing in
-            guard !isShowing else { return }
-            pressedJets = [Bool](repeating: false, count: RingGameSide.allCases.count)
-            for side in RingGameSide.allCases { ringGame.setJet(side, open: false) }
-        }
         // Keeps the Home Screen water tank widget filling against the same goal as the bar,
         // and snapshots it as today's goal so later edits never touch this day.
         .onChange(of: effectiveGoalML, initial: true) { _, goal in
@@ -161,7 +90,7 @@ struct HomeView: View {
             presenting: pendingDeleteLog
         ) { log in
             Button("Excluir", role: .destructive) { deleteLog(log) }
-            Button("Cancelar", role: .cancel) {}
+            Button("Cancelar", role: .cancel) { Haptic.dismiss.play() }
         } message: { log in
             Text("\(log.tipoEntrada.capitalized) · \(log.volumeML) mL será removido do seu histórico e da base de dados.")
         }
@@ -170,12 +99,7 @@ struct HomeView: View {
                 .trackSheetLifecycle(.customAmountEditor, screen: .home, userID: profile.userID)
         }
         .sheet(isPresented: $showSiriTutorial) { SiriTutorialView() }
-        .sheet(isPresented: $showShare) {
-            ShareProgressView(snapshot: ShareProgressSnapshot(consumedML: consumedToday, goalML: effectiveGoalML, streakDias: streak))
-                .trackSheetLifecycle(.shareProgress, screen: .home, userID: profile.userID)
-        }
         .sheet(isPresented: $showActionButtonTutorial) { ActionButtonTutorialView() }
-        .sheet(isPresented: $showCosmetics) { CosmeticsView(streak: streak) }
         .sheet(isPresented: $showTodayLogs) {
             // Same goal as the bar (base + temperature adjustment), so the sheet's
             // "X mL de Y mL" matches what the user just tapped.
@@ -190,440 +114,20 @@ struct HomeView: View {
     
     // MARK: - Subviews
     
-    private var headerRow: some View {
-        HStack {
-            HStack(spacing: 6) {
-                Image(systemName: "drop.fill")
-                    .font(AppFont.caption)
-                    .foregroundStyle(Color.appAccentText)
-                Text("\(streak)")
-                    .font(AppFont.subheadlineStrong)
-                Text("dias")
-                    .font(AppFont.subheadline)
-            }
-            .foregroundStyle(.primary)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
-            .background(.clear)
-
-            Spacer()
-
-            Button {
-                InteractionTracker.log("home_cosmetics_tap", screen: .home, userID: profile.userID, context: modelContext)
-                showCosmetics = true
-            } label: {
-                Image(systemName: "paintbrush.fill")
-                    .font(.system(.subheadline, weight: .semibold))
-                    .foregroundStyle(Color.appAccentText)
-                    .frame(width: 40, height: 40)
-                    .glassEffect(.regular.interactive(), in: Circle())
-            }
-            .accessibilityLabel("Cosméticos")
-
-            Button {
-                InteractionTracker.log("home_share_tap", screen: .home, userID: profile.userID, context: modelContext)
-                showShare = true
-            } label: {
-                Image(systemName: "square.and.arrow.up")
-                    .font(.system(.subheadline, weight: .semibold))
-                    .dynamicTypeSize(...DynamicTypeSize.xxxLarge) // o ícone cabe no círculo de 44 pt
-                    .foregroundStyle(Color.appAccentText)
-                    .frame(width: headerButtonSize, height: headerButtonSize)
-                    .glassEffect(.regular.interactive(), in: Circle())
-            }
-            .accessibilityLabel("Compartilhar")
-        }
-    }
-    
     private let intakeGridSpacing: CGFloat = 12
+    private let controlTextSizeRange = ...DynamicTypeSize.xxxLarge
 
     /// The two rows of intake cards share what's left below the progress bar, so the
-    /// grid ends `TabScreenLayout.spacing` above the tab bar.
+    /// grid ends `TabScreenLayout.spacing` above the bottom safe area.
     private func intakeCardHeight(forVisibleHeight height: CGFloat) -> CGFloat {
         let gridHeight = TabScreenLayout.contentHeight(forVisibleHeight: height) - progressBarHeight - TabScreenLayout.spacing
         return max((gridHeight - intakeGridSpacing) / 2, 116)
     }
 
-    private var goalReached: Bool { progress >= 1 }
-
-    /// Botões do jogo no lugar dos cartões de ingestão.
-    private var showsGameControls: Bool { goalReached && !showsIntakeInsteadOfGame }
-
-    private var showsGrass: Bool { grassEquipped && Cosmetic.grass.isUnlocked(streak: streak) }
-
-    private var containerShape: UnevenRoundedRectangle {
-        UnevenRoundedRectangle(topLeadingRadius: 32, bottomLeadingRadius: 32, bottomTrailingRadius: 32, topTrailingRadius: 32, style: .continuous)
-    }
-
-    private func topSection(height: CGFloat, width: CGFloat) -> some View {
-        // Recipiente: vai do topo da tela até logo acima da barra de progresso e
-        // enche de água conforme o progresso do dia.
-        // O cabeçalho fica fora do conteúdo da água: a refração achata o conteúdo
-        // numa imagem e o vidro dos botões deixa de enxergar o fundo (fica escuro).
-        mascotPlaceholder(height: TabScreenLayout.mascotHeight(forWaterHeight: height), width: width)
-            // Esse respiro abaixo do mascote (antes do `.frame` de altura fixa, pra
-            // não aumentar a altura total do recipiente) é o que o afasta do fundo.
-            .padding(.bottom, TabScreenLayout.mascotBottomPadding)
-            .frame(maxWidth: .infinity)
-            // `.bottom` (não `.center`): a altura extra do recipiente (reclamada do
-            // cabeçalho) vira espaço de água acima do mascote, em vez de se dividir
-            // igual entre cima e baixo e empurrar o mascote pra cima do centro.
-            .frame(height: height, alignment: .bottom)
-            // Cosmético "Gramadinho": no fundo do aquário, atrás do mascote e dentro
-            // do conteúdo da água (então ondula junto com a refração). Só aparece
-            // desbloqueado — se a streak zerar, some mesmo que continue equipado.
-            .background(alignment: .bottom) {
-                if showsGrass {
-                    GrassView()
-                        .frame(height: 44)
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
-            }
-            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showsGrass)
-            // Meta do dia batida: os rins aparecem nos cantos de baixo comemorando.
-            // Ficam na frente da grama e, como o resto, dentro da água.
-            .overlay(alignment: .bottom) {
-                if goalReached {
-                    KidneyCheerView()
-                        .frame(height: 80)
-                        .allowsHitTesting(false)
-                        .accessibilityHidden(true)
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
-            }
-            .animation(.spring(response: 0.5, dampingFraction: 0.7), value: goalReached)
-            // Jogo das argolas: no conteúdo do recipiente, então passa pela mesma
-            // refração da água. As pedrinhas (shader) continuam por cima, no fundo.
-            .overlay {
-                if goalReached {
-                    RingGameView(simulation: ringGame, water: waterMotion)
-                        .transition(.opacity)
-                }
-            }
-        .background {
-            containerShape
-                .fill(AppTheme.screenBackground(for: colorScheme))
-        }
-        .waterContainer(
-            level: progress,
-            in: containerShape,
-            bleedsIntoTopSafeArea: true,
-            motion: waterMotion
-        )
-        // Voltar pro jogo: com a meta batida e os botões de ingestão à mostra, tocar no
-        // recipiente traz os botões do jogo de volta.
-        .contentShape(containerShape)
-        // `simultaneousGesture`: o próprio recipiente já tem um arrasto (empurrar pedrinhas) e,
-        // com um `onTapGesture` comum, ele ficava com o toque.
-        .simultaneousGesture(
-            TapGesture().onEnded {
-                guard goalReached, showsIntakeInsteadOfGame else { return }
-                withAnimation(.spring(response: 0.6, dampingFraction: 0.85)) { showsIntakeInsteadOfGame = false }
-            }
-        )
-        // Streak e botão de compartilhar flutuam por cima do recipiente (fora do
-        // `.waterContainer`, então não passam pela refração da água — senão o vidro
-        // dos botões perderia a transparência e ficaria escuro).
-        .overlay(alignment: .top) {
-            headerRow
-                .padding(.horizontal, 10)
-                .padding(.top, 14)
-        }
-    }
-
-    private func mascotPlaceholder(height: CGFloat, width: CGFloat) -> some View {
-        ZStack(alignment: .topTrailing) {
-            if mascotAssemblyPending, consumedToday == 0, let assembling = AppTheme.mascotImageName(for: 0) {
-                // Abrindo o app com 0 mL: o inverso da explosão — os cacos sobem e se
-                // juntam no meio, formando o primeiro mascote. Mesmo tamanho/correção
-                // do mascote vivo, então a troca pro ramo de baixo no fim é invisível.
-                // Antes disso, as pedrinhas ficam soltas no fundo por
-                // `looseStonesDuration`, são puxadas pro meio e, assim que se juntam
-                // (`WaterMotion.stonesGathered`), somem e os cacos se abrem dali.
-                let correction = AppTheme.mascotSizeCorrection(for: assembling)
-                ZStack {
-                    if mascotAssemblyStarted {
-                        MascotShatterView(imageName: assembling, width: height * 1.55 * correction, height: height * correction, assembles: true)
-                    }
-                }
-                .frame(width: height * 1.55, height: height, alignment: .center)
-                .task {
-                    waterMotion.scatterStonesAtRest()
-                    try? await Task.sleep(for: .seconds(Self.looseStonesDuration))
-                    waterMotion.gatherStones(heightAboveBottom: TabScreenLayout.mascotBottomPadding + height / 2)
-                    let gatherStart = Date.now
-                    while !waterMotion.stonesGathered, Date.now.timeIntervalSince(gatherStart) < Self.stonesGatherTimeout {
-                        try? await Task.sleep(for: .milliseconds(16))
-                    }
-                    waterMotion.clearStones()
-                    mascotAssemblyStarted = true
-                    try? await Task.sleep(for: .seconds(MascotShatterView.assembleDuration))
-                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                    mascotAssemblyPending = false
-                    mascotAssemblyStarted = false
-                }
-            } else if let mascot = AppTheme.mascotImageName(for: progress), !newMascotHidden {
-                Image(mascot)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(height: height)
-                    // Slot de layout com largura e altura fixas, iguais para todos os
-                    // mascotes: sem isso, cada imagem (recortada no seu próprio contorno,
-                    // com proporção diferente) mudava o tamanho da ZStack e fazia o
-                    // mascote "saltar" de posição ao trocar de estágio.
-                    .frame(width: height * 1.55, height: height, alignment: .center)
-                    .scaleEffect(
-                        x: AppTheme.mascotSizeCorrection(for: mascot) * (isPoking ? 1.18 : 1.0),
-                        y: AppTheme.mascotSizeCorrection(for: mascot) * (isPoking ? 0.82 : 1.0),
-                        anchor: .center
-                    )
-                    // Precisa ser explícita (igual à de `mascotDragOffset` abaixo): o
-                    // `.transaction { animation = nil }` no ZStack pai (pra trocar de
-                    // mascote sem crossfade) zera a animação ambiente de toda a
-                    // subárvore, incluindo o `withAnimation` do toque em `pokeMascot()`
-                    // — sem essa linha, o "cutucão" ficava instantâneo (travado).
-                    .animation(.interpolatingSpring(stiffness: 350, damping: 10), value: isPoking)
-                    .offset(mascotDragOffset)
-                    .animation(.interactiveSpring(response: 0.28, dampingFraction: 0.55), value: mascotDragOffset)
-                    // Área de toque maior que o desenho: o `scaleEffect` acima encolhe
-                    // a imagem (e o toque junto) pra ~55–65% do slot; aqui o toque
-                    // volta a valer em 85% do slot, com folga em volta do mascote.
-                    .contentShape(Rectangle().scale(0.85))
-                    .onTapGesture { pokeMascot() }
-                    .simultaneousGesture(mascotDragGesture)
-
-                MascotSpeechBubble(text: overridePhrase ?? Self.mascotPhrases[phraseIndex])
-                    .offset(x: 8 + mascotDragOffset.width, y: -38 + mascotDragOffset.height)
-                    .animation(.interactiveSpring(response: 0.28, dampingFraction: 0.55), value: mascotDragOffset)
-                    // Mesmo motivo do `.animation(value: isPoking)` no mascote: precisa
-                    // ser explícita pra sobreviver ao `.transaction` do ZStack pai.
-                    .animation(.easeInOut(duration: 0.3), value: overridePhrase ?? Self.mascotPhrases[phraseIndex])
-                    .transition(.scale(scale: 0.8, anchor: .bottomLeading).combined(with: .opacity))
-            } else if let exploding = explodingMascot {
-                // Mascote1 "quebrando": racha em pedaços que voam pra fora e caem, no
-                // instante em que nasce em pedrinhas na água (`waterMotion.explodeIntoStones`).
-                // Mesma correção de tamanho do mascote ao vivo (`scaleEffect` acima) —
-                // sem ela, a imagem nascia no tamanho cheio da caixa, bem maior do que o
-                // mascote normal, e parecia um "zoom" antes de quebrar.
-                let correction = AppTheme.mascotSizeCorrection(for: exploding)
-                MascotShatterView(imageName: exploding, width: height * 1.55 * correction, height: height * correction)
-                    .frame(width: height * 1.55, height: height, alignment: .center)
-            } else {
-                // Meta batida (ou mascote novo ainda escondido por `newMascotHidden`
-                // durante a transição de bolhas): o mascote some, mas a largura fica
-                // igual à dos outros branches — sem isso, a ZStack (alignment
-                // .topTrailing) perde a referência de largura, encolhe/estica, e o
-                // mascote parece "deslizar" de lado quando volta a aparecer.
-                Color.clear.frame(width: height * 1.55, height: height)
-            }
-        }
-        // Transição de bolhas ao trocar de estágio (mascote5→mascote4 etc.),
-        // estilo Bob Esponja: o mascote ANTIGO fica sobreposto aqui, escondido
-        // pela própria view em `oldMascotHideDelay`; o mascote NOVO (ramo acima)
-        // só aparece em `newMascotShowDelay` — os dois tempos são independentes,
-        // ver `handleGoalTransition`. Em `.overlay` (não dentro da ZStack de cima)
-        // pra poder usar a largura cheia do recipiente (`width`, bem maior que a
-        // caixa do mascote) sem fazer a ZStack de cima — que usa esse mesmo
-        // tamanho pra alinhar o mascote com `.topTrailing` — mudar de largura e
-        // deslocar o mascote. Independe do nível de água real, então funciona
-        // igual com o recipiente cheio ou quase vazio.
-        .overlay {
-            if let bubbling = bubbleMascot {
-                MascotBubbleTransitionView(imageName: bubbling, width: width, height: height, revealDelay: Self.oldMascotHideDelay)
-                    .frame(width: width, height: height)
-            }
-        }
-        // Sem isso, a troca de ramo acima (mascote vivo → quebrando → vazio) herdava
-        // a animação de 1,2s do nível da água (`WaterRefractionView`, que envolve todo
-        // esse conteúdo) e o SwiftUI fazia um crossfade longo entre os dois: dava pra
-        // ver o mascote inteiro parado atrás, com o balão, sumindo devagar por trás do
-        // mascote quebrando. Com a animação ambiente cancelada aqui, a troca é instantânea
-        // — só a física dos cacos (que tem sua própria `.animation` explícita) continua animada.
-        .transaction { transaction in
-            transaction.animation = nil
-        }
-        .onAppear {
-            phraseIndex = Int.random(in: 0..<Self.mascotPhrases.count)
-            // `.onChange` abaixo só dispara numa transição ao vivo: se o app abre
-            // já com a meta batida (de uma sessão anterior), ele nunca viu o
-            // cruzamento, e sem isso o recipiente ficava vazio — nem mascote, nem
-            // pedrinhas. Aqui o estado das pedrinhas é sincronizado com o progresso
-            // atual assim que a tela aparece.
-            syncStonesWithProgress()
-            // Já abriu com água registrada: não há montagem, e ela não deve disparar
-            // depois só porque um registro foi excluído e o total voltou a 0.
-            if consumedToday > 0 { mascotAssemblyPending = false }
-        }
-        .onChange(of: scenePhase) { oldPhase, newPhase in
-            // Voltar do background conta como "abrir o app" de novo.
-            if oldPhase == .background, newPhase != .background, consumedToday == 0 {
-                mascotAssemblyPending = true
-            }
-        }
-        .task {
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(6))
-                guard overridePhrase == nil else { continue }
-                phraseIndex = (phraseIndex + 1) % Self.mascotPhrases.count
-            }
-        }
-        .onChange(of: progress) { oldValue, newValue in
-            handleGoalTransition(from: oldValue, to: newValue)
-        }
-    }
-
-    /// Garante que as pedrinhas batem com o progresso atual ao abrir a tela —
-    /// sem explosão (isso só acontece ao vivo, em `handleGoalTransition`).
-    private func syncStonesWithProgress() {
-        if progress >= 1.0 {
-            waterMotion.explodeIntoStones()
-        } else {
-            waterMotion.clearStones()
-        }
-    }
-
-    /// Ao bater a meta (mascote1 → nenhum mascote), ele "explode": primeiro quebra
-    /// (`MascotShatterView`) e só quando essa quebra está quase no fim é que nascem
-    /// as pedrinhas que caem no fundo do recipiente — uma depois da outra, não as
-    /// duas coisas ao mesmo tempo. Se a meta deixar de estar batida (ex.: novo dia),
-    /// as pedrinhas somem para o mascote voltar do zero. Entre estágios intermediários
-    /// (mascote5→mascote4 etc., pra cima ou pra baixo, ex. ao excluir um registro),
-    /// a transição de bolhas (`MascotBubbleTransitionView`) cobre a troca.
-    /// Tempo (s) até a imagem do mascote ANTIGO (dentro da cortina de bolhas)
-    /// desaparecer. Independente de `newMascotShowDelay` — pode ser maior,
-    /// menor ou igual.
-    private static let oldMascotHideDelay: Double = 0.75
-    /// Tempo (s) até a imagem do mascote NOVO (por baixo de tudo) passar a
-    /// aparecer. Independente de `oldMascotHideDelay` — se for menor, o novo
-    /// aparece ANTES do antigo sumir (os dois ficam visíveis juntos por um
-    /// tempo, sobrepostos pelas bolhas); se for maior, há um intervalo em que
-    /// nenhum dos dois aparece (só a cortina de bolhas, sem mascote atrás).
-    private static let newMascotShowDelay: Double = 0.75
-    /// Tempo (ms) que a view de bolhas inteira continua montada antes de ser
-    /// descartada. Deve ficar sempre >= o maior dos dois tempos acima, somado
-    /// à maior duração de subida de bolha (`riseDuration` em
-    /// `MascotBubbleTransitionView`), senão a animação é cortada antes do fim.
-    private static let mascotBubbleTotalDuration: Int = 1900
-
-    private func handleGoalTransition(from oldValue: Double, to newValue: Double) {
-        let oldMascot = AppTheme.mascotImageName(for: oldValue)
-        let newMascot = AppTheme.mascotImageName(for: newValue)
-
-        if oldValue < 1.0, newValue >= 1.0, let mascot = oldMascot {
-            explodingMascot = mascot
-            UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
-            Task {
-                try? await Task.sleep(for: .milliseconds(100))
-                waterMotion.explodeIntoStones()
-                try? await Task.sleep(for: .milliseconds(160))
-                explodingMascot = nil
-            }
-        } else if oldValue >= 1.0, newValue < 1.0 {
-            waterMotion.clearStones()
-        } else if let old = oldMascot, let new = newMascot, old != new, newValue > oldValue {
-            bubbleMascot = old
-            newMascotHidden = true
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-            Task {
-                try? await Task.sleep(for: .milliseconds(Int(Self.newMascotShowDelay * 1000)))
-                newMascotHidden = false
-            }
-            Task {
-                try? await Task.sleep(for: .milliseconds(Self.mascotBubbleTotalDuration))
-                bubbleMascot = nil
-            }
-        }
-    }
-
-    /// Liga o jogo quando a meta é batida e desliga quando deixa de estar. Ao vivo, espera
-    /// a explosão do mascote e as pedrinhas assentarem; ao abrir o app já com a meta
-    /// batida, as argolas entram quase direto.
-    private func handleRingGame(isReached: Bool, isLiveTransition: Bool) {
-        if isReached {
-            ringGame.onRoundComplete = {
-                UINotificationFeedbackGenerator().notificationOccurred(.success)
-                InteractionTracker.log("ring_game_round_complete", screen: .home, userID: profile.userID, context: modelContext)
-            }
-            Task {
-                try? await Task.sleep(for: .seconds(isLiveTransition ? Self.ringGameStartDelay : 0.4))
-                guard goalReached else { return }
-                ringGame.start()
-                if isLiveTransition {
-                    InteractionTracker.log("ring_game_start", screen: .home, userID: profile.userID, context: modelContext)
-                }
-            }
-        } else {
-            ringGame.stop()
-            pressedJets = [Bool](repeating: false, count: RingGameSide.allCases.count)
-        }
-    }
-
-    private func pokeMascot() {
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-
-        // A curva vem do `.animation(value: isPoking)` junto do `scaleEffect` —
-        // só precisa setar o valor aqui.
-        isPoking = true
-        Task {
-            try? await Task.sleep(for: .milliseconds(130))
-            isPoking = false
-        }
-
-        pokeCount += 1
-
-        if pokeCount >= 3 {
-            pokeCount = 0
-            overridePhrase = "Para de me cutucar zé mané"
-            Task {
-                try? await Task.sleep(for: .seconds(4))
-                overridePhrase = nil
-            }
-        } else {
-            phraseIndex = (phraseIndex + 1) % Self.mascotPhrases.count
-        }
-    }
-
-    /// Arrastar o mascote: ele acompanha o dedo dentro de um raio curto e, ao soltar,
-    /// a mola o traz de volta à posição original — sempre dentro do recipiente. O
-    /// movimento também empurra a superfície da água (mesmo `WaterMotion` do
-    /// `waterContainer`), como se o mascote estivesse mergulhado nela.
-    private var mascotDragGesture: some Gesture {
-        DragGesture(minimumDistance: 0)
-            .updating($mascotDragOffset) { value, state, _ in
-                state = CGSize(
-                    width: clampedDrag(value.translation.width, limit: 110),
-                    height: clampedDrag(value.translation.height, limit: 45)
-                )
-            }
-            .onChanged { value in
-                let deltaX = value.translation.width - lastMascotDragTranslation.width
-                let deltaY = value.translation.height - lastMascotDragTranslation.height
-                lastMascotDragTranslation = value.translation
-                disturbWaterFromDrag(deltaX: deltaX, deltaY: deltaY)
-            }
-            .onEnded { value in
-                // Soltar "chacoalha" a água com força proporcional a quão longe o
-                // mascote tinha ido, na direção em que ele está voltando para o centro.
-                disturbWaterFromDrag(deltaX: -value.translation.width * 0.6, deltaY: -value.translation.height * 0.6)
-                lastMascotDragTranslation = .zero
-            }
-    }
-
-    private func clampedDrag(_ translation: CGFloat, limit: CGFloat) -> CGFloat {
-        max(-limit, min(limit, translation))
-    }
-
-    private func disturbWaterFromDrag(deltaX: CGFloat, deltaY: CGFloat) {
-        let magnitude = (deltaX * deltaX + deltaY * deltaY).squareRoot()
-        guard magnitude > 0.01 else { return }
-        let sign: CGFloat = deltaY >= 0 ? 1 : -1
-        let strength = Float(magnitude * sign) * WaterTuning.dragPushGain
-        waterMotion.disturb(atU: 0.5, strength: strength)
-    }
-
     /// Tapping the bar opens today's intake logs (same sheet as a day in Histórico).
     private var progressBarButton: some View {
         Button {
+            Haptic.tap.play()
             InteractionTracker.log("home_progress_bar_tap", screen: .home, userID: profile.userID, context: modelContext)
             showTodayLogs = true
         } label: {
@@ -653,32 +157,27 @@ struct HomeView: View {
                     }
                     .homeCardShadow()
                 
-                // preenchimento azul — com a meta batida (jogo liberado) ganha um brilho
-                // azul claro e discreto em volta, por trás dele
+                // preenchimento azul
                 Capsule()
-                    .fill(Color.appAccent)
+                    .fill(LinearGradient.waterHeader)
                     .frame(width: barWidth, height: progressBarHeight)
-                    .shadow(color: Color.appAccentLight.opacity(goalReached ? 0.75 : 0), radius: 10)
                     .animation(.easeOut(duration: 0.4), value: progress)
-                    .animation(.easeInOut(duration: 0.6), value: goalReached)
                 
                 // Texto sempre branco, sobre a trilha e sobre o preenchimento.
                 progressLabel(color: .white)
 
-                // Indica que a barra é tocável (abre os registros de hoje).
-                // Nos tamanhos de acessibilidade o texto ocupa a barra toda e o ícone passaria
-                // por cima dele; a barra continua tocável (rótulo e dica no botão).
-                if !dynamicTypeSize.isAccessibilitySize {
-                    Image(systemName: "info.circle")
-                        .font(.system(.body, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                        .padding(.trailing, 18)
-                        .accessibilityHidden(true)
-                }
+                // Indica que a barra é tocável (abre os registros de hoje). Sempre branco,
+                // igual ao texto da barra.
+                Image(systemName: "info.circle")
+                    .font(.system(.body, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .padding(.trailing, 18)
+                    .accessibilityHidden(true)
             }
         }
         .frame(height: progressBarHeight)
+        .dynamicTypeSize(controlTextSizeRange)
     }
     
     private func progressLabel(color: Color) -> some View {
@@ -688,71 +187,20 @@ struct HomeView: View {
             .lineLimit(1)
             .minimumScaleFactor(0.75) // 15 pt × 0.75 ≈ 11 pt: o menor texto do app (HIG)
             .padding(.leading, 18)
-            .padding(.trailing, dynamicTypeSize.isAccessibilitySize ? 18 : 52)
+            .padding(.trailing, 52)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// Os quatro cartões de ingestão; com a meta batida viram os quatro botões do jogo das
-    /// argolas, no mesmo lugar (`matchedGeometryEffect`): "Gole" → seta pra esquerda, "Copo" →
-    /// seta pra direita, "Garrafa" → jato central e "Outro" → "Beber água", que volta aos
-    /// cartões de ingestão (tocar no recipiente de água volta ao jogo).
-    private func bottomControls(cardHeight: CGFloat) -> some View {
-        ZStack {
-            if showsGameControls {
-                VStack(spacing: intakeGridSpacing) {
-                    HStack(spacing: intakeGridSpacing) {
-                        jetButton(.left)
-                            .matchedGeometryEffect(id: "gole", in: controlsNamespace)
-                        jetButton(.right)
-                            .matchedGeometryEffect(id: "glass", in: controlsNamespace)
-                    }
-                    .frame(height: cardHeight)
-                    HStack(spacing: intakeGridSpacing) {
-                        jetButton(.center)
-                            .matchedGeometryEffect(id: "bottle", in: controlsNamespace)
-                        RingGameIntakeButton(height: cardHeight) {
-                            withAnimation(.spring(response: 0.6, dampingFraction: 0.85)) { showsIntakeInsteadOfGame = true }
-                        }
-                        .matchedGeometryEffect(id: "custom", in: controlsNamespace)
-                    }
-                    .frame(height: cardHeight)
-                }
-            } else {
-                intakeGrid(cardHeight: cardHeight)
-            }
-        }
-        .animation(.spring(response: 0.6, dampingFraction: 0.85), value: showsGameControls)
-    }
-
     private func intakeGrid(cardHeight: CGFloat) -> some View {
-        VStack(spacing: intakeGridSpacing) {
-            HStack(spacing: intakeGridSpacing) {
-                goleCard(height: cardHeight)
-                    .matchedGeometryEffect(id: "gole", in: controlsNamespace)
-                intakeCard(.glass, height: cardHeight)
-                    .matchedGeometryEffect(id: "glass", in: controlsNamespace)
-            }
-            HStack(spacing: intakeGridSpacing) {
-                intakeCard(.bottle, height: cardHeight)
-                    .matchedGeometryEffect(id: "bottle", in: controlsNamespace)
-                customIntakeCard(height: cardHeight)
-                    .matchedGeometryEffect(id: "custom", in: controlsNamespace)
-            }
+        LazyVGrid(
+            columns: [GridItem(.flexible(), spacing: intakeGridSpacing), GridItem(.flexible(), spacing: intakeGridSpacing)],
+            spacing: intakeGridSpacing
+        ) {
+            goleCard(height: cardHeight)
+            intakeCard(.glass, height: cardHeight)
+            intakeCard(.bottle, height: cardHeight)
+            customIntakeCard(height: cardHeight)
         }
-    }
-
-    private func jetButton(_ side: RingGameSide) -> some View {
-        RingGameControls(
-            side: side,
-            isPressed: pressedJets[side.rawValue],
-            onPressChange: { isPressed in
-                guard pressedJets[side.rawValue] != isPressed else { return }
-                pressedJets[side.rawValue] = isPressed
-                ringGame.setJet(side, open: isPressed)
-                if isPressed { UIImpactFeedbackGenerator(style: .light).impactOccurred() }
-            },
-            onAccessibilityPulse: { ringGame.pulseJet(side) }
-        )
     }
 
     private func goleCard(height: CGFloat) -> some View {
@@ -795,6 +243,7 @@ struct HomeView: View {
             .buttonStyle(.plain)
             
             Button {
+                Haptic.tap.play()
                 isEditingCustomAmount = true
             } label: {
                 Image(systemName: "pencil.circle.fill")
@@ -833,7 +282,7 @@ struct HomeView: View {
         guard !isLogging else { return }
         isLogging = true
         playWaterSound()
-        UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+        Haptic.drink.play()
         withAnimation(.easeInOut(duration: 0.15)) { highlightedCard = cardID }
         Task {
             try? await Task.sleep(for: .seconds(0.7))
@@ -857,10 +306,12 @@ struct HomeView: View {
     }
     
     private func deleteLog(_ log: IntakeLog) {
+        Haptic.destructive.play()
         Task { await NotificationScheduler.shared.deleteIntake(log, context: modelContext) }
     }
     
     private func saveCustomAmount(_ newValue: Int) {
+        Haptic.success.play()
         profile.customIntakeML = newValue
         profile.atualizadoEm = .now
         profile.syncStatus = .pending
@@ -896,7 +347,7 @@ struct IntakeCardContent: View {
     @Environment(\.colorScheme) private var colorScheme
     let icon: IntakeCardIcon?
     let title: String
-    var subtitle: String?
+    let subtitle: String
     var isHighlighted: Bool = false
     var height: CGFloat? = nil
 
@@ -909,8 +360,8 @@ struct IntakeCardContent: View {
         isHighlighted ? .white : Color.appMutedInk
     }
 
-    private var backgroundIconColor: Color {
-        isHighlighted ? Color.white.opacity(0.28) : Color.appAccent
+    private var backgroundIconColor: AnyShapeStyle {
+        isHighlighted ? AnyShapeStyle(Color.white.opacity(0.28)) : AnyShapeStyle(LinearGradient.waterHeader)
     }
 
     var body: some View {
@@ -936,13 +387,14 @@ struct IntakeCardContent: View {
             }
             .background(
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(isHighlighted ? Color.appAccent : Color(UIColor.secondarySystemBackground))
+                    .fill(isHighlighted ? AnyShapeStyle(LinearGradient.waterHeader) : AnyShapeStyle(Color(UIColor.secondarySystemBackground)))
                     .homeCardShadow()
             )
             .contentShape(RoundedRectangle(cornerRadius: 18))
+            .dynamicTypeSize(...DynamicTypeSize.xxxLarge) // o cartão tem altura fixa; o texto não passa dela
     }
 
-    /// `minHeight` (e não `height`): o cartão cresce com o Dynamic Type em vez de cortar o texto.
+    /// Altura fixa: o cartão não muda com o Dynamic Type.
     private func textBlock(title titleColor: Color, subtitle subtitleColor: Color) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Spacer(minLength: 0)
@@ -951,15 +403,15 @@ struct IntakeCardContent: View {
                 .font(AppFont.headline)
                 .foregroundStyle(titleColor)
 
-            if let subtitle {
-                Text(subtitle)
-                    .font(AppFont.subheadline)
-                    .foregroundStyle(subtitleColor)
-            }
+            Text(subtitle)
+                .font(AppFont.subheadline)
+                .foregroundStyle(subtitleColor)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .frame(minHeight: height)
+        .padding(.vertical, 16)
+        .padding(.leading, 12)
+        .padding(.trailing, 16)
+        .frame(height: height)
     }
 
     private func iconLayer(_ icon: IntakeCardIcon) -> some View {
@@ -1006,13 +458,13 @@ private struct BottleShape: Shape {
         path.move(to: pt(0.40, 0.15))
         path.addLine(to: pt(0.60, 0.15))
         path.addLine(to: pt(0.60, 0.19))
-        path.addQuadCurve(to: pt(0.81, 0.36), control: pt(0.81, 0.21))
-        path.addLine(to: pt(0.81, 0.88))
-        path.addQuadCurve(to: pt(0.71, 0.98), control: pt(0.81, 0.98))
-        path.addLine(to: pt(0.29, 0.98))
-        path.addQuadCurve(to: pt(0.19, 0.88), control: pt(0.19, 0.98))
-        path.addLine(to: pt(0.19, 0.36))
-        path.addQuadCurve(to: pt(0.40, 0.19), control: pt(0.19, 0.21))
+        path.addQuadCurve(to: pt(0.87, 0.36), control: pt(0.87, 0.21))
+        path.addLine(to: pt(0.87, 0.88))
+        path.addQuadCurve(to: pt(0.77, 0.98), control: pt(0.87, 0.98))
+        path.addLine(to: pt(0.23, 0.98))
+        path.addQuadCurve(to: pt(0.13, 0.88), control: pt(0.13, 0.98))
+        path.addLine(to: pt(0.13, 0.36))
+        path.addQuadCurve(to: pt(0.40, 0.19), control: pt(0.13, 0.21))
         path.closeSubpath()
 
         return path

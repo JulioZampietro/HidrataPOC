@@ -12,13 +12,21 @@ import WidgetKit
 struct HydrationLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: HydrationAttributes.self) { context in
-            HydrationLockScreenView(state: context.state)
-                .activityBackgroundTint(Color(.secondarySystemBackground))
+            Group {
+                if context.attributes.isIslandOnly {
+                    // Backup variant: nothing to show on the Lock Screen, only the island icon.
+                    Color.clear.frame(height: 1)
+                } else {
+                    HydrationLockScreenView(state: context.state)
+                }
+            }
+                .activityBackgroundTint(context.attributes.isIslandOnly ? Color.clear : LockScreenPalette.background)
+                .activitySystemActionForegroundColor(Color.appAccent)
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
                     Image(systemName: "drop.fill")
-                        .foregroundStyle(Color.appAccentText)
+                        .foregroundStyle(Color.appAccent)
                         .font(.title3)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
@@ -33,12 +41,12 @@ struct HydrationLiveActivity: Widget {
                 }
             } compactLeading: {
                 Image(systemName: "drop.fill")
-                    .foregroundStyle(Color.appAccentText)
+                    .foregroundStyle(Color.appAccent)
             } compactTrailing: {
                 EmptyView()
             } minimal: {
                 Image(systemName: "drop.fill")
-                    .foregroundStyle(Color.appAccentText)
+                    .foregroundStyle(Color.appAccent)
             }
         }
     }
@@ -60,21 +68,24 @@ private struct HydrationLockScreenView: View {
     }
 }
 
-private struct OverdueMessage: View {
-    /// Live Activity text doesn't reliably track `.primary`/`.secondary` against
-    /// `activityBackgroundTint` the way it does in the main app, so the color is
-    /// resolved explicitly from `colorScheme` instead of relying on the semantic
-    /// default — otherwise this reads fine in dark mode but goes low-contrast (near
-    /// white-on-light) once the system is in light mode.
-    @Environment(\.colorScheme) private var colorScheme
+/// Both colors come from `LockScreenAppearance` (see its doc comment) so they can't disagree.
+private enum LockScreenPalette {
+    static var background: Color {
+        LockScreenAppearance.isDark
+            ? Color(red: 0.07, green: 0.07, blue: 0.08)
+            : Color(white: 0.90).opacity(0.88)
+    }
+    static var text: Color { LockScreenAppearance.isDark ? .white : .black }
+}
 
+private struct OverdueMessage: View {
     var body: some View {
         HStack(spacing: 6) {
             Image(systemName: "drop.fill")
-                .foregroundStyle(Color.appAccentText)
+                .foregroundStyle(Color.appAccent)
             Text("Faz uma hora que você não bebe água!")
                 .font(.subheadline.bold())
-                .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
+                .foregroundStyle(LockScreenPalette.text)
         }
     }
 }
