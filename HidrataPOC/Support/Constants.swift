@@ -51,6 +51,10 @@ enum Constants {
     static let notificationMorningEndHour = 9
     static let notificationEveningStartHour = 19
 
+    /// Umidade relativa média (%) abaixo da qual o dia conta como "seco" para as falas do
+    /// mascote (`MascotPhrases`).
+    static let mascotDryHumidityPct: Double = 40
+
     enum NotificationCategory {
         static let hydrationReminder = "HYDRATION_REMINDER"
     }

@@ -18,12 +18,18 @@ enum AppTheme {
     /// 60–80% → mascote2, 80–<100% → mascote1. Em 100% (meta batida) retorna nil —
     /// o mascote some da tela.
     static func mascotImageName(for progress: Double) -> String? {
+        mascotStage(for: progress).map { "mascote\($0)" }
+    }
+
+    /// Estágio do mascote para o progresso: 5 (abaixo de 20%, o mais forte) a 1 (80–<100%,
+    /// quase derrotado). nil em 100% (meta batida). Os thresholds ficam só aqui.
+    static func mascotStage(for progress: Double) -> Int? {
         switch progress {
-        case ..<0.20: return "mascote5"
-        case ..<0.40: return "mascote4"
-        case ..<0.60: return "mascote3"
-        case ..<0.80: return "mascote2"
-        case ..<1.0:  return "mascote1"
+        case ..<0.20: return 5
+        case ..<0.40: return 4
+        case ..<0.60: return 3
+        case ..<0.80: return 2
+        case ..<1.0:  return 1
         default:      return nil
         }
     }
