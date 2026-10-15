@@ -97,6 +97,7 @@
 		A0DEC0A1B2C3D4E5F6000001 /* KidneyCheerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0DEC0A1B2C3D4E5F6000002 /* KidneyCheerView.swift */; };
 		5A1C0DE15A1C0DE15A1C0DE1 /* ShareProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1C0DE25A1C0DE25A1C0DE2 /* ShareProgressView.swift */; };
 		FF11223344556677889900FF /* AppFont.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD11223344556677889900DD /* AppFont.swift */; };
+		AA5511223344556677889901 /* Haptics.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA5511223344556677889902 /* Haptics.swift */; };
 		GG11223344556677889900GG /* Nunito.ttf in Resources */ = {isa = PBXBuildFile; fileRef = EE11223344556677889900EE /* Nunito.ttf */; };
 		HH11223344556677889900HH /* HealthKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = II11223344556677889900II /* HealthKitService.swift */; };
 		JJ11223344556677889900JJ /* HealthConnectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = KK11223344556677889900KK /* HealthConnectView.swift */; };
@@ -224,6 +225,7 @@
 		D4EEB6ACF929F31511C0BB13 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		DB825039445C1E23D630B41F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		DD11223344556677889900DD /* AppFont.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppFont.swift; sourceTree = "<group>"; };
+		AA5511223344556677889902 /* Haptics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Haptics.swift; sourceTree = "<group>"; };
 		DE421AF8596C6FF6DD295ED6 /* LogIntakeIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogIntakeIntent.swift; sourceTree = "<group>"; };
 		DEF14391DFF4F9227FB24BDF /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		E0CB3E3BA72A80075634FCBB /* HidrataPOC.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = HidrataPOC.entitlements; sourceTree = "<group>"; };
@@ -268,6 +270,7 @@
 			isa = PBXGroup;
 			children = (
 				DD11223344556677889900DD /* AppFont.swift */,
+				AA5511223344556677889902 /* Haptics.swift */,
 				00E817B37463672B4A760387 /* AppTheme.swift */,
 				95F0050D87C688CD6A361091 /* Constants.swift */,
 				E0CB3E3BA72A80075634FCBB /* HidrataPOC.entitlements */,
@@ -690,6 +693,7 @@
 				267A40DE9CF3539833AEA14D /* HomeView.swift in Sources */,
 				BB11223344556677889900BB /* HistoricoView.swift in Sources */,
 				FF11223344556677889900FF /* AppFont.swift in Sources */,
+				AA5511223344556677889901 /* Haptics.swift in Sources */,
 				F14DB73464BA11FAAA80A200 /* AppTheme.swift in Sources */,
 				F38FE2580C5C436E820BA2A8 /* NotificationVariant.swift in Sources */,
 				1E0E8D58D49CFBE72BD691A5 /* HydrationChartView.swift in Sources */,

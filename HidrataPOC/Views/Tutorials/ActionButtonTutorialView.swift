@@ -24,7 +24,7 @@ struct ActionButtonTutorialView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Fechar", systemImage: "xmark") { dismiss() }
+                    Button("Fechar", systemImage: "xmark") { Haptic.dismiss.play(); dismiss() }
                         .foregroundStyle(Color.appAccentText)
                 }
             }
@@ -181,6 +181,7 @@ struct ActionButtonTutorialView: View {
     // MARK: - Actions
 
     private func openActionButtonSettings() {
+        Haptic.tap.play()
         // App-Prefs: (sem caminho) abre o Ajustes na raiz.
         // Fallback para a página do próprio app se não funcionar.
         if let url = URL(string: "App-Prefs:") {

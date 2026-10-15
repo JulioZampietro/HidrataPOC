@@ -43,7 +43,7 @@ struct HealthConnectView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Fechar", systemImage: "xmark") { dismiss() }
+                    Button("Fechar", systemImage: "xmark") { Haptic.dismiss.play(); dismiss() }
                 }
             }
             .task { isAuthorized = service.isAuthorized }
@@ -89,6 +89,7 @@ struct HealthConnectView: View {
             }
 
             Button {
+                Haptic.primary.play()
                 Task { await authorize() }
             } label: {
                 Text("Conectar ao Saúde")
@@ -117,6 +118,7 @@ struct HealthConnectView: View {
             }
 
             Button {
+                Haptic.primary.play()
                 Task { await syncNow() }
             } label: {
                 Group {
@@ -173,6 +175,7 @@ struct HealthConnectView: View {
     private func authorize() async {
         let granted = await service.requestAuthorization()
         isAuthorized = granted
+        if !granted { Haptic.warning.play() }
         if granted {
             isSyncing = true
             // Backfill: envia histórico existente do app para o Health
@@ -182,6 +185,7 @@ struct HealthConnectView: View {
             await service.syncFromHealthKit(userID: profile.userID, context: modelContext)
             isSyncing = false
             justSynced = true
+            Haptic.success.play()
             try? await Task.sleep(for: .seconds(2))
             justSynced = false
         }
@@ -194,6 +198,7 @@ struct HealthConnectView: View {
         await service.syncFromHealthKit(userID: profile.userID, context: modelContext)
         isSyncing = false
         justSynced = true
+        Haptic.success.play()
         try? await Task.sleep(for: .seconds(2))
         justSynced = false
     }

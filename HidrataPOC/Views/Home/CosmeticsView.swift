@@ -70,7 +70,7 @@ struct CosmeticsView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Fechar", systemImage: "xmark") { dismiss() }
+                    Button("Fechar", systemImage: "xmark") { Haptic.dismiss.play(); dismiss() }
                 }
             }
         }
@@ -100,7 +100,8 @@ private struct CosmeticItemButton: View {
 
     var body: some View {
         Button {
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            // Item bloqueado dá o aviso; ao equipar, a pancada é mais firme do que ao tirar.
+            if !isUnlocked { Haptic.warning.play() } else if isEquipped { Haptic.tap.play() } else { Haptic.primary.play() }
             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { isEquipped.toggle() }
         } label: {
             VStack(spacing: 10) {

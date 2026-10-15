@@ -102,6 +102,10 @@ struct RootView: View {
             }
             .appScreenBackground()
             .toolbar(.hidden, for: .navigationBar)
+            .onChange(of: selectedPage) { Haptic.selection.play() } // arrastar entre Home e Histórico
+            .onChange(of: showProfile) { _, isShowing in
+                if !isShowing { Haptic.dismiss.play() } // voltar do Perfil; abrir já vibra no botão
+            }
             .navigationDestination(isPresented: $showProfile) {
                 ProfileView(profile: profile)
                     .navigationTitle("Perfil")

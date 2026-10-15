@@ -131,6 +131,7 @@ struct ProfileView: View {
 
             HStack(spacing: 10) {
                 Button {
+                    Haptic.tap.play()
                     showGoalExplainer = true
                 } label: {
                     Text("Entender minha meta")
@@ -142,6 +143,7 @@ struct ProfileView: View {
                 .tint(Color.appAccent)
 
                 Button {
+                    Haptic.tap.play()
                     isEditingGoal = true
                 } label: {
                     Text("Editar")
@@ -163,6 +165,7 @@ struct ProfileView: View {
 
     private var remindersCard: some View {
         Button {
+            Haptic.primary.play()
             showReminders = true
         } label: {
             HStack {
@@ -196,6 +199,7 @@ struct ProfileView: View {
 
     private var liveActivitiesRow: some View {
         Button {
+            Haptic.tap.play()
             showLiveActivities = true
         } label: {
             HStack {
@@ -227,6 +231,7 @@ struct ProfileView: View {
 
     private var siriRow: some View {
         Button {
+            Haptic.tap.play()
             showSiriTutorial = true
         } label: {
             HStack {
@@ -258,6 +263,7 @@ struct ProfileView: View {
 
     private var healthRow: some View {
         Button {
+            Haptic.tap.play()
             InteractionTracker.log("health_connect_row_tap", screen: .profile, userID: profile.userID, context: modelContext)
             showHealthConnect = true
         } label: {
@@ -386,6 +392,7 @@ struct ProfileView: View {
                 Spacer()
 
                 Button {
+                    Haptic.tap.play()
                     isEditing = true
                 } label: {
                     Text("Editar")
@@ -445,6 +452,7 @@ struct ProfileView: View {
     // MARK: - Save
 
     private func save(_ values: ProfileFormValues) {
+        Haptic.success.play()
         profile.idade = values.idade
         profile.genero = values.genero?.rawValue
         profile.generoAutoDeclarado = nil
@@ -466,6 +474,7 @@ struct ProfileView: View {
     }
 
     private func saveGoal(_ newValue: Int) {
+        Haptic.success.play()
         profile.metaDiariaML = newValue
         profile.atualizadoEm = .now
         profile.syncStatus = .pending
@@ -542,7 +551,7 @@ private struct GoalExplainerView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Fechar", systemImage: "xmark") { dismiss() }
+                    Button("Fechar", systemImage: "xmark") { Haptic.dismiss.play(); dismiss() }
                         .font(AppFont.calloutStrong)
                 }
             }

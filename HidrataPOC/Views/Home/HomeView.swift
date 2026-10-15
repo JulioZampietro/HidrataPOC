@@ -90,7 +90,7 @@ struct HomeView: View {
             presenting: pendingDeleteLog
         ) { log in
             Button("Excluir", role: .destructive) { deleteLog(log) }
-            Button("Cancelar", role: .cancel) {}
+            Button("Cancelar", role: .cancel) { Haptic.dismiss.play() }
         } message: { log in
             Text("\(log.tipoEntrada.capitalized) · \(log.volumeML) mL será removido do seu histórico e da base de dados.")
         }
@@ -127,6 +127,7 @@ struct HomeView: View {
     /// Tapping the bar opens today's intake logs (same sheet as a day in Histórico).
     private var progressBarButton: some View {
         Button {
+            Haptic.tap.play()
             InteractionTracker.log("home_progress_bar_tap", screen: .home, userID: profile.userID, context: modelContext)
             showTodayLogs = true
         } label: {
@@ -242,6 +243,7 @@ struct HomeView: View {
             .buttonStyle(.plain)
             
             Button {
+                Haptic.tap.play()
                 isEditingCustomAmount = true
             } label: {
                 Image(systemName: "pencil.circle.fill")
@@ -280,7 +282,7 @@ struct HomeView: View {
         guard !isLogging else { return }
         isLogging = true
         playWaterSound()
-        UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+        Haptic.drink.play()
         withAnimation(.easeInOut(duration: 0.15)) { highlightedCard = cardID }
         Task {
             try? await Task.sleep(for: .seconds(0.7))
@@ -304,10 +306,12 @@ struct HomeView: View {
     }
     
     private func deleteLog(_ log: IntakeLog) {
+        Haptic.destructive.play()
         Task { await NotificationScheduler.shared.deleteIntake(log, context: modelContext) }
     }
     
     private func saveCustomAmount(_ newValue: Int) {
+        Haptic.success.play()
         profile.customIntakeML = newValue
         profile.atualizadoEm = .now
         profile.syncStatus = .pending
