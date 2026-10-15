@@ -1,3 +1,4 @@
+import HydrationKit
 import SwiftData
 import SwiftUI
 
@@ -5,14 +6,22 @@ struct RootView: View {
     @AppStorage("hasAcceptedConsent") private var hasAcceptedConsent = false
     @AppStorage("hasSeenFeatureOnboarding") private var hasSeenFeatureOnboarding = false
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
     @Query private var profiles: [UserProfile]
 
     @State private var selectedPage: MainPage? = .home
     @State private var showProfile = false
+    /// Minijogos: o aquário desenha e a Home controla (ver `MiniGameController`).
+    @State private var miniGames = MiniGameController()
 
     /// Fresh install (or a new device): before showing onboarding, look for a backup
     /// in iCloud (CloudKit) and restore it.
     @State private var hasCheckedICloud = false
+
+    /// The widget can't read the real system appearance itself (see `LockScreenAppearance`).
+    private func recordSystemAppearance() {
+        LockScreenAppearance.isDark = UIScreen.main.traitCollection.userInterfaceStyle == .dark
+    }
 
     private var profile: UserProfile? { profiles.first }
 
@@ -44,6 +53,8 @@ struct RootView: View {
                 OnboardingView()
             }
         }
+        .onAppear(perform: recordSystemAppearance)
+        .onChange(of: scenePhase) { if scenePhase == .active { recordSystemAppearance() } }
     }
 
     /// Sem tab bar: Home e Histórico são páginas lado a lado (Histórico à direita),
@@ -93,11 +104,16 @@ struct RootView: View {
             }
             .appScreenBackground()
             .toolbar(.hidden, for: .navigationBar)
+            .onChange(of: selectedPage) { Haptic.selection.play() } // arrastar entre Home e Histórico
+            .onChange(of: showProfile) { _, isShowing in
+                if !isShowing { Haptic.dismiss.play() } // voltar do Perfil; abrir já vibra no botão
+            }
             .navigationDestination(isPresented: $showProfile) {
                 ProfileView(profile: profile)
-                    .navigationTitle("Perfil")
+                    .navigationTitle("Configurações")
             }
         }
+        .environment(miniGames)
         .tint(Color.appAccentText)
     }
 

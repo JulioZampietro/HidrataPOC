@@ -34,6 +34,7 @@ struct ConsentView: View {
                     .foregroundStyle(Color.appSecondary)
 
                 Button {
+                    Haptic.primary.play()
                     onAccept()
                 } label: {
                     Text("Concordo em participar")

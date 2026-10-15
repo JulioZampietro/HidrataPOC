@@ -73,7 +73,12 @@ struct ProfileFormView: View {
     /// exists, that volume is edited from its pencil icon on the Home screen instead
     /// (see `CustomIntakeEditorView`), so the profile-edit sheet hides this field.
     let showsCustomIntakeField: Bool
+    /// Mostra um "X" pra fechar sem salvar. `false` no onboarding (não é uma sheet
+    /// dispensável, é uma etapa obrigatória) — `true` na edição a partir do Perfil.
+    let showsCancelButton: Bool
     let onSave: (ProfileFormValues) -> Void
+
+    @Environment(\.dismiss) private var dismiss
 
     @State private var idade: Int
     @State private var idadeText: String
@@ -92,11 +97,12 @@ struct ProfileFormView: View {
         UserProfile.suggestedGoalML(gender: genero?.gender, idade: idade, pesoKg: pesoKg, alturaCm: alturaCm)
     }
 
-    init(title: String, confirmLabel: String, initialValues: ProfileFormValues, showsCustomIntakeField: Bool, onSave: @escaping (ProfileFormValues) -> Void) {
+    init(title: String, confirmLabel: String, initialValues: ProfileFormValues, showsCustomIntakeField: Bool, showsCancelButton: Bool = false, onSave: @escaping (ProfileFormValues) -> Void) {
         self.title = title
         self.confirmLabel = confirmLabel
         self.initialValues = initialValues
         self.showsCustomIntakeField = showsCustomIntakeField
+        self.showsCancelButton = showsCancelButton
         self.onSave = onSave
         _idade = State(initialValue: initialValues.idade)
         _idadeText = State(initialValue: "\(initialValues.idade)")
@@ -113,6 +119,7 @@ struct ProfileFormView: View {
         Form {
             Section {
                 Button {
+                    Haptic.tap.play()
                     Task { await fillFromHealth() }
                 } label: {
                     HStack(spacing: 12) {
@@ -185,6 +192,7 @@ struct ProfileFormView: View {
                         Text(option.label).tag(Optional(option))
                     }
                 }
+                .haptic(.selection, on: genero)
             } footer: {
                 Text("Usado apenas para calcular sua necessidade diária de água.")
                     .font(AppFont.footnote)
@@ -197,10 +205,10 @@ struct ProfileFormView: View {
 
                 if let stored = initialValues.storedGoalML, stored != metaDiariaML {
                     if resetGoal {
-                        Button("Manter meta manual — \(stored) mL") { resetGoal = false }
+                        Button("Manter meta manual — \(stored) mL") { Haptic.selection.play(); resetGoal = false }
                             .foregroundStyle(Color.appSecondary)
                     } else {
-                        Button("Redefinir para meta calculada — \(metaDiariaML) mL") { resetGoal = true }
+                        Button("Redefinir para meta calculada — \(metaDiariaML) mL") { Haptic.selection.play(); resetGoal = true }
                     }
                 }
             } footer: {
@@ -235,7 +243,7 @@ struct ProfileFormView: View {
                 .frame(maxWidth: .infinity)
                 .font(AppFont.calloutStrong)
                 .foregroundStyle(.white)
-                .listRowBackground(Color.appAccent)
+                .listRowBackground(LinearGradient.waterHeader)
             }
             .id("confirmSection")
         }
@@ -244,6 +252,13 @@ struct ProfileFormView: View {
         .scrollContentBackground(.hidden)
         .appScreenBackground()
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if showsCancelButton {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Fechar", systemImage: "xmark") { dismiss() }
+                }
+            }
+        }
         // Number/decimal pads have no return key, so let a tap outside or a scroll dismiss the keyboard.
         .scrollDismissesKeyboard(.interactively)
         .keyboardDoneToolbar()
@@ -265,6 +280,11 @@ struct ProfileFormView: View {
         if let w = data.pesoKg { pesoKg = w.rounded(); pesoText = Self.formatDecimal(w.rounded()) }
         if let h = data.alturaCm { alturaCm = h.rounded(); alturaText = Self.formatDecimal(h.rounded()) }
         isFetchingFromHealth = false
+        if data.idade != nil || data.genero != nil || data.pesoKg != nil || data.alturaCm != nil {
+            Haptic.success.play()
+        } else {
+            Haptic.warning.play()
+        }
     }
 
     private static func parseDecimal(_ text: String) -> Double? {
@@ -286,6 +306,7 @@ extension View {
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
                 Button("Concluído") {
+                    Haptic.tap.play()
                     UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
                 }
                 .font(AppFont.calloutStrong)

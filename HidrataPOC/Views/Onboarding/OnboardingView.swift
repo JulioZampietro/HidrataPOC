@@ -17,6 +17,7 @@ struct OnboardingView: View {
     }
 
     private func save(_ values: ProfileFormValues) {
+        Haptic.success.play()
         Task {
             // A restauração do iCloud pode ter terminado depois do usuário pular a
             // espera — não cria um segundo perfil por cima do restaurado.
@@ -55,7 +56,10 @@ struct ICloudRestoreView: View {
                 .font(.headline)
                 .multilineTextAlignment(.center)
             if showsSkip {
-                Button("Começar do zero", action: onSkip)
+                Button("Começar do zero") {
+                    Haptic.tap.play()
+                    onSkip()
+                }
                     .buttonStyle(.bordered)
                     .transition(.opacity)
             }
