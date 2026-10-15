@@ -240,6 +240,12 @@ extension Color {
     static let appWarning = adaptive(light: Color(red: 0.65, green: 0.32, blue: 0.0), dark: .orange)
     static let appSuccess = adaptive(light: Color(red: 0.08, green: 0.45, blue: 0.22), dark: .green)
 
+    /// Dourado de destaque — não é o `appWarning` (pensado pra texto sobre fundo
+    /// claro): este é fixo, calibrado pra chamar atenção especificamente sobre o
+    /// gradiente de marca (ex. o "+ X mL" do clima no cartão da meta), onde um
+    /// laranja escurecido pro claro ficaria apagado.
+    static let appGoldHighlight = Color(red: 1.0, green: 0.78, blue: 0.30)
+
     /// Vermelho de ações destrutivas (apagar): o `.red` do sistema dá ~3,3:1 sobre os
     /// cartões; estes passam de 4,5:1 nos dois modos.
     static let appDestructive = adaptive(
@@ -258,6 +264,75 @@ extension Color {
     static let appDivider = AppTheme.trackLight.opacity(0.6)
 }
 
+extension Color {
+    /// As três paradas do gradiente de marca, nomeadas pra não duplicar os valores
+    /// entre `LinearGradient.waterHeader` (as três, pra superfícies grandes) e
+    /// `LinearGradient.waterHeaderCompact` (só as duas primeiras, pra selos
+    /// pequenos — ver o comentário de `waterHeaderCompact`).
+    fileprivate static let waterDeep = adaptive(
+        light: Color(red: 0.06, green: 0.22, blue: 0.55),
+        dark: Color(red: 0.05, green: 0.15, blue: 0.34)
+    )
+    fileprivate static let waterMid = adaptive(
+        light: Color(red: 0.08, green: 0.40, blue: 0.93), // appAccent
+        dark: Color(red: 0.12, green: 0.38, blue: 0.86)
+    )
+    fileprivate static let waterLight = adaptive(
+        light: Color(red: 0.40, green: 0.70, blue: 0.99),
+        dark: Color(red: 0.32, green: 0.56, blue: 0.90)
+    )
+}
+
+extension LinearGradient {
+    /// "Água profunda → superfície" — o gradiente de marca do app: cabeçalhos de
+    /// tela cheia (`TankHeader`) e qualquer superfície que hoje seria um azul chapado
+    /// (botões primários, barra de progresso). Cada parada é uma cor adaptável —
+    /// resolve sozinha pro claro ou pro escuro, sem precisar de uma função ciente do
+    /// `colorScheme`. No escuro as paradas são um pouco mais contidas (não só o
+    /// claro escurecido) pra não "brilhar" demais sobre o fundo já escuro do app.
+    static let waterHeader = LinearGradient(
+        colors: [.waterDeep, .waterMid, .waterLight],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+
+    /// Só as duas primeiras paradas (sem a ponta clara) — pra selos pequenos como o
+    /// `DropBadge`. Num `.fill()`, o gradiente se estica pra caber na própria forma,
+    /// então numa forma de ~26×32 pt a versão de três paradas cobria a faixa inteira
+    /// dentro de um espaço minúsculo e a ponta clara (`waterLight`) deixava o número
+    /// branco sem contraste nenhum ali (~2,2:1, abaixo do mínimo). Com só
+    /// `waterDeep`→`waterMid`, o texto branco fica em ≥5:1 em qualquer ponto da forma,
+    /// nos dois modos.
+    static let waterHeaderCompact = LinearGradient(
+        colors: [.waterDeep, .waterMid],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+}
+
+/// Estilo de botão primário em gradiente — a versão "molhada" do `.borderedProminent`
+/// de sempre, pros botões de ação principal que antes eram um azul chapado
+/// (`Color.appAccent`). Respeita `isEnabled` (cinza sólido quando desabilitado, o
+/// mesmo tratamento que `.tint(.gray)` dava antes) e dá feedback de toque por opacidade.
+struct GradientProminentButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+    var cornerRadius: CGFloat = 14
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(.white)
+            .background(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(isEnabled ? AnyShapeStyle(LinearGradient.waterHeader) : AnyShapeStyle(Color.gray))
+            )
+            .opacity(configuration.isPressed ? 0.85 : 1)
+    }
+}
+
+extension ButtonStyle where Self == GradientProminentButtonStyle {
+    static var gradientProminent: GradientProminentButtonStyle { GradientProminentButtonStyle() }
+}
+
 // MARK: - Cartões
 
 extension View {
@@ -269,6 +344,20 @@ extension View {
             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                 .fill(Color(UIColor.secondarySystemBackground))
                 .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4)
+        )
+    }
+
+    /// Cartão "molhado": fundo azul bem claro com contorno fino, em vez de sombra —
+    /// usado nas telas de marca forte (`TankHeader`) pra combinar com o gradiente do
+    /// cabeçalho em vez do cartão neutro padrão do resto do app.
+    func panelBackground(cornerRadius: CGFloat = 20) -> some View {
+        background(
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .fill(Color.appAccent.opacity(0.06))
+                .overlay(
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .strokeBorder(Color.appAccent.opacity(0.16), lineWidth: 1)
+                )
         )
     }
 }

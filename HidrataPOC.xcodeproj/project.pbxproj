@@ -29,6 +29,7 @@
 		D6A1B2C3D4E5F60718293A4D /* DailyGoal.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6A1B2C3D4E5F60718293A4B /* DailyGoal.swift */; };
 		1C85BCBB6E64AAC5CC36A3FF /* WaterFillView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B25B4016D397F16E2119D1FF /* WaterFillView.swift */; };
 		1D2F3A4B5C6D7E8F9A0B1C2D /* MascotSpeechBubble.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D3E4F5A6B7C8D9E0F1A2B3C /* MascotSpeechBubble.swift */; };
+		A689A3A542B1620F8B780B9F /* TankHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5C72FA5CB85218BE6733973 /* TankHeader.swift */; };
 		98ABE434F234B5BFEF1F72D6 /* MascotShatterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE7F365F2411B00DB1CBCB64 /* MascotShatterView.swift */; };
 		AA4A16B07FD4CA11466BAE10 /* MascotBubbleTransitionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B532ECBDEBA5DAFC650D62D5 /* MascotBubbleTransitionView.swift */; };
 		1E0E8D58D49CFBE72BD691A5 /* HydrationChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36AFA6358F8646D4CE01B474 /* HydrationChartView.swift */; };
@@ -209,6 +210,7 @@
 		AA11223344556677889900AA /* HistoricoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoricoView.swift; sourceTree = "<group>"; };
 		B1F08A6A4544B6C3057E6B91 /* HydrationWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = HydrationWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		2D3E4F5A6B7C8D9E0F1A2B3C /* MascotSpeechBubble.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MascotSpeechBubble.swift; sourceTree = "<group>"; };
+		C5C72FA5CB85218BE6733973 /* TankHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TankHeader.swift; sourceTree = "<group>"; };
 		CE7F365F2411B00DB1CBCB64 /* MascotShatterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MascotShatterView.swift; sourceTree = "<group>"; };
 		B532ECBDEBA5DAFC650D62D5 /* MascotBubbleTransitionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MascotBubbleTransitionView.swift; sourceTree = "<group>"; };
 		B25B4016D397F16E2119D1FF /* WaterFillView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaterFillView.swift; sourceTree = "<group>"; };
@@ -359,6 +361,7 @@
 				C3BCAACF78A9164EF7C57D86 /* WeatherContext.swift */,
 				9D4758DA97785CE3AE8FB879 /* LiquidBubbleView.swift */,
 				2D3E4F5A6B7C8D9E0F1A2B3C /* MascotSpeechBubble.swift */,
+				C5C72FA5CB85218BE6733973 /* TankHeader.swift */,
 				CE7F365F2411B00DB1CBCB64 /* MascotShatterView.swift */,
 				A0DEC0A1B2C3D4E5F6000301 /* WaterHeaderView.swift */,
 				B532ECBDEBA5DAFC650D62D5 /* MascotBubbleTransitionView.swift */,
@@ -699,6 +702,7 @@
 				90B88EEE30E6120D1C0931C0 /* WidgetSync.swift in Sources */,
 				65DAF3C87F6774FC3208F113 /* LiquidBubbleView.swift in Sources */,
 				1D2F3A4B5C6D7E8F9A0B1C2D /* MascotSpeechBubble.swift in Sources */,
+				A689A3A542B1620F8B780B9F /* TankHeader.swift in Sources */,
 				98ABE434F234B5BFEF1F72D6 /* MascotShatterView.swift in Sources */,
 				A0DEC0A1B2C3D4E5F6000302 /* WaterHeaderView.swift in Sources */,
 				AA4A16B07FD4CA11466BAE10 /* MascotBubbleTransitionView.swift in Sources */,

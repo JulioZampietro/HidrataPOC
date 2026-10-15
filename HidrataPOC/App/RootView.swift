@@ -104,7 +104,7 @@ struct RootView: View {
             .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(isPresented: $showProfile) {
                 ProfileView(profile: profile)
-                    .navigationTitle("Perfil")
+                    .navigationTitle("Configurações")
             }
         }
         .tint(Color.appAccentText)

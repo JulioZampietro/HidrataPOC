@@ -158,7 +158,7 @@ struct HomeView: View {
                 
                 // preenchimento azul
                 Capsule()
-                    .fill(Color.appAccent)
+                    .fill(LinearGradient.waterHeader)
                     .frame(width: barWidth, height: progressBarHeight)
                     .animation(.easeOut(duration: 0.4), value: progress)
                 
@@ -358,8 +358,8 @@ struct IntakeCardContent: View {
         isHighlighted ? .white : Color.appMutedInk
     }
 
-    private var backgroundIconColor: Color {
-        isHighlighted ? Color.white.opacity(0.28) : Color.appAccent
+    private var backgroundIconColor: AnyShapeStyle {
+        isHighlighted ? AnyShapeStyle(Color.white.opacity(0.28)) : AnyShapeStyle(LinearGradient.waterHeader)
     }
 
     var body: some View {
@@ -385,7 +385,7 @@ struct IntakeCardContent: View {
             }
             .background(
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(isHighlighted ? Color.appAccent : Color(UIColor.secondarySystemBackground))
+                    .fill(isHighlighted ? AnyShapeStyle(LinearGradient.waterHeader) : AnyShapeStyle(Color(UIColor.secondarySystemBackground)))
                     .homeCardShadow()
             )
             .contentShape(RoundedRectangle(cornerRadius: 18))

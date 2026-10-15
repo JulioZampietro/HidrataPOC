@@ -141,6 +141,9 @@ enum AppFont {
 
     static let displayTitle = Font.custom(displayFamily, size: 21, relativeTo: .title2)
     static let displayNumber = Font.custom(displayFamily, size: 14, relativeTo: .subheadline)
+    /// Título hero do `TankHeader` — Baloo 2 grande, a mesma fonte de marca do
+    /// calendário, só que em tamanho de destaque.
+    static let displayHero = Font.custom(displayFamily, size: 30, relativeTo: .largeTitle)
 
     // MARK: Tamanho fixo
 
