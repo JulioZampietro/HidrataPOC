@@ -217,6 +217,13 @@ extension Color {
         dark: Color(red: 0.45, green: 0.70, blue: 1.0)
     )
 
+    /// Mesmo azul de `appAccentText` no claro, mas FIXO (não adapta no escuro) — pra
+    /// texto sobre uma superfície que também é sempre branca nos dois modos (ex.: o
+    /// botão "Entender minha meta"). `appAccentText` ficaria claro demais no escuro
+    /// contra esse branco fixo, já que foi calibrado pra contrastar com o fundo
+    /// adaptável do app, não com branco literal.
+    static let appAccentTextOnWhite = Color(red: 0.05, green: 0.34, blue: 0.82)
+
     /// Texto secundário: no claro é mais escuro que o `.secondary` do sistema (que dá
     /// ~3,3:1 sobre os cartões); no escuro é o próprio `.secondary`.
     static let appSecondary = adaptive(

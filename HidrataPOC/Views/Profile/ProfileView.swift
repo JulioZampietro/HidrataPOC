@@ -143,7 +143,7 @@ struct ProfileView: View {
                 } label: {
                     Text("Entender minha meta")
                         .font(AppFont.subheadlineStrong)
-                        .foregroundStyle(Color.appAccentText)
+                        .foregroundStyle(Color.appAccentTextOnWhite)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 13)
                         .background {
