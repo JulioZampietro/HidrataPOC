@@ -535,7 +535,6 @@ private struct GoalExplainerView: View {
                     subtitle: isManual ? "Definida por você manualmente." : "Calculada com base no seu perfil."
                 )
 
-<<<<<<< HEAD
                 VStack(spacing: 16) {
                     goalStat
 
@@ -547,15 +546,6 @@ private struct GoalExplainerView: View {
                     .font(AppFont.subheadline)
                     .foregroundStyle(Color.appSecondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
-=======
-                Spacer()
-            }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Fechar", systemImage: "xmark") { Haptic.dismiss.play(); dismiss() }
-                        .font(AppFont.calloutStrong)
->>>>>>> main
                 }
                 .padding(.horizontal, 20)
             }

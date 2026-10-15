@@ -4,33 +4,11 @@ import UIKit
 
 struct ActionButtonTutorialView: View {
     var body: some View {
-<<<<<<< HEAD
         TankSheet {
             VStack(spacing: 20) {
                 ActionButtonStepsContent(showsMascotLine: false)
                 openSettingsButton
                     .padding(.horizontal, 20)
-=======
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 20) {
-                    header
-                    compatibilityBadge
-                    stepsCard
-                    openSettingsButton
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 16)
-                .padding(.bottom, 40)
-            }
-            .appScreenBackground()
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Fechar", systemImage: "xmark") { Haptic.dismiss.play(); dismiss() }
-                        .foregroundStyle(Color.appAccentText)
-                }
->>>>>>> main
             }
             .padding(.bottom, 40)
         }

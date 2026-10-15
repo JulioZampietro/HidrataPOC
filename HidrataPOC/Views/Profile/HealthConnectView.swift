@@ -38,19 +38,7 @@ struct HealthConnectView: View {
                 }
                 .padding(.horizontal, 20)
             }
-<<<<<<< HEAD
             .padding(.bottom, 40)
-=======
-            .appScreenBackground()
-            .navigationTitle("Saúde")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Fechar", systemImage: "xmark") { Haptic.dismiss.play(); dismiss() }
-                }
-            }
-            .task { isAuthorized = service.isAuthorized }
->>>>>>> main
         }
         .task { isAuthorized = service.isAuthorized }
     }

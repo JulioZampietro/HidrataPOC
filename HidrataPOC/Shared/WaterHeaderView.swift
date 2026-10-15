@@ -113,16 +113,10 @@ struct WaterHeaderView: View {
     /// Compartilhar e a sequência à esquerda; cosméticos e perfil à direita.
     private var headerRow: some View {
         HStack(spacing: 8) {
-<<<<<<< HEAD
             GlassCircleButton(systemImage: "gear", accessibilityLabel: "Configurações") {
+                Haptic.tap.play()
                 InteractionTracker.log("\(screen.rawValue)_configuration_tap", screen: screen, userID: profile.userID, context: modelContext)
                 onOpenProfile()
-=======
-            GlassCircleButton(systemImage: "square.and.arrow.up", accessibilityLabel: "Compartilhar") {
-                Haptic.tap.play()
-                InteractionTracker.log("\(screen.rawValue)_share_tap", screen: screen, userID: profile.userID, context: modelContext)
-                showShare = true
->>>>>>> main
             }
 
             HStack(spacing: 6) {
@@ -146,16 +140,10 @@ struct WaterHeaderView: View {
                 showCosmetics = true
             }
 
-<<<<<<< HEAD
             GlassCircleButton(systemImage: "square.and.arrow.up", accessibilityLabel: "Compartilhar") {
+                Haptic.tap.play()
                 InteractionTracker.log("\(screen.rawValue)_share_tap", screen: screen, userID: profile.userID, context: modelContext)
                 showShare = true
-=======
-            GlassCircleButton(systemImage: "person.fill", accessibilityLabel: "Perfil") {
-                Haptic.tap.play()
-                InteractionTracker.log("\(screen.rawValue)_profile_tap", screen: screen, userID: profile.userID, context: modelContext)
-                onOpenProfile()
->>>>>>> main
             }
         }
     }
