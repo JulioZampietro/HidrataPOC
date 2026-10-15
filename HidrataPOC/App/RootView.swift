@@ -11,6 +11,8 @@ struct RootView: View {
 
     @State private var selectedPage: MainPage? = .home
     @State private var showProfile = false
+    /// Minijogos: o aquário desenha e a Home controla (ver `MiniGameController`).
+    @State private var miniGames = MiniGameController()
 
     /// Fresh install (or a new device): before showing onboarding, look for a backup
     /// in iCloud (CloudKit) and restore it.
@@ -111,6 +113,7 @@ struct RootView: View {
                     .navigationTitle("Configurações")
             }
         }
+        .environment(miniGames)
         .tint(Color.appAccentText)
     }
 

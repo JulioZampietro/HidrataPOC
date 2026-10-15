@@ -210,6 +210,9 @@ extension Color {
     /// Com texto branco por cima dá 5,0:1.
     static let appAccent = Color(red: 0.08, green: 0.40, blue: 0.93)
 
+    /// Azul de marca um tom mais claro: brilho em volta da barra de progresso com a meta batida.
+    static let appAccentLight = Color(red: 0.30, green: 0.58, blue: 0.96)
+
     /// Azul para **texto e ícones** sobre o fundo do app / cartões (≥ 4,5:1 nos dois
     /// modos). Mais escuro que `appAccent` no claro e mais claro no escuro.
     static let appAccentText = adaptive(
