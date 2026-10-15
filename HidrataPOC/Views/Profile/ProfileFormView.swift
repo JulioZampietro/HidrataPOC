@@ -119,6 +119,7 @@ struct ProfileFormView: View {
         Form {
             Section {
                 Button {
+                    Haptic.tap.play()
                     Task { await fillFromHealth() }
                 } label: {
                     HStack(spacing: 12) {
@@ -191,6 +192,7 @@ struct ProfileFormView: View {
                         Text(option.label).tag(Optional(option))
                     }
                 }
+                .haptic(.selection, on: genero)
             } footer: {
                 Text("Usado apenas para calcular sua necessidade diária de água.")
                     .font(AppFont.footnote)
@@ -203,10 +205,10 @@ struct ProfileFormView: View {
 
                 if let stored = initialValues.storedGoalML, stored != metaDiariaML {
                     if resetGoal {
-                        Button("Manter meta manual — \(stored) mL") { resetGoal = false }
+                        Button("Manter meta manual — \(stored) mL") { Haptic.selection.play(); resetGoal = false }
                             .foregroundStyle(Color.appSecondary)
                     } else {
-                        Button("Redefinir para meta calculada — \(metaDiariaML) mL") { resetGoal = true }
+                        Button("Redefinir para meta calculada — \(metaDiariaML) mL") { Haptic.selection.play(); resetGoal = true }
                     }
                 }
             } footer: {
@@ -278,6 +280,11 @@ struct ProfileFormView: View {
         if let w = data.pesoKg { pesoKg = w.rounded(); pesoText = Self.formatDecimal(w.rounded()) }
         if let h = data.alturaCm { alturaCm = h.rounded(); alturaText = Self.formatDecimal(h.rounded()) }
         isFetchingFromHealth = false
+        if data.idade != nil || data.genero != nil || data.pesoKg != nil || data.alturaCm != nil {
+            Haptic.success.play()
+        } else {
+            Haptic.warning.play()
+        }
     }
 
     private static func parseDecimal(_ text: String) -> Double? {
@@ -299,6 +306,7 @@ extension View {
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
                 Button("Concluído") {
+                    Haptic.tap.play()
                     UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
                 }
                 .font(AppFont.calloutStrong)

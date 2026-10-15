@@ -408,6 +408,7 @@ struct ShareProgressView: View {
 
                 VStack(spacing: 12) {
                     Button {
+                        Haptic.primary.play()
                         Task { await save(image) }
                     } label: {
                         Label(saveState == .saved ? "Salva" : "Salvar", systemImage: saveState == .saved ? "checkmark" : "square.and.arrow.down")
@@ -425,6 +426,7 @@ struct ShareProgressView: View {
                                 .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.borderedProminent)
+                        .simultaneousGesture(TapGesture().onEnded { Haptic.primary.play() })
                     }
                 }
                 .controlSize(.large)
@@ -438,7 +440,10 @@ struct ShareProgressView: View {
                 if isPickingColor {
                     Color.clear
                         .contentShape(Rectangle())
-                        .onTapGesture { isPickingColor = false }
+                        .onTapGesture {
+                            Haptic.dismiss.play()
+                            isPickingColor = false
+                        }
                 }
             }
             .animation(.easeInOut(duration: 0.3), value: isPickingColor)
@@ -447,11 +452,17 @@ struct ShareProgressView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Fechar", systemImage: "xmark") { dismiss() }
+                    Button("Fechar", systemImage: "xmark") { Haptic.dismiss.play(); dismiss() }
                 }
             }
-            .onChange(of: layout) { _, _ in resetSaveState() }
-            .onChange(of: ink) { _, _ in resetSaveState() }
+            .onChange(of: layout) { _, _ in
+                Haptic.selection.play() // vale para arrastar, tocar nas bolinhas e pelo VoiceOver
+                resetSaveState()
+            }
+            .onChange(of: ink) { _, _ in
+                Haptic.selection.play()
+                resetSaveState()
+            }
             .onChange(of: customInk) { _, _ in
                 ink = .personalizada
                 resetSaveState()
@@ -536,6 +547,7 @@ struct ShareProgressView: View {
                 .frame(width: 44, height: 44)
                 .contentShape(Rectangle())
                 .onTapGesture {
+                    Haptic.tap.play()
                     ink = .personalizada
                     isPickingColor = true
                 }
@@ -576,11 +588,13 @@ struct ShareProgressView: View {
 
         switch await Self.saveToPhotos(data) {
         case .saved:
-            UINotificationFeedbackGenerator().notificationOccurred(.success)
+            Haptic.success.play()
             saveState = .saved
         case .denied:
+            Haptic.warning.play()
             saveState = .denied
         case .failed:
+            Haptic.warning.play()
             saveState = .failed
         }
     }

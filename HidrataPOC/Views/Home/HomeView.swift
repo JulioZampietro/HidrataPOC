@@ -8,10 +8,9 @@ struct HomeView: View {
     
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    // Medidas que acompanham o tamanho do texto: com Dynamic Type grande o rótulo da barra
-    // e o ícone do cabeçalho não podem ser cortados por uma altura fixa.
-    @ScaledMetric(relativeTo: .subheadline) private var progressBarHeight: CGFloat = 52
+    // Barra e cartões têm tamanho fixo (o do texto em 100%): só o texto dentro deles acompanha
+    // o Dynamic Type, limitado a `controlTextSizeRange` para caber sem ser cortado.
+    private let progressBarHeight: CGFloat = 52
     @Query private var allLogs: [IntakeLog]
     @Query private var allDailyGoals: [DailyGoal]
     @State private var isLogging = false
@@ -91,7 +90,7 @@ struct HomeView: View {
             presenting: pendingDeleteLog
         ) { log in
             Button("Excluir", role: .destructive) { deleteLog(log) }
-            Button("Cancelar", role: .cancel) {}
+            Button("Cancelar", role: .cancel) { Haptic.dismiss.play() }
         } message: { log in
             Text("\(log.tipoEntrada.capitalized) · \(log.volumeML) mL será removido do seu histórico e da base de dados.")
         }
@@ -116,6 +115,7 @@ struct HomeView: View {
     // MARK: - Subviews
     
     private let intakeGridSpacing: CGFloat = 12
+    private let controlTextSizeRange = ...DynamicTypeSize.xxxLarge
 
     /// The two rows of intake cards share what's left below the progress bar, so the
     /// grid ends `TabScreenLayout.spacing` above the bottom safe area.
@@ -127,6 +127,7 @@ struct HomeView: View {
     /// Tapping the bar opens today's intake logs (same sheet as a day in Histórico).
     private var progressBarButton: some View {
         Button {
+            Haptic.tap.play()
             InteractionTracker.log("home_progress_bar_tap", screen: .home, userID: profile.userID, context: modelContext)
             showTodayLogs = true
         } label: {
@@ -165,20 +166,18 @@ struct HomeView: View {
                 // Texto sempre branco, sobre a trilha e sobre o preenchimento.
                 progressLabel(color: .white)
 
-                // Indica que a barra é tocável (abre os registros de hoje).
-                // Nos tamanhos de acessibilidade o texto ocupa a barra toda e o ícone passaria
-                // por cima dele; a barra continua tocável (rótulo e dica no botão).
-                if !dynamicTypeSize.isAccessibilitySize {
-                    Image(systemName: "info.circle")
-                        .font(.system(.body, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                        .padding(.trailing, 18)
-                        .accessibilityHidden(true)
-                }
+                // Indica que a barra é tocável (abre os registros de hoje). Sempre branco,
+                // igual ao texto da barra.
+                Image(systemName: "info.circle")
+                    .font(.system(.body, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .padding(.trailing, 18)
+                    .accessibilityHidden(true)
             }
         }
         .frame(height: progressBarHeight)
+        .dynamicTypeSize(controlTextSizeRange)
     }
     
     private func progressLabel(color: Color) -> some View {
@@ -188,7 +187,7 @@ struct HomeView: View {
             .lineLimit(1)
             .minimumScaleFactor(0.75) // 15 pt × 0.75 ≈ 11 pt: o menor texto do app (HIG)
             .padding(.leading, 18)
-            .padding(.trailing, dynamicTypeSize.isAccessibilitySize ? 18 : 52)
+            .padding(.trailing, 52)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
@@ -244,6 +243,7 @@ struct HomeView: View {
             .buttonStyle(.plain)
             
             Button {
+                Haptic.tap.play()
                 isEditingCustomAmount = true
             } label: {
                 Image(systemName: "pencil.circle.fill")
@@ -282,7 +282,7 @@ struct HomeView: View {
         guard !isLogging else { return }
         isLogging = true
         playWaterSound()
-        UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+        Haptic.drink.play()
         withAnimation(.easeInOut(duration: 0.15)) { highlightedCard = cardID }
         Task {
             try? await Task.sleep(for: .seconds(0.7))
@@ -306,10 +306,12 @@ struct HomeView: View {
     }
     
     private func deleteLog(_ log: IntakeLog) {
+        Haptic.destructive.play()
         Task { await NotificationScheduler.shared.deleteIntake(log, context: modelContext) }
     }
     
     private func saveCustomAmount(_ newValue: Int) {
+        Haptic.success.play()
         profile.customIntakeML = newValue
         profile.atualizadoEm = .now
         profile.syncStatus = .pending
@@ -389,9 +391,10 @@ struct IntakeCardContent: View {
                     .homeCardShadow()
             )
             .contentShape(RoundedRectangle(cornerRadius: 18))
+            .dynamicTypeSize(...DynamicTypeSize.xxxLarge) // o cartão tem altura fixa; o texto não passa dela
     }
 
-    /// `minHeight` (e não `height`): o cartão cresce com o Dynamic Type em vez de cortar o texto.
+    /// Altura fixa: o cartão não muda com o Dynamic Type.
     private func textBlock(title titleColor: Color, subtitle subtitleColor: Color) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Spacer(minLength: 0)
@@ -405,8 +408,10 @@ struct IntakeCardContent: View {
                 .foregroundStyle(subtitleColor)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .frame(minHeight: height)
+        .padding(.vertical, 16)
+        .padding(.leading, 12)
+        .padding(.trailing, 16)
+        .frame(height: height)
     }
 
     private func iconLayer(_ icon: IntakeCardIcon) -> some View {
@@ -453,13 +458,13 @@ private struct BottleShape: Shape {
         path.move(to: pt(0.40, 0.15))
         path.addLine(to: pt(0.60, 0.15))
         path.addLine(to: pt(0.60, 0.19))
-        path.addQuadCurve(to: pt(0.81, 0.36), control: pt(0.81, 0.21))
-        path.addLine(to: pt(0.81, 0.88))
-        path.addQuadCurve(to: pt(0.71, 0.98), control: pt(0.81, 0.98))
-        path.addLine(to: pt(0.29, 0.98))
-        path.addQuadCurve(to: pt(0.19, 0.88), control: pt(0.19, 0.98))
-        path.addLine(to: pt(0.19, 0.36))
-        path.addQuadCurve(to: pt(0.40, 0.19), control: pt(0.19, 0.21))
+        path.addQuadCurve(to: pt(0.87, 0.36), control: pt(0.87, 0.21))
+        path.addLine(to: pt(0.87, 0.88))
+        path.addQuadCurve(to: pt(0.77, 0.98), control: pt(0.87, 0.98))
+        path.addLine(to: pt(0.23, 0.98))
+        path.addQuadCurve(to: pt(0.13, 0.88), control: pt(0.13, 0.98))
+        path.addLine(to: pt(0.13, 0.36))
+        path.addQuadCurve(to: pt(0.40, 0.19), control: pt(0.13, 0.21))
         path.closeSubpath()
 
         return path

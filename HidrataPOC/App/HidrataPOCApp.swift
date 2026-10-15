@@ -36,6 +36,7 @@ struct HidrataPOCApp: App {
     }
 
     private func setUpOnLaunch() async {
+        Haptic.prepare()
         // Only prompt for permissions once onboarding is fully done (consent accepted,
         // profile created, feature tour seen). On the first run RootView requests them
         // itself when the tour is dismissed; this covers later launches.

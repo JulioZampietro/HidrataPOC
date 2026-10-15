@@ -113,9 +113,16 @@ struct WaterHeaderView: View {
     /// Compartilhar e a sequência à esquerda; cosméticos e perfil à direita.
     private var headerRow: some View {
         HStack(spacing: 8) {
+<<<<<<< HEAD
             GlassCircleButton(systemImage: "gear", accessibilityLabel: "Configurações") {
                 InteractionTracker.log("\(screen.rawValue)_configuration_tap", screen: screen, userID: profile.userID, context: modelContext)
                 onOpenProfile()
+=======
+            GlassCircleButton(systemImage: "square.and.arrow.up", accessibilityLabel: "Compartilhar") {
+                Haptic.tap.play()
+                InteractionTracker.log("\(screen.rawValue)_share_tap", screen: screen, userID: profile.userID, context: modelContext)
+                showShare = true
+>>>>>>> main
             }
 
             HStack(spacing: 6) {
@@ -134,13 +141,21 @@ struct WaterHeaderView: View {
             Spacer()
 
             GlassCircleButton(systemImage: "paintbrush.fill", accessibilityLabel: "Cosméticos") {
+                Haptic.tap.play()
                 InteractionTracker.log("\(screen.rawValue)_cosmetics_tap", screen: screen, userID: profile.userID, context: modelContext)
                 showCosmetics = true
             }
 
+<<<<<<< HEAD
             GlassCircleButton(systemImage: "square.and.arrow.up", accessibilityLabel: "Compartilhar") {
                 InteractionTracker.log("\(screen.rawValue)_share_tap", screen: screen, userID: profile.userID, context: modelContext)
                 showShare = true
+=======
+            GlassCircleButton(systemImage: "person.fill", accessibilityLabel: "Perfil") {
+                Haptic.tap.play()
+                InteractionTracker.log("\(screen.rawValue)_profile_tap", screen: screen, userID: profile.userID, context: modelContext)
+                onOpenProfile()
+>>>>>>> main
             }
         }
     }
@@ -237,7 +252,7 @@ struct WaterHeaderView: View {
                     waterMotion.clearStones()
                     mascotAssemblyStarted = true
                     try? await Task.sleep(for: .seconds(MascotShatterView.assembleDuration))
-                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                    Haptic.primary.play()
                     mascotAssemblyPending = false
                     mascotAssemblyStarted = false
                 }
@@ -393,7 +408,7 @@ struct WaterHeaderView: View {
 
         if oldValue < 1.0, newValue >= 1.0, let mascot = oldMascot {
             explodingMascot = mascot
-            UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+            Haptic.celebrate.play()
             Task {
                 try? await Task.sleep(for: .milliseconds(100))
                 waterMotion.explodeIntoStones()
@@ -405,7 +420,7 @@ struct WaterHeaderView: View {
         } else if let old = oldMascot, let new = newMascot, old != new, newValue > oldValue {
             bubbleMascot = old
             newMascotHidden = true
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            Haptic.bubbles(cover: Self.oldMascotHideDelay, total: Double(Self.mascotBubbleTotalDuration) / 1000).play()
             Task {
                 try? await Task.sleep(for: .milliseconds(Int(Self.newMascotShowDelay * 1000)))
                 newMascotHidden = false
@@ -418,7 +433,6 @@ struct WaterHeaderView: View {
     }
 
     private func pokeMascot() {
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
 
         // A curva vem do `.animation(value: isPoking)` junto do `scaleEffect` —
         // só precisa setar o valor aqui.
@@ -431,6 +445,7 @@ struct WaterHeaderView: View {
         pokeCount += 1
 
         if pokeCount >= 3 {
+            Haptic.warning.play() // o mascote reclama
             pokeCount = 0
             overridePhrase = "Para de me cutucar zé mané"
             Task {
@@ -438,6 +453,7 @@ struct WaterHeaderView: View {
                 overridePhrase = nil
             }
         } else {
+            Haptic.poke.play()
             phraseIndex = (phraseIndex + 1) % Self.mascotPhrases.count
         }
     }
@@ -464,6 +480,8 @@ struct WaterHeaderView: View {
                 // Soltar "chacoalha" a água com força proporcional a quão longe o
                 // mascote tinha ido, na direção em que ele está voltando para o centro.
                 disturbWaterFromDrag(deltaX: -value.translation.width * 0.6, deltaY: -value.translation.height * 0.6)
+                // Só arrasto de verdade solta a "marola"; o toque simples já vibra em `pokeMascot()`.
+                if hypot(value.translation.width, value.translation.height) > 12 { Haptic.ripple.play() }
                 lastMascotDragTranslation = .zero
             }
     }

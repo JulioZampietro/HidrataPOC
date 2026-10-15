@@ -32,12 +32,15 @@ enum Constants {
     /// trigger the +50 mL/°C adjustment. Adjust to match your region's typical climate.
     static let baselineMaxTempC: Double = 26
 
-    /// Fixed hours (24h) at which hydration reminders are sent each day — a strict
-    /// 2-hour cadence from 8am to 10pm. Replaces the earlier semi-random schedule.
-    /// While one sits unanswered no later slot is sent (it's skipped, not delayed),
-    /// except the first hour of the next day, which always goes out; overnight
-    /// leftovers are deleted — see `NotificationScheduler.armNextSlotIfClear`.
-    static let notificationFixedHours = [8, 10, 12, 14, 16, 18, 20, 22]
+    /// Fixed hours (24h) at which hydration reminders may be sent each day — a 2-hour
+    /// grid from 8am to 8pm (nothing fires in quiet hours, 22h–8h; see `QuietHours`).
+    /// The send-time policy decides which of them actually send, from its params'
+    /// `slotHours` (this list is the fallback when it can't run — see
+    /// `NotificationScheduler.plannedSlots`). While one sits unanswered no later slot
+    /// is sent (it's skipped, not delayed), except the first hour of the next day,
+    /// which always goes out; overnight leftovers are deleted — see
+    /// `NotificationScheduler.armNextSlotIfClear`.
+    static let notificationFixedHours = [8, 10, 12, 14, 16, 18, 20]
 
     /// Thresholds for `hot_day`/`cold_day` notification persona variants — based on
     /// `WeatherContext.temperaturaC` (current reading), not the forecast high used for

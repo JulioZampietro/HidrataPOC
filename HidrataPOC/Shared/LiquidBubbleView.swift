@@ -58,7 +58,7 @@ struct LiquidBubbleView: View {
     }
 
     private func triggerTap() {
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        Haptic.tap.play()
 
         isPressed = true
         withAnimation(.spring(response: 0.18, dampingFraction: 0.35)) {

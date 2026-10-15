@@ -19,6 +19,7 @@ struct FeatureOnboardingView: View {
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
             .animation(.easeInOut, value: currentPage)
+            .haptic(.selection, on: currentPage) // vale para o arrasto e para o botão "Próximo"
 
             footer
         }
@@ -59,6 +60,7 @@ struct FeatureOnboardingView: View {
                 if currentPage < pages.count - 1 {
                     withAnimation { currentPage += 1 }
                 } else {
+                    Haptic.success.play()
                     onDismiss()
                 }
             } label: {

@@ -200,7 +200,11 @@ struct HistoricoView: View {
                     DayCell(dia: cell, isToday: calendar.isDateInToday(cell.date), height: cellHeight)
                         .contentShape(Rectangle())
                         .onTapGesture {
-                            guard !cell.isFuturo else { return }
+                            guard !cell.isFuturo else {
+                                Haptic.warning.play() // dia que ainda não chegou
+                                return
+                            }
+                            Haptic.tap.play()
                             InteractionTracker.log(
                                 "historico_day_tap",
                                 screen: .historico,
@@ -277,6 +281,7 @@ struct HistoricoView: View {
     /// para o lado não troca de página: esse gesto volta para a Home.
     private var pageToggleButton: some View {
         Button {
+            Haptic.selection.play()
             let toPage = cardPage == .calendario ? "semana" : "calendario"
             InteractionTracker.log("historico_page_toggle", screen: .historico, userID: profile.userID, metadata: ["method": "tap", "toPage": toPage], context: modelContext)
             withAnimation(.easeInOut(duration: 0.2)) {
@@ -305,6 +310,7 @@ struct HistoricoView: View {
     }
 
     private func changeMonth(by value: Int) {
+        Haptic.selection.play()
         InteractionTracker.log("historico_month_nav", screen: .historico, userID: profile.userID, metadata: ["direction": value < 0 ? "prev" : "next"], context: modelContext)
         guard let newDate = calendar.date(byAdding: .month, value: value, to: displayedMonth) else { return }
         displayedMonth = newDate
@@ -504,7 +510,7 @@ struct DayDetailSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Fechar", systemImage: "xmark") { dismiss() }
+                    Button("Fechar", systemImage: "xmark") { Haptic.dismiss.play(); dismiss() }
                 }
             }
         }
@@ -537,6 +543,7 @@ struct DayDetailSheet: View {
     }
 
     private func deleteIntake(_ log: IntakeLog) {
+        Haptic.destructive.play()
         Task { await NotificationScheduler.shared.deleteIntake(log, context: modelContext) }
     }
 }

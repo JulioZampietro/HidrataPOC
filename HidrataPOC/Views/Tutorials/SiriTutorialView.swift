@@ -6,6 +6,18 @@ struct SiriTutorialView: View {
         TankSheet {
             SiriStepsContent(showsMascotLine: false)
                 .padding(.bottom, 40)
+<<<<<<< HEAD
+=======
+            }
+            .appScreenBackground()
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Fechar", systemImage: "xmark") { Haptic.dismiss.play(); dismiss() }
+                        .foregroundStyle(Color.appAccentText)
+                }
+            }
+>>>>>>> main
         }
     }
 }

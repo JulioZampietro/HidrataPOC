@@ -4,11 +4,33 @@ import UIKit
 
 struct ActionButtonTutorialView: View {
     var body: some View {
+<<<<<<< HEAD
         TankSheet {
             VStack(spacing: 20) {
                 ActionButtonStepsContent(showsMascotLine: false)
                 openSettingsButton
                     .padding(.horizontal, 20)
+=======
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 20) {
+                    header
+                    compatibilityBadge
+                    stepsCard
+                    openSettingsButton
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 16)
+                .padding(.bottom, 40)
+            }
+            .appScreenBackground()
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Fechar", systemImage: "xmark") { Haptic.dismiss.play(); dismiss() }
+                        .foregroundStyle(Color.appAccentText)
+                }
+>>>>>>> main
             }
             .padding(.bottom, 40)
         }
@@ -25,6 +47,7 @@ struct ActionButtonTutorialView: View {
     }
 
     private func openActionButtonSettings() {
+        Haptic.tap.play()
         // App-Prefs: (sem caminho) abre o Ajustes na raiz.
         // Fallback para a página do próprio app se não funcionar.
         if let url = URL(string: "App-Prefs:") {
