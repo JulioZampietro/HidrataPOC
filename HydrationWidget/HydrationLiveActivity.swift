@@ -12,13 +12,21 @@ import WidgetKit
 struct HydrationLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: HydrationAttributes.self) { context in
-            HydrationLockScreenView(state: context.state)
-                .activityBackgroundTint(Color(.secondarySystemBackground))
+            Group {
+                if context.attributes.isIslandOnly {
+                    // Backup variant: nothing to show on the Lock Screen, only the island icon.
+                    Color.clear.frame(height: 1)
+                } else {
+                    HydrationLockScreenView(state: context.state)
+                }
+            }
+                .activityBackgroundTint(context.attributes.isIslandOnly ? Color.clear : Color.adaptive(light: .white, dark: Color(red: 0.07, green: 0.07, blue: 0.08)))
+                .activitySystemActionForegroundColor(Color.appAccent)
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
                     Image(systemName: "drop.fill")
-                        .foregroundStyle(Color.appAccentText)
+                        .foregroundStyle(Color.appAccent)
                         .font(.title3)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
@@ -33,12 +41,12 @@ struct HydrationLiveActivity: Widget {
                 }
             } compactLeading: {
                 Image(systemName: "drop.fill")
-                    .foregroundStyle(Color.appAccentText)
+                    .foregroundStyle(Color.appAccent)
             } compactTrailing: {
                 EmptyView()
             } minimal: {
                 Image(systemName: "drop.fill")
-                    .foregroundStyle(Color.appAccentText)
+                    .foregroundStyle(Color.appAccent)
             }
         }
     }
@@ -71,7 +79,7 @@ private struct OverdueMessage: View {
     var body: some View {
         HStack(spacing: 6) {
             Image(systemName: "drop.fill")
-                .foregroundStyle(Color.appAccentText)
+                .foregroundStyle(Color.appAccent)
             Text("Faz uma hora que você não bebe água!")
                 .font(.subheadline.bold())
                 .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)

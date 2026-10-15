@@ -16,8 +16,15 @@ public struct HydrationAttributes: ActivityAttributes {
     /// "within 30 minutes of the 8h system cap" (FR-10) without a separate store.
     public let startedAt: Date
 
-    public init(startedAt: Date) {
+    /// The "backup" variant started after the user swipes the Lock Screen card away
+    /// while still overdue: iOS ends an activity whenever its card is dismissed, so
+    /// this one keeps only the Dynamic Island icon alive and renders an invisible
+    /// Lock Screen presentation.
+    public let isIslandOnly: Bool
+
+    public init(startedAt: Date, isIslandOnly: Bool = false) {
         self.startedAt = startedAt
+        self.isIslandOnly = isIslandOnly
     }
 
     public struct ContentState: Codable, Hashable {

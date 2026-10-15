@@ -1,4 +1,5 @@
 import AppIntents
+import AudioToolbox
 import SwiftData
 
 /// `LiveActivityIntent` (unlike a plain `AppIntent` used from a widget) runs its
@@ -15,6 +16,10 @@ import SwiftData
 struct LogIntakeIntent: LiveActivityIntent {
     static var title: LocalizedStringResource { "Registrar consumo de água" }
 
+    /// Lets the Lock Screen buttons log without a Face ID unlock (the default for an
+    /// intent fired from a locked device is to demand authentication first).
+    static var authenticationPolicy: IntentAuthenticationPolicy { .alwaysAllowed }
+
     @Parameter(title: "Volume (mL)")
     var amountML: Int
 
@@ -28,6 +33,9 @@ struct LogIntakeIntent: LiveActivityIntent {
 
     func perform() async throws -> some IntentResult {
         await Self.log(amountML: amountML)
+        // The Live Activity button itself can't play a haptic from the widget process;
+        // the intent runs in the app process, so the vibration is fired from here.
+        AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
         return .result()
     }
 
