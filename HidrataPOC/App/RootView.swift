@@ -1,3 +1,4 @@
+import HydrationKit
 import SwiftData
 import SwiftUI
 
@@ -5,6 +6,7 @@ struct RootView: View {
     @AppStorage("hasAcceptedConsent") private var hasAcceptedConsent = false
     @AppStorage("hasSeenFeatureOnboarding") private var hasSeenFeatureOnboarding = false
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
     @Query private var profiles: [UserProfile]
 
     @State private var selectedPage: MainPage? = .home
@@ -13,6 +15,11 @@ struct RootView: View {
     /// Fresh install (or a new device): before showing onboarding, look for a backup
     /// in iCloud (CloudKit) and restore it.
     @State private var hasCheckedICloud = false
+
+    /// The widget can't read the real system appearance itself (see `LockScreenAppearance`).
+    private func recordSystemAppearance() {
+        LockScreenAppearance.isDark = UIScreen.main.traitCollection.userInterfaceStyle == .dark
+    }
 
     private var profile: UserProfile? { profiles.first }
 
@@ -44,6 +51,8 @@ struct RootView: View {
                 OnboardingView()
             }
         }
+        .onAppear(perform: recordSystemAppearance)
+        .onChange(of: scenePhase) { if scenePhase == .active { recordSystemAppearance() } }
     }
 
     /// Sem tab bar: Home e Histórico são páginas lado a lado (Histórico à direita),
