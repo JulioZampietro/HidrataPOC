@@ -24,6 +24,13 @@ struct HomeView: View {
     @State private var weather: WeatherContext?
     @State private var isLoadingWeather = true
     @State private var tempContext: TemperatureAdjustmentContext?
+    /// Minijogo da meta batida: o aquário (`WaterHeaderView`) desenha, aqui ficam os botões.
+    @Environment(MiniGameController.self) private var miniGames
+    @State private var pressedJets = [Bool](repeating: false, count: RingGameSide.allCases.count)
+    @State private var pressedJumpSides = [Bool](repeating: false, count: JumpGameSide.allCases.count)
+    @AppStorage(MiniGame.jumpBestStorageKey) private var jumpBestScore = 0
+    /// Os quatro cartões de ingestão viram os botões do jogo na mesma animação.
+    @Namespace private var controlsNamespace
 
     private var todayLogs: [IntakeLog] {
         allLogs.filter { $0.userID == profile.userID && Calendar.current.isDateInToday($0.timestamp) }
@@ -63,7 +70,7 @@ struct HomeView: View {
                     progressBarButton
                         .padding(.horizontal, 20)
 
-                    intakeGrid(cardHeight: intakeCardHeight(forVisibleHeight: geo.size.height))
+                    bottomControls(cardHeight: intakeCardHeight(forVisibleHeight: geo.size.height))
                         .padding(.horizontal, 20)
                 }
                 .padding(.top, TabScreenLayout.waterTop(safeAreaTop: geo.safeAreaInsets.top))
@@ -98,6 +105,9 @@ struct HomeView: View {
             CustomIntakeEditorView(initialValueML: profile.customIntakeML, onSave: saveCustomAmount)
                 .trackSheetLifecycle(.customAmountEditor, screen: .home, userID: profile.userID)
         }
+        // Os botões do jogo somem (ex.: "Beber água") ou o jogo troca: solta o que estiver apertado.
+        .onChange(of: miniGames.showsGameControls) { releaseGameButtons() }
+        .onChange(of: miniGames.runningGame) { releaseGameButtons() }
         .sheet(isPresented: $showSiriTutorial) { SiriTutorialView() }
         .sheet(isPresented: $showActionButtonTutorial) { ActionButtonTutorialView() }
         .sheet(isPresented: $showTodayLogs) {
@@ -159,7 +169,7 @@ struct HomeView: View {
                 
                 // preenchimento azul
                 Capsule()
-                    .fill(Color.appAccent)
+                    .fill(LinearGradient.waterHeader)
                     .frame(width: barWidth, height: progressBarHeight)
                     .animation(.easeOut(duration: 0.4), value: progress)
                 
@@ -191,15 +201,104 @@ struct HomeView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    /// Os quatro cartões de ingestão; com a meta batida e um minijogo rodando, viram os botões
+    /// do jogo no mesmo lugar (`matchedGeometryEffect`). O último é sempre "Beber água", que
+    /// volta aos cartões (o botão "Voltar ao jogo" no aquário traz o jogo de volta).
+    private func bottomControls(cardHeight: CGFloat) -> some View {
+        ZStack {
+            if miniGames.showsGameControls, let game = miniGames.runningGame {
+                gameControls(game, cardHeight: cardHeight)
+            } else {
+                intakeGrid(cardHeight: cardHeight)
+            }
+        }
+        .animation(.spring(response: 0.6, dampingFraction: 0.85), value: miniGames.showsGameControls)
+    }
+
+    @ViewBuilder
+    private func gameControls(_ game: MiniGame, cardHeight: CGFloat) -> some View {
+        VStack(spacing: intakeGridSpacing) {
+            HStack(spacing: intakeGridSpacing) {
+                switch game {
+                case .rings:
+                    jetButton(.left).matchedGeometryEffect(id: "gole", in: controlsNamespace)
+                    jetButton(.right).matchedGeometryEffect(id: "glass", in: controlsNamespace)
+                default:
+                    jumpButton(.left).matchedGeometryEffect(id: "gole", in: controlsNamespace)
+                    jumpButton(.right).matchedGeometryEffect(id: "glass", in: controlsNamespace)
+                }
+            }
+            .frame(height: cardHeight)
+            HStack(spacing: intakeGridSpacing) {
+                switch game {
+                case .rings:
+                    jetButton(.center).matchedGeometryEffect(id: "bottle", in: controlsNamespace)
+                default:
+                    JumpGameRecordCard(best: jumpBestScore, height: cardHeight)
+                        .matchedGeometryEffect(id: "bottle", in: controlsNamespace)
+                }
+                RingGameIntakeButton(height: cardHeight) {
+                    Haptic.tap.play()
+                    withAnimation(.spring(response: 0.6, dampingFraction: 0.85)) { miniGames.showsIntakeInsteadOfGame = true }
+                }
+                .matchedGeometryEffect(id: "custom", in: controlsNamespace)
+            }
+            .frame(height: cardHeight)
+        }
+        .dynamicTypeSize(controlTextSizeRange)
+    }
+
+    private func jetButton(_ side: RingGameSide) -> some View {
+        RingGameControls(
+            side: side,
+            isPressed: pressedJets[side.rawValue],
+            onPressChange: { isPressed in
+                guard pressedJets[side.rawValue] != isPressed else { return }
+                pressedJets[side.rawValue] = isPressed
+                miniGames.ringGame.setJet(side, open: isPressed)
+                if isPressed { Haptic.tap.play() }
+            },
+            onAccessibilityPulse: { miniGames.ringGame.pulseJet(side) }
+        )
+    }
+
+    private func jumpButton(_ side: JumpGameSide) -> some View {
+        GameHoldButton(
+            symbol: side == .left ? "arrow.left.circle.fill" : "arrow.right.circle.fill",
+            accessibilityLabel: side == .left ? "Pular pra esquerda" : "Pular pra direita",
+            accessibilityHint: "Leva a gota pro lado enquanto estiver apertado",
+            isPressed: pressedJumpSides[side.rawValue],
+            onPressChange: { isPressed in
+                guard pressedJumpSides[side.rawValue] != isPressed else { return }
+                pressedJumpSides[side.rawValue] = isPressed
+                miniGames.jumpGame.setDirection(side, held: isPressed)
+                if isPressed { Haptic.tap.play() }
+            },
+            onAccessibilityPulse: { miniGames.jumpGame.pulseDirection(side) }
+        )
+    }
+
+    /// Solta qualquer botão de jogo que estivesse apertado (os botões sumiram ou o jogo trocou).
+    private func releaseGameButtons() {
+        pressedJets = [Bool](repeating: false, count: RingGameSide.allCases.count)
+        for side in RingGameSide.allCases { miniGames.ringGame.setJet(side, open: false) }
+        pressedJumpSides = [Bool](repeating: false, count: JumpGameSide.allCases.count)
+        for side in JumpGameSide.allCases { miniGames.jumpGame.setDirection(side, held: false) }
+    }
+
     private func intakeGrid(cardHeight: CGFloat) -> some View {
         LazyVGrid(
             columns: [GridItem(.flexible(), spacing: intakeGridSpacing), GridItem(.flexible(), spacing: intakeGridSpacing)],
             spacing: intakeGridSpacing
         ) {
             goleCard(height: cardHeight)
+                .matchedGeometryEffect(id: "gole", in: controlsNamespace)
             intakeCard(.glass, height: cardHeight)
+                .matchedGeometryEffect(id: "glass", in: controlsNamespace)
             intakeCard(.bottle, height: cardHeight)
+                .matchedGeometryEffect(id: "bottle", in: controlsNamespace)
             customIntakeCard(height: cardHeight)
+                .matchedGeometryEffect(id: "custom", in: controlsNamespace)
         }
     }
 
@@ -360,8 +459,8 @@ struct IntakeCardContent: View {
         isHighlighted ? .white : Color.appMutedInk
     }
 
-    private var backgroundIconColor: Color {
-        isHighlighted ? Color.white.opacity(0.28) : Color.appAccent
+    private var backgroundIconColor: AnyShapeStyle {
+        isHighlighted ? AnyShapeStyle(Color.white.opacity(0.28)) : AnyShapeStyle(LinearGradient.waterHeader)
     }
 
     var body: some View {
@@ -387,7 +486,7 @@ struct IntakeCardContent: View {
             }
             .background(
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(isHighlighted ? Color.appAccent : Color(UIColor.secondarySystemBackground))
+                    .fill(isHighlighted ? AnyShapeStyle(LinearGradient.waterHeader) : AnyShapeStyle(Color(UIColor.secondarySystemBackground)))
                     .homeCardShadow()
             )
             .contentShape(RoundedRectangle(cornerRadius: 18))

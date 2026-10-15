@@ -3,9 +3,9 @@ import SwiftUI
 
 /// Recipiente de água do topo, compartilhado por Home e Histórico: o `RootView` o
 /// desenha uma vez, fixo por cima das páginas, e só o conteúdo abaixo dele troca ao
-/// arrastar. Enche com o progresso do dia e traz o mascote (com as pedrinhas, a grama, os
-/// rins e as transições de estágio) e, no topo, os botões de compartilhar, cosméticos e
-/// perfil, junto da sequência de dias.
+/// arrastar. Enche com o progresso do dia e traz o mascote (com as pedrinhas, os rins e as
+/// transições de estágio), o minijogo da meta batida e, no topo, os botões de compartilhar,
+/// minijogos e perfil, junto da sequência de dias.
 ///
 /// Só o mascote, os botões e a faixa de baixo (onde se brinca com as pedrinhas) recebem
 /// toques: o resto deixa o arrasto passar para as páginas atrás, então dá para trocar de
@@ -23,8 +23,15 @@ struct WaterHeaderView: View {
     @Query private var allDailyGoals: [DailyGoal]
     @State private var tempContext: TemperatureAdjustmentContext?
     @State private var showShare = false
-    @State private var showCosmetics = false
-    @AppStorage(Cosmetic.grass.storageKey) private var grassEquipped = false
+    @State private var showMiniGames = false
+    @Environment(MiniGameController.self) private var miniGames
+    /// Minijogo escolhido na aba de minijogos (ver `MiniGame.active`).
+    @AppStorage(MiniGame.selectedStorageKey) private var selectedGameRaw = ""
+    @AppStorage(MiniGame.announcedStorageKey) private var announcedGamesRaw = ""
+    /// Jogo recém-liberado pela streak, mostrado num aviso no topo do aquário por alguns segundos.
+    @State private var unlockedGameBanner: MiniGame?
+    /// Tempo (s) entre a explosão do mascote e o jogo entrar na água.
+    private static let gameStartDelay: Double = 1.4
     /// Fala que o mascote solta sozinho, sorteada entre as liberadas para a situação (`MascotPhrases`).
     @State private var idlePhrase = ""
     @State private var pokeCount: Int = 0
@@ -141,18 +148,28 @@ struct WaterHeaderView: View {
             ShareProgressView(snapshot: ShareProgressSnapshot(consumedML: consumedToday, goalML: effectiveGoalML, streakDias: streak))
                 .trackSheetLifecycle(.shareProgress, screen: screen, userID: profile.userID)
         }
-        .sheet(isPresented: $showCosmetics) { CosmeticsView(streak: streak) }
+        .sheet(isPresented: $showMiniGames) { MiniGamesView(streak: streak) }
+        .onChange(of: runningGame, initial: true) { oldGame, newGame in
+            miniGames.runningGame = newGame
+            handleMiniGame(from: oldGame, to: newGame, isLiveTransition: oldGame != newGame)
+        }
+        .onChange(of: goalReached) { _, isReached in
+            if !isReached { miniGames.showsIntakeInsteadOfGame = false }
+        }
+        .onChange(of: streak, initial: true) { _, newStreak in
+            announceNewlyUnlockedGames(streak: newStreak)
+        }
     }
 
     // MARK: - Subviews
 
-    /// Compartilhar e a sequência à esquerda; cosméticos e perfil à direita.
+    /// Configurações e a sequência à esquerda; minijogos e compartilhar à direita.
     private var headerRow: some View {
         HStack(spacing: 8) {
-            GlassCircleButton(systemImage: "square.and.arrow.up", accessibilityLabel: "Compartilhar") {
+            GlassCircleButton(systemImage: "gear", accessibilityLabel: "Configurações") {
                 Haptic.tap.play()
-                InteractionTracker.log("\(screen.rawValue)_share_tap", screen: screen, userID: profile.userID, context: modelContext)
-                showShare = true
+                InteractionTracker.log("\(screen.rawValue)_configuration_tap", screen: screen, userID: profile.userID, context: modelContext)
+                onOpenProfile()
             }
 
             HStack(spacing: 6) {
@@ -170,16 +187,16 @@ struct WaterHeaderView: View {
 
             Spacer()
 
-            GlassCircleButton(systemImage: "paintbrush.fill", accessibilityLabel: "Cosméticos") {
+            GlassCircleButton(systemImage: "gamecontroller.fill", accessibilityLabel: "Minijogos") {
                 Haptic.tap.play()
-                InteractionTracker.log("\(screen.rawValue)_cosmetics_tap", screen: screen, userID: profile.userID, context: modelContext)
-                showCosmetics = true
+                InteractionTracker.log("\(screen.rawValue)_minigames_tap", screen: screen, userID: profile.userID, context: modelContext)
+                showMiniGames = true
             }
 
-            GlassCircleButton(systemImage: "person.fill", accessibilityLabel: "Perfil") {
+            GlassCircleButton(systemImage: "square.and.arrow.up", accessibilityLabel: "Compartilhar") {
                 Haptic.tap.play()
-                InteractionTracker.log("\(screen.rawValue)_profile_tap", screen: screen, userID: profile.userID, context: modelContext)
-                onOpenProfile()
+                InteractionTracker.log("\(screen.rawValue)_share_tap", screen: screen, userID: profile.userID, context: modelContext)
+                showShare = true
             }
         }
     }
@@ -188,7 +205,12 @@ struct WaterHeaderView: View {
 
     private var goalReached: Bool { progress >= 1 }
 
-    private var showsGrass: Bool { grassEquipped && Cosmetic.grass.isUnlocked(streak: streak) }
+    /// Opção escolhida na aba de minijogos, entre as que a streak já liberou. Batendo a meta,
+    /// a streak de hoje já conta, então um jogo liberado agora entra na mesma hora.
+    private var activeGame: MiniGame { MiniGame.active(selected: selectedGameRaw, streak: streak) }
+
+    /// Jogo rodando agora no aquário: só com a meta batida, e nunca o `.noGame`.
+    private var runningGame: MiniGame? { goalReached && activeGame.isPlayable ? activeGame : nil }
 
     private var containerShape: UnevenRoundedRectangle {
         UnevenRoundedRectangle(topLeadingRadius: 32, bottomLeadingRadius: 32, bottomTrailingRadius: 32, topTrailingRadius: 32, style: .continuous)
@@ -206,20 +228,8 @@ struct WaterHeaderView: View {
             // `.bottom` (não `.center`): a altura do recipiente que sobra vira espaço de
             // água acima do mascote, em vez de empurrar o mascote pra cima do centro.
             .frame(height: height, alignment: .bottom)
-            // Cosmético "Gramadinho": no fundo do aquário, atrás do mascote e dentro
-            // do conteúdo da água (então ondula junto com a refração). Só aparece
-            // desbloqueado — se a streak zerar, some mesmo que continue equipado.
-            .background(alignment: .bottom) {
-                if showsGrass {
-                    GrassView()
-                        .frame(height: 44)
-                        .allowsHitTesting(false)
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
-            }
-            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showsGrass)
             // Meta do dia batida: os rins aparecem nos cantos de baixo comemorando.
-            // Ficam na frente da grama e, como o resto, dentro da água.
+            // Ficam, como o resto, dentro da água.
             .overlay(alignment: .bottom) {
                 if goalReached {
                     KidneyCheerView()
@@ -230,6 +240,22 @@ struct WaterHeaderView: View {
                 }
             }
             .animation(.spring(response: 0.5, dampingFraction: 0.7), value: goalReached)
+            // Minijogo: no conteúdo do recipiente, então passa pela mesma refração da água.
+            // Só desenha; os botões ficam na Home.
+            .overlay {
+                Group {
+                    switch runningGame {
+                    case .rings:
+                        RingGameView(simulation: miniGames.ringGame, water: waterMotion)
+                    case .jump:
+                        JumpGameView(simulation: miniGames.jumpGame, water: waterMotion)
+                    case .noGame, nil:
+                        EmptyView()
+                    }
+                }
+                .allowsHitTesting(false)
+                .transition(.opacity)
+            }
         .background {
             containerShape
                 .fill(AppTheme.screenBackground(for: colorScheme))
@@ -243,9 +269,45 @@ struct WaterHeaderView: View {
         // Os botões flutuam por cima do recipiente (fora do `.waterContainer`, então não
         // passam pela refração da água — senão o vidro dos botões ficaria escuro).
         .overlay(alignment: .top) {
-            headerRow
-                .padding(TabScreenLayout.containerInset)
+            VStack(spacing: 10) {
+                headerRow
+                if let game = unlockedGameBanner {
+                    Button {
+                        Haptic.tap.play()
+                        unlockedGameBanner = nil
+                        showMiniGames = true
+                    } label: {
+                        MiniGameUnlockedBanner(game: game)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Abre os minijogos")
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                }
+            }
+            .padding(TabScreenLayout.containerInset)
+            .animation(.spring(response: 0.5, dampingFraction: 0.75), value: unlockedGameBanner)
         }
+        // Meta batida e o usuário foi "Beber água": este botão traz os controles do jogo de
+        // volta. Só ele recebe toque, o resto da água continua deixando o arrasto passar.
+        .overlay(alignment: .bottom) {
+            if runningGame != nil, miniGames.showsIntakeInsteadOfGame {
+                Button {
+                    Haptic.primary.play()
+                    withAnimation(.spring(response: 0.6, dampingFraction: 0.85)) { miniGames.showsIntakeInsteadOfGame = false }
+                } label: {
+                    Label("Voltar ao jogo", systemImage: "gamecontroller.fill")
+                        .font(AppFont.subheadlineStrong)
+                        .foregroundStyle(Color.appAccentText)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .glassEffect(.regular.interactive(), in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .padding(.bottom, 14)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .animation(.spring(response: 0.5, dampingFraction: 0.8), value: miniGames.showsIntakeInsteadOfGame)
     }
 
     private func mascotPlaceholder(height: CGFloat, width: CGFloat) -> some View {
@@ -408,7 +470,7 @@ struct WaterHeaderView: View {
     /// Garante que as pedrinhas batem com o progresso atual ao abrir a tela —
     /// sem explosão (isso só acontece ao vivo, em `handleGoalTransition`).
     private func syncStonesWithProgress() {
-        if progress >= 1.0 {
+        if progress >= 1.0, runningGame == nil {
             waterMotion.explodeIntoStones()
         } else {
             waterMotion.clearStones()
@@ -447,7 +509,8 @@ struct WaterHeaderView: View {
             Haptic.celebrate.play()
             Task {
                 try? await Task.sleep(for: .milliseconds(100))
-                waterMotion.explodeIntoStones()
+                // Com um minijogo rodando, as pedrinhas não ficam soltas no aquário.
+                if runningGame == nil { waterMotion.explodeIntoStones() }
                 try? await Task.sleep(for: .milliseconds(160))
                 explodingMascot = nil
             }
@@ -465,6 +528,65 @@ struct WaterHeaderView: View {
                 try? await Task.sleep(for: .milliseconds(Self.mascotBubbleTotalDuration))
                 bubbleMascot = nil
             }
+        }
+    }
+
+    /// Liga o minijogo escolhido quando a meta é batida (ou quando o usuário troca de jogo com
+    /// ela batida) e desliga os outros. Ao vivo, espera a explosão do mascote; ao abrir o app
+    /// já com a meta batida, o jogo entra quase direto. Com um jogo rodando as pedrinhas somem
+    /// do aquário; voltando pro "Sem jogo" com a meta batida, elas voltam pro fundo.
+    private func handleMiniGame(from oldGame: MiniGame?, to newGame: MiniGame?, isLiveTransition: Bool) {
+        if newGame != .rings { miniGames.ringGame.stop() }
+        if newGame != .jump { miniGames.jumpGame.stop() }
+
+        guard let newGame else {
+            if goalReached, oldGame != nil { waterMotion.scatterStonesAtRest() }
+            return
+        }
+        waterMotion.clearStones()
+        miniGames.ringGame.onRoundComplete = {
+            Haptic.success.play()
+            InteractionTracker.log("ring_game_round_complete", screen: screen, userID: profile.userID, context: modelContext)
+        }
+        miniGames.jumpGame.onGameOver = { score in
+            let best = UserDefaults.standard.integer(forKey: MiniGame.jumpBestStorageKey)
+            (score > best ? Haptic.success : Haptic.warning).play()
+            UserDefaults.standard.set(max(best, score), forKey: MiniGame.jumpBestStorageKey)
+            InteractionTracker.log("jump_game_over", screen: screen, userID: profile.userID, context: modelContext)
+        }
+        // Meta acabou de ser batida: espera o mascote explodir antes do jogo entrar.
+        let waitsForExplosion = isLiveTransition && oldGame == nil
+        Task {
+            try? await Task.sleep(for: .seconds(waitsForExplosion ? Self.gameStartDelay : 0.4))
+            guard runningGame == newGame else { return }
+            switch newGame {
+            case .rings: miniGames.ringGame.start()
+            case .jump: miniGames.jumpGame.start()
+            case .noGame: return
+            }
+            if isLiveTransition {
+                InteractionTracker.log("\(newGame.rawValue)_game_start", screen: screen, userID: profile.userID, context: modelContext)
+            }
+        }
+    }
+
+    /// Streak subiu e liberou jogo(s) que o usuário ainda não viu: o mais novo passa a ser o
+    /// escolhido (é ele que entra ao bater a meta) e aparece o aviso no topo do aquário.
+    /// Cada jogo é anunciado uma vez só, mesmo que a streak zere e volte a liberá-lo.
+    private func announceNewlyUnlockedGames(streak: Int) {
+        let announced = Set(announcedGamesRaw.split(separator: ",").map(String.init))
+        let fresh = MiniGame.unlocked(streak: streak).filter { !announced.contains($0.rawValue) }
+        guard let newest = fresh.last else { return }
+        announcedGamesRaw = announced.union(fresh.map(\.rawValue)).sorted().joined(separator: ",")
+        selectedGameRaw = newest.rawValue
+        InteractionTracker.log("minigame_unlocked_\(newest.rawValue)", screen: screen, userID: profile.userID, context: modelContext)
+        Task {
+            // Deixa a explosão do mascote acontecer antes do aviso aparecer.
+            try? await Task.sleep(for: .seconds(Self.gameStartDelay))
+            Haptic.celebrate.play()
+            unlockedGameBanner = newest
+            try? await Task.sleep(for: .seconds(4))
+            if unlockedGameBanner == newest { unlockedGameBanner = nil }
         }
     }
 

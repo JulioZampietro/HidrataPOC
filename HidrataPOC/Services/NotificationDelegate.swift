@@ -44,6 +44,10 @@ final class NotificationDelegate: NSObject, @preconcurrency UNUserNotificationCe
             NotificationScheduler.recordDismissal(eventID: eventID, sentAt: sentAt)
         } else {
             await Self.handle(eventID: eventID, sentAt: sentAt, actionIdentifier: actionIdentifier)
+            // The send-time policy only decides through tomorrow's first slot, so a
+            // background response may be the first chance today to decide the rest of
+            // the day — needed for the next reminder to be armed below.
+            await NotificationScheduler.shared.ensureTodayScheduled(preferCachedWeather: true)
         }
 
         // Last, so a snooze slot added above is the one that gets armed.
