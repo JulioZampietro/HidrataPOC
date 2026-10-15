@@ -17,6 +17,7 @@ enum PersistenceController {
             NotificationEvent.self,
             UIInteractionEvent.self,
             DailyGoal.self,
+            SlotDecision.self,
         ])
         guard let groupURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: Constants.appGroupID) else {
             fatalError("App Group '\(Constants.appGroupID)' is not configured — check entitlements on both the app and HydrationWidget targets.")

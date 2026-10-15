@@ -131,4 +131,42 @@ struct NotificationSlotDecisionTests {
         let s = slot(hour: 8, armedAt: date(hour: 7), captured: true)
         #expect(NotificationScheduler.decideSlotAction(slot: s, now: date(hour: 9), delivered: []) == .wait)
     }
+
+    // MARK: - Slots the send-time policy skipped
+
+    private func skipped(day: Int = 15, hour: Int, armedAt: Date? = nil) -> PendingSlot {
+        PendingSlot(id: UUID(), firesAt: date(day: day, hour: hour), captured: false, armedAt: armedAt, skip: true)
+    }
+
+    /// Os pulados antes do próximo envio entram junto (o rodízio os deixaria passar);
+    /// os depois dele, não.
+    @Test func skippedSlotsBeforeTheNextSendAreArmedWithIt() {
+        let slots = [skipped(hour: 10), skipped(hour: 12), slot(hour: 14), skipped(hour: 16), slot(hour: 18)]
+        #expect(toArm(slots, now: date(hour: 9)) == [date(hour: 10), date(hour: 12), date(hour: 14)])
+    }
+
+    @Test func dayWithOnlySkipsArmsThemAll() {
+        let slots = [skipped(hour: 18), skipped(hour: 20)]
+        #expect(toArm(slots, now: date(hour: 17)) == [date(hour: 18), date(hour: 20)])
+    }
+
+    /// Um lembrete sem resposta segura os pulados também — eles não contam pro modelo.
+    @Test func unreadReminderHoldsSkippedSlotsBackToo() {
+        let slots = [skipped(hour: 12), slot(hour: 14), skipped(day: 16, hour: 8)]
+        #expect(toArm(slots, now: date(hour: 11), delivered: [unread(date(hour: 10))]) == [date(day: 16, hour: 8)])
+    }
+
+    /// Lembrete sem resposta não segura o primeiro horário do dia seguinte, mesmo
+    /// que ele tenha sido pulado.
+    @Test func skippedMorningSlotIsStillLetThrough() {
+        let slots = [skipped(day: 16, hour: 8)]
+        #expect(toArm(slots, now: date(hour: 21), delivered: [unread(date(hour: 20))]) == [date(day: 16, hour: 8)])
+    }
+
+    @Test func skippedSlotIsNeverCaptured() {
+        let s = skipped(hour: 10, armedAt: date(hour: 9))
+        #expect(NotificationScheduler.decideSlotAction(slot: s, now: date(hour: 9, minute: 55), delivered: []) == .wait)
+        #expect(NotificationScheduler.decideSlotAction(slot: s, now: date(hour: 10, minute: 1), delivered: []) == .skipped)
+        #expect(NotificationScheduler.decideSlotAction(slot: skipped(hour: 10), now: date(hour: 10, minute: 1), delivered: []) == .skipped)
+    }
 }
