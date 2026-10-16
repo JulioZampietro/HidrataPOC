@@ -95,6 +95,15 @@ struct RingGameView: View {
         ))
         let cap = CGRect(x: post.minX - 1.5, y: post.minY - 1, width: post.width + 3, height: post.width + 3)
         ctx.fill(Path(ellipseIn: cap), with: .color(Color(white: 0.95)))
+
+        // Esfera na base: é onde as argolas param.
+        let radius = CGFloat(RingGameTuning.stopperRadius)
+        let center = CGPoint(x: post.midX, y: post.maxY + 5)
+        let ball = CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2)
+        ctx.fill(Path(ellipseIn: ball), with: .radialGradient(
+            Gradient(colors: [Color(white: 0.98), Color(white: 0.66)]),
+            center: CGPoint(x: center.x - radius * 0.35, y: center.y - radius * 0.35), startRadius: 0, endRadius: radius * 1.4
+        ))
     }
 
     private enum RingPart { case whole, back, front }

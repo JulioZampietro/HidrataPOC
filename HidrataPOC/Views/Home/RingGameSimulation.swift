@@ -22,6 +22,8 @@ enum RingGameTuning {
     // Jatos (um por botão): sobem do fundo, levemente inclinados pro meio
     static let nozzleInset: Float = 0.16         // fração da largura, a partir de cada parede
     static let jetForce: Float = 1400            // pt/s² no eixo do jato
+    static let jetStrengthFree: Float = 0.8      // × força do jato nas argolas soltas
+    static let jetStrengthHooked: Float = 0.3    // × força do jato nas argolas enfiadas num pino
     static let jetInwardTilt: Float = 0.4        // componente horizontal ÷ vertical
     // Rajada central: um estouro curto e forte de água, em todas as direções, a partir de um ponto no meio
     static let burstOriginY: Float = 0.97        // fração da altura (de cima pra baixo) onde a rajada nasce — no fundo, onde as argolas se acumulam
@@ -41,7 +43,7 @@ enum RingGameTuning {
 
     // Ganchos (dois pinos em pé, no fundo)
     static let postInset: Float = 0.34           // fração da largura, a partir de cada parede
-    static let postHeight: Float = 0.336         // fração da altura
+    static let postHeight: Float = 0.235         // fração da altura
     static let postHalfWidth: Float = 3
     static let postLift: Float = 40              // pt: os pinos flutuam acima do fundo, deixando as argolas passarem por baixo
     static let stackStep: Float = 11             // pt de uma argola enfiada pra próxima
@@ -50,8 +52,9 @@ enum RingGameTuning {
     static let postAssist: Float = 30            // pt/s² que a água arrastada puxa a argola pra cima de um pino
     static let postAssistRange: Float = 1.1      // alcance horizontal, em raios de argola
     static let postAssistHeight: Float = 110     // pt acima da ponta onde o puxão age
-    static let hookSpring: Float = 140           // 1/s² — mola que assenta a argola no pino
-    static let hookDamping: Float = 18           // 1/s
+    static let hookSnap: Float = 25              // 1/s — quão rápido a argola enfiada se centra no pino
+    static let postJetWidthScale: Float = 1.9    // × largura do jato pra argolas enfiadas (a água que passa perto do pino também as sobe)
+    static let stopperRadius: Float = 6          // pt — esfera na base do pino
 
     // Rodada completa
     static let celebrationDuration: Float = 1.8  // s com tudo enfiado antes de soltar as argolas de novo
@@ -214,7 +217,11 @@ final class RingGameSimulation {
     /// Avança até `date`. `down` é a gravidade efetiva da água; `water` recebe o agito
     /// dos jatos.
     func advance(to date: Date, size: CGSize, down: SIMD2<Float>, water: WaterMotion) {
+        let oldHeight = self.size.height
         self.size = size
+        // O recipiente estica/encolhe na troca entre o minijogo e a Home: as argolas enfiadas
+        // acompanham o pino em vez de ficarem pra trás (ou saírem pela ponta).
+        if oldHeight > 0, size.height > 0, oldHeight != size.height { reanchorHookedRings(oldHeight: Float(oldHeight)) }
         guard isRunning, size.width > 0, size.height > 0 else { return }
         guard let last = lastFrame else { lastFrame = date; return }
         let dt = Float(min(date.timeIntervalSince(last), 1.0 / 20.0))
@@ -231,8 +238,19 @@ final class RingGameSimulation {
         }
         updateBubbles(dt: dt)
         updateRings(dt: dt, down: down)
+        resolvePostStacks()
         resolveCollisions()
         updateRound(dt: dt)
+    }
+
+    /// Mantém cada argola enfiada à mesma distância da base do pino quando a altura do recipiente
+    /// muda (limitada ao comprimento do pino, que também muda, pra ela nunca sair por causa disso).
+    private func reanchorHookedRings(oldHeight: Float) {
+        let oldBase = oldHeight - 4 - RingGameTuning.postLift
+        let maxOffset = postBaseY - postTipY - 3
+        for i in rings.indices where rings[i].hook != nil {
+            rings[i].position.y = postBaseY - min(max(oldBase - rings[i].position.y, 0), maxOffset)
+        }
     }
 
     private func updateRings(dt: Float, down: SIMD2<Float>) {
@@ -251,11 +269,25 @@ final class RingGameSimulation {
                 continue
             }
 
+            // Argola enfiada: só desliza ao longo do pino (x preso nele), movida pela gravidade
+            // efetiva, pelos jatos e pela rajada. Subindo além da ponta, sai do pino; embaixo,
+            // para na esfera (`resolvePostStacks`).
             if let hook = rings[i].hook {
-                let target = SIMD2(postX(hook.post), postBaseY - Float(hook.slot) * RingGameTuning.stackStep - RingGameTuning.stackStep / 2 - 2)
-                let accel = (target - rings[i].position) * RingGameTuning.hookSpring - rings[i].velocity * RingGameTuning.hookDamping
-                rings[i].velocity += accel * dt
-                rings[i].position += rings[i].velocity * dt
+                var accelY = down.y * RingGameTuning.sinkGravity
+                for jet in Self.jetIndices where isJetOpen(jet) {
+                    accelY += jetAcceleration(at: rings[i].position, jet: jet, widthScale: RingGameTuning.postJetWidthScale, strength: RingGameTuning.jetStrengthHooked).y
+                }
+                rings[i].velocity.y += accelY * dt
+                rings[i].velocity.y *= exp(-RingGameTuning.drag * dt)
+                rings[i].velocity.x = 0
+                rings[i].position.y += rings[i].velocity.y * dt
+                rings[i].position.x += (postX(hook.post) - rings[i].position.x) * min(1, RingGameTuning.hookSnap * dt)
+                rings[i].phase += 0.6 * dt
+                if rings[i].position.y < postTipY - 2 {
+                    // Passou da ponta: solta do pino, com um empurrãozinho pro lado.
+                    rings[i].hook = nil
+                    rings[i].velocity.x = Float.random(in: -30...30)
+                }
                 continue
             }
 
@@ -272,7 +304,7 @@ final class RingGameSimulation {
             var accel = down * RingGameTuning.sinkGravity + tangent * rings[i].wander.x
             var inJet = false
             for jet in Self.jetIndices where isJetOpen(jet) {
-                let jetAccel = jetAcceleration(at: rings[i].position, jet: jet)
+                let jetAccel = jetAcceleration(at: rings[i].position, jet: jet, strength: RingGameTuning.jetStrengthFree)
                 if jetAccel != .zero { inJet = true }
                 accel += jetAccel
             }
@@ -319,7 +351,7 @@ final class RingGameSimulation {
                 }
             }
             rings[i].position = p
-            rings[i].velocity = hooked ? v * 0.4 : v
+            rings[i].velocity = hooked ? SIMD2(0, v.y * 0.6) : v
         }
     }
 
@@ -347,14 +379,14 @@ final class RingGameSimulation {
     }
 
     /// Rajada central: um impulso único em todas as argolas soltas perto do ponto de origem, pra
-    /// longe dele e em qualquer direção. Argolas já enfiadas num pino não são tocadas, e a parte
+    /// longe dele e em qualquer direção. Argolas enfiadas também sentem a rajada, mas só deslizam pelo pino. A parte
     /// que a rajada tem de subida é limitada, então ela abre as argolas em leque em vez de lançá-las nos pinos.
     private func triggerBurst() {
         guard isRunning, size.width > 0, burstCooldown <= 0 else { return }
         burstCooldown = RingGameTuning.burstCooldown
         burstFlash = RingGameTuning.burstFlashDuration
 
-        for i in rings.indices where rings[i].hook == nil && !rings[i].isWaiting {
+        for i in rings.indices where !rings[i].isWaiting {
             let delta = rings[i].position - burstOrigin
             let distance = Self.length(delta)
             guard distance < RingGameTuning.burstRadius else { continue }
@@ -383,13 +415,14 @@ final class RingGameSimulation {
         if bubbles.count > 160 { bubbles.removeFirst(bubbles.count - 160) }
     }
 
-    private func jetAcceleration(at position: SIMD2<Float>, jet: Int) -> SIMD2<Float> {
+    /// `widthScale` alarga o núcleo do jato: uma argola enfiada num pino também sobe com a água que passa perto.
+    private func jetAcceleration(at position: SIMD2<Float>, jet: Int, widthScale: Float = 1, strength: Float = 1) -> SIMD2<Float> {
         let height = Float(size.height)
         let above = nozzleY - position.y
         let reach = RingGameTuning.jetReach * height
         guard above > -8, above < reach else { return .zero }
         let inward = Self.inwardDirection(of: jet)
-        let halfWidth = RingGameTuning.jetBaseWidth + max(above, 0) * RingGameTuning.jetSpread
+        let halfWidth = (RingGameTuning.jetBaseWidth + max(above, 0) * RingGameTuning.jetSpread) * widthScale
         // O eixo do jato anda pra dentro conforme sobe.
         let axisX = nozzleX(jet) + inward * max(above, 0) * RingGameTuning.jetInwardTilt
         let offset = abs(position.x - axisX)
@@ -401,7 +434,28 @@ final class RingGameSimulation {
         let falloff = (1 - offset / halfWidth) * (1 - max(above, 0) / reach)
         let direction = SIMD2<Float>(inward * RingGameTuning.jetInwardTilt, -1)
         let noise = Float.random(in: -1...1) * RingGameTuning.turbulence
-        return direction * (RingGameTuning.jetForce * falloff) + SIMD2(noise * falloff, 0) + pullAcceleration
+        return (direction * (RingGameTuning.jetForce * falloff) + SIMD2(noise * falloff, 0)) * strength + pullAcceleration
+    }
+
+    /// Argolas enfiadas no mesmo pino empilham: a de baixo pára na esfera da base, cada uma
+    /// empurra a de cima, e nenhuma atravessa a outra. `slot` passa a ser a ordem de baixo pra cima.
+    private func resolvePostStacks() {
+        let step = RingGameTuning.stackStep
+        for post in 0..<2 {
+            let stack = rings.indices.filter { rings[$0].hook?.post == post }.sorted { rings[$0].position.y > rings[$1].position.y }
+            var previousY = postBaseY - step / 2 - 2 + step // chão = esfera da base
+            var previousVelocity: Float = 0
+            for (slot, index) in stack.enumerated() {
+                let limit = previousY - step
+                if rings[index].position.y > limit {
+                    rings[index].position.y = limit
+                    rings[index].velocity.y = min(rings[index].velocity.y, previousVelocity)
+                }
+                rings[index].hook = (post, slot)
+                previousY = rings[index].position.y
+                previousVelocity = rings[index].velocity.y
+            }
+        }
     }
 
     /// Argolas livres se empurram (círculos); as enfiadas não participam.

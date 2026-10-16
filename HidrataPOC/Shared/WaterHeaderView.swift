@@ -163,40 +163,63 @@ struct WaterHeaderView: View {
 
     // MARK: - Subviews
 
+    /// Na tela do minijogo (Home com os botões do jogo) o cabeçalho só tem o botão de volta
+    /// pra ingestão (seta pra trás, à esquerda) e o de minijogos.
+    private var isGameLayout: Bool { miniGames.showsGameControls && screen == .home }
+
+    private var miniGamesButton: some View {
+        GlassCircleButton(systemImage: "gamecontroller.fill", accessibilityLabel: "Minijogos") {
+            Haptic.tap.play()
+            InteractionTracker.log("\(screen.rawValue)_minigames_tap", screen: screen, userID: profile.userID, context: modelContext)
+            showMiniGames = true
+        }
+    }
+
     /// Configurações e a sequência à esquerda; minijogos e compartilhar à direita.
+    @ViewBuilder
     private var headerRow: some View {
-        HStack(spacing: 8) {
-            GlassCircleButton(systemImage: "gear", accessibilityLabel: "Configurações") {
-                Haptic.tap.play()
-                InteractionTracker.log("\(screen.rawValue)_configuration_tap", screen: screen, userID: profile.userID, context: modelContext)
-                onOpenProfile()
+        if isGameLayout {
+            HStack(spacing: 8) {
+                GlassCircleButton(systemImage: "chevron.left", accessibilityLabel: "Registrar água") {
+                    Haptic.tap.play()
+                    InteractionTracker.log("\(screen.rawValue)_minigame_back_to_intake_tap", screen: screen, userID: profile.userID, context: modelContext)
+                    withAnimation(.spring(response: 0.6, dampingFraction: 0.85)) { miniGames.showsIntakeInsteadOfGame = true }
+                }
+
+                Spacer()
+
+                miniGamesButton
             }
+        } else {
+            HStack(spacing: 8) {
+                GlassCircleButton(systemImage: "gear", accessibilityLabel: "Configurações") {
+                    Haptic.tap.play()
+                    InteractionTracker.log("\(screen.rawValue)_configuration_tap", screen: screen, userID: profile.userID, context: modelContext)
+                    onOpenProfile()
+                }
 
-            HStack(spacing: 6) {
-                Image(systemName: "drop.fill")
-                    .font(AppFont.caption)
-                    .foregroundStyle(Color.appAccentText)
-                Text("\(streak)")
-                    .font(AppFont.subheadlineStrong)
-                Text("dias")
-                    .font(AppFont.subheadline)
-            }
-            .foregroundStyle(.primary)
-            .padding(.horizontal, 10)
-            .accessibilityElement(children: .combine)
+                HStack(spacing: 6) {
+                    Image(systemName: "drop.fill")
+                        .font(AppFont.caption)
+                        .foregroundStyle(Color.appAccentText)
+                    Text("\(streak)")
+                        .font(AppFont.subheadlineStrong)
+                    Text("dias")
+                        .font(AppFont.subheadline)
+                }
+                .foregroundStyle(.primary)
+                .padding(.horizontal, 10)
+                .accessibilityElement(children: .combine)
 
-            Spacer()
+                Spacer()
 
-            GlassCircleButton(systemImage: "gamecontroller.fill", accessibilityLabel: "Minijogos") {
-                Haptic.tap.play()
-                InteractionTracker.log("\(screen.rawValue)_minigames_tap", screen: screen, userID: profile.userID, context: modelContext)
-                showMiniGames = true
-            }
+                miniGamesButton
 
-            GlassCircleButton(systemImage: "square.and.arrow.up", accessibilityLabel: "Compartilhar") {
-                Haptic.tap.play()
-                InteractionTracker.log("\(screen.rawValue)_share_tap", screen: screen, userID: profile.userID, context: modelContext)
-                showShare = true
+                GlassCircleButton(systemImage: "square.and.arrow.up", accessibilityLabel: "Compartilhar") {
+                    Haptic.tap.play()
+                    InteractionTracker.log("\(screen.rawValue)_share_tap", screen: screen, userID: profile.userID, context: modelContext)
+                    showShare = true
+                }
             }
         }
     }
@@ -266,6 +289,21 @@ struct WaterHeaderView: View {
             in: containerShape,
             motion: waterMotion
         )
+        // Meta batida e o usuário foi "Beber água": tocar no recipiente traz os controles do jogo
+        // de volta. Só o toque é capturado; o arrasto continua chegando às páginas.
+        .overlay {
+            if runningGame != nil, miniGames.showsIntakeInsteadOfGame {
+                Color.clear
+                    .contentShape(containerShape)
+                    .onTapGesture {
+                        Haptic.primary.play()
+                        withAnimation(.spring(response: 0.6, dampingFraction: 0.85)) { miniGames.showsIntakeInsteadOfGame = false }
+                    }
+                    .accessibilityElement()
+                    .accessibilityLabel("Voltar ao jogo")
+                    .accessibilityAddTraits(.isButton)
+            }
+        }
         // Os botões flutuam por cima do recipiente (fora do `.waterContainer`, então não
         // passam pela refração da água — senão o vidro dos botões ficaria escuro).
         .overlay(alignment: .top) {
@@ -286,26 +324,6 @@ struct WaterHeaderView: View {
             }
             .padding(TabScreenLayout.containerInset)
             .animation(.spring(response: 0.5, dampingFraction: 0.75), value: unlockedGameBanner)
-        }
-        // Meta batida e o usuário foi "Beber água": este botão traz os controles do jogo de
-        // volta. Só ele recebe toque, o resto da água continua deixando o arrasto passar.
-        .overlay(alignment: .bottom) {
-            if runningGame != nil, miniGames.showsIntakeInsteadOfGame {
-                Button {
-                    Haptic.primary.play()
-                    withAnimation(.spring(response: 0.6, dampingFraction: 0.85)) { miniGames.showsIntakeInsteadOfGame = false }
-                } label: {
-                    Label("Voltar ao jogo", systemImage: "gamecontroller.fill")
-                        .font(AppFont.subheadlineStrong)
-                        .foregroundStyle(Color.appAccentText)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                        .glassEffect(.regular.interactive(), in: Capsule())
-                }
-                .buttonStyle(.plain)
-                .padding(.bottom, 14)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
         }
         .animation(.spring(response: 0.5, dampingFraction: 0.8), value: miniGames.showsIntakeInsteadOfGame)
     }
