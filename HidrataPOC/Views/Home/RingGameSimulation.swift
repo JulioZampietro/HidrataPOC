@@ -41,8 +41,9 @@ enum RingGameTuning {
 
     // Ganchos (dois pinos em pé, no fundo)
     static let postInset: Float = 0.34           // fração da largura, a partir de cada parede
-    static let postHeight: Float = 0.42          // fração da altura
+    static let postHeight: Float = 0.336         // fração da altura
     static let postHalfWidth: Float = 3
+    static let postLift: Float = 40              // pt: os pinos flutuam acima do fundo, deixando as argolas passarem por baixo
     static let stackStep: Float = 11             // pt de uma argola enfiada pra próxima
     static let postCapacity = 6
     static let postCaptureFraction: Float = 0.85 // fração do furo (menos o pino) em que a argola enfia
@@ -205,7 +206,7 @@ final class RingGameSimulation {
         return index == 0 ? inset : width - inset
     }
 
-    private var postBaseY: Float { Float(size.height) - 4 }
+    private var postBaseY: Float { Float(size.height) - 4 - RingGameTuning.postLift }
     private var postTipY: Float { postBaseY - RingGameTuning.postHeight * Float(size.height) }
 
     // MARK: Simulação
