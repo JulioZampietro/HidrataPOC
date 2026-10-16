@@ -62,7 +62,6 @@
 		A0DEC0A1B2C3D4E5F6000200 /* RingGameSimulation.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0DEC0A1B2C3D4E5F6000100 /* RingGameSimulation.swift */; };
 		A0DEC0A1B2C3D4E5F6000201 /* RingGameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0DEC0A1B2C3D4E5F6000101 /* RingGameView.swift */; };
 		A0DEC0A1B2C3D4E5F6000202 /* RingGameControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0DEC0A1B2C3D4E5F6000102 /* RingGameControls.swift */; };
-		A0DEC0A1B2C3D4E5F6000203 /* RingGameIntakeButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0DEC0A1B2C3D4E5F6000103 /* RingGameIntakeButton.swift */; };
 		A21C9E6F5B8E4E2D9C7A3F10 /* NotificationVariant.swift in Sources */ = {isa = PBXBuildFile; fileRef = 064BE38709D54C95B06FC813 /* NotificationVariant.swift */; };
 		A3082F6D802FB359064B17EC /* NotificationScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C74A3F1511E9062686EF2C1 /* NotificationScheduler.swift */; };
 		A6F8E0F841F2C32C7DA91AF1 /* IntakeLogService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FA657D469BE9DC8A54167C5 /* IntakeLogService.swift */; };
@@ -105,6 +104,7 @@
 		FEF1E8A999A9841C843C2208 /* CustomIntakeEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20FA02344B32332B350BC11D /* CustomIntakeEditorView.swift */; };
 		FF11223344556677889900FF /* AppFont.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD11223344556677889900DD /* AppFont.swift */; };
 		AA5511223344556677889901 /* Haptics.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA5511223344556677889902 /* Haptics.swift */; };
+		AA5511223344556677889903 /* MascotPhrases.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA5511223344556677889904 /* MascotPhrases.swift */; };
 		GG11223344556677889900GG /* Nunito.ttf in Resources */ = {isa = PBXBuildFile; fileRef = EE11223344556677889900EE /* Nunito.ttf */; };
 		HH11223344556677889900HH /* HealthKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = II11223344556677889900II /* HealthKitService.swift */; };
 		JJ11223344556677889900JJ /* HealthConnectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = KK11223344556677889900KK /* HealthConnectView.swift */; };
@@ -222,7 +222,6 @@
 		A0DEC0A1B2C3D4E5F6000100 /* RingGameSimulation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RingGameSimulation.swift; sourceTree = "<group>"; };
 		A0DEC0A1B2C3D4E5F6000101 /* RingGameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RingGameView.swift; sourceTree = "<group>"; };
 		A0DEC0A1B2C3D4E5F6000102 /* RingGameControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RingGameControls.swift; sourceTree = "<group>"; };
-		A0DEC0A1B2C3D4E5F6000103 /* RingGameIntakeButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RingGameIntakeButton.swift; sourceTree = "<group>"; };
 		A751463FEB8FCD28AA160686 /* WaterIntakeCalculatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaterIntakeCalculatorTests.swift; sourceTree = "<group>"; };
 		A9EDD10460D867692F1B0943 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		AA11223344556677889900AA /* HistoricoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoricoView.swift; sourceTree = "<group>"; };
@@ -250,6 +249,7 @@
 		DB825039445C1E23D630B41F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		DD11223344556677889900DD /* AppFont.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppFont.swift; sourceTree = "<group>"; };
 		AA5511223344556677889902 /* Haptics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Haptics.swift; sourceTree = "<group>"; };
+		AA5511223344556677889904 /* MascotPhrases.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MascotPhrases.swift; sourceTree = "<group>"; };
 		DE421AF8596C6FF6DD295ED6 /* LogIntakeIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogIntakeIntent.swift; sourceTree = "<group>"; };
 		DEF14391DFF4F9227FB24BDF /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		E0CB3E3BA72A80075634FCBB /* HidrataPOC.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = HidrataPOC.entitlements; sourceTree = "<group>"; };
@@ -304,6 +304,7 @@
 			children = (
 				DD11223344556677889900DD /* AppFont.swift */,
 				AA5511223344556677889902 /* Haptics.swift */,
+				AA5511223344556677889904 /* MascotPhrases.swift */,
 				00E817B37463672B4A760387 /* AppTheme.swift */,
 				95F0050D87C688CD6A361091 /* Constants.swift */,
 				E0CB3E3BA72A80075634FCBB /* HidrataPOC.entitlements */,
@@ -413,7 +414,6 @@
 				20FA02344B32332B350BC11D /* CustomIntakeEditorView.swift */,
 				A0DEC0A1B2C3D4E5F6000002 /* KidneyCheerView.swift */,
 				A0DEC0A1B2C3D4E5F6000102 /* RingGameControls.swift */,
-				A0DEC0A1B2C3D4E5F6000103 /* RingGameIntakeButton.swift */,
 				A0DEC0A1B2C3D4E5F6000101 /* RingGameView.swift */,
 				A0DEC0A1B2C3D4E5F6000100 /* RingGameSimulation.swift */,
 				C05E71C5A1B2C3D4E5F60002 /* MiniGamesView.swift */,
@@ -759,7 +759,6 @@
 				1A0B0C0D0E0F101112130001 /* JumpGameSimulation.swift in Sources */,
 				A0DEC0A1B2C3D4E5F6000001 /* KidneyCheerView.swift in Sources */,
 				A0DEC0A1B2C3D4E5F6000202 /* RingGameControls.swift in Sources */,
-				A0DEC0A1B2C3D4E5F6000203 /* RingGameIntakeButton.swift in Sources */,
 				A0DEC0A1B2C3D4E5F6000201 /* RingGameView.swift in Sources */,
 				A0DEC0A1B2C3D4E5F6000200 /* RingGameSimulation.swift in Sources */,
 				5A1C0DE15A1C0DE15A1C0DE1 /* ShareProgressView.swift in Sources */,
@@ -768,6 +767,7 @@
 				BB11223344556677889900BB /* HistoricoView.swift in Sources */,
 				FF11223344556677889900FF /* AppFont.swift in Sources */,
 				AA5511223344556677889901 /* Haptics.swift in Sources */,
+				AA5511223344556677889903 /* MascotPhrases.swift in Sources */,
 				F14DB73464BA11FAAA80A200 /* AppTheme.swift in Sources */,
 				F38FE2580C5C436E820BA2A8 /* NotificationVariant.swift in Sources */,
 				1E0E8D58D49CFBE72BD691A5 /* HydrationChartView.swift in Sources */,

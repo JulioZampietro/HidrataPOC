@@ -25,6 +25,10 @@ struct RootView: View {
 
     private var profile: UserProfile? { profiles.first }
 
+    /// Tela do minijogo: só na Home e com os botões do jogo no lugar dos cartões. O aquário
+    /// estica até a linha de botões, e não dá pra arrastar pro Histórico.
+    private var isGameLayout: Bool { miniGames.showsGameControls && selectedPage == .home }
+
     private var currentScreen: AppScreen {
         selectedPage == .historico ? .historico : .home
     }
@@ -77,6 +81,7 @@ struct RootView: View {
             .scrollPosition(id: $selectedPage)
             .scrollIndicators(.hidden)
             .scrollBounceBehavior(.basedOnSize)
+            .scrollDisabled(isGameLayout)
             .overlay {
                 GeometryReader { geo in
                     // Recipiente de água fixo por cima das duas páginas, no mesmo
@@ -84,7 +89,10 @@ struct RootView: View {
                     // conteúdo abaixo dele troca. As partes sem toque deixam o arrasto
                     // chegar às páginas.
                     WaterHeaderView(profile: profile, screen: currentScreen, onOpenProfile: { showProfile = true })
-                        .frame(height: TabScreenLayout.waterHeight(forVisibleHeight: geo.size.height, safeAreaTop: geo.safeAreaInsets.top))
+                        .frame(height: isGameLayout
+                            ? TabScreenLayout.gameWaterHeight(forVisibleHeight: geo.size.height, safeAreaTop: geo.safeAreaInsets.top)
+                            : TabScreenLayout.waterHeight(forVisibleHeight: geo.size.height, safeAreaTop: geo.safeAreaInsets.top))
+                        .animation(.spring(response: 0.6, dampingFraction: 0.85), value: isGameLayout)
                         .padding(.horizontal, 10)
                         .padding(.top, TabScreenLayout.waterTop(safeAreaTop: geo.safeAreaInsets.top))
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -97,6 +105,8 @@ struct RootView: View {
                     // conteúdo (`spacing` acima da área segura) e a borda da tela.
                     PageDots(selection: $selectedPage)
                         .allowsHitTesting(false)
+                        .opacity(isGameLayout ? 0 : 1)
+                        .animation(.easeInOut(duration: 0.3), value: isGameLayout)
                         .padding(.bottom, (geo.safeAreaInsets.bottom + TabScreenLayout.spacing - PageDots.height) / 2)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                         .ignoresSafeArea(edges: .bottom)
