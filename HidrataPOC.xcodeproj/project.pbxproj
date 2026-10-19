@@ -74,6 +74,8 @@
 		C05E71C5A1B2C3D4E5F60001 /* MiniGamesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C05E71C5A1B2C3D4E5F60002 /* MiniGamesView.swift */; };
 		1A0B0C0D0E0F101112130003 /* JumpGameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0B0C0D0E0F101112130004 /* JumpGameView.swift */; };
 		1A0B0C0D0E0F101112130001 /* JumpGameSimulation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0B0C0D0E0F101112130002 /* JumpGameSimulation.swift */; };
+		1A0B0C0D0E0F101112140001 /* BubbleGameSimulation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0B0C0D0E0F101112140002 /* BubbleGameSimulation.swift */; };
+		1A0B0C0D0E0F101112140003 /* BubbleGameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0B0C0D0E0F101112140004 /* BubbleGameView.swift */; };
 		C390E2FE5A235D47F6B6B6B0 /* HydrationAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39B01B3E715DF9C6090B73F0 /* HydrationAttributes.swift */; };
 		C4D59AF23B75095AE1776740 /* PersistenceController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18681BFBE503481336FBEBD8 /* PersistenceController.swift */; };
 		C875CDDF311D834B8785DD94 /* ConsentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F93CA27F187823B29EA02167 /* ConsentView.swift */; };
@@ -237,6 +239,8 @@
 		C05E71C5A1B2C3D4E5F60002 /* MiniGamesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniGamesView.swift; sourceTree = "<group>"; };
 		1A0B0C0D0E0F101112130004 /* JumpGameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JumpGameView.swift; sourceTree = "<group>"; };
 		1A0B0C0D0E0F101112130002 /* JumpGameSimulation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JumpGameSimulation.swift; sourceTree = "<group>"; };
+		1A0B0C0D0E0F101112140002 /* BubbleGameSimulation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BubbleGameSimulation.swift; sourceTree = "<group>"; };
+		1A0B0C0D0E0F101112140004 /* BubbleGameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BubbleGameView.swift; sourceTree = "<group>"; };
 		C3BCAACF78A9164EF7C57D86 /* WeatherContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherContext.swift; sourceTree = "<group>"; };
 		C7A5DA61EDA45323AB04B6E6 /* HydrationWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HydrationWidgetBundle.swift; sourceTree = "<group>"; };
 		CD611C7BACD349B4B8CBC129 /* WaterIntakeCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaterIntakeCalculator.swift; sourceTree = "<group>"; };
@@ -419,6 +423,8 @@
 				C05E71C5A1B2C3D4E5F60002 /* MiniGamesView.swift */,
 				1A0B0C0D0E0F101112130004 /* JumpGameView.swift */,
 				1A0B0C0D0E0F101112130002 /* JumpGameSimulation.swift */,
+				1A0B0C0D0E0F101112140004 /* BubbleGameView.swift */,
+				1A0B0C0D0E0F101112140002 /* BubbleGameSimulation.swift */,
 				A9EDD10460D867692F1B0943 /* HomeView.swift */,
 				5A1C0DE25A1C0DE25A1C0DE2 /* ShareProgressView.swift */,
 			);
@@ -757,6 +763,8 @@
 				C05E71C5A1B2C3D4E5F60001 /* MiniGamesView.swift in Sources */,
 				1A0B0C0D0E0F101112130003 /* JumpGameView.swift in Sources */,
 				1A0B0C0D0E0F101112130001 /* JumpGameSimulation.swift in Sources */,
+				1A0B0C0D0E0F101112140003 /* BubbleGameView.swift in Sources */,
+				1A0B0C0D0E0F101112140001 /* BubbleGameSimulation.swift in Sources */,
 				A0DEC0A1B2C3D4E5F6000001 /* KidneyCheerView.swift in Sources */,
 				A0DEC0A1B2C3D4E5F6000202 /* RingGameControls.swift in Sources */,
 				A0DEC0A1B2C3D4E5F6000203 /* RingGameIntakeButton.swift in Sources */,

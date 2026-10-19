@@ -28,6 +28,8 @@ struct HomeView: View {
     @Environment(MiniGameController.self) private var miniGames
     @State private var pressedJets = [Bool](repeating: false, count: RingGameSide.allCases.count)
     @State private var pressedJumpSides = [Bool](repeating: false, count: JumpGameSide.allCases.count)
+    @State private var pressedAimSides = [Bool](repeating: false, count: BubbleGameSide.allCases.count)
+    @State private var isFirePressed = false
     @AppStorage(MiniGame.jumpBestStorageKey) private var jumpBestScore = 0
     /// Os quatro cartões de ingestão viram os botões do jogo na mesma animação.
     @Namespace private var controlsNamespace
@@ -55,7 +57,19 @@ struct HomeView: View {
         return min(1, Double(consumedToday) / Double(effectiveGoalML))
     }
     
+    /// Ingestão de hoje pra barra de progresso, calculada uma vez por atualização do `body`: o
+    /// `GeometryReader` da tela refaz o conteúdo a cada frame enquanto a página desliza (o
+    /// arrasto entre Home e Histórico), e filtrar todos os registros lá dentro travava o arrasto.
+    private struct TodayIntake {
+        let consumedML: Int
+        let goalML: Int
+        let progress: Double
+    }
+
     var body: some View {
+        let consumed = consumedToday
+        let goal = effectiveGoalML
+        let today = TodayIntake(consumedML: consumed, goalML: goal, progress: goal > 0 ? min(1, Double(consumed) / Double(goal)) : 0)
         ZStack {
             AppTheme.screenBackground(for: colorScheme)
                 .ignoresSafeArea()
@@ -67,7 +81,7 @@ struct HomeView: View {
                     Color.clear
                         .frame(height: TabScreenLayout.waterHeight(forVisibleHeight: geo.size.height, safeAreaTop: geo.safeAreaInsets.top))
 
-                    progressBarButton
+                    progressBarButton(today)
                         .padding(.horizontal, 20)
 
                     bottomControls(cardHeight: intakeCardHeight(forVisibleHeight: geo.size.height))
@@ -135,23 +149,23 @@ struct HomeView: View {
     }
 
     /// Tapping the bar opens today's intake logs (same sheet as a day in Histórico).
-    private var progressBarButton: some View {
+    private func progressBarButton(_ today: TodayIntake) -> some View {
         Button {
             Haptic.tap.play()
             InteractionTracker.log("home_progress_bar_tap", screen: .home, userID: profile.userID, context: modelContext)
             showTodayLogs = true
         } label: {
-            progressBar
+            progressBar(today)
                 .contentShape(Capsule())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Consumo de hoje: \(consumedToday) de \(effectiveGoalML) mililitros")
+        .accessibilityLabel("Consumo de hoje: \(today.consumedML) de \(today.goalML) mililitros")
         .accessibilityHint("Mostra os registros de hoje")
     }
 
-    private var progressBar: some View {
+    private func progressBar(_ today: TodayIntake) -> some View {
         GeometryReader { geo in
-            let barWidth = max(geo.size.width * progress, 56)
+            let barWidth = max(geo.size.width * today.progress, 56)
             
             ZStack(alignment: .leading) {
                 // trilha, elevada com a mesma sombra dos cartões de ingestão
@@ -171,10 +185,10 @@ struct HomeView: View {
                 Capsule()
                     .fill(LinearGradient.waterHeader)
                     .frame(width: barWidth, height: progressBarHeight)
-                    .animation(.easeOut(duration: 0.4), value: progress)
+                    .animation(.easeOut(duration: 0.4), value: today.progress)
                 
                 // Texto sempre branco, sobre a trilha e sobre o preenchimento.
-                progressLabel(color: .white)
+                progressLabel(today, color: .white)
 
                 // Indica que a barra é tocável (abre os registros de hoje). Sempre branco,
                 // igual ao texto da barra.
@@ -190,8 +204,8 @@ struct HomeView: View {
         .dynamicTypeSize(controlTextSizeRange)
     }
     
-    private func progressLabel(color: Color) -> some View {
-        Text("\(consumedToday) mL / \(effectiveGoalML) mL")
+    private func progressLabel(_ today: TodayIntake, color: Color) -> some View {
+        Text("\(today.consumedML) mL / \(today.goalML) mL")
             .font(AppFont.subheadlineHeavy)
             .foregroundStyle(color)
             .lineLimit(1)
@@ -223,6 +237,9 @@ struct HomeView: View {
                 case .rings:
                     jetButton(.left).matchedGeometryEffect(id: "gole", in: controlsNamespace)
                     jetButton(.right).matchedGeometryEffect(id: "glass", in: controlsNamespace)
+                case .bubbles:
+                    aimButton(.left).matchedGeometryEffect(id: "gole", in: controlsNamespace)
+                    aimButton(.right).matchedGeometryEffect(id: "glass", in: controlsNamespace)
                 default:
                     jumpButton(.left).matchedGeometryEffect(id: "gole", in: controlsNamespace)
                     jumpButton(.right).matchedGeometryEffect(id: "glass", in: controlsNamespace)
@@ -233,6 +250,8 @@ struct HomeView: View {
                 switch game {
                 case .rings:
                     jetButton(.center).matchedGeometryEffect(id: "bottle", in: controlsNamespace)
+                case .bubbles:
+                    fireButton.matchedGeometryEffect(id: "bottle", in: controlsNamespace)
                 default:
                     JumpGameRecordCard(best: jumpBestScore, height: cardHeight)
                         .matchedGeometryEffect(id: "bottle", in: controlsNamespace)
@@ -278,12 +297,48 @@ struct HomeView: View {
         )
     }
 
+    private func aimButton(_ side: BubbleGameSide) -> some View {
+        GameHoldButton(
+            symbol: side == .left ? "arrow.counterclockwise.circle.fill" : "arrow.clockwise.circle.fill",
+            accessibilityLabel: side == .left ? "Mirar pra esquerda" : "Mirar pra direita",
+            accessibilityHint: "Gira o canhão de bolhas enquanto estiver apertado",
+            isPressed: pressedAimSides[side.rawValue],
+            onPressChange: { isPressed in
+                guard pressedAimSides[side.rawValue] != isPressed else { return }
+                pressedAimSides[side.rawValue] = isPressed
+                miniGames.bubbleGame.setAim(side, held: isPressed)
+                if isPressed { Haptic.selection.play() }
+            },
+            onAccessibilityPulse: { miniGames.bubbleGame.pulseAim(side) }
+        )
+    }
+
+    /// Atira ao apertar; o pulso do toque completo (ver `GameHoldButton`) só cobre o caso em
+    /// que o `pressing` não chegou — a simulação ignora o segundo tiro enquanto o primeiro voa.
+    private var fireButton: some View {
+        GameHoldButton(
+            symbol: "arrow.up.circle.fill",
+            accessibilityLabel: "Atirar bolha",
+            accessibilityHint: "Atira a bolha do canhão na direção da mira",
+            isPressed: isFirePressed,
+            onPressChange: { isPressed in
+                guard isFirePressed != isPressed else { return }
+                isFirePressed = isPressed
+                if isPressed { miniGames.bubbleGame.fire() }
+            },
+            onAccessibilityPulse: { miniGames.bubbleGame.fire() }
+        )
+    }
+
     /// Solta qualquer botão de jogo que estivesse apertado (os botões sumiram ou o jogo trocou).
     private func releaseGameButtons() {
         pressedJets = [Bool](repeating: false, count: RingGameSide.allCases.count)
         for side in RingGameSide.allCases { miniGames.ringGame.setJet(side, open: false) }
         pressedJumpSides = [Bool](repeating: false, count: JumpGameSide.allCases.count)
         for side in JumpGameSide.allCases { miniGames.jumpGame.setDirection(side, held: false) }
+        pressedAimSides = [Bool](repeating: false, count: BubbleGameSide.allCases.count)
+        isFirePressed = false
+        for side in BubbleGameSide.allCases { miniGames.bubbleGame.setAim(side, held: false) }
     }
 
     private func intakeGrid(cardHeight: CGFloat) -> some View {

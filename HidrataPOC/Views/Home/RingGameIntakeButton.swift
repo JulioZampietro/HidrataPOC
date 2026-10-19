@@ -11,7 +11,7 @@ struct RingGameIntakeButton: View {
         Button(action: action) {
             IntakeCardContent(
                 icon: .symbol("drop.fill"),
-                title: "Beber água",
+                title: "Beber\nágua",
                 subtitle: "Registrar",
                 height: height
             )

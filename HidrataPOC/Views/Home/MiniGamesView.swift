@@ -1,10 +1,11 @@
 import SwiftUI
 
-/// Minijogos que aparecem no aquário da Home quando a meta do dia é batida. Cada um é
-/// desbloqueado ao alcançar `requiredStreak` dias de streak; só um fica ativo por vez
-/// (ou nenhum, com `.noGame`: o aquário fica só com as pedrinhas),
-/// escolhido na aba de minijogos (`MiniGamesView`) e lembrado entre aberturas do app
-/// (`@AppStorage(MiniGame.selectedStorageKey)`).
+/// Minijogos que rodam no aquário da Home. Cada um é desbloqueado ao alcançar
+/// `requiredStreak` dias de streak; só um fica ativo por vez (ou nenhum, com `.noGame`:
+/// o aquário fica só com as pedrinhas), escolhido na aba de minijogos (`MiniGamesView`) e
+/// lembrado entre aberturas do app (`@AppStorage(MiniGame.selectedStorageKey)`). O escolhido
+/// entra sozinho quando a meta do dia é batida, e com pelo menos `minimumStreakToPlay` dias
+/// de streak dá pra jogar a qualquer hora tocando nele na aba.
 ///
 /// Pra criar um jogo novo: adicione o `case` aqui (com título, ícone e streak necessária)
 /// e trate o `case` na Home (`HomeView`), onde o jogo é desenhado e controlado.
@@ -12,6 +13,7 @@ enum MiniGame: String, CaseIterable, Identifiable {
     case noGame
     case rings
     case jump
+    case bubbles
 
     var id: String { rawValue }
 
@@ -20,6 +22,7 @@ enum MiniGame: String, CaseIterable, Identifiable {
         case .noGame: "Sem jogo"
         case .rings: "Argolas"
         case .jump: "Gota Saltitante"
+        case .bubbles: "Bolhas Coloridas"
         }
     }
 
@@ -28,6 +31,7 @@ enum MiniGame: String, CaseIterable, Identifiable {
         case .noGame: "Só a água e as pedrinhas, sem minijogo"
         case .rings: "Use os jatos d'água pra encaixar as argolas nos pinos"
         case .jump: "Pule de folha em folha e suba o mais alto que der"
+        case .bubbles: "Mire e junte 4 bolhas da mesma cor pra estourar"
         }
     }
 
@@ -36,6 +40,7 @@ enum MiniGame: String, CaseIterable, Identifiable {
         case .noGame: "nosign"
         case .rings: "circle.circle"
         case .jump: "arrow.up.to.line"
+        case .bubbles: "circle.hexagongrid.fill"
         }
     }
 
@@ -45,6 +50,7 @@ enum MiniGame: String, CaseIterable, Identifiable {
         case .noGame: 0
         case .rings: 1
         case .jump: 3
+        case .bubbles: 5
         }
     }
 
@@ -58,6 +64,7 @@ enum MiniGame: String, CaseIterable, Identifiable {
         case .noGame: Color(red: 0.55, green: 0.60, blue: 0.68)
         case .rings: Color(red: 0.93, green: 0.26, blue: 0.28)
         case .jump: Color(red: 0.25, green: 0.78, blue: 0.42)
+        case .bubbles: Color(red: 0.66, green: 0.42, blue: 0.95)
         }
     }
 
@@ -68,6 +75,11 @@ enum MiniGame: String, CaseIterable, Identifiable {
     static let announcedStorageKey = "minigame.announced"
     /// Chave do `@AppStorage` com o recorde da Gota Saltitante.
     static let jumpBestStorageKey = "minigame.jump.best"
+    /// Chave do `@AppStorage` com o recorde das Bolhas Coloridas.
+    static let bubblesBestStorageKey = "minigame.bubbles.best"
+
+    /// Streak mínima pra jogar fora da meta batida (tocando no jogo na aba de minijogos).
+    static let minimumStreakToPlay = 1
 
     /// Jogos de verdade (sem o `.noGame`) já liberados pela streak, na ordem de desbloqueio.
     static func unlocked(streak: Int) -> [MiniGame] {
@@ -90,25 +102,33 @@ enum MiniGame: String, CaseIterable, Identifiable {
 final class MiniGameController {
     @ObservationIgnored let ringGame = RingGameSimulation()
     @ObservationIgnored let jumpGame = JumpGameSimulation()
+    @ObservationIgnored let bubbleGame = BubbleGameSimulation()
     /// Jogo rodando no aquário agora (meta batida e um jogo de verdade escolhido) — quem
     /// define é o `WaterHeaderView`.
     var runningGame: MiniGame?
     /// Com a meta batida, o usuário pode voltar aos botões de ingestão ("Beber água"); o
     /// botão "Voltar ao jogo" no aquário traz os botões do jogo de volta.
     var showsIntakeInsteadOfGame = false
+    /// O usuário tocou num jogo na aba de minijogos pra jogar agora, mesmo sem a meta batida.
+    /// Acaba ao tocar em "Beber água" (antes da meta) ou ao escolher "Sem jogo".
+    var playsOnDemand = false
 
     /// Botões do jogo no lugar dos cartões de ingestão.
     var showsGameControls: Bool { runningGame != nil && !showsIntakeInsteadOfGame }
 }
 
-/// Aba aberta pelo botão de minijogos no aquário: lista os jogos e escolhe, com um toque,
-/// qual aparece quando a meta do dia for batida. Jogos ainda bloqueados (streak abaixo de
-/// `MiniGame.requiredStreak`) aparecem com cadeado e não respondem ao toque.
+/// Aba aberta pelo botão de minijogos no aquário: lista os jogos e, com um toque, escolhe
+/// qual aparece quando a meta do dia for batida e já começa a jogá-lo no aquário (com pelo
+/// menos `MiniGame.minimumStreakToPlay` dias de streak). Jogos ainda bloqueados (streak abaixo
+/// de `MiniGame.requiredStreak`) aparecem com cadeado e não respondem ao toque.
 struct MiniGamesView: View {
     let streak: Int
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(MiniGameController.self) private var miniGames
     @AppStorage(MiniGame.selectedStorageKey) private var selectedRaw = ""
+
+    private var canPlay: Bool { streak >= MiniGame.minimumStreakToPlay }
 
     private let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
 
@@ -117,7 +137,7 @@ struct MiniGamesView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                Text("Bata a meta do dia pra jogar. Cada dia de streak libera jogos novos!")
+                Text("Toque num jogo pra jogar agora. Ele também entra quando você bate a meta do dia, e cada dia de streak libera jogos novos!")
                     .font(.custom("Nunito", size: 14))
                     .foregroundStyle(Color.appSecondary)
                     .multilineTextAlignment(.center)
@@ -125,14 +145,29 @@ struct MiniGamesView: View {
                     .padding(.horizontal, 20)
                     .padding(.top, 12)
 
+                if !canPlay {
+                    Label("Você precisa de pelo menos \(MiniGame.minimumStreakToPlay) dia de streak pra jogar. Bata a meta de hoje pra começar!",
+                          systemImage: "lock.fill")
+                        .font(.custom("Nunito", size: 14).weight(.bold))
+                        .foregroundStyle(Color.appAccentText)
+                        .multilineTextAlignment(.leading)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.appAccent.opacity(0.12), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .padding(.horizontal, 20)
+                        .padding(.top, 12)
+                }
+
                 LazyVGrid(columns: columns, spacing: 12) {
                     ForEach(MiniGame.allCases) { game in
                         MiniGameItemButton(
                             game: game,
                             isUnlocked: game.isUnlocked(streak: streak),
-                            isSelected: activeGame == game
+                            isSelected: activeGame == game,
+                            canPlay: canPlay
                         ) {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { selectedRaw = game.rawValue }
+                            select(game)
                         }
                     }
                 }
@@ -149,6 +184,22 @@ struct MiniGamesView: View {
         }
         .presentationDetents([.medium, .large])
     }
+
+    /// Escolhe o jogo; com streak suficiente, fecha a aba e ele começa no aquário na hora.
+    /// "Sem jogo" encerra uma partida que estivesse rolando fora da meta batida.
+    private func select(_ game: MiniGame) {
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { selectedRaw = game.rawValue }
+        guard game.isPlayable else {
+            miniGames.playsOnDemand = false
+            return
+        }
+        guard canPlay else { return }
+        withAnimation(.spring(response: 0.6, dampingFraction: 0.85)) {
+            miniGames.playsOnDemand = true
+            miniGames.showsIntakeInsteadOfGame = false
+        }
+        dismiss()
+    }
 }
 
 /// Cartão de um jogo: toque escolhe o jogo. Escolhido = borda e selo na cor do jogo.
@@ -157,6 +208,7 @@ private struct MiniGameItemButton: View {
     let game: MiniGame
     let isUnlocked: Bool
     let isSelected: Bool
+    let canPlay: Bool
     let onSelect: () -> Void
 
     private var showsSelected: Bool { isUnlocked && isSelected }
@@ -211,7 +263,7 @@ private struct MiniGameItemButton: View {
         .disabled(!isUnlocked)
         .accessibilityLabel(game.title)
         .accessibilityValue(isUnlocked ? (isSelected ? "Escolhido" : "Não escolhido") : "Bloqueado")
-        .accessibilityHint(isUnlocked ? (game.isPlayable ? "Toque para jogar este quando bater a meta" : "Toque para não jogar nada quando bater a meta") : lockedText)
+        .accessibilityHint(isUnlocked ? (game.isPlayable ? (canPlay ? "Toque para jogar agora" : "Toque para jogar este quando bater a meta") : "Toque para não jogar nada quando bater a meta") : lockedText)
     }
 }
 
@@ -241,4 +293,5 @@ struct MiniGameUnlockedBanner: View {
 
 #Preview {
     MiniGamesView(streak: 0)
+        .environment(MiniGameController())
 }
