@@ -152,7 +152,7 @@ struct ShareProgressCard: View {
     /// Só o essencial: nome do app, "bebi hoje", a quantidade e a sequência.
     private var minimalistaLayout: some View {
         VStack(spacing: 10) {
-            Text("HIDRATA")
+            Text("GOLE")
                 .font(AppFont.fixed(14, .heavy))
                 .tracking(4)
                 .opacity(0.9)
@@ -200,7 +200,7 @@ struct ShareProgressCard: View {
 
             HStack(spacing: 6) {
                 Image(systemName: "drop.fill")
-                Text("HIDRATA")
+                Text("GOLE")
                     .tracking(3)
             }
             .font(AppFont.fixed(14, .heavy))
@@ -220,7 +220,7 @@ struct ShareProgressCard: View {
 
     private var header: some View {
         VStack(spacing: 4) {
-            Text("HIDRATA")
+            Text("GOLE")
                 .font(AppFont.fixed(15, .heavy))
                 .tracking(4)
             Text(dateText)

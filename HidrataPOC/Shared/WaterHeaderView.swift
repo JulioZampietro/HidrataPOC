@@ -7,9 +7,9 @@ import SwiftUI
 /// transições de estágio), o minijogo da meta batida e, no topo, os botões de compartilhar,
 /// minijogos e perfil, junto da sequência de dias.
 ///
-/// Só o mascote, os botões e a faixa de baixo (onde se brinca com as pedrinhas) recebem
-/// toques: o resto deixa o arrasto passar para as páginas atrás, então dá para trocar de
-/// página arrastando sobre a água também.
+/// Só o mascote, os botões, a faixa de baixo (onde se brinca com as pedrinhas) e o jogo das
+/// Bolhas Coloridas (mira com o dedo) recebem toques: o resto deixa o arrasto passar para as
+/// páginas atrás, então dá para trocar de página arrastando sobre a água também.
 struct WaterHeaderView: View {
     let profile: UserProfile
     /// Página visível — atribui os toques nos botões à tela certa.
@@ -154,7 +154,19 @@ struct WaterHeaderView: View {
             handleMiniGame(from: oldGame, to: newGame, isLiveTransition: oldGame != newGame)
         }
         .onChange(of: goalReached) { _, isReached in
-            if !isReached { miniGames.showsIntakeInsteadOfGame = false }
+            if !isReached {
+                miniGames.showsIntakeInsteadOfGame = false
+                miniGames.playsOnDemand = false
+            }
+        }
+        // Antes da meta, voltar à ingestão (seta pra trás do cabeçalho) encerra a partida: o
+        // mascote volta pra reagir à água.
+        .onChange(of: miniGames.showsIntakeInsteadOfGame) { _, showsIntake in
+            guard showsIntake, !goalReached else { return }
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.85)) {
+                miniGames.playsOnDemand = false
+                miniGames.showsIntakeInsteadOfGame = false
+            }
         }
         .onChange(of: streak, initial: true) { _, newStreak in
             announceNewlyUnlockedGames(streak: newStreak)
@@ -232,8 +244,15 @@ struct WaterHeaderView: View {
     /// a streak de hoje já conta, então um jogo liberado agora entra na mesma hora.
     private var activeGame: MiniGame { MiniGame.active(selected: selectedGameRaw, streak: streak) }
 
-    /// Jogo rodando agora no aquário: só com a meta batida, e nunca o `.noGame`.
-    private var runningGame: MiniGame? { goalReached && activeGame.isPlayable ? activeGame : nil }
+    /// Jogo rodando agora no aquário: com a meta batida, ou quando o usuário escolheu jogar
+    /// pela aba de minijogos (com a streak mínima); nunca o `.noGame`.
+    private var runningGame: MiniGame? {
+        let playsNow = goalReached || (miniGames.playsOnDemand && streak >= MiniGame.minimumStreakToPlay)
+        return playsNow && activeGame.isPlayable ? activeGame : nil
+    }
+
+    /// Jogando pela aba antes de bater a meta: o mascote ainda existe e sai de cena enquanto isso.
+    private var hidesMascotForGame: Bool { runningGame != nil && !goalReached }
 
     private var containerShape: UnevenRoundedRectangle {
         UnevenRoundedRectangle(topLeadingRadius: 32, bottomLeadingRadius: 32, bottomTrailingRadius: 32, topTrailingRadius: 32, style: .continuous)
@@ -244,6 +263,9 @@ struct WaterHeaderView: View {
         // conteúdo da água: a refração achata o conteúdo numa imagem e o vidro dos botões
         // deixa de enxergar o fundo (fica escuro).
         mascotPlaceholder(height: TabScreenLayout.mascotHeight(forWaterHeight: height), width: width)
+            .opacity(hidesMascotForGame ? 0 : 1)
+            .allowsHitTesting(!hidesMascotForGame)
+            .animation(.easeInOut(duration: 0.3), value: hidesMascotForGame)
             // Esse respiro abaixo do mascote (antes do `.frame` de altura fixa, pra
             // não aumentar a altura total do recipiente) é o que o afasta do fundo.
             .padding(.bottom, TabScreenLayout.mascotBottomPadding)
@@ -264,7 +286,7 @@ struct WaterHeaderView: View {
             }
             .animation(.spring(response: 0.5, dampingFraction: 0.7), value: goalReached)
             // Minijogo: no conteúdo do recipiente, então passa pela mesma refração da água.
-            // Só desenha; os botões ficam na Home.
+            // Os botões ficam na Home; só as Bolhas Coloridas recebem toque aqui (mirar e atirar).
             .overlay {
                 Group {
                     switch runningGame {
@@ -272,11 +294,13 @@ struct WaterHeaderView: View {
                         RingGameView(simulation: miniGames.ringGame, water: waterMotion)
                     case .jump:
                         JumpGameView(simulation: miniGames.jumpGame, water: waterMotion)
+                    case .bubbles:
+                        BubbleGameView(simulation: miniGames.bubbleGame, water: waterMotion)
                     case .noGame, nil:
                         EmptyView()
                     }
                 }
-                .allowsHitTesting(false)
+                .allowsHitTesting(runningGame == .bubbles && !miniGames.showsIntakeInsteadOfGame)
                 .transition(.opacity)
             }
         .background {
@@ -556,6 +580,7 @@ struct WaterHeaderView: View {
     private func handleMiniGame(from oldGame: MiniGame?, to newGame: MiniGame?, isLiveTransition: Bool) {
         if newGame != .rings { miniGames.ringGame.stop() }
         if newGame != .jump { miniGames.jumpGame.stop() }
+        if newGame != .bubbles { miniGames.bubbleGame.stop() }
 
         guard let newGame else {
             if goalReached, oldGame != nil { waterMotion.scatterStonesAtRest() }
@@ -572,14 +597,22 @@ struct WaterHeaderView: View {
             UserDefaults.standard.set(max(best, score), forKey: MiniGame.jumpBestStorageKey)
             InteractionTracker.log("jump_game_over", screen: screen, userID: profile.userID, context: modelContext)
         }
-        // Meta acabou de ser batida: espera o mascote explodir antes do jogo entrar.
-        let waitsForExplosion = isLiveTransition && oldGame == nil
+        miniGames.bubbleGame.onGameOver = { score in
+            let best = UserDefaults.standard.integer(forKey: MiniGame.bubblesBestStorageKey)
+            (score > best ? Haptic.success : Haptic.warning).play()
+            UserDefaults.standard.set(max(best, score), forKey: MiniGame.bubblesBestStorageKey)
+            InteractionTracker.log("bubbles_game_over", screen: screen, userID: profile.userID, context: modelContext)
+        }
+        // Meta acabou de ser batida: espera o mascote explodir antes do jogo entrar. Jogando
+        // pela aba não tem explosão, então entra logo.
+        let waitsForExplosion = isLiveTransition && oldGame == nil && !miniGames.playsOnDemand
         Task {
             try? await Task.sleep(for: .seconds(waitsForExplosion ? Self.gameStartDelay : 0.4))
             guard runningGame == newGame else { return }
             switch newGame {
             case .rings: miniGames.ringGame.start()
             case .jump: miniGames.jumpGame.start()
+            case .bubbles: miniGames.bubbleGame.start()
             case .noGame: return
             }
             if isLiveTransition {
