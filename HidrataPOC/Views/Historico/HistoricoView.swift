@@ -97,6 +97,14 @@ struct HistoricoView: View {
         monthDays.filter { $0.bateuMeta }.count
     }
 
+    /// True once today's temperature adjustment has already been fetched and locked
+    /// in (see `DailyGoal.recordToday`) — at that point a fresh WeatherKit call would
+    /// only repeat work `recordedAdjustmentML` already covers, so it's skipped.
+    private var isTodaysAdjustmentLocked: Bool {
+        let key = DailyGoal.dayKey(for: .now, calendar: calendar)
+        return dailyGoals.first { $0.dayKey == key }?.adjustmentLocked ?? false
+    }
+
     /// Mesma meta ajustada pelo clima usada na Home — sem isso, o nível de água das
     /// duas telas diverge num dia quente (ver `HydrationMath.effectiveGoalML`).
     private var effectiveGoalML: Int {
@@ -139,7 +147,7 @@ struct HistoricoView: View {
         }
         .appScreenBackground()
         .onAppear {
-            guard tempContext == nil else { return }
+            guard tempContext == nil, !isTodaysAdjustmentLocked else { return }
             Task {
                 tempContext = await WeatherContextService.shared.temperatureAdjustmentContext()
             }

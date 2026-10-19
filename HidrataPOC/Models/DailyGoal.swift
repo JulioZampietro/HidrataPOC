@@ -21,6 +21,13 @@ final class DailyGoal {
     var adjustmentML: Int
     var atualizadoEm: Date
 
+    /// Set once `adjustmentML` has been filled from a real forecast for this day.
+    /// After that, later forecast fetches the same day (the forecast's "today's high"
+    /// keeps getting revised) no longer change the goal — it's settled, win or lose,
+    /// once the user has started seeing a real number. Defaulted for lightweight
+    /// migration — existing rows come up unlocked, which just re-locks on their next write.
+    var adjustmentLocked: Bool = false
+
     /// CloudKit push state (public database), so a reinstall / another device can
     /// restore the goal history. Defaulted for lightweight migration — existing rows
     /// come up `.pending` and get uploaded by the next `flushPending`.
@@ -32,13 +39,14 @@ final class DailyGoal {
 
     var goalML: Int { baseGoalML + adjustmentML }
 
-    init(userID: String, dayKey: String, baseGoalML: Int, adjustmentML: Int) {
+    init(userID: String, dayKey: String, baseGoalML: Int, adjustmentML: Int, adjustmentLocked: Bool = false) {
         self.id = UUID()
         self.userID = userID
         self.dayKey = dayKey
         self.baseGoalML = baseGoalML
         self.adjustmentML = adjustmentML
         self.atualizadoEm = .now
+        self.adjustmentLocked = adjustmentLocked
     }
 
     static func dayKey(for date: Date, calendar: Calendar = .current) -> String {
@@ -48,6 +56,12 @@ final class DailyGoal {
 
     /// Upserts today's row. `adjustmentML == nil` means "no fresh forecast right now":
     /// an existing row keeps the adjustment it already has, a new one starts at 0.
+    ///
+    /// The first time a real (non-nil) `adjustmentML` lands for today, it's locked in —
+    /// WeatherKit keeps revising "today's forecast high" as the day goes on, and without
+    /// a lock a later, different reading would silently replace a goal the user may have
+    /// already met. Only the base goal (a manual edit from `UserProfile`) can still change
+    /// after that; the weather half of today's goal is settled.
     @MainActor
     static func recordToday(
         userID: String,
@@ -60,14 +74,16 @@ final class DailyGoal {
         let key = dayKey(for: now, calendar: calendar)
         let descriptor = FetchDescriptor<DailyGoal>(predicate: #Predicate { $0.userID == userID && $0.dayKey == key })
         if let existing = try? context.fetch(descriptor).first {
-            let newAdjustment = adjustmentML ?? existing.adjustmentML
-            guard existing.baseGoalML != baseGoalML || existing.adjustmentML != newAdjustment else { return }
+            let newAdjustment = existing.adjustmentLocked ? existing.adjustmentML : (adjustmentML ?? existing.adjustmentML)
+            let newLocked = existing.adjustmentLocked || adjustmentML != nil
+            guard existing.baseGoalML != baseGoalML || existing.adjustmentML != newAdjustment || existing.adjustmentLocked != newLocked else { return }
             existing.baseGoalML = baseGoalML
             existing.adjustmentML = newAdjustment
+            existing.adjustmentLocked = newLocked
             existing.atualizadoEm = now
             existing.syncStatus = .pending
         } else {
-            context.insert(DailyGoal(userID: userID, dayKey: key, baseGoalML: baseGoalML, adjustmentML: adjustmentML ?? 0))
+            context.insert(DailyGoal(userID: userID, dayKey: key, baseGoalML: baseGoalML, adjustmentML: adjustmentML ?? 0, adjustmentLocked: adjustmentML != nil))
         }
         try? context.save()
     }

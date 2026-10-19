@@ -8,6 +8,7 @@ struct ProfileView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.modelContext) private var modelContext
     @Query private var allLogs: [IntakeLog]
+    @Query private var allDailyGoals: [DailyGoal]
     @State private var tempContext: TemperatureAdjustmentContext?
     @State private var isEditing = false
     @State private var isEditingGoal = false
@@ -23,6 +24,24 @@ struct ProfileView: View {
 
     private var isManualGoal: Bool {
         profile.metaDiariaML != calculatedGoalML
+    }
+
+    private var dailyGoals: [DailyGoal] {
+        allDailyGoals.filter { $0.userID == profile.userID }
+    }
+
+    /// True once today's temperature adjustment has already been fetched and locked
+    /// in (see `DailyGoal.recordToday`) — at that point a fresh WeatherKit call would
+    /// only repeat work `recordedAdjustmentML` already covers, so it's skipped.
+    private var isTodaysAdjustmentLocked: Bool {
+        let key = DailyGoal.dayKey(for: .now)
+        return dailyGoals.first { $0.dayKey == key }?.adjustmentLocked ?? false
+    }
+
+    /// Today's adjustment, from the live fetch if one happened this screen visit,
+    /// otherwise from the locked row recorded earlier today.
+    private var todaysAdjustmentML: Int {
+        tempContext?.adjustmentML ?? DailyGoalResolver.recordedAdjustmentML(in: dailyGoals, on: .now) ?? 0
     }
     #if DEBUG
     @State private var debugNotificationStatus: String?
@@ -67,6 +86,12 @@ struct ProfileView: View {
         .appScreenBackground()
         .task {
             guard tempContext == nil else { return }
+            #if !DEBUG
+            // In release, once today's adjustment is locked, `todaysAdjustmentML`
+            // already covers it — skip the redundant WeatherKit round trip. The
+            // DEBUG weather card below wants a live read every visit, lock or not.
+            guard !isTodaysAdjustmentLocked else { return }
+            #endif
             tempContext = await WeatherContextService.shared.temperatureAdjustmentContext()
         }
         .sheet(isPresented: $isEditing) {
@@ -83,7 +108,7 @@ struct ProfileView: View {
             .trackSheetLifecycle(.editPersonalData, screen: .profile, userID: profile.userID)
         }
         .sheet(isPresented: $showGoalExplainer) {
-            GoalExplainerView(goalML: profile.metaDiariaML, adjustmentML: tempContext?.adjustmentML ?? 0, isManual: isManualGoal)
+            GoalExplainerView(goalML: profile.metaDiariaML, adjustmentML: todaysAdjustmentML, isManual: isManualGoal)
                 .trackSheetLifecycle(.goalExplainer, screen: .profile, userID: profile.userID)
         }
         .sheet(isPresented: $isEditingGoal) {
@@ -118,8 +143,8 @@ struct ProfileView: View {
                         Text("mL")
                             .font(AppFont.title3)
                             .foregroundStyle(.white.opacity(0.85))
-                        if let adjustment = tempContext?.adjustmentML, adjustment > 0 {
-                            Text("+ \(adjustment) mL")
+                        if todaysAdjustmentML > 0 {
+                            Text("+ \(todaysAdjustmentML) mL")
                                 .font(AppFont.footnoteStrong)
                                 .foregroundStyle(Color.appGoldHighlight)
                         }

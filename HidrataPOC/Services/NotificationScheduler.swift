@@ -1043,6 +1043,12 @@ final class NotificationScheduler {
     /// already recorded for today is used instead.
     private func effectiveGoalML(for profile: UserProfile) async -> Int {
         let context = PersistenceController.context
+        // `captureImminentSlots` calls this roughly once a minute while a slot is
+        // close to firing — once today's adjustment is locked in, skip the repeat
+        // WeatherKit round trip and just read the recorded value.
+        guard !isTodaysAdjustmentLocked(for: profile, context: context) else {
+            return HydrationMath.effectiveGoalML(baseGoalML: profile.metaDiariaML, tempContext: nil, recordedAdjustmentML: recordedAdjustmentML(for: profile, context: context))
+        }
         let fresh = await WeatherContextService.shared.temperatureAdjustmentContext()?.adjustmentML
         if let fresh {
             DailyGoal.recordToday(userID: profile.userID, baseGoalML: profile.metaDiariaML, adjustmentML: fresh, context: context)
@@ -1052,6 +1058,11 @@ final class NotificationScheduler {
 
     private func recordedAdjustmentML(for profile: UserProfile, context: ModelContext) -> Int? {
         DailyGoalResolver.recordedAdjustmentML(in: dailyGoals(for: profile, context: context), on: .now)
+    }
+
+    private func isTodaysAdjustmentLocked(for profile: UserProfile, context: ModelContext) -> Bool {
+        let key = DailyGoal.dayKey(for: .now)
+        return dailyGoals(for: profile, context: context).first { $0.dayKey == key }?.adjustmentLocked ?? false
     }
 
     private func dailyGoals(for profile: UserProfile, context: ModelContext) -> [DailyGoal] {
