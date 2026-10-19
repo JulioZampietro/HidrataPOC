@@ -8,6 +8,7 @@ struct ProfileView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.modelContext) private var modelContext
     @Query private var allLogs: [IntakeLog]
+    @Query private var allDailyGoals: [DailyGoal]
     @State private var tempContext: TemperatureAdjustmentContext?
     @State private var isEditing = false
     @State private var isEditingGoal = false
@@ -24,8 +25,27 @@ struct ProfileView: View {
     private var isManualGoal: Bool {
         profile.metaDiariaML != calculatedGoalML
     }
+
+    private var dailyGoals: [DailyGoal] {
+        allDailyGoals.filter { $0.userID == profile.userID }
+    }
+
+    /// True once today's temperature adjustment has already been fetched and locked
+    /// in (see `DailyGoal.recordToday`) — at that point a fresh WeatherKit call would
+    /// only repeat work `recordedAdjustmentML` already covers, so it's skipped.
+    private var isTodaysAdjustmentLocked: Bool {
+        let key = DailyGoal.dayKey(for: .now)
+        return dailyGoals.first { $0.dayKey == key }?.adjustmentLocked ?? false
+    }
+
+    /// Today's adjustment, from the live fetch if one happened this screen visit,
+    /// otherwise from the locked row recorded earlier today.
+    private var todaysAdjustmentML: Int {
+        tempContext?.adjustmentML ?? DailyGoalResolver.recordedAdjustmentML(in: dailyGoals, on: .now) ?? 0
+    }
     #if DEBUG
     @State private var debugNotificationStatus: String?
+    @State private var debugCopyStatus: String?
     #endif
 
     private var todayProgress: Double {
@@ -55,6 +75,7 @@ struct ProfileView: View {
                 healthRow
                 #if DEBUG
                 debugNotificationRow
+                debugRandomCopyRow
                 debugWeatherCard
                 #endif
                 personalDataSection
@@ -67,6 +88,12 @@ struct ProfileView: View {
         .appScreenBackground()
         .task {
             guard tempContext == nil else { return }
+            #if !DEBUG
+            // In release, once today's adjustment is locked, `todaysAdjustmentML`
+            // already covers it — skip the redundant WeatherKit round trip. The
+            // DEBUG weather card below wants a live read every visit, lock or not.
+            guard !isTodaysAdjustmentLocked else { return }
+            #endif
             tempContext = await WeatherContextService.shared.temperatureAdjustmentContext()
         }
         .sheet(isPresented: $isEditing) {
@@ -83,7 +110,7 @@ struct ProfileView: View {
             .trackSheetLifecycle(.editPersonalData, screen: .profile, userID: profile.userID)
         }
         .sheet(isPresented: $showGoalExplainer) {
-            GoalExplainerView(goalML: profile.metaDiariaML, adjustmentML: tempContext?.adjustmentML ?? 0, isManual: isManualGoal)
+            GoalExplainerView(goalML: profile.metaDiariaML, adjustmentML: todaysAdjustmentML, isManual: isManualGoal)
                 .trackSheetLifecycle(.goalExplainer, screen: .profile, userID: profile.userID)
         }
         .sheet(isPresented: $isEditingGoal) {
@@ -118,8 +145,8 @@ struct ProfileView: View {
                         Text("mL")
                             .font(AppFont.title3)
                             .foregroundStyle(.white.opacity(0.85))
-                        if let adjustment = tempContext?.adjustmentML, adjustment > 0 {
-                            Text("+ \(adjustment) mL")
+                        if todaysAdjustmentML > 0 {
+                            Text("+ \(todaysAdjustmentML) mL")
                                 .font(AppFont.footnoteStrong)
                                 .foregroundStyle(Color.appGoldHighlight)
                         }
@@ -348,6 +375,44 @@ struct ProfileView: View {
 
             if let debugNotificationStatus {
                 Text(debugNotificationStatus)
+                    .font(AppFont.footnote)
+                    .foregroundStyle(Color.appSecondary)
+                    .padding(.horizontal, 6)
+            }
+        }
+    }
+
+    /// Sorteia uma frase de qualquer variante e a manda em 5 s, como o botão de cima faz com o mascote.
+    private var debugRandomCopyRow: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Button {
+                Haptic.tap.play()
+                Task {
+                    debugCopyStatus = "Enviando…"
+                    _ = await NotificationScheduler.shared.requestAuthorization()
+                    if let sent = await NotificationScheduler.shared.sendRandomDebugCopy() {
+                        debugCopyStatus = "Chega em 5s (minimize o app pra ver na tela de bloqueio). \(sent.variant.rawValue): \(sent.copy.title)"
+                    } else {
+                        debugCopyStatus = "Sem perfil para gerar a notificação."
+                    }
+                }
+            } label: {
+                HStack {
+                    Label("Debug: testar frase aleatória da notificação", systemImage: "text.bubble")
+                        .font(AppFont.calloutStrong)
+                        .foregroundStyle(.primary)
+                    Spacer()
+                }
+                .padding(.horizontal, 18)
+                .padding(.vertical, 16)
+                .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color(UIColor.secondarySystemBackground))
+                    .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4))
+            }
+            .buttonStyle(.plain)
+
+            if let debugCopyStatus {
+                Text(debugCopyStatus)
                     .font(AppFont.footnote)
                     .foregroundStyle(Color.appSecondary)
                     .padding(.horizontal, 6)

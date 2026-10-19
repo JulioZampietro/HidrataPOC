@@ -101,6 +101,66 @@ struct NotificationVariantSelectionTests {
         #expect(variant == .streakRiskEvening)
     }
 
+    @Test func nearGoalWhenMascotIsInItsLateStages() {
+        let weather = WeatherContext(temperaturaC: 35, umidadeRelativa: 40, sensacaoTermicaC: 38)
+        // Meta de 2000 mL: 1300 mL = 65% (estágio 2) e 1700 mL = 85% (estágio 1), mesmo num dia quente.
+        for consumed in [1300, 1700] {
+            let variant = NotificationScheduler.selectVariant(
+                firesAt: date(hour: 14), weather: weather, profile: profile(),
+                logs: [log(day: 15, hour: 10, volumeML: consumed)], calendar: calendar
+            )
+            #expect(variant == .nearGoal)
+        }
+    }
+
+    @Test func wellHydratedWhenMascotIsInTheMiddleStage() {
+        // 1000 mL de 2000 = 50% (estágio 3).
+        let variant = NotificationScheduler.selectVariant(
+            firesAt: date(hour: 14), weather: nil, profile: profile(),
+            logs: [log(day: 15, hour: 10, volumeML: 1000)], calendar: calendar
+        )
+        #expect(variant == .wellHydrated)
+    }
+
+    @Test func earlyStagesKeepTheUsualVariants() {
+        // 600 mL de 2000 = 30% (estágio 4): segue a regra de clima e horário.
+        let weather = WeatherContext(temperaturaC: 32, umidadeRelativa: 50, sensacaoTermicaC: 34)
+        let variant = NotificationScheduler.selectVariant(
+            firesAt: date(hour: 14), weather: weather, profile: profile(),
+            logs: [log(day: 15, hour: 10, volumeML: 600)], calendar: calendar
+        )
+        #expect(variant == .hotDay)
+    }
+
+    @Test func streakRiskStillBeatsProgressInTheEvening() {
+        let yesterdayMetGoal = log(day: 14, hour: 12, volumeML: 2500)
+        let todayAlmostThere = log(day: 15, hour: 12, volumeML: 1700)
+        let variant = NotificationScheduler.selectVariant(
+            firesAt: date(hour: 20), weather: nil, profile: profile(),
+            logs: [yesterdayMetGoal, todayAlmostThere], calendar: calendar
+        )
+        #expect(variant == .streakRiskEvening)
+    }
+
+    @Test func everyVariantHasCopyAndEachSlotKeepsItsOwn() {
+        for variant in NotificationVariant.allCases {
+            #expect(!variant.copies.isEmpty)
+            #expect(variant.copies.allSatisfy { !$0.title.isEmpty && !$0.body.isEmpty })
+
+            let slotID = UUID()
+            #expect(variant.copy(for: slotID) == variant.copy(for: slotID))
+            #expect(variant.copies.contains(variant.copy(for: slotID)))
+        }
+    }
+
+    @Test func variantsWithSeveralOptionsUseMoreThanOne() {
+        var seen: Set<String> = []
+        for _ in 0..<200 {
+            seen.insert(NotificationVariant.hotDay.copy(for: UUID()).title)
+        }
+        #expect(seen.count > 1)
+    }
+
     @Test func symptomIrritabilityEveningWhenStreakNotAtRisk() {
         let weather = WeatherContext(temperaturaC: 22, umidadeRelativa: 50, sensacaoTermicaC: 22)
         let variant = NotificationScheduler.selectVariant(

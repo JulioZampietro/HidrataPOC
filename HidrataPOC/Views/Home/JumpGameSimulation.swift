@@ -7,9 +7,9 @@ enum JumpGameTuning {
     static let gravity: Float = 1050             // pt/s² — na água, um pouco mais "boiante" que no ar
     static let jumpSpeed: Float = 640            // pt/s pra cima a cada quique numa folha (sobe ~195 pt)
     static let springSpeed: Float = 1000         // pt/s pra cima numa folha com mola (bolha)
-    static let moveSpeed: Float = 260            // pt/s de lado com o botão apertado
-    static let moveResponse: Float = 9           // 1/s — quão rápido a gota pega/perde velocidade lateral
-    static let tiltGain: Float = 420             // pt/s por unidade de inclinação (`down.x`) — inclinar o aparelho também move
+    static let moveSpeed: Float = 320            // pt/s de lado com o botão apertado
+    static let moveResponse: Float = 12          // 1/s — quão rápido a gota pega/perde velocidade lateral
+    static let tiltGain: Float = 520             // pt/s por unidade de inclinação (`down.x`) — inclinar o aparelho também move
     static let tiltDeadZone: Float = 0.08        // inclinação ignorada (aparelho quase em pé)
 
     // Folhas (plataformas)
@@ -53,6 +53,8 @@ struct JumpGameSnapshot: Sendable {
         let kind: LeafKind
         let isTorn: Bool
         let hasSpring: Bool
+        /// Semente do formato da pedra (ver `PebbleDrawing`).
+        let seed: Int
     }
 
     struct Bubble: Sendable {
@@ -84,6 +86,8 @@ final class JumpGameSimulation {
         var isTorn = false
         var tornFall: Float = 0
         let hasSpring: Bool
+        /// Formato da pedra: sorteado uma vez, então a plataforma não muda de cara ao andar.
+        let seed = Int.random(in: 0..<1_000_000)
     }
 
     private struct Bubble {
@@ -366,7 +370,8 @@ final class JumpGameSimulation {
                     rect: CGRect(x: CGFloat(leaf.position.x) - w / 2, y: CGFloat(leaf.position.y) - offset, width: w, height: h),
                     kind: leaf.kind,
                     isTorn: leaf.isTorn,
-                    hasSpring: leaf.hasSpring
+                    hasSpring: leaf.hasSpring,
+                    seed: leaf.seed
                 )
             },
             bubbles: bubbles.map {

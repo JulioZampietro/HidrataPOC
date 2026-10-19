@@ -125,6 +125,25 @@ enum TabScreenLayout {
         return max(bottom - waterTop(safeAreaTop: safeAreaTop), minWaterHeight)
     }
 
+    /// Home's progress bar and the grid of intake cards under it.
+    static let progressBarHeight: CGFloat = 52
+    static let intakeGridSpacing: CGFloat = 12
+
+    /// Height of one row of intake cards (the two rows share what's left below the bar).
+    static func intakeCardHeight(forVisibleHeight visibleHeight: CGFloat) -> CGFloat {
+        let gridHeight = contentHeight(forVisibleHeight: visibleHeight) - progressBarHeight - spacing
+        return max((gridHeight - intakeGridSpacing) / 2, 116)
+    }
+
+    /// Height of the water container on the minigame screen: it stretches down to a single
+    /// row of buttons (one card row high), `spacing` above them. The bar and the first row of
+    /// cards are gone, so the tank takes their room.
+    static func gameWaterHeight(forVisibleHeight visibleHeight: CGFloat, safeAreaTop: CGFloat) -> CGFloat {
+        waterHeight(forVisibleHeight: visibleHeight, safeAreaTop: safeAreaTop)
+            + contentHeight(forVisibleHeight: visibleHeight)
+            - intakeCardHeight(forVisibleHeight: visibleHeight)
+    }
+
     /// The mascot fills the container below the header buttons (and the room its speech
     /// bubble needs above it), never past 190 pt.
     static func mascotHeight(forWaterHeight waterHeight: CGFloat) -> CGFloat {
