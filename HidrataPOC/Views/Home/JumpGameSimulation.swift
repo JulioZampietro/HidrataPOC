@@ -53,6 +53,8 @@ struct JumpGameSnapshot: Sendable {
         let kind: LeafKind
         let isTorn: Bool
         let hasSpring: Bool
+        /// Semente do formato da pedra (ver `PebbleDrawing`).
+        let seed: Int
     }
 
     struct Bubble: Sendable {
@@ -84,6 +86,8 @@ final class JumpGameSimulation {
         var isTorn = false
         var tornFall: Float = 0
         let hasSpring: Bool
+        /// Formato da pedra: sorteado uma vez, então a plataforma não muda de cara ao andar.
+        let seed = Int.random(in: 0..<1_000_000)
     }
 
     private struct Bubble {
@@ -366,7 +370,8 @@ final class JumpGameSimulation {
                     rect: CGRect(x: CGFloat(leaf.position.x) - w / 2, y: CGFloat(leaf.position.y) - offset, width: w, height: h),
                     kind: leaf.kind,
                     isTorn: leaf.isTorn,
-                    hasSpring: leaf.hasSpring
+                    hasSpring: leaf.hasSpring,
+                    seed: leaf.seed
                 )
             },
             bubbles: bubbles.map {
