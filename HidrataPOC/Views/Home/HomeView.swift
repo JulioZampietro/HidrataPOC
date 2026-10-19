@@ -44,6 +44,14 @@ struct HomeView: View {
         allDailyGoals.filter { $0.userID == profile.userID }
     }
 
+    /// True once today's temperature adjustment has already been fetched and locked
+    /// in (see `DailyGoal.recordToday`) — at that point a fresh WeatherKit call would
+    /// only repeat work `recordedAdjustmentML` already covers, so it's skipped.
+    private var isTodaysAdjustmentLocked: Bool {
+        let key = DailyGoal.dayKey(for: .now)
+        return dailyGoals.first { $0.dayKey == key }?.adjustmentLocked ?? false
+    }
+
     private var effectiveGoalML: Int {
         HydrationMath.effectiveGoalML(
             baseGoalML: profile.metaDiariaML,
@@ -107,7 +115,7 @@ struct HomeView: View {
             DailyGoal.recordToday(userID: profile.userID, baseGoalML: profile.metaDiariaML, adjustmentML: tempContext?.adjustmentML, context: modelContext)
         }
         .onAppear {
-            guard tempContext == nil else { return }
+            guard tempContext == nil, !isTodaysAdjustmentLocked else { return }
             Task {
                 tempContext = await WeatherContextService.shared.temperatureAdjustmentContext()
             }

@@ -76,6 +76,16 @@ struct WaterHeaderView: View {
         allDailyGoals.filter { $0.userID == profile.userID }
     }
 
+    /// True once today's temperature adjustment has already been fetched and locked
+    /// in (see `DailyGoal.recordToday`) — at that point a fresh WeatherKit call would
+    /// only repeat work `recordedAdjustmentML` already covers, so it's skipped. The
+    /// only thing this loses is the live humidity reading for the mascot's "dia seco"
+    /// flavor line, which isn't persisted — an acceptable trade for not re-fetching.
+    private var isTodaysAdjustmentLocked: Bool {
+        let key = DailyGoal.dayKey(for: .now)
+        return dailyGoals.first { $0.dayKey == key }?.adjustmentLocked ?? false
+    }
+
     /// Mesma meta da barra de progresso da Home (base + ajuste de temperatura).
     private var effectiveGoalML: Int {
         HydrationMath.effectiveGoalML(
@@ -143,7 +153,7 @@ struct WaterHeaderView: View {
             topSection(height: geo.size.height, width: geo.size.width)
         }
         .task {
-            guard tempContext == nil else { return }
+            guard tempContext == nil, !isTodaysAdjustmentLocked else { return }
             tempContext = await WeatherContextService.shared.temperatureAdjustmentContext()
         }
         .sheet(isPresented: $showShare) {
