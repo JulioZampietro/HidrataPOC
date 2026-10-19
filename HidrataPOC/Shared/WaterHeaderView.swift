@@ -63,6 +63,8 @@ struct WaterHeaderView: View {
     /// Tempo máximo (s) esperando as pedrinhas se juntarem no meio — normalmente elas
     /// chegam antes (`WaterMotion.stonesGathered`) e o mascote já começa a se formar.
     private static let stonesGatherTimeout: Double = 1.5
+    /// Tempo (s) que cada fala fica no balão antes de o mascote sortear a próxima.
+    private static let idlePhraseInterval: Double = 20
 
     private var todayLogs: [IntakeLog] {
         allLogs.filter { $0.userID == profile.userID && Calendar.current.isDateInToday($0.timestamp) }
@@ -490,7 +492,7 @@ struct WaterHeaderView: View {
         }
         .task {
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(6))
+                try? await Task.sleep(for: .seconds(Self.idlePhraseInterval))
                 guard overridePhrase == nil else { continue }
                 pickIdlePhrase()
             }
