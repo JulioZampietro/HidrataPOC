@@ -70,6 +70,8 @@ struct WaterHeaderView: View {
     /// Tempo máximo (s) esperando as pedrinhas se juntarem no meio — normalmente elas
     /// chegam antes (`WaterMotion.stonesGathered`) e o mascote já começa a se formar.
     private static let stonesGatherTimeout: Double = 1.5
+    /// Tempo (s) que cada fala fica no balão antes de o mascote sortear a próxima.
+    private static let idlePhraseInterval: Double = 20
 
     private var todayLogs: [IntakeLog] {
         allLogs.filter { $0.userID == profile.userID && Calendar.current.isDateInToday($0.timestamp) }
@@ -79,6 +81,16 @@ struct WaterHeaderView: View {
 
     private var dailyGoals: [DailyGoal] {
         allDailyGoals.filter { $0.userID == profile.userID }
+    }
+
+    /// True once today's temperature adjustment has already been fetched and locked
+    /// in (see `DailyGoal.recordToday`) — at that point a fresh WeatherKit call would
+    /// only repeat work `recordedAdjustmentML` already covers, so it's skipped. The
+    /// only thing this loses is the live humidity reading for the mascot's "dia seco"
+    /// flavor line, which isn't persisted — an acceptable trade for not re-fetching.
+    private var isTodaysAdjustmentLocked: Bool {
+        let key = DailyGoal.dayKey(for: .now)
+        return dailyGoals.first { $0.dayKey == key }?.adjustmentLocked ?? false
     }
 
     /// Mesma meta da barra de progresso da Home (base + ajuste de temperatura).
@@ -148,7 +160,7 @@ struct WaterHeaderView: View {
             topSection(height: geo.size.height, width: geo.size.width)
         }
         .task {
-            guard tempContext == nil else { return }
+            guard tempContext == nil, !isTodaysAdjustmentLocked else { return }
             tempContext = await WeatherContextService.shared.temperatureAdjustmentContext()
         }
         .sheet(isPresented: $showShare) {
@@ -507,7 +519,7 @@ struct WaterHeaderView: View {
         }
         .task {
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(6))
+                try? await Task.sleep(for: .seconds(Self.idlePhraseInterval))
                 guard overridePhrase == nil else { continue }
                 pickIdlePhrase()
             }
