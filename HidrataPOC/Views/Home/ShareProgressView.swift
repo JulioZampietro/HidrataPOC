@@ -297,39 +297,83 @@ private struct TransparencyCheckerboard: View {
     }
 }
 
-/// `UIColorPickerViewController` embrulhado para abrir numa sheet de altura
-/// controlada — o `ColorPicker` do SwiftUI abre a própria sheet alta, que cobre a
-/// prévia do cartão. Atualiza a cor enquanto o usuário arrasta.
-private struct SystemColorPicker: UIViewControllerRepresentable {
+/// Apresenta o `UIColorPickerViewController` imperativamente via UIKit, a partir de
+/// um `UIViewController`-âncora invisível embutido na própria hierarquia do
+/// `ShareProgressView` — não como uma segunda `.sheet` do SwiftUI aninhada dentro da
+/// sheet que já apresenta o `ShareProgressView`.
+///
+/// Duas sheets do SwiftUI empilhadas (a do compartilhar + a do seletor de cor) mais a
+/// apresentação interna da "caneta" (eyedropper) do seletor — que o próprio UIKit
+/// dispara por fora do SwiftUI — é uma combinação em que o SwiftUI perde a referência
+/// de qual controller deveria apresentar o quê e crasha com "tried to present a nil
+/// modal view controller": sobreviveu a três tentativas de corrigir o *timing* da
+/// nossa atualização de cor porque a causa não era timing, era profundidade de
+/// apresentação. Apresentando direto por fora da cadeia de sheets do SwiftUI, o
+/// eyedropper passa a abrir numa profundidade convencional (a que a Apple testa) e
+/// para de crashar.
+private struct ColorPickerPresenter: UIViewControllerRepresentable {
+    @Binding var isPresented: Bool
     @Binding var color: Color
-    let onDone: () -> Void
 
-    func makeUIViewController(context: Context) -> UIColorPickerViewController {
-        let picker = UIColorPickerViewController()
-        picker.supportsAlpha = false
-        picker.selectedColor = UIColor(color)
-        picker.title = "Cor das letras"
-        picker.delegate = context.coordinator
-        return picker
+    /// Fração da tela que o seletor ocupa — configurada direto no
+    /// `UISheetPresentationController` do UIKit (não via `.presentationDetents` do
+    /// SwiftUI: essa é a diferença seguro-vs-crasha). Compartilhada com
+    /// `ShareProgressView.previewHeightWhilePicking`, que encolhe a prévia do cartão
+    /// pra caber acima do seletor.
+    static let heightFraction: CGFloat = 0.5
+    private static let detentID = UISheetPresentationController.Detent.Identifier("colorPickerHalf")
+
+    func makeUIViewController(context: Context) -> UIViewController {
+        UIViewController()
     }
 
-    func updateUIViewController(_ picker: UIColorPickerViewController, context: Context) {
+    func updateUIViewController(_ uiViewController: UIViewController, context: Context) {
         context.coordinator.parent = self
+
+        if isPresented {
+            guard uiViewController.presentedViewController == nil else { return }
+            let picker = UIColorPickerViewController()
+            picker.supportsAlpha = false
+            picker.selectedColor = UIColor(color)
+            picker.title = "Cor das letras"
+            picker.delegate = context.coordinator
+            if let sheet = picker.sheetPresentationController {
+                let halfDetent = UISheetPresentationController.Detent.custom(identifier: Self.detentID) { context in
+                    context.maximumDetentValue * Self.heightFraction
+                }
+                sheet.detents = [halfDetent]
+                // Sem escurecer o fundo até esse detent, pra prévia do cartão continuar
+                // com a cor real enquanto o usuário escolhe.
+                sheet.largestUndimmedDetentIdentifier = Self.detentID
+                sheet.prefersGrabberVisible = false
+            }
+            uiViewController.present(picker, animated: true)
+        } else if let presented = uiViewController.presentedViewController {
+            presented.dismiss(animated: true)
+        }
     }
 
     func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
 
     final class Coordinator: NSObject, UIColorPickerViewControllerDelegate {
-        var parent: SystemColorPicker
+        var parent: ColorPickerPresenter
 
-        init(parent: SystemColorPicker) { self.parent = parent }
+        init(parent: ColorPickerPresenter) { self.parent = parent }
 
         func colorPickerViewController(_ picker: UIColorPickerViewController, didSelect color: UIColor, continuously: Bool) {
-            parent.color = Color(uiColor: color)
+            // Seguro de novo: antes isso rodava junto de uma SEGUNDA `.sheet` do SwiftUI
+            // aninhada, que era a causa real do crash (ver o comentário no topo deste
+            // struct) — não a atualização contínua em si. Com a apresentação via UIKit
+            // puro, dá pra atualizar ao vivo durante o arrasto sem risco.
+            DispatchQueue.main.async { [parent] in
+                parent.color = Color(uiColor: color)
+            }
         }
 
         func colorPickerViewControllerDidFinish(_ picker: UIColorPickerViewController) {
-            parent.onDone()
+            DispatchQueue.main.async { [parent] in
+                parent.isPresented = false
+            }
         }
     }
 }
@@ -367,11 +411,33 @@ struct ShareProgressView: View {
         }
     }
 
-    private var renderedImage: UIImage? {
-        let renderer = ImageRenderer(content: ShareProgressCard(snapshot: snapshot, layout: layout, ink: inkColor))
+    /// Cacheado em vez de recalculado a cada `body` (ver `scheduleRender`). O seletor
+    /// de cor do sistema — e, com mais intensidade ainda, a "caneta" (eyedropper) dentro
+    /// dele — chama o delegate com `continuously: true` a cada frame de arraste; sem o
+    /// cache, esse `ImageRenderer` (um render de bitmap a 3x, caro) rodava de novo na
+    /// main thread em cada um desses frames, disputando a tela com a própria captura
+    /// contínua que o eyedropper do sistema faz pra desenhar a lupa — e crashava.
+    @State private var renderedImage: UIImage?
+    @State private var renderTask: Task<Void, Never>?
+
+    private static func render(snapshot: ShareProgressSnapshot, layout: ShareCardLayout, ink: Color) -> UIImage? {
+        let renderer = ImageRenderer(content: ShareProgressCard(snapshot: snapshot, layout: layout, ink: ink))
         renderer.scale = 3
         renderer.isOpaque = !layout.isTransparent
         return renderer.uiImage
+    }
+
+    /// Debounça o rerender: só refaz a imagem 150 ms depois da última mudança, em vez
+    /// de a cada frame de arraste do seletor de cor.
+    private func scheduleRender() {
+        renderTask?.cancel()
+        let layout = layout
+        let ink = inkColor
+        renderTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(150))
+            guard !Task.isCancelled else { return }
+            renderedImage = Self.render(snapshot: snapshot, layout: layout, ink: ink)
+        }
     }
 
     var body: some View {
@@ -435,17 +501,6 @@ struct ShareProgressView: View {
                 .padding(.bottom, 8)
             }
             .padding(.top, 8)
-            // Com o seletor de cores aberto, tocar em qualquer lugar fora dele fecha.
-            .overlay {
-                if isPickingColor {
-                    Color.clear
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            Haptic.dismiss.play()
-                            isPickingColor = false
-                        }
-                }
-            }
             .animation(.easeInOut(duration: 0.3), value: isPickingColor)
             } // GeometryReader
             .navigationTitle("Compartilhar")
@@ -455,36 +510,35 @@ struct ShareProgressView: View {
                     Button("Fechar", systemImage: "xmark") { Haptic.dismiss.play(); dismiss() }
                 }
             }
+            .task {
+                guard renderedImage == nil else { return }
+                renderedImage = Self.render(snapshot: snapshot, layout: layout, ink: inkColor)
+            }
             .onChange(of: layout) { _, _ in
                 Haptic.selection.play() // vale para arrastar, tocar nas bolinhas e pelo VoiceOver
                 resetSaveState()
+                scheduleRender()
             }
             .onChange(of: ink) { _, _ in
                 Haptic.selection.play()
                 resetSaveState()
+                scheduleRender()
             }
             .onChange(of: customInk) { _, _ in
                 ink = .personalizada
                 resetSaveState()
+                scheduleRender()
             }
-            .sheet(isPresented: $isPickingColor) {
-                SystemColorPicker(color: $customInk, onDone: { isPickingColor = false })
-                    .presentationDetents([.fraction(Self.colorPickerDetent)])
-                    // Sem escurecer o fundo, para a prévia continuar com a cor real; o toque
-                    // fora é tratado pelo overlay acima.
-                    .presentationBackgroundInteraction(.enabled(upThrough: .fraction(Self.colorPickerDetent)))
-                    .presentationDragIndicator(.hidden)
-            }
+            // Âncora invisível: ver o comentário em `ColorPickerPresenter` sobre por que
+            // o seletor de cor não pode ser uma segunda `.sheet` aninhada aqui.
+            .background(ColorPickerPresenter(isPresented: $isPickingColor, color: $customInk))
         }
     }
-
-    /// Altura do seletor de cores, em fração da tela.
-    private static let colorPickerDetent: CGFloat = 0.5
 
     /// Espaço entre o topo da área de conteúdo e o topo do seletor de cores.
     private func previewHeightWhilePicking(_ container: GeometryProxy) -> CGFloat {
         let screenHeight = container.frame(in: .global).maxY + container.safeAreaInsets.bottom
-        let pickerTop = screenHeight * (1 - Self.colorPickerDetent)
+        let pickerTop = screenHeight * (1 - ColorPickerPresenter.heightFraction)
         return max(pickerTop - container.frame(in: .global).minY - 24, 120)
     }
 
