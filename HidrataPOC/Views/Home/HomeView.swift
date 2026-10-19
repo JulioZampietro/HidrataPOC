@@ -31,6 +31,9 @@ struct HomeView: View {
     @State private var pressedAimSides = [Bool](repeating: false, count: BubbleGameSide.allCases.count)
     @State private var isFirePressed = false
     @AppStorage(MiniGame.jumpBestStorageKey) private var jumpBestScore = 0
+    @AppStorage(MiniGame.flappyBestStorageKey) private var flappyBestScore = 0
+    /// Os dois botões de nadar da Gota Voadora (esquerda e direita).
+    @State private var pressedFlapSides = [false, false]
     /// Os quatro cartões de ingestão viram os botões do jogo na mesma animação.
     @Namespace private var controlsNamespace
 
@@ -102,6 +105,8 @@ struct HomeView: View {
                         .padding(.horizontal, 20)
                 }
                 .padding(.top, TabScreenLayout.waterTop(safeAreaTop: geo.safeAreaInsets.top))
+                // Travados enquanto o mascote anima (ver `MiniGameController.isMascotAnimating`).
+                .allowsHitTesting(!miniGames.isMascotAnimating)
                 .animation(.spring(response: 0.6, dampingFraction: 0.85), value: miniGames.showsGameControls)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 .ignoresSafeArea(edges: .top)
@@ -230,8 +235,8 @@ struct HomeView: View {
     }
 
     /// Os quatro cartões de ingestão; com a meta batida e um minijogo rodando, viram os botões
-    /// do jogo (uma linha de três) no mesmo lugar (`matchedGeometryEffect`). A seta pra trás no cabeçalho do
-    /// aquário volta aos cartões (tocar no aquário traz o jogo de volta).
+    /// do jogo (uma linha de três) no mesmo lugar (`matchedGeometryEffect`). A seta pra trás no
+    /// cabeçalho do aquário sai do jogo (escolhe "Sem jogo") e volta aos cartões.
     private func bottomControls(cardHeight: CGFloat) -> some View {
         ZStack {
             if miniGames.showsGameControls, let game = miniGames.runningGame {
@@ -257,6 +262,12 @@ struct HomeView: View {
                 aimButton(.left).matchedGeometryEffect(id: "gole", in: controlsNamespace)
                 fireButton.matchedGeometryEffect(id: "bottle", in: controlsNamespace)
                 aimButton(.right).matchedGeometryEffect(id: "glass", in: controlsNamespace)
+            case .flappy:
+                // Um botão de nadar de cada lado, pra jogar com qualquer polegar; recorde no meio.
+                flapButton(0).matchedGeometryEffect(id: "gole", in: controlsNamespace)
+                JumpGameRecordCard(best: flappyBestScore, height: cardHeight)
+                    .matchedGeometryEffect(id: "bottle", in: controlsNamespace)
+                flapButton(1).matchedGeometryEffect(id: "glass", in: controlsNamespace)
             default:
                 jumpButton(.left).matchedGeometryEffect(id: "gole", in: controlsNamespace)
                 JumpGameRecordCard(best: jumpBestScore, height: cardHeight)
@@ -316,6 +327,23 @@ struct HomeView: View {
 
     /// Atira ao apertar; o pulso do toque completo (ver `GameHoldButton`) só cobre o caso em
     /// que o `pressing` não chegou — a simulação ignora o segundo tiro enquanto o primeiro voa.
+    /// Nada pra cima ao apertar; o pulso do toque completo (ver `GameHoldButton`) só cobre o caso
+    /// em que o `pressing` não chegou — a simulação ignora braçadas coladas (`flapCooldown`).
+    private func flapButton(_ index: Int) -> some View {
+        GameHoldButton(
+            symbol: "arrow.up.circle.fill",
+            accessibilityLabel: "Nadar pra cima",
+            accessibilityHint: "Faz a gota nadar pra cima; tocar no aquário também",
+            isPressed: pressedFlapSides[index],
+            onPressChange: { isPressed in
+                guard pressedFlapSides[index] != isPressed else { return }
+                pressedFlapSides[index] = isPressed
+                if isPressed { miniGames.flappyGame.flap() }
+            },
+            onAccessibilityPulse: { miniGames.flappyGame.flap() }
+        )
+    }
+
     private var fireButton: some View {
         GameHoldButton(
             symbol: "arrow.up.circle.fill",
@@ -339,6 +367,7 @@ struct HomeView: View {
         for side in JumpGameSide.allCases { miniGames.jumpGame.setDirection(side, held: false) }
         pressedAimSides = [Bool](repeating: false, count: BubbleGameSide.allCases.count)
         isFirePressed = false
+        pressedFlapSides = [false, false]
         for side in BubbleGameSide.allCases { miniGames.bubbleGame.setAim(side, held: false) }
     }
 

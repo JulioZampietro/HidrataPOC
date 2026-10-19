@@ -52,41 +52,39 @@ struct JumpGameView: View {
         }
     }
 
-    private static let leafGreen = Color(red: 0.30, green: 0.72, blue: 0.36)
-    private static let leafTeal = Color(red: 0.22, green: 0.70, blue: 0.68)
-    private static let leafDry = Color(red: 0.80, green: 0.62, blue: 0.30)
+    /// Cores das plataformas de pedra, no tom das pedrinhas do rim: marrom (firme), cinza-azulada
+    /// (anda de lado) e arenito claro, trincado (quebra ao pisar).
+    private static let stoneFirm = Color(red: 0.62, green: 0.50, blue: 0.38)
+    private static let stoneMoving = Color(red: 0.52, green: 0.57, blue: 0.64)
+    private static let stoneFragile = Color(red: 0.82, green: 0.69, blue: 0.48)
 
+    /// Plataforma: uma laje de pedra facetada (`PebbleDrawing`) com o topo rente ao topo do
+    /// `rect`, onde a gota quica; o corpo da pedra desce um pouco abaixo dele.
     private static func drawLeaf(_ leaf: JumpGameSnapshot.Leaf, in context: inout GraphicsContext) {
         var ctx = context
         let color: Color = switch leaf.kind {
-        case .normal: leafGreen
-        case .moving: leafTeal
-        case .fragile: leafDry
+        case .normal: stoneFirm
+        case .moving: stoneMoving
+        case .fragile: stoneFragile
         }
+        let rx = leaf.rect.width / 2 + 2
+        let ry: CGFloat = 10
+        let centerY = leaf.rect.minY + ry * 0.75
+
         if leaf.isTorn {
-            // Rasgada: duas metades se abrindo e sumindo enquanto caem.
+            // Quebrada: duas metades se abrindo e sumindo enquanto caem.
             ctx.opacity = 0.6
-            let half = leaf.rect.width / 2
-            let left = CGRect(x: leaf.rect.minX - 4, y: leaf.rect.minY, width: half, height: leaf.rect.height)
-            let right = CGRect(x: leaf.rect.midX + 4, y: leaf.rect.minY, width: half, height: leaf.rect.height)
-            ctx.fill(Path(roundedRect: left, cornerRadius: leaf.rect.height / 2), with: .color(color))
-            ctx.fill(Path(roundedRect: right, cornerRadius: leaf.rect.height / 2), with: .color(color))
+            for (side, seedOffset) in [(-1.0, 1), (1.0, 2)] {
+                let center = CGPoint(x: leaf.rect.midX + CGFloat(side) * (rx / 2 + 4), y: centerY)
+                PebbleDrawing.draw(center: center, radiusX: rx / 2, radiusY: ry * 0.9, tint: color,
+                                   seed: leaf.seed + seedOffset, sides: 6...7, in: &ctx)
+            }
             return
         }
 
-        let shape = Path(roundedRect: leaf.rect, cornerRadius: leaf.rect.height / 2)
-        ctx.fill(shape.offsetBy(dx: 0, dy: 2), with: .color(.black.opacity(0.18)))
-        ctx.fill(shape, with: .linearGradient(
-            Gradient(colors: [color.opacity(1), color.mix(with: .black, by: 0.2)]),
-            startPoint: CGPoint(x: leaf.rect.midX, y: leaf.rect.minY),
-            endPoint: CGPoint(x: leaf.rect.midX, y: leaf.rect.maxY)
-        ))
-        // Nervura da folha.
-        var vein = Path()
-        vein.move(to: CGPoint(x: leaf.rect.minX + 8, y: leaf.rect.midY))
-        vein.addLine(to: CGPoint(x: leaf.rect.maxX - 8, y: leaf.rect.midY))
-        ctx.stroke(vein, with: .color(.white.opacity(0.35)), style: StrokeStyle(lineWidth: 1.5, lineCap: .round,
-                                                                               dash: leaf.kind == .fragile ? [4, 4] : []))
+        PebbleDrawing.draw(center: CGPoint(x: leaf.rect.midX, y: centerY), radiusX: rx, radiusY: ry, tint: color,
+                           seed: leaf.seed, sides: 9...11, castsShadow: true, cracked: leaf.kind == .fragile, in: &ctx)
+
         if leaf.hasSpring {
             // Bolha-mola: pisar no meio dela lança a gota bem mais alto.
             let r: CGFloat = 8
@@ -104,7 +102,16 @@ struct JumpGameView: View {
         ctx.translateBy(x: snapshot.drop.x, y: snapshot.drop.y + r)
         ctx.scaleBy(x: 1 + 0.3 * snapshot.squash, y: 1 - 0.3 * snapshot.squash)
         ctx.translateBy(x: 0, y: -r)
+        DropDrawing.draw(radius: r, facing: snapshot.facing, in: &ctx)
+    }
+}
 
+/// A gota com olhinhos, personagem da Gota Saltitante e da Gota Voadora. Desenhada com o centro
+/// do círculo de baixo na origem do `context` e a ponta pra cima (a 2,1 × `radius`), então quem
+/// chama posiciona, gira e achata com as transformações do `context`.
+enum DropDrawing {
+    /// `facing`: −1 olhando pra esquerda, 1 pra direita.
+    static func draw(radius r: CGFloat, facing: CGFloat, in ctx: inout GraphicsContext) {
         // Gota: círculo embaixo, ponta em cima.
         var drop = Path()
         drop.move(to: CGPoint(x: 0, y: -r * 2.1))
@@ -121,7 +128,7 @@ struct JumpGameView: View {
         // Brilho.
         ctx.fill(Path(ellipseIn: CGRect(x: -r * 0.6, y: -r * 0.9, width: r * 0.45, height: r * 0.6)), with: .color(.white.opacity(0.7)))
         // Olhinhos, olhando pra onde está indo.
-        let look = snapshot.facing * r * 0.18
+        let look = facing * r * 0.18
         for side: CGFloat in [-1, 1] {
             let eye = CGRect(x: side * r * 0.35 + look - 2, y: -r * 0.15, width: 4, height: 5.5)
             ctx.fill(Path(ellipseIn: eye), with: .color(Color(red: 0.08, green: 0.16, blue: 0.32)))

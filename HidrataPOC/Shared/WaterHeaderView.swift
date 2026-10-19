@@ -30,8 +30,15 @@ struct WaterHeaderView: View {
     @AppStorage(MiniGame.announcedStorageKey) private var announcedGamesRaw = ""
     /// Jogo recém-liberado pela streak, mostrado num aviso no topo do aquário por alguns segundos.
     @State private var unlockedGameBanner: MiniGame?
-    /// Tempo (s) entre a explosão do mascote e o jogo entrar na água.
+    /// Tempo (s) entre a explosão do mascote e o aviso de jogo novo liberado aparecer.
     private static let gameStartDelay: Double = 1.4
+    /// Tempo (s) da comemoração da meta batida: o mascote explode e as pedrinhas caem no fundo;
+    /// só depois disso o jogo escolhido entra no aquário.
+    private static let goalCelebrationDuration: Double = 1.8
+    /// Meta batida "já comemorada": fica false durante `goalCelebrationDuration` depois que a
+    /// meta é batida ao vivo, e é ela (não a meta em si) que libera o jogo no aquário. Abrindo o
+    /// app já com a meta batida, vira true na hora.
+    @State private var showsGoalReached = false
     /// Fala que o mascote solta sozinho, sorteada entre as liberadas para a situação (`MascotPhrases`).
     @State private var idlePhrase = ""
     @State private var pokeCount: Int = 0
@@ -165,20 +172,25 @@ struct WaterHeaderView: View {
             miniGames.runningGame = newGame
             handleMiniGame(from: oldGame, to: newGame, isLiveTransition: oldGame != newGame)
         }
-        .onChange(of: goalReached) { _, isReached in
-            if !isReached {
-                miniGames.showsIntakeInsteadOfGame = false
+        .onChange(of: goalReached, initial: true) { wasReached, isReached in
+            guard isReached else {
+                showsGoalReached = false
                 miniGames.playsOnDemand = false
+                return
+            }
+            // Abrindo o app já com a meta batida (`initial`, sem mudança): sem comemoração.
+            guard !wasReached else {
+                showsGoalReached = true
+                return
+            }
+            Task {
+                try? await Task.sleep(for: .seconds(Self.goalCelebrationDuration))
+                guard goalReached else { return }
+                withAnimation(.spring(response: 0.6, dampingFraction: 0.85)) { showsGoalReached = true }
             }
         }
-        // Antes da meta, voltar à ingestão (seta pra trás do cabeçalho) encerra a partida: o
-        // mascote volta pra reagir à água.
-        .onChange(of: miniGames.showsIntakeInsteadOfGame) { _, showsIntake in
-            guard showsIntake, !goalReached else { return }
-            withAnimation(.spring(response: 0.6, dampingFraction: 0.85)) {
-                miniGames.playsOnDemand = false
-                miniGames.showsIntakeInsteadOfGame = false
-            }
+        .onChange(of: isMascotAnimating, initial: true) { _, isAnimating in
+            miniGames.isMascotAnimating = isAnimating
         }
         .onChange(of: streak, initial: true) { _, newStreak in
             announceNewlyUnlockedGames(streak: newStreak)
@@ -204,11 +216,17 @@ struct WaterHeaderView: View {
     private var headerRow: some View {
         if isGameLayout {
             HStack(spacing: 8) {
-                GlassCircleButton(systemImage: "chevron.left", accessibilityLabel: "Registrar água") {
+                // Sai do jogo: escolhe "Sem jogo" (nem a meta batida traz o jogo de volta, só a aba
+                // de minijogos) e os cartões de ingestão voltam.
+                GlassCircleButton(systemImage: "chevron.left", accessibilityLabel: "Sair do jogo") {
                     Haptic.tap.play()
                     InteractionTracker.log("\(screen.rawValue)_minigame_back_to_intake_tap", screen: screen, userID: profile.userID, context: modelContext)
-                    withAnimation(.spring(response: 0.6, dampingFraction: 0.85)) { miniGames.showsIntakeInsteadOfGame = true }
+                    withAnimation(.spring(response: 0.6, dampingFraction: 0.85)) {
+                        selectedGameRaw = MiniGame.noGame.rawValue
+                        miniGames.playsOnDemand = false
+                    }
                 }
+                .accessibilityHint("Escolhe Sem jogo e volta pros botões de registrar água")
 
                 Spacer()
 
@@ -256,15 +274,25 @@ struct WaterHeaderView: View {
     /// a streak de hoje já conta, então um jogo liberado agora entra na mesma hora.
     private var activeGame: MiniGame { MiniGame.active(selected: selectedGameRaw, streak: streak) }
 
-    /// Jogo rodando agora no aquário: com a meta batida, ou quando o usuário escolheu jogar
-    /// pela aba de minijogos (com a streak mínima); nunca o `.noGame`.
+    /// Jogo rodando agora no aquário: com a meta batida (depois da comemoração, ver
+    /// `showsGoalReached`), ou quando o usuário escolheu jogar pela aba de minijogos (com a
+    /// streak mínima); nunca o `.noGame`.
     private var runningGame: MiniGame? {
-        let playsNow = goalReached || (miniGames.playsOnDemand && streak >= MiniGame.minimumStreakToPlay)
+        let playsNow = (goalReached && showsGoalReached) || (miniGames.playsOnDemand && streak >= MiniGame.minimumStreakToPlay)
         return playsNow && activeGame.isPlayable ? activeGame : nil
     }
 
     /// Jogando pela aba antes de bater a meta: o mascote ainda existe e sai de cena enquanto isso.
     private var hidesMascotForGame: Bool { runningGame != nil && !goalReached }
+
+    /// Animação do mascote rodando: a montagem do início do dia (0 mL), as bolhas de troca de
+    /// estágio ao passar de um marco de água e a explosão/comemoração da meta batida.
+    private var isMascotAnimating: Bool {
+        (mascotAssemblyPending && consumedToday == 0 && !hidesMascotForGame)
+            || bubbleMascot != nil
+            || explodingMascot != nil
+            || (goalReached && !showsGoalReached)
+    }
 
     private var containerShape: UnevenRoundedRectangle {
         UnevenRoundedRectangle(topLeadingRadius: 32, bottomLeadingRadius: 32, bottomTrailingRadius: 32, topTrailingRadius: 32, style: .continuous)
@@ -298,7 +326,8 @@ struct WaterHeaderView: View {
             }
             .animation(.spring(response: 0.5, dampingFraction: 0.7), value: goalReached)
             // Minijogo: no conteúdo do recipiente, então passa pela mesma refração da água.
-            // Os botões ficam na Home; só as Bolhas Coloridas recebem toque aqui (mirar e atirar).
+            // Os botões ficam na Home; só as Bolhas Coloridas (mirar e atirar) e a Gota Voadora
+            // (nadar) recebem toque aqui.
             .overlay {
                 Group {
                     switch runningGame {
@@ -308,11 +337,13 @@ struct WaterHeaderView: View {
                         JumpGameView(simulation: miniGames.jumpGame, water: waterMotion)
                     case .bubbles:
                         BubbleGameView(simulation: miniGames.bubbleGame, water: waterMotion)
+                    case .flappy:
+                        FlappyGameView(simulation: miniGames.flappyGame, water: waterMotion)
                     case .noGame, nil:
                         EmptyView()
                     }
                 }
-                .allowsHitTesting(runningGame == .bubbles && !miniGames.showsIntakeInsteadOfGame)
+                .allowsHitTesting(runningGame == .bubbles || runningGame == .flappy)
                 .transition(.opacity)
             }
         .background {
@@ -325,21 +356,6 @@ struct WaterHeaderView: View {
             in: containerShape,
             motion: waterMotion
         )
-        // Meta batida e o usuário foi "Beber água": tocar no recipiente traz os controles do jogo
-        // de volta. Só o toque é capturado; o arrasto continua chegando às páginas.
-        .overlay {
-            if runningGame != nil, miniGames.showsIntakeInsteadOfGame {
-                Color.clear
-                    .contentShape(containerShape)
-                    .onTapGesture {
-                        Haptic.primary.play()
-                        withAnimation(.spring(response: 0.6, dampingFraction: 0.85)) { miniGames.showsIntakeInsteadOfGame = false }
-                    }
-                    .accessibilityElement()
-                    .accessibilityLabel("Voltar ao jogo")
-                    .accessibilityAddTraits(.isButton)
-            }
-        }
         // Os botões flutuam por cima do recipiente (fora do `.waterContainer`, então não
         // passam pela refração da água — senão o vidro dos botões ficaria escuro).
         .overlay(alignment: .top) {
@@ -359,9 +375,10 @@ struct WaterHeaderView: View {
                 }
             }
             .padding(TabScreenLayout.containerInset)
+            // Travados enquanto o mascote anima (montagem, bolhas, explosão da meta).
+            .allowsHitTesting(!isMascotAnimating)
             .animation(.spring(response: 0.5, dampingFraction: 0.75), value: unlockedGameBanner)
         }
-        .animation(.spring(response: 0.5, dampingFraction: 0.8), value: miniGames.showsIntakeInsteadOfGame)
     }
 
     private func mascotPlaceholder(height: CGFloat, width: CGFloat) -> some View {
@@ -586,13 +603,14 @@ struct WaterHeaderView: View {
     }
 
     /// Liga o minijogo escolhido quando a meta é batida (ou quando o usuário troca de jogo com
-    /// ela batida) e desliga os outros. Ao vivo, espera a explosão do mascote; ao abrir o app
-    /// já com a meta batida, o jogo entra quase direto. Com um jogo rodando as pedrinhas somem
+    /// ela batida) e desliga os outros. Ao vivo, `runningGame` só muda depois da comemoração da
+    /// meta (`goalCelebrationDuration`); ao abrir o app já com a meta batida, entra direto. Com um jogo rodando as pedrinhas somem
     /// do aquário; voltando pro "Sem jogo" com a meta batida, elas voltam pro fundo.
     private func handleMiniGame(from oldGame: MiniGame?, to newGame: MiniGame?, isLiveTransition: Bool) {
         if newGame != .rings { miniGames.ringGame.stop() }
         if newGame != .jump { miniGames.jumpGame.stop() }
         if newGame != .bubbles { miniGames.bubbleGame.stop() }
+        if newGame != .flappy { miniGames.flappyGame.stop() }
 
         guard let newGame else {
             if goalReached, oldGame != nil { waterMotion.scatterStonesAtRest() }
@@ -615,16 +633,22 @@ struct WaterHeaderView: View {
             UserDefaults.standard.set(max(best, score), forKey: MiniGame.bubblesBestStorageKey)
             InteractionTracker.log("bubbles_game_over", screen: screen, userID: profile.userID, context: modelContext)
         }
-        // Meta acabou de ser batida: espera o mascote explodir antes do jogo entrar. Jogando
-        // pela aba não tem explosão, então entra logo.
-        let waitsForExplosion = isLiveTransition && oldGame == nil && !miniGames.playsOnDemand
+        miniGames.flappyGame.onGameOver = { score in
+            let best = UserDefaults.standard.integer(forKey: MiniGame.flappyBestStorageKey)
+            (score > best ? Haptic.success : Haptic.warning).play()
+            UserDefaults.standard.set(max(best, score), forKey: MiniGame.flappyBestStorageKey)
+            InteractionTracker.log("flappy_game_over", screen: screen, userID: profile.userID, context: modelContext)
+        }
+        // A comemoração da meta já acabou quando o jogo chega aqui (`showsGoalReached`): só
+        // espera o aquário esticar pra tela do jogo.
         Task {
-            try? await Task.sleep(for: .seconds(waitsForExplosion ? Self.gameStartDelay : 0.4))
+            try? await Task.sleep(for: .seconds(0.4))
             guard runningGame == newGame else { return }
             switch newGame {
             case .rings: miniGames.ringGame.start()
             case .jump: miniGames.jumpGame.start()
             case .bubbles: miniGames.bubbleGame.start()
+            case .flappy: miniGames.flappyGame.start()
             case .noGame: return
             }
             if isLiveTransition {
