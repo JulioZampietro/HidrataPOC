@@ -10,7 +10,7 @@ struct HomeView: View {
     @Environment(\.modelContext) private var modelContext
     // Barra e cartões têm tamanho fixo (o do texto em 100%): só o texto dentro deles acompanha
     // o Dynamic Type, limitado a `controlTextSizeRange` para caber sem ser cortado.
-    private let progressBarHeight: CGFloat = 52
+    private let progressBarHeight = TabScreenLayout.progressBarHeight
     @Query private var allLogs: [IntakeLog]
     @Query private var allDailyGoals: [DailyGoal]
     @State private var isLogging = false
@@ -78,16 +78,23 @@ struct HomeView: View {
                 VStack(spacing: TabScreenLayout.spacing) {
                     // O recipiente de água (`WaterHeaderView`) é desenhado pelo
                     // `RootView`, fixo por cima das páginas; aqui fica só o espaço dele.
+                    // Na tela do minijogo ele ocupa também o lugar da barra e da primeira
+                    // linha de botões.
                     Color.clear
-                        .frame(height: TabScreenLayout.waterHeight(forVisibleHeight: geo.size.height, safeAreaTop: geo.safeAreaInsets.top))
+                        .frame(height: miniGames.showsGameControls
+                            ? TabScreenLayout.gameWaterHeight(forVisibleHeight: geo.size.height, safeAreaTop: geo.safeAreaInsets.top)
+                            : TabScreenLayout.waterHeight(forVisibleHeight: geo.size.height, safeAreaTop: geo.safeAreaInsets.top))
 
-                    progressBarButton(today)
-                        .padding(.horizontal, 20)
+                    if !miniGames.showsGameControls {
+                        progressBarButton(today)
+                            .padding(.horizontal, 20)
+                    }
 
                     bottomControls(cardHeight: intakeCardHeight(forVisibleHeight: geo.size.height))
                         .padding(.horizontal, 20)
                 }
                 .padding(.top, TabScreenLayout.waterTop(safeAreaTop: geo.safeAreaInsets.top))
+                .animation(.spring(response: 0.6, dampingFraction: 0.85), value: miniGames.showsGameControls)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 .ignoresSafeArea(edges: .top)
             }
@@ -119,7 +126,7 @@ struct HomeView: View {
             CustomIntakeEditorView(initialValueML: profile.customIntakeML, onSave: saveCustomAmount)
                 .trackSheetLifecycle(.customAmountEditor, screen: .home, userID: profile.userID)
         }
-        // Os botões do jogo somem (ex.: "Beber água") ou o jogo troca: solta o que estiver apertado.
+        // Os botões do jogo somem (ex.: seta de voltar à ingestão) ou o jogo troca: solta o que estiver apertado.
         .onChange(of: miniGames.showsGameControls) { releaseGameButtons() }
         .onChange(of: miniGames.runningGame) { releaseGameButtons() }
         .sheet(isPresented: $showSiriTutorial) { SiriTutorialView() }
@@ -138,14 +145,13 @@ struct HomeView: View {
     
     // MARK: - Subviews
     
-    private let intakeGridSpacing: CGFloat = 12
+    private let intakeGridSpacing = TabScreenLayout.intakeGridSpacing
     private let controlTextSizeRange = ...DynamicTypeSize.xxxLarge
 
     /// The two rows of intake cards share what's left below the progress bar, so the
     /// grid ends `TabScreenLayout.spacing` above the bottom safe area.
     private func intakeCardHeight(forVisibleHeight height: CGFloat) -> CGFloat {
-        let gridHeight = TabScreenLayout.contentHeight(forVisibleHeight: height) - progressBarHeight - TabScreenLayout.spacing
-        return max((gridHeight - intakeGridSpacing) / 2, 116)
+        TabScreenLayout.intakeCardHeight(forVisibleHeight: height)
     }
 
     /// Tapping the bar opens today's intake logs (same sheet as a day in Histórico).
@@ -216,8 +222,8 @@ struct HomeView: View {
     }
 
     /// Os quatro cartões de ingestão; com a meta batida e um minijogo rodando, viram os botões
-    /// do jogo no mesmo lugar (`matchedGeometryEffect`). O último é sempre "Beber água", que
-    /// volta aos cartões (o botão "Voltar ao jogo" no aquário traz o jogo de volta).
+    /// do jogo (uma linha de três) no mesmo lugar (`matchedGeometryEffect`). A seta pra trás no cabeçalho do
+    /// aquário volta aos cartões (tocar no aquário traz o jogo de volta).
     private func bottomControls(cardHeight: CGFloat) -> some View {
         ZStack {
             if miniGames.showsGameControls, let game = miniGames.runningGame {
@@ -229,41 +235,28 @@ struct HomeView: View {
         .animation(.spring(response: 0.6, dampingFraction: 0.85), value: miniGames.showsGameControls)
     }
 
+    /// Uma linha de três botões, no lugar da última linha de cartões: esquerda, meio e direita.
+    /// Voltar à ingestão fica na seta pra trás do cabeçalho do aquário.
     @ViewBuilder
     private func gameControls(_ game: MiniGame, cardHeight: CGFloat) -> some View {
-        VStack(spacing: intakeGridSpacing) {
-            HStack(spacing: intakeGridSpacing) {
-                switch game {
-                case .rings:
-                    jetButton(.left).matchedGeometryEffect(id: "gole", in: controlsNamespace)
-                    jetButton(.right).matchedGeometryEffect(id: "glass", in: controlsNamespace)
-                case .bubbles:
-                    aimButton(.left).matchedGeometryEffect(id: "gole", in: controlsNamespace)
-                    aimButton(.right).matchedGeometryEffect(id: "glass", in: controlsNamespace)
-                default:
-                    jumpButton(.left).matchedGeometryEffect(id: "gole", in: controlsNamespace)
-                    jumpButton(.right).matchedGeometryEffect(id: "glass", in: controlsNamespace)
-                }
+        HStack(spacing: intakeGridSpacing) {
+            switch game {
+            case .rings:
+                jetButton(.left).matchedGeometryEffect(id: "gole", in: controlsNamespace)
+                jetButton(.center).matchedGeometryEffect(id: "bottle", in: controlsNamespace)
+                jetButton(.right).matchedGeometryEffect(id: "glass", in: controlsNamespace)
+            case .bubbles:
+                aimButton(.left).matchedGeometryEffect(id: "gole", in: controlsNamespace)
+                fireButton.matchedGeometryEffect(id: "bottle", in: controlsNamespace)
+                aimButton(.right).matchedGeometryEffect(id: "glass", in: controlsNamespace)
+            default:
+                jumpButton(.left).matchedGeometryEffect(id: "gole", in: controlsNamespace)
+                JumpGameRecordCard(best: jumpBestScore, height: cardHeight)
+                    .matchedGeometryEffect(id: "bottle", in: controlsNamespace)
+                jumpButton(.right).matchedGeometryEffect(id: "glass", in: controlsNamespace)
             }
-            .frame(height: cardHeight)
-            HStack(spacing: intakeGridSpacing) {
-                switch game {
-                case .rings:
-                    jetButton(.center).matchedGeometryEffect(id: "bottle", in: controlsNamespace)
-                case .bubbles:
-                    fireButton.matchedGeometryEffect(id: "bottle", in: controlsNamespace)
-                default:
-                    JumpGameRecordCard(best: jumpBestScore, height: cardHeight)
-                        .matchedGeometryEffect(id: "bottle", in: controlsNamespace)
-                }
-                RingGameIntakeButton(height: cardHeight) {
-                    Haptic.tap.play()
-                    withAnimation(.spring(response: 0.6, dampingFraction: 0.85)) { miniGames.showsIntakeInsteadOfGame = true }
-                }
-                .matchedGeometryEffect(id: "custom", in: controlsNamespace)
-            }
-            .frame(height: cardHeight)
         }
+        .frame(height: cardHeight)
         .dynamicTypeSize(controlTextSizeRange)
     }
 

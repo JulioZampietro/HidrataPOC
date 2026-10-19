@@ -476,9 +476,52 @@ struct DayDetailSheet: View {
         totalML >= metaDiariaML
     }
 
+    /// Preenche as horas sem registro, dentro da janela ativa do dia (do primeiro
+    /// ao último gole), com 0 mL — sem isso, as horas eram colocadas em um eixo
+    /// categórico (strings "08:00", "14:00") igualmente espaçadas, fazendo horas
+    /// distantes parecerem vizinhas. Com `hour: Int` como valor numérico, o eixo X
+    /// passa a refletir o tempo real entre os registros.
     private var hourlyBreakdown: [(hour: Int, ml: Int)] {
         let grouped = Dictionary(grouping: logs) { Calendar.current.component(.hour, from: $0.timestamp) }
-        return grouped.map { (hour: $0.key, ml: $0.value.reduce(0) { $0 + $1.volumeML }) }.sorted { $0.hour < $1.hour }
+        guard let firstHour = grouped.keys.min(), let lastHour = grouped.keys.max() else { return [] }
+        return (firstHour...lastHour).map { hour in
+            (hour: hour, ml: grouped[hour]?.reduce(0) { $0 + $1.volumeML } ?? 0)
+        }
+    }
+
+    /// Domínio do eixo X com 1h de folga de cada lado dos dados — sem isso, com um
+    /// só horário de registro no dia, `firstHour == lastHour` faria o domínio ter
+    /// largura zero e o Charts não desenha nada num eixo contínuo sem amplitude.
+    private var domainStart: Int { (hourlyBreakdown.first?.hour ?? 0) - 1 }
+    private var domainEnd: Int { (hourlyBreakdown.last?.hour ?? 0) + 1 }
+
+    /// Soma corrida do consumo — 500 mL às 8h e mais 500 mL às 9h aparece como
+    /// 500 às 8h e 1000 às 9h, não dois picos iguais. Começa num ponto sintético
+    /// no início do domínio (0 mL) e termina com outro no fim, pra área ocupar o
+    /// gráfico inteiro em vez de parar (ou começar) no meio do eixo.
+    private var cumulativeSeries: [(hour: Int, totalML: Int)] {
+        guard !hourlyBreakdown.isEmpty else { return [] }
+        var running = 0
+        var points: [(hour: Int, totalML: Int)] = [(hour: domainStart, totalML: 0)]
+        for entry in hourlyBreakdown {
+            running += entry.ml
+            points.append((hour: entry.hour, totalML: running))
+        }
+        points.append((hour: domainEnd, totalML: running))
+        return points
+    }
+
+    private var chartYUpperBound: Int {
+        max(cumulativeSeries.map(\.totalML).max() ?? 0, 1) * 6 / 5
+    }
+
+    /// Marcas do eixo X a cada ~1/4 da janela, pra não lotar o eixo com uma
+    /// legenda por hora.
+    private var hourlyAxisMarks: [Int] {
+        let span = domainEnd - domainStart
+        guard span > 0 else { return [domainStart] }
+        let step = max(1, span / 4)
+        return Array(stride(from: domainStart, through: domainEnd, by: step))
     }
 
     private var dateTitle: String {
@@ -501,22 +544,63 @@ struct DayDetailSheet: View {
                             .foregroundStyle(atingiuMeta ? Color.appAccentText : Color.appSecondary)
                     }
 
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Consumo ao longo do dia")
-                            .font(AppFont.footnoteStrong)
-                            .foregroundStyle(Color.appSecondary)
+                    if !hourlyBreakdown.isEmpty {
+                        VStack(alignment: .leading, spacing: 14) {
+                            Text("Consumo ao longo do dia")
+                                .font(AppFont.footnoteStrong)
+                                .foregroundStyle(Color.appSecondary)
 
-                        Chart {
-                            ForEach(hourlyBreakdown, id: \.hour) { entry in
-                                BarMark(
-                                    x: .value("Hora", String(format: "%02d:00", entry.hour)),
-                                    y: .value("mL", entry.ml)
-                                )
-                                .foregroundStyle(Color.appAccentText)
-                                .cornerRadius(4)
+                            Chart {
+                                ForEach(cumulativeSeries, id: \.hour) { point in
+                                    AreaMark(
+                                        x: .value("Hora", point.hour),
+                                        y: .value("Consumo", point.totalML)
+                                    )
+                                    .interpolationMethod(.monotone)
+                                    // Mesmo azul de marca das barras antigas (`LinearGradient.waterHeader`),
+                                    // só diluído pra área — não um azul inventado à parte.
+                                    .foregroundStyle(LinearGradient.waterHeader.opacity(0.35))
+                                }
+                                ForEach(cumulativeSeries, id: \.hour) { point in
+                                    LineMark(
+                                        x: .value("Hora", point.hour),
+                                        y: .value("Consumo", point.totalML)
+                                    )
+                                    .interpolationMethod(.monotone)
+                                    .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                                    .foregroundStyle(LinearGradient.waterHeader)
+                                }
                             }
+                            .chartXScale(domain: domainStart...domainEnd)
+                            .chartXAxis {
+                                AxisMarks(values: hourlyAxisMarks) { value in
+                                    AxisValueLabel {
+                                        if let hour = value.as(Int.self) {
+                                            Text("\(hour)h")
+                                                .font(AppFont.caption)
+                                                .foregroundStyle(Color.appSecondary)
+                                        }
+                                    }
+                                }
+                            }
+                            .chartYAxis {
+                                AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { value in
+                                    AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                                        .foregroundStyle(Color.appSecondary.opacity(0.18))
+                                    AxisValueLabel {
+                                        if let ml = value.as(Int.self) {
+                                            Text("\(ml)")
+                                                .font(AppFont.caption)
+                                                .foregroundStyle(Color.appSecondary)
+                                        }
+                                    }
+                                }
+                            }
+                            .chartYScale(domain: 0...chartYUpperBound)
+                            .frame(height: 180)
                         }
-                        .frame(height: 200)
+                        .padding(16)
+                        .panelBackground()
                     }
 
                     intakeList

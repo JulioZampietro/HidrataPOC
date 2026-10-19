@@ -107,10 +107,10 @@ final class MiniGameController {
     /// define é o `WaterHeaderView`.
     var runningGame: MiniGame?
     /// Com a meta batida, o usuário pode voltar aos botões de ingestão ("Beber água"); o
-    /// botão "Voltar ao jogo" no aquário traz os botões do jogo de volta.
+    /// toque no aquário traz os botões do jogo de volta.
     var showsIntakeInsteadOfGame = false
     /// O usuário tocou num jogo na aba de minijogos pra jogar agora, mesmo sem a meta batida.
-    /// Acaba ao tocar em "Beber água" (antes da meta) ou ao escolher "Sem jogo".
+    /// Acaba ao voltar à ingestão pela seta do aquário (antes da meta) ou ao escolher "Sem jogo".
     var playsOnDemand = false
 
     /// Botões do jogo no lugar dos cartões de ingestão.

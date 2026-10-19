@@ -276,6 +276,13 @@ final class BubbleGameSimulation {
         next = randomStone()
     }
 
+    /// Recoloca o canhão e a linha de perigo pra altura nova, mantendo a grade e o tamanho das pedrinhas.
+    private func relayoutVertically() {
+        layoutSize = size
+        shooter.y = Float(size.height) - BubbleGameTuning.shooterBottomInset
+        dangerY = shooter.y - diameter * 1.5
+    }
+
     private func fillInitialRows() {
         grid.removeAll()
         let rows = BubbleGameTuning.initialRows
@@ -293,7 +300,9 @@ final class BubbleGameSimulation {
     func advance(to date: Date, size: CGSize, water: WaterMotion) {
         self.size = size
         guard isRunning, size.width > 0, size.height > 0 else { return }
-        if needsReset || size != layoutSize { reset() }
+        // Largura nova muda a grade inteira: recomeça. Só a altura (o aquário estica e encolhe
+        // entre a tela do jogo e a de ingestão) só move o canhão, sem perder a partida.
+        if needsReset || size.width != layoutSize.width { reset() } else if size.height != layoutSize.height { relayoutVertically() }
         guard let last = lastFrame else { lastFrame = date; return }
         let dt = Float(min(date.timeIntervalSince(last), 1.0 / 20.0))
         guard dt > 1e-4 else { return }
