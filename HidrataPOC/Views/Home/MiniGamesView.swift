@@ -14,6 +14,7 @@ enum MiniGame: String, CaseIterable, Identifiable {
     case rings
     case jump
     case bubbles
+    case flappy
 
     var id: String { rawValue }
 
@@ -23,15 +24,17 @@ enum MiniGame: String, CaseIterable, Identifiable {
         case .rings: "Argolas"
         case .jump: "Gota Saltitante"
         case .bubbles: "Bolhas Coloridas"
+        case .flappy: "Gota Voadora"
         }
     }
 
     var subtitle: String {
         switch self {
         case .noGame: "Só a água e as pedrinhas, sem minijogo"
-        case .rings: "Use os jatos d'água pra encaixar as argolas nos pinos"
-        case .jump: "Pule de folha em folha e suba o mais alto que der"
+        case .rings: "Use os jatos d'água prazsfs encaixar as argolas nos pinos"
+        case .jump: "Pule de pedra em pedra e suba o mais alto que der"
         case .bubbles: "Mire e junte 4 bolhas da mesma cor pra estourar"
+        case .flappy: "Toque pra nadar e passe entre as pilhas de pedras"
         }
     }
 
@@ -41,6 +44,7 @@ enum MiniGame: String, CaseIterable, Identifiable {
         case .rings: "circle.circle"
         case .jump: "arrow.up.to.line"
         case .bubbles: "circle.hexagongrid.fill"
+        case .flappy: "bird.fill"
         }
     }
 
@@ -51,6 +55,7 @@ enum MiniGame: String, CaseIterable, Identifiable {
         case .rings: 1
         case .jump: 3
         case .bubbles: 5
+        case .flappy: 7
         }
     }
 
@@ -65,6 +70,7 @@ enum MiniGame: String, CaseIterable, Identifiable {
         case .rings: Color(red: 0.93, green: 0.26, blue: 0.28)
         case .jump: Color(red: 0.25, green: 0.78, blue: 0.42)
         case .bubbles: Color(red: 0.66, green: 0.42, blue: 0.95)
+        case .flappy: Color(red: 0.98, green: 0.56, blue: 0.20)
         }
     }
 
@@ -77,6 +83,8 @@ enum MiniGame: String, CaseIterable, Identifiable {
     static let jumpBestStorageKey = "minigame.jump.best"
     /// Chave do `@AppStorage` com o recorde das Bolhas Coloridas.
     static let bubblesBestStorageKey = "minigame.bubbles.best"
+    /// Chave do `@AppStorage` com o recorde da Gota Voadora.
+    static let flappyBestStorageKey = "minigame.flappy.best"
 
     /// Streak mínima pra jogar fora da meta batida (tocando no jogo na aba de minijogos).
     static let minimumStreakToPlay = 1
@@ -103,18 +111,20 @@ final class MiniGameController {
     @ObservationIgnored let ringGame = RingGameSimulation()
     @ObservationIgnored let jumpGame = JumpGameSimulation()
     @ObservationIgnored let bubbleGame = BubbleGameSimulation()
+    @ObservationIgnored let flappyGame = FlappyGameSimulation()
     /// Jogo rodando no aquário agora (meta batida e um jogo de verdade escolhido) — quem
     /// define é o `WaterHeaderView`.
     var runningGame: MiniGame?
-    /// Com a meta batida, o usuário pode voltar aos botões de ingestão ("Beber água"); o
-    /// toque no aquário traz os botões do jogo de volta.
-    var showsIntakeInsteadOfGame = false
     /// O usuário tocou num jogo na aba de minijogos pra jogar agora, mesmo sem a meta batida.
-    /// Acaba ao voltar à ingestão pela seta do aquário (antes da meta) ou ao escolher "Sem jogo".
+    /// Acaba ao sair do jogo pela seta do aquário ou ao escolher "Sem jogo".
     var playsOnDemand = false
+    /// Alguma animação do mascote está rodando (montagem do início do dia, bolhas de troca de
+    /// estágio, explosão da meta batida) — quem define é o `WaterHeaderView`. Enquanto isso os
+    /// botões do aquário e da Home não respondem ao toque.
+    var isMascotAnimating = false
 
     /// Botões do jogo no lugar dos cartões de ingestão.
-    var showsGameControls: Bool { runningGame != nil && !showsIntakeInsteadOfGame }
+    var showsGameControls: Bool { runningGame != nil }
 }
 
 /// Aba aberta pelo botão de minijogos no aquário: lista os jogos e, com um toque, escolhe
@@ -194,10 +204,7 @@ struct MiniGamesView: View {
             return
         }
         guard canPlay else { return }
-        withAnimation(.spring(response: 0.6, dampingFraction: 0.85)) {
-            miniGames.playsOnDemand = true
-            miniGames.showsIntakeInsteadOfGame = false
-        }
+        withAnimation(.spring(response: 0.6, dampingFraction: 0.85)) { miniGames.playsOnDemand = true }
         dismiss()
     }
 }

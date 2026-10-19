@@ -500,8 +500,10 @@ struct DayDetailSheet: View {
     /// Domínio do eixo X com 1h de folga de cada lado dos dados — sem isso, com um
     /// só horário de registro no dia, `firstHour == lastHour` faria o domínio ter
     /// largura zero e o Charts não desenha nada num eixo contínuo sem amplitude.
-    private var domainStart: Int { (hourlyBreakdown.first?.hour ?? 0) - 1 }
-    private var domainEnd: Int { (hourlyBreakdown.last?.hour ?? 0) + 1 }
+    /// Dia sem registros: o gráfico vazio cobre o dia útil (6h às 22h).
+    private static let emptyDayHours = 6...22
+    private var domainStart: Int { hourlyBreakdown.first.map { $0.hour - 1 } ?? Self.emptyDayHours.lowerBound }
+    private var domainEnd: Int { hourlyBreakdown.last.map { $0.hour + 1 } ?? Self.emptyDayHours.upperBound }
 
     /// Soma corrida do consumo — 500 mL às 8h e mais 500 mL às 9h aparece como
     /// 500 às 8h e 1000 às 9h, não dois picos iguais. Começa num ponto sintético
@@ -520,7 +522,9 @@ struct DayDetailSheet: View {
     }
 
     private var chartYUpperBound: Int {
-        max(cumulativeSeries.map(\.totalML).max() ?? 0, 1) * 6 / 5
+        // Sem registros, o eixo mostra até a meta do dia, para o gráfico vazio ter escala.
+        guard !cumulativeSeries.isEmpty else { return max(metaDiariaML, 1) }
+        return max(cumulativeSeries.map(\.totalML).max() ?? 0, 1) * 6 / 5
     }
 
     /// Marcas do eixo X a cada ~1/4 da janela, pra não lotar o eixo com uma
@@ -552,67 +556,82 @@ struct DayDetailSheet: View {
                             .foregroundStyle(atingiuMeta ? Color.appAccentText : Color.appSecondary)
                     }
 
-                    if !hourlyBreakdown.isEmpty {
-                        VStack(alignment: .leading, spacing: 14) {
-                            Text("Consumo ao longo do dia")
-                                .font(AppFont.footnoteStrong)
-                                .foregroundStyle(Color.appSecondary)
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text("Consumo ao longo do dia")
+                            .font(AppFont.footnoteStrong)
+                            .foregroundStyle(Color.appSecondary)
 
-                            Chart {
-                                ForEach(cumulativeSeries, id: \.hour) { point in
-                                    AreaMark(
-                                        x: .value("Hora", point.hour),
-                                        y: .value("Consumo", point.totalML)
-                                    )
-                                    .interpolationMethod(.monotone)
-                                    // Mesmo azul de marca das barras antigas (`LinearGradient.waterHeader`),
-                                    // só diluído pra área — não um azul inventado à parte.
-                                    .foregroundStyle(LinearGradient.waterHeader.opacity(0.35))
-                                }
-                                ForEach(cumulativeSeries, id: \.hour) { point in
-                                    LineMark(
-                                        x: .value("Hora", point.hour),
-                                        y: .value("Consumo", point.totalML)
-                                    )
-                                    .interpolationMethod(.monotone)
-                                    .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round))
-                                    .foregroundStyle(LinearGradient.waterHeader)
-                                }
+                        Chart {
+                            ForEach(cumulativeSeries, id: \.hour) { point in
+                                AreaMark(
+                                    x: .value("Hora", point.hour),
+                                    y: .value("Consumo", point.totalML)
+                                )
+                                .interpolationMethod(.monotone)
+                                // Mesmo azul de marca das barras antigas (`LinearGradient.waterHeader`),
+                                // só diluído pra área — não um azul inventado à parte.
+                                .foregroundStyle(LinearGradient.waterHeader.opacity(0.35))
                             }
-                            .chartXScale(domain: domainStart...domainEnd)
-                            .chartXAxis {
-                                AxisMarks(values: hourlyAxisMarks) { value in
-                                    AxisValueLabel {
-                                        if let hour = value.as(Int.self) {
-                                            Text("\(hour)h")
-                                                .font(AppFont.caption)
-                                                .foregroundStyle(Color.appSecondary)
-                                        }
-                                    }
-                                }
+                            ForEach(cumulativeSeries, id: \.hour) { point in
+                                LineMark(
+                                    x: .value("Hora", point.hour),
+                                    y: .value("Consumo", point.totalML)
+                                )
+                                .interpolationMethod(.monotone)
+                                .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                                .foregroundStyle(LinearGradient.waterHeader)
                             }
-                            .chartYAxis {
-                                AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { value in
-                                    AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                                        .foregroundStyle(Color.appSecondary.opacity(0.18))
-                                    AxisValueLabel {
-                                        if let ml = value.as(Int.self) {
-                                            Text("\(ml)")
-                                                .font(AppFont.caption)
-                                                .foregroundStyle(Color.appSecondary)
-                                        }
-                                    }
-                                }
-                            }
-                            .chartYScale(domain: 0...chartYUpperBound)
-                            .frame(height: 180)
                         }
-                        .padding(16)
-                        .panelBackground()
+                        .chartXScale(domain: domainStart...domainEnd)
+                        .chartXAxis {
+                            AxisMarks(values: hourlyAxisMarks) { value in
+                                AxisValueLabel {
+                                    if let hour = value.as(Int.self) {
+                                        Text("\(hour)h")
+                                            .font(AppFont.caption)
+                                            .foregroundStyle(Color.appSecondary)
+                                    }
+                                }
+                            }
+                        }
+                        .chartYAxis {
+                            AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { value in
+                                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                                    .foregroundStyle(Color.appSecondary.opacity(0.18))
+                                AxisValueLabel {
+                                    if let ml = value.as(Int.self) {
+                                        Text("\(ml)")
+                                            .font(AppFont.caption)
+                                            .foregroundStyle(Color.appSecondary)
+                                    }
+                                }
+                            }
+                        }
+                        .chartYScale(domain: 0...chartYUpperBound)
+                        .frame(height: 180)
+                        // Dia sem registros: o gráfico aparece vazio, com o aviso por cima.
+                        .overlay {
+                            if logs.isEmpty {
+                                Text(Calendar.current.isDateInToday(dia.date) ? "Sem registros ainda" : "Sem registros neste dia")
+                                    .font(AppFont.footnoteStrong)
+                                    .foregroundStyle(Color.appSecondary)
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 8)
+                                    .background(Color(.secondarySystemBackground), in: Capsule())
+                            }
+                        }
                     }
+                    .padding(16)
+                    .panelBackground()
 
-                    intakeList
+                    // Sem registros, o aviso já está no gráfico; a lista só aparece com o que listar.
+                    if !logs.isEmpty {
+                        intakeList
+                    }
                 }
+                // Garante a largura total mesmo que nada aqui peça: sem isso a folha encolhia até
+                // o texto mais largo, deixando faixas brancas dos lados.
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(20)
             }
             .appScreenBackground()
@@ -632,23 +651,16 @@ struct DayDetailSheet: View {
                 .font(AppFont.footnoteStrong)
                 .foregroundStyle(Color.appSecondary)
 
-            if logs.isEmpty {
-                Text("Nenhum registro neste dia.")
-                    .font(AppFont.footnoteStrong)
-                    .foregroundStyle(Color.appSecondary)
-                    .padding(.vertical, 12)
-            } else {
-                VStack(spacing: 0) {
-                    ForEach(logs) { log in
-                        IntakeRow(log: log) { deleteIntake(log) }
-                        if log.id != logs.last?.id {
-                            Divider()
-                        }
+            VStack(spacing: 0) {
+                ForEach(logs) { log in
+                    IntakeRow(log: log) { deleteIntake(log) }
+                    if log.id != logs.last?.id {
+                        Divider()
                     }
                 }
-                .padding(.horizontal, 14)
-                .background(Color(.tertiarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
             }
+            .padding(.horizontal, 14)
+            .background(Color(.tertiarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
         }
     }
 

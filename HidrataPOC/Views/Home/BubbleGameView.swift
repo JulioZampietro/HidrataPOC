@@ -99,60 +99,14 @@ struct BubbleGameView: View {
         BubbleGameTuning.colors[index % BubbleGameTuning.colors.count]
     }
 
-    /// Marrom das pedrinhas do rim: puxa um pouco as cores vivas pro tom de pedra.
-    private static let stoneBrown = Color(red: 0.55, green: 0.44, blue: 0.33)
-    /// Direção de onde vem a luz (cima-esquerda), a mesma das pedrinhas do aquário.
-    private static let lightDirection = CGVector(dx: -0.55, dy: -0.83)
-
-    /// Pedrinha colorida no estilo das pedrinhas do rim (e dos cacos do mascote): contorno
-    /// irregular de 7 a 9 lados, uma face de cima clara puxada pra luz e faces laterais em volta,
-    /// cada uma mais clara ou mais escura conforme está virada pra luz, com borda escura e um
-    /// brilho pequeno. A semente (`seed`) fixa o formato.
+    /// Pedrinha colorida no estilo das pedrinhas do rim (ver `PebbleDrawing`).
     private static func drawStone(_ stone: BubbleGameSnapshot.Bubble, radius: CGFloat, in context: inout GraphicsContext) {
         var ctx = context
         ctx.opacity = stone.alpha
         let r = radius * stone.scale * 0.98
-        let c = stone.position
-        var random = SeededRandom(seed: UInt64(stone.seed))
-
-        let sides = 7 + Int(random.next() * 3)
-        let start = random.next() * 2 * .pi
-        let vertices: [CGPoint] = (0..<sides).map { i in
-            let angle = start + (CGFloat(i) + (random.next() - 0.5) * 0.5) / CGFloat(sides) * 2 * .pi
-            let distance = r * (0.84 + 0.16 * random.next())
-            return CGPoint(x: c.x + cos(angle) * distance, y: c.y + sin(angle) * distance)
-        }
-        // Face de cima: o mesmo contorno, menor e deslocado pra luz (cima-esquerda).
-        let topCenter = CGPoint(x: c.x - r * (0.1 + 0.08 * random.next()), y: c.y - r * (0.14 + 0.08 * random.next()))
-        let topScale = 0.5 + 0.1 * random.next()
-        let top = vertices.map { CGPoint(x: topCenter.x + ($0.x - c.x) * topScale, y: topCenter.y + ($0.y - c.y) * topScale) }
-
-        let tint = color(stone.colorIndex).mix(with: stoneBrown, by: 0.12)
-        let edge = tint.mix(with: .black, by: 0.5)
-        for i in vertices.indices {
-            let j = (i + 1) % vertices.count
-            var face = Path()
-            face.addLines([vertices[i], vertices[j], top[j], top[i]])
-            face.closeSubpath()
-            let mid = CGPoint(x: (vertices[i].x + vertices[j].x) / 2 - c.x, y: (vertices[i].y + vertices[j].y) / 2 - c.y)
-            let length = max(hypot(mid.x, mid.y), 0.001)
-            let light = (mid.x * lightDirection.dx + mid.y * lightDirection.dy) / length
-            let shade = light > 0 ? tint.mix(with: .white, by: 0.12 * light) : tint.mix(with: .black, by: 0.32 * -light)
-            ctx.fill(face, with: .color(shade))
-            ctx.stroke(face, with: .color(edge.opacity(0.3)), style: StrokeStyle(lineWidth: 0.6, lineJoin: .round))
-        }
-        var topFace = Path()
-        topFace.addLines(top)
-        topFace.closeSubpath()
-        ctx.fill(topFace, with: .color(tint.mix(with: .white, by: 0.2)))
-
-        var outline = Path()
-        outline.addLines(vertices)
-        outline.closeSubpath()
-        ctx.stroke(outline, with: .color(edge), style: StrokeStyle(lineWidth: 1.3, lineJoin: .round))
-        // Brilho: manchinha clara na face de cima, como nas pedrinhas do mascote.
-        ctx.fill(Path(ellipseIn: CGRect(x: topCenter.x - r * 0.3, y: topCenter.y - r * 0.24, width: r * 0.3, height: r * 0.18)),
-                 with: .color(.white.opacity(0.5)))
+        PebbleDrawing.draw(center: stone.position, radiusX: r, radiusY: r,
+                           tint: color(stone.colorIndex).mix(with: PebbleDrawing.stoneBrown, by: 0.12),
+                           seed: stone.seed, in: &ctx)
     }
 
     /// Canhão: um bocal que gira com a mira, a pedrinha carregada no meio e a próxima ao lado,
@@ -185,23 +139,5 @@ struct BubbleGameView: View {
             let filled = i < snapshot.shotsUntilNewRow
             context.fill(Path(ellipseIn: rect), with: .color(ink.opacity(filled ? 0.75 : 0.18)))
         }
-    }
-}
-
-/// Gerador pseudoaleatório com semente (SplitMix64): a mesma semente dá sempre o mesmo
-/// formato de pedrinha, frame após frame.
-private struct SeededRandom {
-    private var state: UInt64
-
-    init(seed: UInt64) { state = seed &+ 0x9E37_79B9_7F4A_7C15 }
-
-    /// Próximo número entre 0 e 1.
-    mutating func next() -> CGFloat {
-        state &+= 0x9E37_79B9_7F4A_7C15
-        var z = state
-        z = (z ^ (z >> 30)) &* 0xBF58_476D_1CE4_E5B9
-        z = (z ^ (z >> 27)) &* 0x94D0_49BB_1331_11EB
-        z ^= z >> 31
-        return CGFloat(z >> 11) / CGFloat(1 << 53)
     }
 }
