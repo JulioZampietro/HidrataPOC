@@ -26,6 +26,7 @@ struct ProfileView: View {
     }
     #if DEBUG
     @State private var debugNotificationStatus: String?
+    @State private var debugCopyStatus: String?
     #endif
 
     private var todayProgress: Double {
@@ -55,6 +56,7 @@ struct ProfileView: View {
                 healthRow
                 #if DEBUG
                 debugNotificationRow
+                debugRandomCopyRow
                 debugWeatherCard
                 #endif
                 personalDataSection
@@ -348,6 +350,44 @@ struct ProfileView: View {
 
             if let debugNotificationStatus {
                 Text(debugNotificationStatus)
+                    .font(AppFont.footnote)
+                    .foregroundStyle(Color.appSecondary)
+                    .padding(.horizontal, 6)
+            }
+        }
+    }
+
+    /// Sorteia uma frase de qualquer variante e a manda em 5 s, como o botão de cima faz com o mascote.
+    private var debugRandomCopyRow: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Button {
+                Haptic.tap.play()
+                Task {
+                    debugCopyStatus = "Enviando…"
+                    _ = await NotificationScheduler.shared.requestAuthorization()
+                    if let sent = await NotificationScheduler.shared.sendRandomDebugCopy() {
+                        debugCopyStatus = "Chega em 5s (minimize o app pra ver na tela de bloqueio). \(sent.variant.rawValue): \(sent.copy.title)"
+                    } else {
+                        debugCopyStatus = "Sem perfil para gerar a notificação."
+                    }
+                }
+            } label: {
+                HStack {
+                    Label("Debug: testar frase aleatória da notificação", systemImage: "text.bubble")
+                        .font(AppFont.calloutStrong)
+                        .foregroundStyle(.primary)
+                    Spacer()
+                }
+                .padding(.horizontal, 18)
+                .padding(.vertical, 16)
+                .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color(UIColor.secondarySystemBackground))
+                    .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4))
+            }
+            .buttonStyle(.plain)
+
+            if let debugCopyStatus {
+                Text(debugCopyStatus)
                     .font(AppFont.footnote)
                     .foregroundStyle(Color.appSecondary)
                     .padding(.horizontal, 6)

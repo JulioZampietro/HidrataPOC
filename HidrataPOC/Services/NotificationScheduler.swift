@@ -405,7 +405,7 @@ final class NotificationScheduler {
             }
             let variant = slot.variant.flatMap(NotificationVariant.init(rawValue:)) ?? .fallbackGeneric
             updateSlot(id: slot.id) { $0.armedAt = now }
-            await armSlot(id: slot.id, firesAt: slot.firesAt, variant: variant, sender: cachedMascotSender(title: variant.title, firesAt: slot.firesAt))
+            await armSlot(id: slot.id, firesAt: slot.firesAt, variant: variant, sender: cachedMascotSender(title: variant.copy(for: slot.id).title, firesAt: slot.firesAt))
         }
     }
 
@@ -608,7 +608,7 @@ final class NotificationScheduler {
         let isArmed = loadPendingSlots().first { $0.id == id }?.armedAt != nil
         if firesAt > .now, isArmed {
             let goalML = await effectiveGoalML(for: profile)
-            let sender = mascotSender(title: variant.title, consumidoHojeML: consumidoHoje, goalML: goalML)
+            let sender = mascotSender(title: variant.copy(for: id).title, consumidoHojeML: consumidoHoje, goalML: goalML)
             await armSlot(id: id, firesAt: firesAt, variant: variant, sender: sender)
         }
         return variant
@@ -638,6 +638,18 @@ final class NotificationScheduler {
         let goalML: (Date) -> Int = goals.map { $0.goalML(on:) } ?? { _ in profile.metaDiariaML }
         if isEvening, HydrationMath.isStreakAtRisk(logs, goalML: goalML, calendar: calendar, firesAt: firesAt) {
             return .streakRiskEvening
+        }
+        // The reminder follows the mascot: the later stages (2 and 1) are "almost there", the
+        // middle one (3) is "already drank a lot". Beats weather and time of day, since
+        // what the tester has already drunk says more than the forecast.
+        let goal = goalML(firesAt)
+        if goal > 0 {
+            let progress = Double(HydrationMath.totalML(logs, on: firesAt, calendar: calendar)) / Double(goal)
+            switch AppTheme.mascotStage(for: progress) {
+            case 2, 1: return .nearGoal
+            case 3: return .wellHydrated
+            default: break
+            }
         }
         if let temp = weather?.temperaturaC {
             if temp >= Constants.notificationHotThresholdC { return .hotDay }
@@ -853,7 +865,8 @@ final class NotificationScheduler {
         if variant == .fallbackGeneric {
             print("⚠️ NotificationScheduler: arming fallback_generic for \(id) — a persona variant should have been chosen")
         }
-        await scheduleSystemNotification(id: id, firesAt: firesAt, title: variant.title, body: variant.body, sender: sender)
+        let copy = variant.copy(for: id)
+        await scheduleSystemNotification(id: id, firesAt: firesAt, title: copy.title, body: copy.body, sender: sender)
     }
 
     /// The only path that cancels pending requests, so it can invalidate any
@@ -1090,6 +1103,23 @@ final class NotificationScheduler {
         let sender = mascotSender(title: title, consumidoHojeML: state.consumidoHojeML, goalML: state.goalML)
         await scheduleSystemNotification(id: UUID(), firesAt: .now.addingTimeInterval(seconds), title: title, body: body, sender: sender, isDebug: true)
         return description
+    }
+
+    /// Debug: arms exactly `copy`, `seconds` from now, with the mascot of today's progress —
+    /// to see a given phrase the way a real reminder renders it. Returns false without a profile.
+    func sendDebugNotification(copy: NotificationVariant.Copy, after seconds: TimeInterval = 5) async -> Bool {
+        guard let state = await currentHydrationState() else { return false }
+        let sender = mascotSender(title: copy.title, consumidoHojeML: state.consumidoHojeML, goalML: state.goalML)
+        await scheduleSystemNotification(id: UUID(), firesAt: .now.addingTimeInterval(seconds), title: copy.title, body: copy.body, sender: sender, isDebug: true)
+        return true
+    }
+
+    /// Debug: picks a random phrase from any variant and arms it. Returns what was sent,
+    /// or nil without a profile.
+    func sendRandomDebugCopy(after seconds: TimeInterval = 5) async -> (variant: NotificationVariant, copy: NotificationVariant.Copy)? {
+        let options = NotificationVariant.allCases.flatMap { variant in variant.copies.map { (variant: variant, copy: $0) } }
+        guard let pick = options.randomElement(), await sendDebugNotification(copy: pick.copy, after: seconds) else { return nil }
+        return pick
     }
 
     // MARK: - Keeping pending reminders' mascot current
