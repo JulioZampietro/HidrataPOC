@@ -20,23 +20,33 @@ struct DiaHistorico: Identifiable {
 /// já ocorrido vira uma fração da meta daquele dia (`goals`, ver `DailyGoalResolver`);
 /// dias futuros ficam sem dado (`nil`).
 private enum HistoricoData {
-    static func percentual(for date: Date, logs: [IntakeLog], goals: DailyGoalResolver, calendar: Calendar) -> Double? {
-        let today = calendar.startOfDay(for: .now)
-        let dayStart = calendar.startOfDay(for: date)
+    static func percentual(for dayStart: Date, totalML: Int, goals: DailyGoalResolver, today: Date) -> Double? {
         guard dayStart <= today else { return nil }
         let goalML = goals.goalML(on: dayStart)
         guard goalML > 0 else { return 0 }
-        let total = HydrationMath.totalML(logs, on: dayStart, calendar: calendar)
-        return Double(total) / Double(goalML)
+        return Double(totalML) / Double(goalML)
     }
 
+    /// Roda a cada atualização da tela (inclusive no meio do arrasto entre as páginas), então
+    /// soma os registros do mês por dia numa passada só: comparar datas é barato, e só os
+    /// registros do mês pagam o `startOfDay`. Antes, cada um dos ~31 dias filtrava todos os
+    /// registros com o calendário, e o arrasto pra cá travava.
     static func generateMonth(for monthDate: Date, logs: [IntakeLog], goals: DailyGoalResolver, calendar: Calendar) -> [DiaHistorico] {
-        guard let range = calendar.range(of: .day, in: .month, for: monthDate) else { return [] }
+        guard let range = calendar.range(of: .day, in: .month, for: monthDate),
+              let month = calendar.dateInterval(of: .month, for: monthDate) else { return [] }
 
+        var totals: [Date: Int] = [:]
+        for log in logs {
+            let timestamp = log.timestamp
+            guard timestamp >= month.start, timestamp < month.end else { continue }
+            totals[calendar.startOfDay(for: timestamp), default: 0] += log.volumeML
+        }
+
+        let today = calendar.startOfDay(for: .now)
         return range.compactMap { day in
             guard let date = calendar.date(bySetting: .day, value: day, of: monthDate) else { return nil }
             let dayStart = calendar.startOfDay(for: date)
-            return DiaHistorico(date: dayStart, percentualMeta: percentual(for: dayStart, logs: logs, goals: goals, calendar: calendar))
+            return DiaHistorico(date: dayStart, percentualMeta: percentual(for: dayStart, totalML: totals[dayStart] ?? 0, goals: goals, today: today))
         }
     }
 }
@@ -84,17 +94,23 @@ struct HistoricoView: View {
         HistoricoData.generateMonth(for: displayedMonth, logs: userLogs, goals: goalResolver, calendar: calendar)
     }
 
-    private var gridCells: [DiaHistorico?] {
-        guard let firstOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: displayedMonth)) else {
-            return monthDays
-        }
-        let weekdayOfFirst = calendar.component(.weekday, from: firstOfMonth) - calendar.firstWeekday
-        let leadingEmptyCount = (weekdayOfFirst + 7) % 7
-        return Array(repeating: nil, count: leadingEmptyCount) + monthDays.map { Optional($0) }
+    /// O que o calendário mostra do mês, calculado uma vez por atualização do `body`. Os
+    /// `GeometryReader` desta tela refazem o conteúdo a cada frame enquanto a página desliza
+    /// (o arrasto entre Home e Histórico); se o mês fosse calculado lá dentro, o arrasto travava.
+    private struct MonthSummary {
+        let cells: [DiaHistorico?]
+        let metasBatidas: Int
+        let title: String
     }
 
-    private var metasBatidasCount: Int {
-        monthDays.filter { $0.bateuMeta }.count
+    private var monthSummary: MonthSummary {
+        let days = monthDays
+        var cells = days.map { Optional($0) }
+        if let firstOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: displayedMonth)) {
+            let weekdayOfFirst = calendar.component(.weekday, from: firstOfMonth) - calendar.firstWeekday
+            cells = Array(repeating: nil, count: (weekdayOfFirst + 7) % 7) + cells
+        }
+        return MonthSummary(cells: cells, metasBatidas: days.filter(\.bateuMeta).count, title: monthTitle)
     }
 
     /// Mesma meta ajustada pelo clima usada na Home — sem isso, o nível de água das
@@ -122,6 +138,8 @@ struct HistoricoView: View {
     }
 
     var body: some View {
+        let month = monthSummary
+        let chartData = cardPage == .semana ? weeklyChartData : []
         GeometryReader { geo in
             // Same layout as Home (`TabScreenLayout`): the water container
             // (`WaterHeaderView`) is drawn by `RootView`, fixed on top of both pages,
@@ -130,7 +148,7 @@ struct HistoricoView: View {
             VStack(spacing: TabScreenLayout.spacing) {
                 Color.clear
                     .frame(height: TabScreenLayout.waterHeight(forVisibleHeight: geo.size.height, safeAreaTop: geo.safeAreaInsets.top))
-                calendarCard(height: TabScreenLayout.contentHeight(forVisibleHeight: geo.size.height))
+                calendarCard(height: TabScreenLayout.contentHeight(forVisibleHeight: geo.size.height), month: month, chartData: chartData)
                     .padding(.horizontal)
             }
             .padding(.top, TabScreenLayout.waterTop(safeAreaTop: geo.safeAreaInsets.top))
@@ -156,12 +174,12 @@ struct HistoricoView: View {
     /// Card com duas "páginas": o calendário do mês e um gráfico dos últimos
     /// 7 dias. Troca de página pela setinha (`pageToggleButton`, presente nos
     /// dois cabeçalhos) ou arrastando o card para o lado.
-    private func calendarCard(height: CGFloat) -> some View {
+    private func calendarCard(height: CGFloat, month: MonthSummary, chartData: [(day: Date, totalML: Int, goalML: Int)]) -> some View {
         VStack(spacing: 14) {
             if cardPage == .calendario {
-                calendarPageContent
+                calendarPageContent(month)
             } else {
-                weeklyChartPageContent
+                weeklyChartPageContent(chartData)
             }
         }
         .padding(20)
@@ -175,27 +193,27 @@ struct HistoricoView: View {
             .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4))
     }
 
-    private var calendarPageContent: some View {
+    private func calendarPageContent(_ month: MonthSummary) -> some View {
         VStack(spacing: 14) {
-            monthHeader
+            monthHeader(month)
             weekdayHeader
             // 6-row months stretch their cells to fill the space the card leaves for
             // the grid. Shorter months use square cells (capped so they still fit),
             // centered vertically in that space.
             GeometryReader { geo in
-                let rows = CGFloat((gridCells.count + 6) / 7)
+                let rows = CGFloat((month.cells.count + 6) / 7)
                 let fillHeight = max((geo.size.height - (rows - 1) * Self.gridRowSpacing) / rows, 26)
                 let cellWidth = (geo.size.width - 6 * Self.gridColumnSpacing) / 7
-                calendarGrid(cellHeight: rows >= 6 ? fillHeight : min(cellWidth, fillHeight))
+                calendarGrid(month.cells, cellHeight: rows >= 6 ? fillHeight : min(cellWidth, fillHeight))
                     .frame(width: geo.size.width, height: geo.size.height)
             }
         }
         .transition(.opacity)
     }
 
-    private func calendarGrid(cellHeight: CGFloat) -> some View {
+    private func calendarGrid(_ cells: [DiaHistorico?], cellHeight: CGFloat) -> some View {
         LazyVGrid(columns: columns, spacing: Self.gridRowSpacing) {
-            ForEach(Array(gridCells.enumerated()), id: \.offset) { _, cell in
+            ForEach(Array(cells.enumerated()), id: \.offset) { _, cell in
                 if let cell {
                     DayCell(dia: cell, isToday: calendar.isDateInToday(cell.date), height: cellHeight)
                         .contentShape(Rectangle())
@@ -225,7 +243,7 @@ struct HistoricoView: View {
         }
     }
 
-    private var weeklyChartPageContent: some View {
+    private func weeklyChartPageContent(_ chartData: [(day: Date, totalML: Int, goalML: Int)]) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
                 Text("Últimos 7 dias")
@@ -233,13 +251,13 @@ struct HistoricoView: View {
                 Spacer()
                 pageToggleButton
             }
-            HydrationChartView(dailyTotals: weeklyChartData)
+            HydrationChartView(dailyTotals: chartData)
         }
         .frame(maxHeight: .infinity, alignment: .top)
         .transition(.opacity)
     }
 
-    private var monthHeader: some View {
+    private func monthHeader(_ month: MonthSummary) -> some View {
         HStack {
             HStack(spacing: 6) {
                 Button {
@@ -250,7 +268,7 @@ struct HistoricoView: View {
                 }
                 .accessibilityLabel("Mês anterior")
 
-                Text(monthTitle)
+                Text(month.title)
                     .font(AppFont.displayTitle)
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
@@ -269,7 +287,7 @@ struct HistoricoView: View {
 
             Spacer()
 
-            Text("\(metasBatidasCount) metas batidas")
+            Text("\(month.metasBatidas) metas batidas")
                 .font(AppFont.footnoteStrong)
                 .foregroundStyle(Color.appAccentText)
 
@@ -458,9 +476,52 @@ struct DayDetailSheet: View {
         totalML >= metaDiariaML
     }
 
+    /// Preenche as horas sem registro, dentro da janela ativa do dia (do primeiro
+    /// ao último gole), com 0 mL — sem isso, as horas eram colocadas em um eixo
+    /// categórico (strings "08:00", "14:00") igualmente espaçadas, fazendo horas
+    /// distantes parecerem vizinhas. Com `hour: Int` como valor numérico, o eixo X
+    /// passa a refletir o tempo real entre os registros.
     private var hourlyBreakdown: [(hour: Int, ml: Int)] {
         let grouped = Dictionary(grouping: logs) { Calendar.current.component(.hour, from: $0.timestamp) }
-        return grouped.map { (hour: $0.key, ml: $0.value.reduce(0) { $0 + $1.volumeML }) }.sorted { $0.hour < $1.hour }
+        guard let firstHour = grouped.keys.min(), let lastHour = grouped.keys.max() else { return [] }
+        return (firstHour...lastHour).map { hour in
+            (hour: hour, ml: grouped[hour]?.reduce(0) { $0 + $1.volumeML } ?? 0)
+        }
+    }
+
+    /// Domínio do eixo X com 1h de folga de cada lado dos dados — sem isso, com um
+    /// só horário de registro no dia, `firstHour == lastHour` faria o domínio ter
+    /// largura zero e o Charts não desenha nada num eixo contínuo sem amplitude.
+    private var domainStart: Int { (hourlyBreakdown.first?.hour ?? 0) - 1 }
+    private var domainEnd: Int { (hourlyBreakdown.last?.hour ?? 0) + 1 }
+
+    /// Soma corrida do consumo — 500 mL às 8h e mais 500 mL às 9h aparece como
+    /// 500 às 8h e 1000 às 9h, não dois picos iguais. Começa num ponto sintético
+    /// no início do domínio (0 mL) e termina com outro no fim, pra área ocupar o
+    /// gráfico inteiro em vez de parar (ou começar) no meio do eixo.
+    private var cumulativeSeries: [(hour: Int, totalML: Int)] {
+        guard !hourlyBreakdown.isEmpty else { return [] }
+        var running = 0
+        var points: [(hour: Int, totalML: Int)] = [(hour: domainStart, totalML: 0)]
+        for entry in hourlyBreakdown {
+            running += entry.ml
+            points.append((hour: entry.hour, totalML: running))
+        }
+        points.append((hour: domainEnd, totalML: running))
+        return points
+    }
+
+    private var chartYUpperBound: Int {
+        max(cumulativeSeries.map(\.totalML).max() ?? 0, 1) * 6 / 5
+    }
+
+    /// Marcas do eixo X a cada ~1/4 da janela, pra não lotar o eixo com uma
+    /// legenda por hora.
+    private var hourlyAxisMarks: [Int] {
+        let span = domainEnd - domainStart
+        guard span > 0 else { return [domainStart] }
+        let step = max(1, span / 4)
+        return Array(stride(from: domainStart, through: domainEnd, by: step))
     }
 
     private var dateTitle: String {
@@ -483,22 +544,63 @@ struct DayDetailSheet: View {
                             .foregroundStyle(atingiuMeta ? Color.appAccentText : Color.appSecondary)
                     }
 
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Consumo ao longo do dia")
-                            .font(AppFont.footnoteStrong)
-                            .foregroundStyle(Color.appSecondary)
+                    if !hourlyBreakdown.isEmpty {
+                        VStack(alignment: .leading, spacing: 14) {
+                            Text("Consumo ao longo do dia")
+                                .font(AppFont.footnoteStrong)
+                                .foregroundStyle(Color.appSecondary)
 
-                        Chart {
-                            ForEach(hourlyBreakdown, id: \.hour) { entry in
-                                BarMark(
-                                    x: .value("Hora", String(format: "%02d:00", entry.hour)),
-                                    y: .value("mL", entry.ml)
-                                )
-                                .foregroundStyle(Color.appAccentText)
-                                .cornerRadius(4)
+                            Chart {
+                                ForEach(cumulativeSeries, id: \.hour) { point in
+                                    AreaMark(
+                                        x: .value("Hora", point.hour),
+                                        y: .value("Consumo", point.totalML)
+                                    )
+                                    .interpolationMethod(.monotone)
+                                    // Mesmo azul de marca das barras antigas (`LinearGradient.waterHeader`),
+                                    // só diluído pra área — não um azul inventado à parte.
+                                    .foregroundStyle(LinearGradient.waterHeader.opacity(0.35))
+                                }
+                                ForEach(cumulativeSeries, id: \.hour) { point in
+                                    LineMark(
+                                        x: .value("Hora", point.hour),
+                                        y: .value("Consumo", point.totalML)
+                                    )
+                                    .interpolationMethod(.monotone)
+                                    .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                                    .foregroundStyle(LinearGradient.waterHeader)
+                                }
                             }
+                            .chartXScale(domain: domainStart...domainEnd)
+                            .chartXAxis {
+                                AxisMarks(values: hourlyAxisMarks) { value in
+                                    AxisValueLabel {
+                                        if let hour = value.as(Int.self) {
+                                            Text("\(hour)h")
+                                                .font(AppFont.caption)
+                                                .foregroundStyle(Color.appSecondary)
+                                        }
+                                    }
+                                }
+                            }
+                            .chartYAxis {
+                                AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { value in
+                                    AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                                        .foregroundStyle(Color.appSecondary.opacity(0.18))
+                                    AxisValueLabel {
+                                        if let ml = value.as(Int.self) {
+                                            Text("\(ml)")
+                                                .font(AppFont.caption)
+                                                .foregroundStyle(Color.appSecondary)
+                                        }
+                                    }
+                                }
+                            }
+                            .chartYScale(domain: 0...chartYUpperBound)
+                            .frame(height: 180)
                         }
-                        .frame(height: 200)
+                        .padding(16)
+                        .panelBackground()
                     }
 
                     intakeList
