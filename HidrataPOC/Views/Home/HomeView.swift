@@ -150,7 +150,7 @@ struct HomeView: View {
             DayDetailSheet(
                 dia: DiaHistorico(date: .now, percentualMeta: progress),
                 metaDiariaML: effectiveGoalML,
-                userID: profile.userID,
+                profile: profile,
                 calendar: .current
             )
         }
