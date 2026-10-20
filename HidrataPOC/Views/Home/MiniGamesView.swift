@@ -1,3 +1,4 @@
+import AVFoundation
 import SwiftUI
 
 /// Minijogos que rodam no aquário da Home. Cada um é desbloqueado ao alcançar
@@ -15,6 +16,9 @@ enum MiniGame: String, CaseIterable, Identifiable {
     case jump
     case bubbles
     case flappy
+    case maze
+    case slice
+    case snake
 
     var id: String { rawValue }
 
@@ -25,16 +29,22 @@ enum MiniGame: String, CaseIterable, Identifiable {
         case .jump: "Gota Saltitante"
         case .bubbles: "Bolhas Coloridas"
         case .flappy: "Gota Voadora"
+        case .maze: "Rim Comilão"
+        case .slice: "Quebra-Pedras"
+        case .snake: "Cobrinha de Pedra"
         }
     }
 
     var subtitle: String {
         switch self {
         case .noGame: "Só a água e as pedrinhas, sem minijogo"
-        case .rings: "Use os jatos d'água prazsfs encaixar as argolas nos pinos"
+        case .rings: "Use os jatos d'água pra encaixar as argolas nos pinos"
         case .jump: "Pule de pedra em pedra e suba o mais alto que der"
         case .bubbles: "Mire e junte 4 bolhas da mesma cor pra estourar"
         case .flappy: "Toque pra nadar e passe entre as pilhas de pedras"
+        case .maze: "Coma as gotas do labirinto e fuja das pedras"
+        case .slice: "Corte as pedras e não corte o rim"
+        case .snake: "Coma as pedrinhas e cresça sem bater na borda"
         }
     }
 
@@ -45,17 +55,19 @@ enum MiniGame: String, CaseIterable, Identifiable {
         case .jump: "arrow.up.to.line"
         case .bubbles: "circle.hexagongrid.fill"
         case .flappy: "bird.fill"
+        case .maze: "square.grid.3x3.topleft.filled"
+        case .slice: "scissors"
+        case .snake: "scribble.variable"
         }
     }
 
-    /// Dias de streak necessários pra desbloquear o jogo.
+    /// Dias de streak necessários pra desbloquear o jogo. Por enquanto todos liberam com 1 dia;
+    /// a escada planejada era argolas 1, Gota Saltitante 3, Bolhas 5, Gota Voadora 7, Rim Comilão 10
+    /// (o Quebra-Pedras e a Cobrinha de Pedra ainda não têm degrau).
     var requiredStreak: Int {
         switch self {
         case .noGame: 0
-        case .rings: 1
-        case .jump: 3
-        case .bubbles: 5
-        case .flappy: 7
+        case .rings, .jump, .bubbles, .flappy, .maze, .slice, .snake: 1
         }
     }
 
@@ -71,6 +83,9 @@ enum MiniGame: String, CaseIterable, Identifiable {
         case .jump: Color(red: 0.25, green: 0.78, blue: 0.42)
         case .bubbles: Color(red: 0.66, green: 0.42, blue: 0.95)
         case .flappy: Color(red: 0.98, green: 0.56, blue: 0.20)
+        case .maze: Color(red: 0.90, green: 0.45, blue: 0.47)
+        case .slice: Color(red: 0.32, green: 0.70, blue: 0.36)
+        case .snake: Color(red: 0.20, green: 0.68, blue: 0.78)
         }
     }
 
@@ -85,13 +100,22 @@ enum MiniGame: String, CaseIterable, Identifiable {
     static let bubblesBestStorageKey = "minigame.bubbles.best"
     /// Chave do `@AppStorage` com o recorde da Gota Voadora.
     static let flappyBestStorageKey = "minigame.flappy.best"
+    /// Chave do `@AppStorage` com o recorde do Rim Comilão.
+    static let mazeBestStorageKey = "minigame.maze.best"
+    /// Chave do `@AppStorage` com o recorde do Quebra-Pedras.
+    static let sliceBestStorageKey = "minigame.slice.best"
+    /// Chave do `@AppStorage` com o recorde da Cobrinha de Pedra.
+    static let snakeBestStorageKey = "minigame.snake.best"
 
     /// Streak mínima pra jogar fora da meta batida (tocando no jogo na aba de minijogos).
     static let minimumStreakToPlay = 1
 
     /// Jogos de verdade (sem o `.noGame`) já liberados pela streak, na ordem de desbloqueio.
     static func unlocked(streak: Int) -> [MiniGame] {
-        allCases.filter { $0.isPlayable && $0.isUnlocked(streak: streak) }.sorted { $0.requiredStreak < $1.requiredStreak }
+        // Empate na streak (todos com 1 dia, por enquanto): vale a ordem do `enum`.
+        let order = Dictionary(uniqueKeysWithValues: allCases.enumerated().map { ($1, $0) })
+        return allCases.filter { $0.isPlayable && $0.isUnlocked(streak: streak) }
+            .sorted { ($0.requiredStreak, order[$0] ?? 0) < ($1.requiredStreak, order[$1] ?? 0) }
     }
 
     /// Opção escolhida pra quando bater a meta: a do usuário, se ainda estiver liberada;
@@ -99,6 +123,32 @@ enum MiniGame: String, CaseIterable, Identifiable {
     static func active(selected rawValue: String, streak: Int) -> MiniGame {
         if let selected = MiniGame(rawValue: rawValue), selected.isUnlocked(streak: streak) { return selected }
         return unlocked(streak: streak).last ?? .noGame
+    }
+}
+
+/// Sons dos minijogos, no catálogo de assets como data sets (igual ao "agua" da Home). Cada um é
+/// carregado uma vez e reusado; tocar de novo recomeça do início.
+@MainActor
+enum MiniGameSound: String {
+    /// Um rim aparece no Quebra-Pedras.
+    case kidneyFlying = "RimVoando"
+    /// O rim perde uma vida no Rim Comilão.
+    case lifeLost = "SomDoPacman"
+
+    private static var players: [MiniGameSound: AVAudioPlayer] = [:]
+
+    func play() {
+        guard let player = Self.players[self] ?? load() else { return }
+        player.currentTime = 0
+        player.play()
+    }
+
+    private func load() -> AVAudioPlayer? {
+        guard let asset = NSDataAsset(name: rawValue),
+              let player = try? AVAudioPlayer(data: asset.data, fileTypeHint: AVFileType.m4a.rawValue) else { return nil }
+        player.prepareToPlay()
+        Self.players[self] = player
+        return player
     }
 }
 
@@ -112,6 +162,9 @@ final class MiniGameController {
     @ObservationIgnored let jumpGame = JumpGameSimulation()
     @ObservationIgnored let bubbleGame = BubbleGameSimulation()
     @ObservationIgnored let flappyGame = FlappyGameSimulation()
+    @ObservationIgnored let mazeGame = MazeGameSimulation()
+    @ObservationIgnored let sliceGame = SliceGameSimulation()
+    @ObservationIgnored let snakeGame = SnakeGameSimulation()
     /// Jogo rodando no aquário agora (meta batida e um jogo de verdade escolhido) — quem
     /// define é o `WaterHeaderView`.
     var runningGame: MiniGame?

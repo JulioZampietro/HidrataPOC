@@ -145,3 +145,94 @@ struct RingGameButtonIcon: View {
         ctx.stroke(path, with: .color(color), style: StrokeStyle(lineWidth: 3.5, lineCap: .round, dash: dash))
     }
 }
+
+/// Joystick virtual dos minijogos, no lugar dos botões: um círculo onde o polegar arrasta a
+/// bolinha do meio, que segue o dedo até a borda e volta pro centro ao soltar. Ocupa um cartão
+/// branco igual aos botões. `onChange` recebe a inclinação de −1 a 1 em cada eixo (só x com
+/// `horizontalOnly`) a cada movimento, e (0, 0) ao soltar.
+struct GameJoystick: View {
+    let horizontalOnly: Bool
+    let accessibilityLabel: String
+    /// Ações do VoiceOver no lugar do arrasto (ex.: "Esquerda", "Direita").
+    let accessibilityActions: [(name: String, perform: () -> Void)]
+    var onChange: (CGVector) -> Void
+
+    @State private var knobOffset: CGSize = .zero
+    @State private var isTouching = false
+
+    var body: some View {
+        GeometryReader { geo in
+            let baseRadius = max(min(geo.size.width, geo.size.height) / 2 - 12, 10)
+            let knobRadius = baseRadius * 0.44
+            // Até onde o centro da bolinha vai: ela pode passar um pouco da borda da base.
+            let reach = baseRadius - knobRadius * 0.4
+            let center = CGPoint(x: geo.size.width / 2, y: geo.size.height / 2)
+
+            ZStack {
+                Circle()
+                    .fill(Color.appAccent.opacity(0.12))
+                    .overlay(Circle().strokeBorder(Color.appAccent.opacity(0.35), lineWidth: 2))
+                    .frame(width: baseRadius * 2, height: baseRadius * 2)
+                directionMarks(radius: baseRadius)
+                Circle()
+                    .fill(Color.appAccent)
+                    .overlay(Circle().strokeBorder(.white.opacity(0.9), lineWidth: 3))
+                    .shadow(color: .black.opacity(0.2), radius: 4, y: 2)
+                    .frame(width: knobRadius * 2, height: knobRadius * 2)
+                    .scaleEffect(isTouching ? 0.94 : 1)
+                    .offset(knobOffset)
+            }
+            .frame(width: geo.size.width, height: geo.size.height)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { value in
+                        if !isTouching { Haptic.tap.play() }
+                        isTouching = true
+                        var dx = value.location.x - center.x
+                        var dy = horizontalOnly ? 0 : value.location.y - center.y
+                        let length = hypot(dx, dy)
+                        if length > reach {
+                            dx *= reach / length
+                            dy *= reach / length
+                        }
+                        knobOffset = CGSize(width: dx, height: dy)
+                        onChange(CGVector(dx: dx / reach, dy: dy / reach))
+                    }
+                    .onEnded { _ in
+                        isTouching = false
+                        withAnimation(.spring(response: 0.25, dampingFraction: 0.6)) { knobOffset = .zero }
+                        onChange(.zero)
+                    }
+            )
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Color(UIColor.secondarySystemBackground))
+                .shadow(color: .black.opacity(0.18), radius: 8, x: 0, y: 4)
+        )
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityActions {
+            ForEach(accessibilityActions.indices, id: \.self) { index in
+                Button(accessibilityActions[index].name, action: accessibilityActions[index].perform)
+            }
+        }
+    }
+
+    /// Setinhas na borda da base mostrando pra onde dá pra arrastar.
+    private func directionMarks(radius: CGFloat) -> some View {
+        let symbols: [(String, CGSize)] = horizontalOnly
+            ? [("chevron.left", CGSize(width: -1, height: 0)), ("chevron.right", CGSize(width: 1, height: 0))]
+            : [("chevron.left", CGSize(width: -1, height: 0)), ("chevron.right", CGSize(width: 1, height: 0)),
+               ("chevron.up", CGSize(width: 0, height: -1)), ("chevron.down", CGSize(width: 0, height: 1))]
+        return ZStack {
+            ForEach(symbols.indices, id: \.self) { index in
+                Image(systemName: symbols[index].0)
+                    .font(.system(size: max(radius * 0.18, 9), weight: .bold))
+                    .foregroundStyle(Color.appAccent.opacity(0.55))
+                    .offset(x: symbols[index].1.width * radius * 0.8, y: symbols[index].1.height * radius * 0.8)
+            }
+        }
+    }
+}
