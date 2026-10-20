@@ -326,8 +326,9 @@ struct WaterHeaderView: View {
             }
             .animation(.spring(response: 0.5, dampingFraction: 0.7), value: goalReached)
             // Minijogo: no conteúdo do recipiente, então passa pela mesma refração da água.
-            // Os botões ficam na Home; só as Bolhas Coloridas (mirar e atirar) e a Gota Voadora
-            // (nadar) recebem toque aqui.
+            // Os botões ficam na Home; só as Bolhas Coloridas (mirar e atirar), a Gota Voadora
+            // (nadar), o Rim Comilão e a Cobrinha de Pedra (deslizar pra virar) e o Quebra-Pedras
+            // (cortar) recebem toque aqui.
             .overlay {
                 Group {
                     switch runningGame {
@@ -339,11 +340,17 @@ struct WaterHeaderView: View {
                         BubbleGameView(simulation: miniGames.bubbleGame, water: waterMotion)
                     case .flappy:
                         FlappyGameView(simulation: miniGames.flappyGame, water: waterMotion)
+                    case .maze:
+                        MazeGameView(simulation: miniGames.mazeGame, water: waterMotion)
+                    case .slice:
+                        SliceGameView(simulation: miniGames.sliceGame, water: waterMotion)
+                    case .snake:
+                        SnakeGameView(simulation: miniGames.snakeGame, water: waterMotion)
                     case .noGame, nil:
                         EmptyView()
                     }
                 }
-                .allowsHitTesting(runningGame == .bubbles || runningGame == .flappy)
+                .allowsHitTesting([.bubbles, .flappy, .maze, .slice, .snake].contains(runningGame))
                 .transition(.opacity)
             }
         .background {
@@ -611,6 +618,9 @@ struct WaterHeaderView: View {
         if newGame != .jump { miniGames.jumpGame.stop() }
         if newGame != .bubbles { miniGames.bubbleGame.stop() }
         if newGame != .flappy { miniGames.flappyGame.stop() }
+        if newGame != .maze { miniGames.mazeGame.stop() }
+        if newGame != .slice { miniGames.sliceGame.stop() }
+        if newGame != .snake { miniGames.snakeGame.stop() }
 
         guard let newGame else {
             if goalReached, oldGame != nil { waterMotion.scatterStonesAtRest() }
@@ -639,6 +649,24 @@ struct WaterHeaderView: View {
             UserDefaults.standard.set(max(best, score), forKey: MiniGame.flappyBestStorageKey)
             InteractionTracker.log("flappy_game_over", screen: screen, userID: profile.userID, context: modelContext)
         }
+        miniGames.mazeGame.onGameOver = { score in
+            let best = UserDefaults.standard.integer(forKey: MiniGame.mazeBestStorageKey)
+            (score > best ? Haptic.success : Haptic.warning).play()
+            UserDefaults.standard.set(max(best, score), forKey: MiniGame.mazeBestStorageKey)
+            InteractionTracker.log("maze_game_over", screen: screen, userID: profile.userID, context: modelContext)
+        }
+        miniGames.sliceGame.onGameOver = { score in
+            let best = UserDefaults.standard.integer(forKey: MiniGame.sliceBestStorageKey)
+            (score > best ? Haptic.success : Haptic.warning).play()
+            UserDefaults.standard.set(max(best, score), forKey: MiniGame.sliceBestStorageKey)
+            InteractionTracker.log("slice_game_over", screen: screen, userID: profile.userID, context: modelContext)
+        }
+        miniGames.snakeGame.onGameOver = { score in
+            let best = UserDefaults.standard.integer(forKey: MiniGame.snakeBestStorageKey)
+            (score > best ? Haptic.success : Haptic.warning).play()
+            UserDefaults.standard.set(max(best, score), forKey: MiniGame.snakeBestStorageKey)
+            InteractionTracker.log("snake_game_over", screen: screen, userID: profile.userID, context: modelContext)
+        }
         // A comemoração da meta já acabou quando o jogo chega aqui (`showsGoalReached`): só
         // espera o aquário esticar pra tela do jogo.
         Task {
@@ -649,6 +677,9 @@ struct WaterHeaderView: View {
             case .jump: miniGames.jumpGame.start()
             case .bubbles: miniGames.bubbleGame.start()
             case .flappy: miniGames.flappyGame.start()
+            case .maze: miniGames.mazeGame.start()
+            case .slice: miniGames.sliceGame.start()
+            case .snake: miniGames.snakeGame.start()
             case .noGame: return
             }
             if isLiveTransition {
