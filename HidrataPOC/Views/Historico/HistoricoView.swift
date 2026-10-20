@@ -171,7 +171,7 @@ struct HistoricoView: View {
             }
         }
         .sheet(item: $selectedDay) { dia in
-            DayDetailSheet(dia: dia, metaDiariaML: goalResolver.goalML(on: dia.date), userID: profile.userID, calendar: calendar)
+            DayDetailSheet(dia: dia, metaDiariaML: goalResolver.goalML(on: dia.date), profile: profile, calendar: calendar)
                 .trackSheetLifecycle(.historicoDayDetail, screen: .historico, userID: profile.userID, metadata: ["date": isoDate(dia.date)])
         }
     }
@@ -465,15 +465,63 @@ struct DayDetailSheet: View {
     @Environment(\.modelContext) private var modelContext
     let dia: DiaHistorico
     let metaDiariaML: Int
+    let profile: UserProfile
+    let calendar: Calendar
     @Query private var logs: [IntakeLog]
+    @State private var currentWeather: WeatherContext?
 
-    init(dia: DiaHistorico, metaDiariaML: Int, userID: String, calendar: Calendar) {
+    init(dia: DiaHistorico, metaDiariaML: Int, profile: UserProfile, calendar: Calendar) {
         self.dia = dia
         self.metaDiariaML = metaDiariaML
+        self.profile = profile
+        self.calendar = calendar
+        let userID = profile.userID
         let dayStart = calendar.startOfDay(for: dia.date)
         let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart) ?? dayStart
         let predicate = #Predicate<IntakeLog> { $0.userID == userID && $0.timestamp >= dayStart && $0.timestamp < dayEnd }
         _logs = Query(filter: predicate, sort: \IntakeLog.timestamp)
+    }
+
+    private var isToday: Bool { calendar.isDateInToday(dia.date) }
+
+    /// This day's own weather, from whatever was cached on its logs when they
+    /// were made (see `IntakeLog.temperaturaC` etc.) — so a past day's plan
+    /// reflects what the weather actually was that day, not today's. Falls back
+    /// to a live reading only for today, before any log has cached one yet
+    /// (e.g. first thing in the morning).
+    private var dayWeather: WeatherContext? {
+        if let logged = logs.first(where: { $0.temperaturaC != nil }) {
+            return WeatherContext(
+                temperaturaC: logged.temperaturaC!,
+                umidadeRelativa: logged.umidadeRelativa ?? 0,
+                sensacaoTermicaC: logged.sensacaoTermicaC ?? logged.temperaturaC!
+            )
+        }
+        return isToday ? currentWeather : nil
+    }
+
+    /// That day's strategic hydration schedule, based on its own weather and
+    /// its own recorded goal — nil if there's no policy prior yet.
+    private var idealPlan: [HydrationPlanPoint]? {
+        HydrationPlanner.idealDayCurve(
+            profile: profile,
+            effectiveGoalML: metaDiariaML,
+            weather: dayWeather,
+            day: dia.date,
+            calendar: calendar
+        )
+    }
+
+    /// Same cumulative shape as `cumulativeSeries`, bracketed to the shared
+    /// domain so both lines span the full chart.
+    private var idealSeries: [(hour: Int, totalML: Int)] {
+        guard let plan = idealPlan, !plan.isEmpty else { return [] }
+        var points: [(hour: Int, totalML: Int)] = [(hour: domainStart, totalML: 0)]
+        points.append(contentsOf: plan.map { (hour: $0.hour, totalML: $0.idealCumulativeML) })
+        if let last = plan.last {
+            points.append((hour: domainEnd, totalML: last.idealCumulativeML))
+        }
+        return points
     }
 
     private var totalML: Int {
@@ -502,8 +550,22 @@ struct DayDetailSheet: View {
     /// largura zero e o Charts não desenha nada num eixo contínuo sem amplitude.
     /// Dia sem registros: o gráfico vazio cobre o dia útil (6h às 22h).
     private static let emptyDayHours = 6...22
-    private var domainStart: Int { hourlyBreakdown.first.map { $0.hour - 1 } ?? Self.emptyDayHours.lowerBound }
-    private var domainEnd: Int { hourlyBreakdown.last.map { $0.hour + 1 } ?? Self.emptyDayHours.upperBound }
+
+    /// The plan's own hour span, so a morning view of today (no logs yet) still
+    /// shows the full planned day instead of a near-empty domain.
+    private var planHourBounds: (min: Int, max: Int)? {
+        guard let plan = idealPlan, let first = plan.first, let last = plan.last else { return nil }
+        return (first.hour, last.hour)
+    }
+
+    private var domainStart: Int {
+        min(hourlyBreakdown.first.map { $0.hour - 1 } ?? Self.emptyDayHours.lowerBound,
+            planHourBounds.map { $0.min - 1 } ?? Self.emptyDayHours.lowerBound)
+    }
+    private var domainEnd: Int {
+        max(hourlyBreakdown.last.map { $0.hour + 1 } ?? Self.emptyDayHours.upperBound,
+            planHourBounds.map { $0.max + 1 } ?? Self.emptyDayHours.upperBound)
+    }
 
     /// Soma corrida do consumo — 500 mL às 8h e mais 500 mL às 9h aparece como
     /// 500 às 8h e 1000 às 9h, não dois picos iguais. Começa num ponto sintético
@@ -522,9 +584,10 @@ struct DayDetailSheet: View {
     }
 
     private var chartYUpperBound: Int {
-        // Sem registros, o eixo mostra até a meta do dia, para o gráfico vazio ter escala.
-        guard !cumulativeSeries.isEmpty else { return max(metaDiariaML, 1) }
-        return max(cumulativeSeries.map(\.totalML).max() ?? 0, 1) * 6 / 5
+        // Sem registros nem plano, o eixo mostra até a meta do dia, para o gráfico vazio ter escala.
+        guard !cumulativeSeries.isEmpty || !idealSeries.isEmpty else { return max(metaDiariaML, 1) }
+        let peak = max(cumulativeSeries.map(\.totalML).max() ?? 0, idealSeries.map(\.totalML).max() ?? 0)
+        return max(peak, 1) * 6 / 5
     }
 
     /// Marcas do eixo X a cada ~1/4 da janela, pra não lotar o eixo com uma
@@ -557,9 +620,15 @@ struct DayDetailSheet: View {
                     }
 
                     VStack(alignment: .leading, spacing: 14) {
-                        Text("Consumo ao longo do dia")
-                            .font(AppFont.footnoteStrong)
-                            .foregroundStyle(Color.appSecondary)
+                        HStack {
+                            Text("Consumo ao longo do dia")
+                                .font(AppFont.footnoteStrong)
+                                .foregroundStyle(Color.appSecondary)
+                            Spacer()
+                            if !idealSeries.isEmpty {
+                                chartLegend
+                            }
+                        }
 
                         Chart {
                             ForEach(cumulativeSeries, id: \.hour) { point in
@@ -579,9 +648,29 @@ struct DayDetailSheet: View {
                                 )
                                 .interpolationMethod(.monotone)
                                 .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round))
-                                .foregroundStyle(LinearGradient.waterHeader)
+                                // Série nomeada (não uma Color literal), senão o Charts pode
+                                // confundir o estilo desta linha com o da série seguinte quando
+                                // as duas compartilham o mesmo eixo sem uma escala discreta.
+                                .foregroundStyle(by: .value("Série", "Seu consumo"))
+                            }
+                            // Plano ideal: sobreposto, pontilhado, pra nunca ser confundido com
+                            // um registro real — é uma sugestão derivada dos horários
+                            // estratégicos do usuário e do clima daquele dia, não um dado real.
+                            ForEach(idealSeries, id: \.hour) { point in
+                                LineMark(
+                                    x: .value("Hora", point.hour),
+                                    y: .value("Plano ideal", point.totalML)
+                                )
+                                .interpolationMethod(.monotone)
+                                .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, dash: [6, 5]))
+                                .foregroundStyle(by: .value("Série", "Plano ideal"))
                             }
                         }
+                        .chartForegroundStyleScale([
+                            "Seu consumo": Color.appAccent,
+                            "Plano ideal": Color.appSecondary,
+                        ])
+                        .chartLegend(.hidden)
                         .chartXScale(domain: domainStart...domainEnd)
                         .chartXAxis {
                             AxisMarks(values: hourlyAxisMarks) { value in
@@ -620,6 +709,12 @@ struct DayDetailSheet: View {
                                     .background(Color(.secondarySystemBackground), in: Capsule())
                             }
                         }
+
+                        if !idealSeries.isEmpty {
+                            Text("Plano baseado nos horários que funcionam melhor para você e no clima daquele dia.")
+                                .font(AppFont.caption)
+                                .foregroundStyle(Color.appSecondary)
+                        }
                     }
                     .padding(16)
                     .panelBackground()
@@ -642,6 +737,34 @@ struct DayDetailSheet: View {
                     Button("Fechar", systemImage: "xmark") { Haptic.dismiss.play(); dismiss() }
                 }
             }
+        }
+        .task {
+            guard isToday, currentWeather == nil else { return }
+            currentWeather = await WeatherContextService.shared.currentContext()
+        }
+    }
+
+    private var chartLegend: some View {
+        HStack(spacing: 14) {
+            legendEntry(color: Color.appAccent, dashed: false, label: "Seu consumo")
+            legendEntry(color: Color.appSecondary, dashed: true, label: "Plano ideal")
+        }
+    }
+
+    private func legendEntry(color: Color, dashed: Bool, label: String) -> some View {
+        HStack(spacing: 5) {
+            if dashed {
+                HStack(spacing: 2) {
+                    ForEach(0..<3, id: \.self) { _ in
+                        Rectangle().fill(color).frame(width: 3, height: 2)
+                    }
+                }
+            } else {
+                Rectangle().fill(color).frame(width: 12, height: 2)
+            }
+            Text(label)
+                .font(AppFont.caption)
+                .foregroundStyle(Color.appSecondary)
         }
     }
 

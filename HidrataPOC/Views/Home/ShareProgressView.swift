@@ -315,13 +315,11 @@ private struct ColorPickerPresenter: UIViewControllerRepresentable {
     @Binding var isPresented: Bool
     @Binding var color: Color
 
-    /// Fração da tela que o seletor ocupa — configurada direto no
-    /// `UISheetPresentationController` do UIKit (não via `.presentationDetents` do
-    /// SwiftUI: essa é a diferença seguro-vs-crasha). Compartilhada com
-    /// `ShareProgressView.previewHeightWhilePicking`, que encolhe a prévia do cartão
-    /// pra caber acima do seletor.
+    /// Fração aproximada da tela que o detent `.medium()` ocupa — só uma estimativa
+    /// usada por `ShareProgressView.previewHeightWhilePicking` para encolher a prévia
+    /// do cartão e caber acima do seletor; o detent em si é o `.medium()` nativo do
+    /// sistema, não um valor calculado a partir desta fração.
     static let heightFraction: CGFloat = 0.5
-    private static let detentID = UISheetPresentationController.Detent.Identifier("colorPickerHalf")
 
     func makeUIViewController(context: Context) -> UIViewController {
         UIViewController()
@@ -331,32 +329,54 @@ private struct ColorPickerPresenter: UIViewControllerRepresentable {
         context.coordinator.parent = self
 
         if isPresented {
-            guard uiViewController.presentedViewController == nil else { return }
+            guard context.coordinator.presentedPicker == nil else { return }
+            guard let presenter = Self.topmostPresenter(from: uiViewController) else { return }
             let picker = UIColorPickerViewController()
             picker.supportsAlpha = false
             picker.selectedColor = UIColor(color)
             picker.title = "Cor das letras"
             picker.delegate = context.coordinator
             if let sheet = picker.sheetPresentationController {
-                let halfDetent = UISheetPresentationController.Detent.custom(identifier: Self.detentID) { context in
-                    context.maximumDetentValue * Self.heightFraction
-                }
-                sheet.detents = [halfDetent]
-                // Sem escurecer o fundo até esse detent, pra prévia do cartão continuar
-                // com a cor real enquanto o usuário escolhe.
-                sheet.largestUndimmedDetentIdentifier = Self.detentID
-                sheet.prefersGrabberVisible = false
+                // `.medium()` em vez de um detent customizado por fração: é o caminho
+                // que a Apple testa para os pickers internos do sistema. Sem
+                // `largestUndimmedDetentIdentifier` de propósito — deixando o fundo
+                // escurecido e NÃO interativo (o padrão do sistema), a "caneta" volta a
+                // ter controle exclusivo da tela para capturar o toque; era a
+                // combinação de fundo sem escurecer + interativo que fazia a lupa não
+                // seguir o dedo e a cor não atualizar ao vivo durante o arrasto.
+                sheet.detents = [.medium()]
+                sheet.prefersGrabberVisible = true
             }
-            uiViewController.present(picker, animated: true)
-        } else if let presented = uiViewController.presentedViewController {
+            context.coordinator.presentedPicker = picker
+            presenter.present(picker, animated: true)
+        } else if let presented = context.coordinator.presentedPicker {
             presented.dismiss(animated: true)
+            context.coordinator.presentedPicker = nil
         }
+    }
+
+    /// Sobe até o controller no topo da janela, em vez de apresentar a partir do
+    /// âncora (que fica embutido dentro da própria hierarquia aninhada do SwiftUI,
+    /// dentro da sheet do `ShareProgressView`). A "caneta" (eyedropper) usa o
+    /// sistema de coordenadas de quem apresenta para calcular onde a lupa nasce e
+    /// para onde ela se move conforme o dedo arrasta pela tela; apresentando de um
+    /// controller aninhado, esse cálculo saía errado — a lupa nascia fora do dedo e
+    /// só acompanhava o movimento relativo, nunca a posição absoluta, e a cor
+    /// amostrada ficava presa num ponto errado da tela (por isso parecia não
+    /// atualizar ao vivo).
+    private static func topmostPresenter(from anchor: UIViewController) -> UIViewController? {
+        guard var top = anchor.view.window?.rootViewController else { return anchor }
+        while let presented = top.presentedViewController {
+            top = presented
+        }
+        return top
     }
 
     func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
 
     final class Coordinator: NSObject, UIColorPickerViewControllerDelegate {
         var parent: ColorPickerPresenter
+        var presentedPicker: UIColorPickerViewController?
 
         init(parent: ColorPickerPresenter) { self.parent = parent }
 
