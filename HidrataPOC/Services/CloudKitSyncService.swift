@@ -401,33 +401,27 @@ final class CloudKitSyncService {
 
         await flushPendingDeletions()
 
-        if let profiles = try? context.fetch(FetchDescriptor<UserProfile>()) {
-            for profile in profiles where profile.syncStatus != .synced {
-                await push(profile)
-            }
+        // Filtrado no banco, não em Swift: antes isto materializava as seis tabelas
+        // inteiras a cada launch e a cada volta ao primeiro plano (duas vezes no
+        // launch) só para descartar quase tudo em seguida.
+        let synced = SyncStatus.synced.rawValue
+        if let profiles = try? context.fetch(FetchDescriptor<UserProfile>(predicate: #Predicate { $0.syncStatusRaw != synced })) {
+            for profile in profiles { await push(profile) }
         }
-        if let logs = try? context.fetch(FetchDescriptor<IntakeLog>()) {
-            for log in logs where log.syncStatus != .synced {
-                await push(log)
-            }
+        if let logs = try? context.fetch(FetchDescriptor<IntakeLog>(predicate: #Predicate { $0.syncStatusRaw != synced })) {
+            for log in logs { await push(log) }
         }
-        if let events = try? context.fetch(FetchDescriptor<NotificationEvent>()) {
-            for event in events where event.syncStatus != .synced {
-                await push(event)
-            }
+        if let events = try? context.fetch(FetchDescriptor<NotificationEvent>(predicate: #Predicate { $0.syncStatusRaw != synced })) {
+            for event in events { await push(event) }
         }
-        if let goals = try? context.fetch(FetchDescriptor<DailyGoal>()) {
-            await push(goals.filter { $0.syncStatus != .synced })
+        if let goals = try? context.fetch(FetchDescriptor<DailyGoal>(predicate: #Predicate { $0.syncStatusRaw != synced })) {
+            await push(goals)
         }
-        if let interactionEvents = try? context.fetch(FetchDescriptor<UIInteractionEvent>()) {
-            for event in interactionEvents where event.syncStatus != .synced {
-                await push(event)
-            }
+        if let interactionEvents = try? context.fetch(FetchDescriptor<UIInteractionEvent>(predicate: #Predicate { $0.syncStatusRaw != synced })) {
+            for event in interactionEvents { await push(event) }
         }
-        if let decisions = try? context.fetch(FetchDescriptor<SlotDecision>()) {
-            for decision in decisions where decision.syncStatus != .synced {
-                await push(decision)
-            }
+        if let decisions = try? context.fetch(FetchDescriptor<SlotDecision>(predicate: #Predicate { $0.syncStatusRaw != synced })) {
+            for decision in decisions { await push(decision) }
         }
         try? context.save()
     }
@@ -485,8 +479,14 @@ final class CloudKitSyncService {
             } else {
                 logPredicate = NSPredicate(format: "userID == %@", userID)
             }
+            // Conjuntos carregados uma vez: `applyIntakeLog` fazia dois `fetchCount` por
+            // registro, o que num restore completo (um ano de histórico) são milhares de
+            // queries encadeadas na main actor, exatamente enquanto o usuário olha a
+            // tela de restauração.
+            var knownIDs = Set((try? context.fetch(FetchDescriptor<IntakeLog>()))?.map(\.id) ?? [])
+            var knownHealthKitUUIDs = Set((try? context.fetch(FetchDescriptor<IntakeLog>()))?.compactMap(\.healthKitUUID) ?? [])
             for record in try await queryAll("IntakeLog", logPredicate) {
-                applied += applyIntakeLog(record, context: context) ? 1 : 0
+                applied += applyIntakeLog(record, context: context, knownIDs: &knownIDs, knownHealthKitUUIDs: &knownHealthKitUUIDs) ? 1 : 0
             }
 
             for record in try await queryAll("DailyGoal", NSPredicate(format: "userID == %@", userID)) {
@@ -560,15 +560,22 @@ final class CloudKitSyncService {
     }
 
     /// Inserts an intake this device doesn't have yet (logs are immutable once created).
-    private func applyIntakeLog(_ record: CKRecord, context: ModelContext) -> Bool {
+    /// `knownIDs`/`knownHealthKitUUIDs` são os conjuntos do que este aparelho já tem,
+    /// carregados uma vez pelo chamador e atualizados a cada inserção — em vez de duas
+    /// queries por registro (ver o comentário em `pull`).
+    private func applyIntakeLog(
+        _ record: CKRecord,
+        context: ModelContext,
+        knownIDs: inout Set<UUID>,
+        knownHealthKitUUIDs: inout Set<String>
+    ) -> Bool {
         guard let id = UUID(uuidString: record.recordID.recordName),
               let userID = record["userID"] as? String,
               let timestamp = record["timestamp"] as? Date,
               let volumeML = record["volumeML"] as? Int else { return false }
-        if ((try? context.fetchCount(FetchDescriptor<IntakeLog>(predicate: #Predicate { $0.id == id }))) ?? 0) > 0 { return false }
+        if knownIDs.contains(id) { return false }
         let healthKitUUID = record["healthKitUUID"] as? String
-        if let healthKitUUID,
-           ((try? context.fetchCount(FetchDescriptor<IntakeLog>(predicate: #Predicate { $0.healthKitUUID == healthKitUUID }))) ?? 0) > 0 {
+        if let healthKitUUID, knownHealthKitUUIDs.contains(healthKitUUID) {
             return false // already imported from Health on this device
         }
 
@@ -589,6 +596,8 @@ final class CloudKitSyncService {
         log.sensacaoTermicaC = record["sensacaoTermicaC"] as? Double
         log.syncStatus = .synced
         context.insert(log)
+        knownIDs.insert(id)
+        if let healthKitUUID { knownHealthKitUUIDs.insert(healthKitUUID) }
         return true
     }
 
@@ -630,13 +639,49 @@ final class CloudKitSyncService {
     /// same stale `ckSystemFields` and hits `.serverRecordChanged` again.
     private func saveResolvingConflict(_ record: CKRecord) async throws -> CKRecord {
         do {
-            return try await container.publicCloudDatabase.save(record)
+            return try await withCloudKitRetry { try await self.container.publicCloudDatabase.save(record) }
         } catch let error as CKError where error.code == .serverRecordChanged {
             guard let serverRecord = error.serverRecord else { throw error }
             for key in record.changedKeys() {
                 serverRecord[key] = record[key]
             }
-            return try await container.publicCloudDatabase.save(serverRecord)
+            return try await withCloudKitRetry { try await self.container.publicCloudDatabase.save(serverRecord) }
+        }
+    }
+
+    /// Quantas vezes uma operação é repetida quando o CloudKit pede espera.
+    private static let maxCloudKitRetries = 2
+
+    /// Repete a operação quando o CloudKit devolve um erro que ele próprio diz ser
+    /// temporário, respeitando o `retryAfterSeconds` que acompanha a resposta. Sem
+    /// isso, um throttle do servidor marcava tudo como `.failed` e o `flushPending`
+    /// seguinte repetia na hora, realimentando o throttle.
+    private func withCloudKitRetry<T>(_ operation: () async throws -> T) async throws -> T {
+        var attempt = 0
+        while true {
+            do {
+                return try await operation()
+            } catch let error as CKError {
+                guard attempt < Self.maxCloudKitRetries,
+                      let delay = Self.retryDelay(for: error) else { throw error }
+                attempt += 1
+                logger.notice("CloudKit pediu espera de \(delay, privacy: .public)s (tentativa \(attempt, privacy: .public)): \(error.code.rawValue, privacy: .public)")
+                try? await Task.sleep(for: .seconds(delay))
+            }
+        }
+    }
+
+    /// Só os códigos que o CloudKit classifica como "tente de novo"; qualquer outro
+    /// (registro inexistente, permissão, conflito) sobe na hora.
+    private static func retryDelay(for error: CKError) -> Double? {
+        switch error.code {
+        case .serviceUnavailable, .requestRateLimited, .zoneBusy:
+            // O servidor manda quanto esperar; o fallback cobre a resposta sem o campo.
+            return error.retryAfterSeconds ?? 3
+        case .networkUnavailable, .networkFailure:
+            return 2
+        default:
+            return nil
         }
     }
 
