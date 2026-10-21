@@ -278,12 +278,6 @@ final class HealthKitService {
         UserDefaults.standard.set(queryEnd, forKey: lastSyncKey)
     }
 
-    /// Reseta a data de última sincronização para que a próxima chamada de
-    /// `syncFromHealthKit` releia o histórico a partir do início do dia atual.
-    func resetSyncDate() {
-        UserDefaults.standard.removeObject(forKey: lastSyncKey)
-    }
-
     var lastSyncDate: Date? {
         UserDefaults.standard.object(forKey: lastSyncKey) as? Date
     }
