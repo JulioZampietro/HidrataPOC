@@ -25,8 +25,18 @@ private let logger = Logger(subsystem: "com.hidratapoc", category: "CloudKitSync
 /// else's record to delete it — but `CKDatabase.delete(withRecordID:)` doesn't need
 /// read access to the record, only its ID, which every device already has locally.
 @MainActor
+@Observable
 final class CloudKitSyncService {
     static let shared = CloudKitSyncService()
+
+    /// TEMPORARY (account_debug branch): what the last `syncFromCloud` saw, shown by
+    /// `RestoreDiagnosticsOverlay`.
+    private(set) var restoreDiagnostics: [String] = []
+
+    private func diag(_ line: String) {
+        restoreDiagnostics.append(line)
+        logger.notice("[restore-diag] \(line, privacy: .public)")
+    }
 
     private let container: CKContainer
     private var cachedUserID: String?
@@ -366,18 +376,42 @@ final class CloudKitSyncService {
     }
 
     private func pull(context: ModelContext) async {
-        guard (try? await container.accountStatus()) == .available,
-              let userID = try? await currentUserID() else {
+        restoreDiagnostics = ["pull @ \(Date.now.formatted(date: .omitted, time: .standard))"]
+        let status: CKAccountStatus?
+        do {
+            status = try await container.accountStatus()
+        } catch {
+            status = nil
+            diag("accountStatus ERROR: \(error)")
+        }
+        diag("accountStatus = \(status.map { String(describing: $0) } ?? "nil")")
+        guard status == .available else {
+            diag("SKIPPED: iCloud account not available")
             logger.notice("syncFromCloud skipped — no iCloud account available")
+            return
+        }
+        let userID: String
+        do {
+            userID = try await currentUserID()
+            diag("userID = \(userID)")
+        } catch {
+            diag("userRecordID ERROR: \(error)")
+            logger.notice("syncFromCloud skipped — currentUserID() failed")
             return
         }
         let startedAt = Date.now
         let lastPull = UserDefaults.standard.object(forKey: lastPullKey) as? Date
+        diag("lastPull = \(lastPull.map { $0.formatted() } ?? "nil (full restore)")")
+        let localProfiles = (try? context.fetchCount(FetchDescriptor<UserProfile>())) ?? -1
+        diag("local UserProfile count before = \(localProfiles)")
         var applied = 0
         do {
             let profiles = try await queryAll("UserProfile", NSPredicate(format: "userID == %@", userID))
+            diag("UserProfile query -> \(profiles.count) record(s)")
             if let newest = profiles.max(by: { ($0["atualizadoEm"] as? Date ?? .distantPast) < ($1["atualizadoEm"] as? Date ?? .distantPast) }) {
-                applied += applyProfile(newest, context: context) ? 1 : 0
+                let didApply = applyProfile(newest, context: context)
+                diag("applyProfile -> \(didApply) (atualizadoEm = \(String(describing: newest["atualizadoEm"])))")
+                applied += didApply ? 1 : 0
             }
 
             let logPredicate: NSPredicate
@@ -388,19 +422,25 @@ final class CloudKitSyncService {
             } else {
                 logPredicate = NSPredicate(format: "userID == %@", userID)
             }
-            for record in try await queryAll("IntakeLog", logPredicate) {
+            let intakeRecords = try await queryAll("IntakeLog", logPredicate)
+            diag("IntakeLog query -> \(intakeRecords.count) record(s)")
+            for record in intakeRecords {
                 applied += applyIntakeLog(record, context: context) ? 1 : 0
             }
 
-            for record in try await queryAll("DailyGoal", NSPredicate(format: "userID == %@", userID)) {
+            let goalRecords = try await queryAll("DailyGoal", NSPredicate(format: "userID == %@", userID))
+            diag("DailyGoal query -> \(goalRecords.count) record(s)")
+            for record in goalRecords {
                 applied += applyDailyGoal(record, context: context) ? 1 : 0
             }
             try? context.save()
             UserDefaults.standard.set(startedAt, forKey: lastPullKey)
         } catch {
             try? context.save()
+            diag("QUERY ERROR: \(error)")
             logger.error("syncFromCloud failed: \(String(describing: error), privacy: .public)")
         }
+        diag("applied \(applied) record(s); local UserProfile count after = \((try? context.fetchCount(FetchDescriptor<UserProfile>())) ?? -1)")
         if applied > 0 {
             logger.notice("syncFromCloud applied \(applied) record(s)")
             WidgetSync.reloadWaterTank()
@@ -413,7 +453,10 @@ final class CloudKitSyncService {
         var (results, cursor) = try await database.records(matching: CKQuery(recordType: recordType, predicate: predicate))
         while true {
             for (_, result) in results {
-                if case .success(let record) = result { records.append(record) }
+                switch result {
+                case .success(let record): records.append(record)
+                case .failure(let error): diag("\(recordType) per-record ERROR: \(error)")
+                }
             }
             guard let next = cursor else { break }
             (results, cursor) = try await database.records(continuingMatchFrom: next)
