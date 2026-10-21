@@ -968,7 +968,7 @@ final class NotificationScheduler {
 
             do {
                 finalContent = try content.updating(from: intent)
-                logger.debug("Built communication notification content for sender \(sender.person.displayName ?? "?", privacy: .public)")
+                logger.debug("Built communication notification content for sender \(sender.person.displayName, privacy: .public)")
             } catch {
                 logger.error("Failed to build communication notification content: \(String(describing: error), privacy: .public)")
             }
