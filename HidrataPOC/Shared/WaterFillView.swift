@@ -2,7 +2,7 @@ import CoreMotion
 import SwiftUI
 
 /// Valores da simulação da água para ajustar à mão. Os do visual (ondas capilares,
-/// brilhos, bolhas…) ficam no topo de `Bubble.metal`.
+/// brilhos, bolhas…) ficam no topo de `Water.metal`.
 enum WaterTuning {
     // Balanço (equação de onda)
     static let columns = 96                  // resolução do campo de alturas
@@ -31,7 +31,7 @@ enum WaterTuning {
     static let shakeCooldown: Double = 0.12  // s entre rajadas
     static let dropsPerBurst: Float = 3      // gotas numa sacudida bem no limiar
     static let dropsPerG: Float = 7          // gotas extras por g acima do limiar
-    static let maxDroplets = 32              // máximo de gotas no ar (igual a `kMaxDrops` em Bubble.metal)
+    static let maxDroplets = 32              // máximo de gotas no ar (igual a `kMaxDrops` em Water.metal)
 
     // Física das gotas
     static let dropGravity: Float = 1800     // pt/s² ao longo de `down`
@@ -107,7 +107,7 @@ extension UIWindow {
 
 extension View {
     /// Coloca o conteúdo dentro de um "recipiente" de água transparente (shader `water`
-    /// em `Bubble.metal`): a água sobe conforme `level` (0…1), acompanha o giroscópio e
+    /// em `Water.metal`): a água sobe conforme `level` (0…1), acompanha o giroscópio e
     /// passa por trás e por cima do conteúdo, que fica parecendo mergulhado.
     /// `bleedsIntoTopSafeArea` estende o recipiente por baixo da status bar.
     /// `motion`, quando informado, substitui a simulação interna — assim quem chama
@@ -180,7 +180,7 @@ private struct WaterContainerModifier<S: Shape>: ViewModifier {
 }
 
 /// O conteúdo do recipiente visto através da água: abaixo da superfície ele ondula e
-/// ganha uma tintura no azul de destaque (`waterRefraction` em `Bubble.metal`). Usa a mesma simulação
+/// ganha uma tintura no azul de destaque (`waterRefraction` em `Water.metal`). Usa a mesma simulação
 /// e o mesmo nível animado da água desenhada, para a linha d'água coincidir.
 private struct WaterRefractionView<Content: View>: View, @preconcurrency Animatable {
     var level: Double
@@ -223,7 +223,7 @@ private struct WaterRefractionView<Content: View>: View, @preconcurrency Animata
                         .floatArray(field),
                         .float2(proxy.size)
                     ),
-                    // Cobre o maior deslocamento da refração (`kRefractMax` em Bubble.metal).
+                    // Cobre o maior deslocamento da refração (`kRefractMax` em Water.metal).
                     maxSampleOffset: CGSize(width: 10, height: 10)
                 )
             }
@@ -231,7 +231,7 @@ private struct WaterRefractionView<Content: View>: View, @preconcurrency Animata
     }
 }
 
-/// Água desenhada pelo shader `water` (`Bubble.metal`). O nível é animável: quando
+/// Água desenhada pelo shader `water` (`Water.metal`). O nível é animável: quando
 /// `level` muda dentro de uma animação, o SwiftUI chama o body a cada frame com o
 /// valor interpolado e o shader acompanha a subida/descida.
 struct WaterFillView: View, @preconcurrency Animatable {
@@ -321,7 +321,7 @@ final class WaterMotion {
 
     private static let noDroplets: [Float] = [0, 0, -1, -1]
 
-    /// Pedrinhas para o shader (`shadeStones` em `Bubble.metal`): 4 floats por
+    /// Pedrinhas para o shader (`shadeStones` em `Water.metal`): 4 floats por
     /// pedra — x, y, raio, ângulo — no mesmo retângulo de `waterSize`.
     private(set) var stoneData: [Float] = WaterMotion.noStones
     private static let noStones: [Float] = []
