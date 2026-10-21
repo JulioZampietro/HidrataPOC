@@ -18,7 +18,13 @@ enum BackgroundRefreshService {
 
     static func register() {
         BGTaskScheduler.shared.register(forTaskWithIdentifier: taskIdentifier, using: nil) { task in
-            handle(task: task as! BGAppRefreshTask)
+            guard let refreshTask = task as? BGAppRefreshTask else {
+                // Nunca deve acontecer (só registramos um BGAppRefreshTaskRequest), mas
+                // encerrar a tarefa é melhor que derrubar o app num launch de background.
+                task.setTaskCompleted(success: false)
+                return
+            }
+            handle(task: refreshTask)
         }
     }
 
@@ -32,13 +38,36 @@ enum BackgroundRefreshService {
         scheduleNext()
 
         let box = BGTaskBox(task)
+        // `expirationHandler` instalado ANTES de o trabalho começar: atribuí-lo depois
+        // deixava uma janela em que uma expiração não tinha quem a tratasse. E a
+        // expiração precisa chamar `setTaskCompleted(success: false)` — sem isso o iOS
+        // conta a tarefa como abandonada e passa a conceder menos tempo de background.
+        let completed = CompletionGuard()
         let workTask = Task {
             // Lets the send-time policy decide the day's slots even if the app isn't
             // opened that day.
             await NotificationScheduler.shared.ensureTodayScheduled()
             await NotificationScheduler.shared.tick()
-            box.task.setTaskCompleted(success: true)
+            if completed.claim() { box.task.setTaskCompleted(success: true) }
         }
-        task.expirationHandler = { workTask.cancel() }
+        task.expirationHandler = {
+            workTask.cancel()
+            if completed.claim() { box.task.setTaskCompleted(success: false) }
+        }
+    }
+}
+
+/// Garante que `setTaskCompleted` é chamado uma vez só: o trabalho pode terminar no
+/// mesmo instante em que o sistema expira a tarefa, e chamar duas vezes é erro de uso.
+private final class CompletionGuard: @unchecked Sendable {
+    private let lock = NSLock()
+    private var done = false
+
+    func claim() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !done else { return false }
+        done = true
+        return true
     }
 }
