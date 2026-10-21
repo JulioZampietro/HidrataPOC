@@ -1,5 +1,8 @@
 import CloudKit
 import Foundation
+import os
+
+private let logger = Logger(subsystem: "com.hidratapoc", category: "PolicyStore")
 
 /// Where the policy's state lives:
 ///  - params: CloudKit public record PolicyParams/"current" -> cached in the App Group
@@ -31,14 +34,17 @@ final class PolicyStore {
     func refreshFromCloudKit(now: Date = .now) async -> PolicyParams? {
         if let last = defaults.object(forKey: lastRefreshKey) as? Date,
            now.timeIntervalSince(last) < Self.refreshInterval { return nil }
-        defaults.set(now, forKey: lastRefreshKey)
         do {
             let record = try await container.publicCloudDatabase.record(for: CKRecord.ID(recordName: "current"))
+            // Only on a reachable server: a failed fetch must not burn the window, or a
+            // device that happened to be offline at launch waits 6h for the new prior.
+            defaults.set(now, forKey: lastRefreshKey)
             guard let text = record["json"] as? String, let new = Self.decode(text),
                   new.policyVersion != loadParams()?.policyVersion else { return nil }
             defaults.set(text, forKey: paramsKey)
             return new
         } catch {
+            logger.notice("PolicyParams refresh failed, keeping the current params: \(String(describing: error), privacy: .public)")
             return nil   // offline or no record yet: keep the current params
         }
     }
