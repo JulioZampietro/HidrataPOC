@@ -16,13 +16,10 @@ struct HomeView: View {
     @State private var isLogging = false
     @State private var highlightedCard: String? = nil
     @State private var audioPlayer: AVAudioPlayer?
-    @State private var pendingDeleteLog: IntakeLog?
     @State private var isEditingCustomAmount = false
     @State private var showSiriTutorial = false
     @State private var showActionButtonTutorial = false
     @State private var showTodayLogs = false
-    @State private var weather: WeatherContext?
-    @State private var isLoadingWeather = true
     @State private var tempContext: TemperatureAdjustmentContext?
     /// Minijogo da meta batida: o aquário (`WaterHeaderView`) desenha, aqui ficam os botões.
     @Environment(MiniGameController.self) private var miniGames
@@ -112,7 +109,6 @@ struct HomeView: View {
                 .ignoresSafeArea(edges: .top)
             }
         }
-        .task { await loadWeather() }
         // Keeps the Home Screen water tank widget filling against the same goal as the bar,
         // and snapshots it as today's goal so later edits never touch this day.
         .onChange(of: effectiveGoalML, initial: true) { _, goal in
@@ -124,16 +120,6 @@ struct HomeView: View {
             Task {
                 tempContext = await WeatherContextService.shared.temperatureAdjustmentContext()
             }
-        }
-        .confirmationDialog(
-            "Excluir este registro?",
-            isPresented: isPresentingDeleteConfirm,
-            presenting: pendingDeleteLog
-        ) { log in
-            Button("Excluir", role: .destructive) { deleteLog(log) }
-            Button("Cancelar", role: .cancel) { Haptic.dismiss.play() }
-        } message: { log in
-            Text("\(log.tipoEntrada.capitalized) · \(log.volumeML) mL será removido do seu histórico e da base de dados.")
         }
         .sheet(isPresented: $isEditingCustomAmount) {
             CustomIntakeEditorView(initialValueML: profile.customIntakeML, onSave: saveCustomAmount)
@@ -444,10 +430,6 @@ struct HomeView: View {
     
     // MARK: - Helpers
     
-    private var isPresentingDeleteConfirm: Binding<Bool> {
-        Binding(get: { pendingDeleteLog != nil }, set: { if !$0 { pendingDeleteLog = nil } })
-    }
-    
     private func intakeIcon(for preset: Constants.IntakePreset) -> IntakeCardIcon? {
         switch preset {
         case .glass: return .symbol("mug.fill", mirrored: true)
@@ -455,11 +437,6 @@ struct HomeView: View {
         case .gole: return .symbol("drop.fill")
         case .custom: return nil
         }
-    }
-    
-    private func loadWeather() async {
-        weather = await WeatherContextService.shared.currentContext()
-        isLoadingWeather = false
     }
     
     private func logIntake(_ preset: Constants.IntakePreset, cardID: String) {
@@ -487,11 +464,6 @@ struct HomeView: View {
             // actor (which keeps it alive while it plays) and can't be touched here.
             await MainActor.run { audioPlayer = player }
         }
-    }
-    
-    private func deleteLog(_ log: IntakeLog) {
-        Haptic.destructive.play()
-        Task { await NotificationScheduler.shared.deleteIntake(log, context: modelContext) }
     }
     
     private func saveCustomAmount(_ newValue: Int) {
