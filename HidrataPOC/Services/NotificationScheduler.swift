@@ -1,8 +1,11 @@
 import Foundation
 import Intents
+import os
 import SwiftData
 import UIKit
 import UserNotifications
+
+private let logger = Logger(subsystem: "com.hidratapoc", category: "NotificationScheduler")
 
 /// A slot the app has committed to firing a local notification at, but hasn't yet
 /// captured weather/calendar/deficit context for. Local-only bookkeeping (UserDefaults
@@ -303,7 +306,7 @@ final class NotificationScheduler {
                 return decisions.map { ($0.slotFiresAt, !$0.isSend) }
             }
         } catch {
-            print("⚠️ NotificationScheduler: send-time policy failed, falling back to every fixed hour: \(error)")
+            logger.error("Send-time policy failed, falling back to every fixed hour: \(String(describing: error), privacy: .public)")
         }
 
         let calendar = Calendar.current
@@ -614,7 +617,7 @@ final class NotificationScheduler {
             notificationVariant: variant
         )
         context.insert(event)
-        try? context.save()
+        context.saveLogging("evento de notificação")
         await CloudKitSyncService.shared.push(event)
         try? context.save()
 
@@ -735,7 +738,7 @@ final class NotificationScheduler {
             event.tempoAteAgirMin = max(0, Int(Date.now.timeIntervalSince(event.sentAt) / 60))
         }
         event.resultouEmConsumo = true
-        try? context.save()
+        context.saveLogging("ação rápida da notificação")
 
         await CloudKitSyncService.shared.push(log)
         await CloudKitSyncService.shared.push(event)
@@ -789,7 +792,7 @@ final class NotificationScheduler {
         let logID = log.id
         let notificationEventID = log.notificationEventID
         context.delete(log)
-        try? context.save()
+        context.saveLogging("exclusão de registro")
         WidgetSync.reloadWaterTank()
 
         await HealthKitService.shared.delete(logID: logID)
@@ -889,7 +892,7 @@ final class NotificationScheduler {
     /// always a regression (no SwiftData lookup: this also runs from the dismiss path).
     private func armSlot(id: UUID, firesAt: Date, variant: NotificationVariant, sender: MascotSender?) async {
         if variant == .fallbackGeneric {
-            print("⚠️ NotificationScheduler: arming fallback_generic for \(id) — a persona variant should have been chosen")
+            logger.error("Arming fallback_generic for \(id, privacy: .public) — a persona variant should have been chosen")
         }
         let copy = variant.copy(for: id)
         await scheduleSystemNotification(id: id, firesAt: firesAt, title: copy.title, body: copy.body, sender: sender)
@@ -965,9 +968,9 @@ final class NotificationScheduler {
 
             do {
                 finalContent = try content.updating(from: intent)
-                print("✅ NotificationScheduler: built communication notification content for sender \(sender.person.displayName ?? "?")")
+                logger.debug("Built communication notification content for sender \(sender.person.displayName ?? "?", privacy: .public)")
             } catch {
-                print("⚠️ NotificationScheduler: failed to build communication notification content: \(error)")
+                logger.error("Failed to build communication notification content: \(String(describing: error), privacy: .public)")
             }
         }
 
@@ -979,7 +982,7 @@ final class NotificationScheduler {
         guard requestGenerations[key, default: 0] == generation else { return }
         center.add(request) { error in
             if let error {
-                print("⚠️ NotificationScheduler: failed to schedule notification: \(error)")
+                logger.error("Failed to schedule notification: \(String(describing: error), privacy: .public)")
             }
         }
     }
@@ -992,7 +995,7 @@ final class NotificationScheduler {
         await withCheckedContinuation { continuation in
             interaction.donate { error in
                 if let error {
-                    print("⚠️ NotificationScheduler: failed to donate mascot sender interaction: \(error)")
+                    logger.error("Failed to donate mascot sender interaction: \(String(describing: error), privacy: .public)")
                 }
                 continuation.resume()
             }

@@ -27,7 +27,6 @@ final class HealthKitService {
             store.requestAuthorization(toShare: [waterType], read: [waterType]) { _, error in
                 if let error { logger.error("HealthKit auth error: \(error.localizedDescription, privacy: .public)") }
                 let authorized = self.store.authorizationStatus(for: self.waterType) == .sharingAuthorized
-                print("[HealthKit] requestAuthorization done – sharingAuthorized=\(authorized)")
                 continuation.resume(returning: authorized)
             }
         }
@@ -114,7 +113,6 @@ final class HealthKitService {
     func save(volumeML: Int, timestamp: Date, logID: UUID) async {
         guard isAuthorized else {
             logger.warning("HealthKit: save skipped – not authorized (status=\(self.store.authorizationStatus(for: self.waterType).rawValue, privacy: .public))")
-            print("[HealthKit] save skipped – isAuthorized=false for logID=\(logID)")
             return
         }
         let sample = HKQuantitySample(
@@ -232,7 +230,6 @@ final class HealthKitService {
 
     func syncFromHealthKit(userID: String, context: ModelContext) async {
         guard isAuthorized else {
-            print("[HealthKit] syncFromHealthKit skipped – not authorized")
             return
         }
 
@@ -245,7 +242,7 @@ final class HealthKitService {
         } else {
             lastSync = Date.distantPast
         }
-        print("[HealthKit] syncFromHealthKit start=\(lastSync) now=\(Date.now)")
+        logger.debug("syncFromHealthKit a partir de \(lastSync, privacy: .public)")
 
         // Fixed end bound, reused as the new `lastSyncKey`: using a later `.now` would
         // skip samples that landed while the query ran.
@@ -273,7 +270,7 @@ final class HealthKitService {
 
         let ourBundle = Bundle.main.bundleIdentifier ?? ""
         let external = samples.filter { $0.sourceRevision.source.bundleIdentifier != ourBundle }
-        print("[HealthKit] query returned \(samples.count) samples, \(external.count) external")
+        logger.debug("query devolveu \(samples.count, privacy: .public) amostras, \(external.count, privacy: .public) externas")
 
         var inserted = 0
         for sample in external {
@@ -300,7 +297,7 @@ final class HealthKitService {
             inserted += 1
         }
 
-        print("[HealthKit] inserted \(inserted) new records")
+        logger.debug("importou \(inserted, privacy: .public) registros novos")
         if inserted > 0 { try? context.save() }
         UserDefaults.standard.set(queryEnd, forKey: lastSyncKey)
     }
