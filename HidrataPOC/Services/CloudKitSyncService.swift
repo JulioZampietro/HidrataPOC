@@ -34,8 +34,9 @@ final class CloudKitSyncService {
     /// A delete that failed (offline, etc.) — retried by `flushPending`. Unlike a
     /// failed push, the local row is already gone by the time this is queued, so it
     /// can't be recovered by re-scanning SwiftData; it has to be tracked separately.
+    /// `recordName` é tudo de que `CKDatabase.deleteRecord(withID:)` precisa — o tipo
+    /// não entra na operação e só era carregado para aparecer num log.
     private struct PendingDeletion: Codable {
-        let recordType: String
         let recordName: String
     }
     private let pendingDeletionsKey = "pendingCloudKitDeletions"
@@ -297,7 +298,7 @@ final class CloudKitSyncService {
             // first push finished) — nothing to retry.
         } catch {
             logger.error("Failed to delete \(recordType, privacy: .public) \(id, privacy: .public), queuing retry: \(String(describing: error), privacy: .public)")
-            queuePendingDeletion(recordType: recordType, recordName: id.uuidString)
+            queuePendingDeletion(recordName: id.uuidString)
         }
     }
 
@@ -343,21 +344,21 @@ final class CloudKitSyncService {
                         // Already gone is a success for our purposes.
                         if (error as? CKError)?.code == .unknownItem { continue }
                         allSucceeded = false
-                        queuePendingDeletion(recordType: "unknown", recordName: id.recordName)
+                        queuePendingDeletion(recordName: id.recordName)
                     }
                 }
             } catch {
                 logger.error("deleteAllRemoteRecords chunk failed: \(String(describing: error), privacy: .public)")
                 allSucceeded = false
-                for id in chunk { queuePendingDeletion(recordType: "unknown", recordName: id.recordName) }
+                for id in chunk { queuePendingDeletion(recordName: id.recordName) }
             }
         }
         return allSucceeded
     }
 
-    private func queuePendingDeletion(recordType: String, recordName: String) {
+    private func queuePendingDeletion(recordName: String) {
         var pending = loadPendingDeletions()
-        pending.append(PendingDeletion(recordType: recordType, recordName: recordName))
+        pending.append(PendingDeletion(recordName: recordName))
         savePendingDeletions(pending)
     }
 
