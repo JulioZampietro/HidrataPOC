@@ -13,6 +13,20 @@ enum HydrationMath {
         max(0, metaDiariaML - consumidoHojeML)
     }
 
+    /// Total por dia numa passada só, com um `startOfDay` por registro — a mesma
+    /// técnica de `HistoricoData.generateMonth`. `currentStreak` caminha até 365 dias e
+    /// cada dia filtrava a lista inteira com `Calendar.isDate(inSameDayAs:)`, o que
+    /// torna a sequência O(dias × registros): com um ano de uso, mais de um milhão de
+    /// comparações de calendário por avaliação do `body` que a lê.
+    static func totalsByDay(_ logs: [IntakeLog], calendar: Calendar = .current) -> [Date: Int] {
+        var totals: [Date: Int] = [:]
+        totals.reserveCapacity(logs.count)
+        for log in logs {
+            totals[calendar.startOfDay(for: log.timestamp), default: 0] += log.volumeML
+        }
+        return totals
+    }
+
     static func minutesSinceLastIntake(_ logs: [IntakeLog], now: Date = .now) -> Int? {
         guard let last = logs.map(\.timestamp).max() else { return nil }
         return max(0, Int(now.timeIntervalSince(last) / 60))
@@ -87,16 +101,26 @@ enum HydrationMath {
     /// so the streak is not broken mid-day. `logs` should already be filtered to the
     /// target user.
     static func currentStreak(_ logs: [IntakeLog], goalML: (Date) -> Int, calendar: Calendar = .current, now: Date = .now, maxDays: Int = 365) -> Int {
+        currentStreak(totalsByDay: totalsByDay(logs, calendar: calendar), goalML: goalML, calendar: calendar, now: now, maxDays: maxDays)
+    }
+
+    /// Variante que recebe os totais já agregados (ver `totalsByDay`), para quem avalia
+    /// a sequência várias vezes a partir da mesma lista de registros não pagar a
+    /// agregação de novo a cada chamada.
+    static func currentStreak(totalsByDay totals: [Date: Int], goalML: (Date) -> Int, calendar: Calendar = .current, now: Date = .now, maxDays: Int = 365) -> Int {
         let today = calendar.startOfDay(for: now)
-        let todayMet = metGoal(logs, on: today, goalML: goalML, calendar: calendar)
+        let todayMet = metGoal(totals, on: today, goalML: goalML)
         guard let startDate = todayMet ? today : calendar.date(byAdding: .day, value: -1, to: today) else { return 0 }
         var count = 0
-        var checkDate = startDate
+        // Sempre reduzido a início de dia: `totals` é indexado por `startOfDay`, e
+        // subtrair um dia numa virada de horário de verão pode cair às 23h do dia
+        // anterior — uma chave que não existe no dicionário.
+        var checkDate = calendar.startOfDay(for: startDate)
         for _ in 0..<maxDays {
-            guard metGoal(logs, on: checkDate, goalML: goalML, calendar: calendar) else { break }
+            guard metGoal(totals, on: checkDate, goalML: goalML) else { break }
             count += 1
             guard let previous = calendar.date(byAdding: .day, value: -1, to: checkDate) else { break }
-            checkDate = previous
+            checkDate = calendar.startOfDay(for: previous)
         }
         return count
     }
@@ -105,14 +129,17 @@ enum HydrationMath {
     /// ontem é > 0) e hoje ainda não bateu a meta — ou seja, ela quebra se o dia acabar
     /// assim. Usa `firesAt` (não `.now`) pra ser puro e testável com qualquer horário.
     static func isStreakAtRisk(_ logs: [IntakeLog], goalML: (Date) -> Int, calendar: Calendar = .current, firesAt: Date) -> Bool {
-        guard !metGoal(logs, on: firesAt, goalML: goalML, calendar: calendar) else { return false }
+        let totals = totalsByDay(logs, calendar: calendar)
+        guard !metGoal(totals, on: calendar.startOfDay(for: firesAt), goalML: goalML) else { return false }
         guard goalML(firesAt) > 0 else { return false }
         guard let yesterday = calendar.date(byAdding: .day, value: -1, to: calendar.startOfDay(for: firesAt)) else { return false }
-        return currentStreak(logs, goalML: goalML, calendar: calendar, now: yesterday) > 0
+        return currentStreak(totalsByDay: totals, goalML: goalML, calendar: calendar, now: yesterday) > 0
     }
 
-    private static func metGoal(_ logs: [IntakeLog], on day: Date, goalML: (Date) -> Int, calendar: Calendar) -> Bool {
+    /// `day` já deve vir normalizado por `startOfDay` no mesmo calendário que gerou
+    /// `totals`, que é indexado por início de dia.
+    private static func metGoal(_ totals: [Date: Int], on day: Date, goalML: (Date) -> Int) -> Bool {
         let goal = goalML(day)
-        return goal > 0 && totalML(logs, on: day, calendar: calendar) >= goal
+        return goal > 0 && (totals[day] ?? 0) >= goal
     }
 }

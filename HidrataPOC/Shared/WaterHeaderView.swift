@@ -151,8 +151,17 @@ struct WaterHeaderView: View {
         }
     }
 
-    private var streak: Int {
-        HydrationMath.currentStreak(allLogs.filter { $0.userID == profile.userID }, goalML: goalResolver.goalML(on:))
+    /// Sequência de dias batendo a meta. Em `@State`, não computada a cada acesso:
+    /// `currentStreak` caminha até 365 dias e o `body` a lê seis vezes (cabeçalho,
+    /// duas sheets, `activeGame`, `runningGame` e o próprio `onChange`) — e o
+    /// `GeometryReader` do aquário refaz o conteúdo a cada frame durante o arrasto
+    /// entre Home e Histórico, o mesmo motivo que levou `TodayIntake` e
+    /// `MonthSummary` a serem calculados uma vez por atualização.
+    @State private var streak = 0
+
+    private func recomputeStreak() {
+        let totals = HydrationMath.totalsByDay(allLogs.filter { $0.userID == profile.userID })
+        streak = HydrationMath.currentStreak(totalsByDay: totals, goalML: goalResolver.goalML(on:))
     }
 
     var body: some View {
@@ -195,6 +204,10 @@ struct WaterHeaderView: View {
         .onChange(of: streak, initial: true) { _, newStreak in
             announceNewlyUnlockedGames(streak: newStreak)
         }
+        // Entradas da sequência: registros do usuário (incluídos/excluídos, aqui ou em
+        // outra tela) e a meta do dia, que muda quando a previsão do clima chega.
+        .onChange(of: allLogs.count, initial: true) { recomputeStreak() }
+        .onChange(of: effectiveGoalML) { recomputeStreak() }
     }
 
     // MARK: - Subviews
