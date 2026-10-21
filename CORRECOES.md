@@ -31,7 +31,7 @@ O único warning restante é `NotificationScheduler.swift:983: consider using as
 | **C-2** | Corrigido | `a58d68e` | Texto reescrito: o que é coletado, para onde vai, que peso e altura não saem do aparelho, que a localização só serve para o clima, e o caminho para revogar. **A cópia merece sua revisão.** |
 | **C-3** | Corrigido | `09bcac1` | Tela "Meus dados" em Configurações: contagem, exportação JSON via ShareLink e exclusão total (local + CloudKit + HealthKit + `UserDefaults`). A exclusão avisa quando a parte remota falhou, em vez de alegar sucesso. |
 | **A-1** | Corrigido | `55a9b87` | `idealPlan` vira `@State` preenchido no `.task`. Era ~25 execuções de Monte Carlo por avaliação do `body`. |
-| **A-2** | **Revertido** | `d2bfa45`, `69cb74e` → `140eecf` | Causou uma regressão grave (ver seção abaixo): travava a navegação para Configurações. As 6 views voltaram ao `@Query` sem predicado. |
+| **A-2** | Corrigido | `d2bfa45`, `69cb74e` → `140eecf` (revertido) → `da8639d` (reimplementado) | Causou uma regressão grave (ver seção abaixo), revertida, depois reimplementada com um padrão seguro: `@State` + `.syncedFetch` (fetch assíncrono via `.task`, nunca `@Query` configurado num `init`). |
 | **A-3** | Corrigido | `e971d97` | `HydrationMath.totalsByDay` + `streak` em `@State`. Inclui normalização por `startOfDay` no laço, com teste de virada de horário de verão. |
 | **A-4** | Corrigido | `0d77034` | Uma consulta por lote de 500 em vez de uma por registro. Chamador também passa a filtrar por usuário. |
 | **A-5** | Corrigido | `6bb68b3` | Predicado `syncStatusRaw != "synced"` nas 6 tabelas. |
@@ -88,7 +88,7 @@ O único warning restante é `NotificationScheduler.swift:983: consider using as
 | **B-23** | **Não aplicável** | — | Confirmado em build limpo: o aviso vem só do target `HydrationKit` (framework sem intents). `HidrataPOC` e `HydrationWidget` escrevem `Metadata.appintents` normalmente — as frases da Siri estão registradas. |
 | **B-24** | **Precisa de você** | — | `aps-environment: development` só se confirma num archive de distribuição, que depende de assinatura. |
 
-**Resumo:** 46 corrigidos (2 parciais) · 1 revertido (A-2) · 2 não aplicáveis · 6 precisam de você.
+**Resumo:** 47 corrigidos (2 parciais) · 2 não aplicáveis · 6 precisam de você.
 
 ## Regressão encontrada depois da entrega inicial
 
@@ -138,11 +138,16 @@ performance que ele buscava não compensa quebrar a navegação.
 "Conectar ao Saúde" e "Meus dados" abrem normalmente no simulador. Suíte completa:
 73/73 testes, build Debug e Release OK.
 
-**Se quiser reaproveitar a ideia do A-2 no futuro:** o padrão problemático é
-configurar um `@Query` dinâmico dentro de um `init` síncrono chamado durante uma
-transição de apresentação (push ou sheet). Um caminho mais seguro seria popular o
-predicado via `@State` preenchido num `.task` **depois** da primeira aparição da
-view, não no `init` — o mesmo princípio já usado na correção do A-1.
+**Atualização: reimplementado em `da8639d`.** O padrão problemático era configurar
+um `@Query` dinâmico dentro de um `init` síncrono chamado durante uma transição de
+apresentação (push ou sheet). A correção aplica exatamente o caminho seguro descrito
+acima: `HidrataPOC/Shared/SyncedFetch.swift` é uma extensão de `View` que busca os
+dados via `context.fetch(_:)` dentro de `.task` (que só roda depois de a view já
+estar na hierarquia) e se mantém sincronizada ouvindo `ModelContext.didSave` — a
+mesma reatividade de um `@Query`, sem nunca tocar em `@Query` para esses dados. As 6
+views trocaram `@Query` com predicado por `@State ... = []` + `.syncedFetch(...)`,
+com os mesmos recortes do A-2 original. Verificado com a mesma técnica de
+reprodução do bug: Configurações abre normalmente, 73/73 testes, Debug e Release OK.
 
 ## Achado extra, encontrado durante o trabalho
 
