@@ -85,7 +85,7 @@ final class DailyGoal {
         } else {
             context.insert(DailyGoal(userID: userID, dayKey: key, baseGoalML: baseGoalML, adjustmentML: adjustmentML ?? 0, adjustmentLocked: adjustmentML != nil))
         }
-        try? context.save()
+        context.saveLogging("meta do dia")
     }
 }
 

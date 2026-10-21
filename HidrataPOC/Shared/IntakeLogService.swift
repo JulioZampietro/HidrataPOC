@@ -53,7 +53,7 @@ enum IntakeLogService {
                 matchedEvent.tempoAteAgirMin = max(0, Int(Date.now.timeIntervalSince(matchedEvent.sentAt) / 60))
             }
         }
-        try? context.save()
+        context.saveLogging("registro de água")
         WidgetSync.reloadWaterTank()
 
         await onIntakeRecorded?(log.volumeML, log.timestamp, log.id)
@@ -89,7 +89,7 @@ enum IntakeLogService {
                 if let matchedEvent {
                     await CloudKitSyncService.shared.push(matchedEvent)
                 }
-                try? context.save()
+                context.saveLogging("sync do registro de água")
             }
         } else {
             await CloudKitSyncService.shared.push(log)

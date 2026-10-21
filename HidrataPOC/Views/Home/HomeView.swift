@@ -487,7 +487,7 @@ struct HomeView: View {
         profile.customIntakeML = newValue
         profile.atualizadoEm = .now
         profile.syncStatus = .pending
-        try? modelContext.save()
+        modelContext.saveLogging("volume personalizado")
         InteractionTracker.log("custom_amount_editor_save", screen: .home, userID: profile.userID, metadata: ["amountML": "\(newValue)"], context: modelContext)
         Task {
             await CloudKitSyncService.shared.push(profile)

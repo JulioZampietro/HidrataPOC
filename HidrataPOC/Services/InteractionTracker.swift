@@ -19,7 +19,7 @@ enum InteractionTracker {
         let json = metadata.flatMap { try? JSONEncoder().encode($0) }.flatMap { String(data: $0, encoding: .utf8) }
         let event = UIInteractionEvent(userID: userID, eventName: eventName, screen: screen.rawValue, metadataJSON: json)
         context.insert(event)
-        try? context.save()
+        context.saveLogging("evento de interação")
         Task {
             await CloudKitSyncService.shared.push(event)
             try? context.save()

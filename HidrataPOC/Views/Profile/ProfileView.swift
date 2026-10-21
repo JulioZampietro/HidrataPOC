@@ -603,7 +603,7 @@ struct ProfileView: View {
         }
         profile.atualizadoEm = .now
         profile.syncStatus = .pending
-        try? modelContext.save()
+        modelContext.saveLogging("dados pessoais")
         recordTodayGoal()
         isEditing = false
         InteractionTracker.log("edit_personal_data_save", screen: .profile, userID: profile.userID, context: modelContext)
@@ -618,7 +618,7 @@ struct ProfileView: View {
         profile.metaDiariaML = newValue
         profile.atualizadoEm = .now
         profile.syncStatus = .pending
-        try? modelContext.save()
+        modelContext.saveLogging("meta editada")
         recordTodayGoal()
         InteractionTracker.log("edit_goal_save", screen: .profile, userID: profile.userID, metadata: ["newGoalML": "\(newValue)"], context: modelContext)
         Task {
