@@ -295,9 +295,6 @@
 		BBAB78F8BE483135D5CBDEE5 /* Fixtures/policy_parity_vectors.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Fixtures/policy_parity_vectors.json; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
-/* Begin PBXFileSystemSynchronizedRootGroup section */
-		38054D603063FAE5002AAA24 /* notification */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = notification; sourceTree = "<group>"; };
-/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		5108A204B4BB55CAD7920E43 /* Frameworks */ = {
@@ -409,7 +406,6 @@
 				37A7FBDE48AA63EF35F8635C /* HidrataPOCTests */,
 				D75F7703392B61CB93FD3B8F /* HydrationKit */,
 				CCE68074A395D0577E56F79D /* HydrationWidget */,
-				38054D603063FAE5002AAA24 /* notification */,
 				46ECE8838F4FE464DCC19DD6 /* Products */,
 			);
 			sourceTree = "<group>";
