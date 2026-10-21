@@ -185,6 +185,11 @@ final class CloudKitSyncService {
             record["dayKey"] = goal.dayKey
             record["baseGoalML"] = goal.baseGoalML
             record["adjustmentML"] = goal.adjustmentML
+            // Saved with `.allKeys` below, so an omitted field would be nulled on the
+            // server — and a restore would bring every row back unlocked, letting a
+            // later forecast rewrite a goal the user may already have met (the exact
+            // thing `DailyGoal.adjustmentLocked` exists to prevent).
+            record["adjustmentLocked"] = goal.adjustmentLocked ? 1 : 0
             record["atualizadoEm"] = goal.atualizadoEm
             return record
         }
@@ -494,15 +499,20 @@ final class CloudKitSyncService {
               let baseGoalML = record["baseGoalML"] as? Int,
               let remoteUpdated = record["atualizadoEm"] as? Date else { return false }
         let adjustmentML = record["adjustmentML"] as? Int ?? 0
+        // Rows pushed by a build before `adjustmentLocked` was synced have no field at
+        // all; those come back unlocked, which just re-locks on their next write.
+        let remoteLocked = (record["adjustmentLocked"] as? Int).map { $0 != 0 } ?? false
         let existing = try? context.fetch(FetchDescriptor<DailyGoal>(predicate: #Predicate { $0.userID == userID && $0.dayKey == dayKey })).first
         if let existing {
             guard existing.atualizadoEm < remoteUpdated else { return false }
             existing.baseGoalML = baseGoalML
             existing.adjustmentML = adjustmentML
+            // Never un-lock: a settled adjustment stays settled whichever side saw it first.
+            existing.adjustmentLocked = existing.adjustmentLocked || remoteLocked
             existing.atualizadoEm = remoteUpdated
             existing.syncStatus = .synced
         } else {
-            let goal = DailyGoal(userID: userID, dayKey: dayKey, baseGoalML: baseGoalML, adjustmentML: adjustmentML)
+            let goal = DailyGoal(userID: userID, dayKey: dayKey, baseGoalML: baseGoalML, adjustmentML: adjustmentML, adjustmentLocked: remoteLocked)
             goal.atualizadoEm = remoteUpdated
             goal.syncStatus = .synced
             context.insert(goal)
