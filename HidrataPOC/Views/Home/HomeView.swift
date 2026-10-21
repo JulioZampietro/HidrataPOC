@@ -39,6 +39,10 @@ struct HomeView: View {
     @AppStorage(MiniGame.mazeBestStorageKey) private var mazeBestScore = 0
     @AppStorage(MiniGame.sliceBestStorageKey) private var sliceBestScore = 0
     @AppStorage(MiniGame.snakeBestStorageKey) private var snakeBestScore = 0
+    @AppStorage(MiniGame.minesBestStorageKey) private var minesBestScore = 0
+    @AppStorage(MiniGame.runnerBestStorageKey) private var runnerBestScore = 0
+    /// Campo Minado: tocar na água marca bandeira em vez de abrir (espelha `minesGame.flagMode`).
+    @State private var minesFlagMode = false
     /// Os quatro cartões de ingestão viram os botões do jogo na mesma animação.
     @Namespace private var controlsNamespace
 
@@ -286,6 +290,20 @@ struct HomeView: View {
                 // O corte é no aquário: no lugar dos controles, só a dica.
                 recordRow(best: sliceBestScore, cardHeight: cardHeight) {
                     GameHintCard(title: "Deslize na água", subtitle: "Corte as pedras e não corte o rim", height: cardHeight)
+                }
+            case .mines:
+                // As casas se abrem tocando no aquário; aqui fica a troca entre abrir e marcar.
+                recordRow(best: minesBestScore, cardHeight: cardHeight) {
+                    MinesModeCard(isFlagging: minesFlagMode, height: cardHeight) {
+                        minesFlagMode.toggle()
+                        miniGames.minesGame.flagMode = minesFlagMode
+                    }
+                    .onAppear { miniGames.minesGame.flagMode = minesFlagMode }
+                }
+            case .runner:
+                // A gota desvia deslizando no aquário: no lugar dos controles, só a dica.
+                recordRow(best: runnerBestScore, cardHeight: cardHeight) {
+                    GameHintCard(title: "Deslize na água", subtitle: "Pros lados, pra cima ou pra baixo", height: cardHeight)
                 }
             default:
                 recordRow(best: jumpBestScore, cardHeight: cardHeight) { jumpJoystick }
@@ -594,6 +612,8 @@ struct IntakeCardContent: View {
     let subtitle: String
     var isHighlighted: Bool = false
     var height: CGFloat? = nil
+    /// Texto no topo do cartão em vez de no rodapé, longe da parte mais cheia do ícone.
+    var textOnTop: Bool = false
 
     /// Tinta do texto sobre o cartão liso (fora do ícone).
     private var titleInk: Color {
@@ -641,7 +661,7 @@ struct IntakeCardContent: View {
     /// Altura fixa: o cartão não muda com o Dynamic Type.
     private func textBlock(title titleColor: Color, subtitle subtitleColor: Color) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            Spacer(minLength: 0)
+            if !textOnTop { Spacer(minLength: 0) }
 
             Text(title)
                 .font(AppFont.headline)
@@ -650,9 +670,12 @@ struct IntakeCardContent: View {
             Text(subtitle)
                 .font(AppFont.subheadline)
                 .foregroundStyle(subtitleColor)
+
+            if textOnTop { Spacer(minLength: 0) }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 16)
+        .padding(.top, textOnTop ? 20 : 0) // no topo, desce um pouco pra não colar na borda
         .padding(.leading, 12)
         .padding(.trailing, 16)
         .frame(height: height)

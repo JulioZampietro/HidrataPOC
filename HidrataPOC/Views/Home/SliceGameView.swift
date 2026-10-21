@@ -171,8 +171,8 @@ struct SliceGameView: View {
     }
 }
 
-/// Cartão ao lado do recorde nos jogos controlados só pelo dedo no aquário (Quebra-Pedras e
-/// Cobrinha de Pedra): lembra como se joga, no lugar dos botões.
+/// Cartão ao lado do recorde nos jogos controlados só pelo dedo no aquário (Quebra-Pedras,
+/// Cobrinha e Gota Surfista): lembra como se joga, no lugar dos botões.
 struct GameHintCard: View {
     let title: String
     let subtitle: String
