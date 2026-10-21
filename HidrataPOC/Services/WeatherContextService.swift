@@ -92,7 +92,12 @@ final class WeatherContextService: NSObject, CLLocationManagerDelegate {
     /// hydration adjustment relative to `Constants.baselineMaxTempC`.
     func temperatureAdjustmentContext() async -> TemperatureAdjustmentContext? {
         let location: CLLocation
-        do { location = try await resolveLocation() } catch { return nil }
+        do {
+            location = try await resolveLocation()
+        } catch {
+            logger.error("Location fetch failed for the daily forecast: \(String(describing: error), privacy: .public)")
+            return nil
+        }
 
         do {
             let forecast = try await WeatherService.shared.weather(for: location, including: .daily)
@@ -145,12 +150,34 @@ final class WeatherContextService: NSObject, CLLocationManagerDelegate {
         Date.now.timeIntervalSince(capturedAt) > Double(Constants.weatherCacheMaxAgeMinutes) * 60
     }
 
+    /// `requestLocation()` normalmente responde por um dos dois callbacks do delegate,
+    /// mas há casos em que nenhum chega em tempo útil (serviços recém-ligados, indoor
+    /// sem rede, baixo consumo). Sem este limite, a continuation ficava pendurada e
+    /// `inflightLocationTask` nunca era limpo — toda chamada de clima seguinte
+    /// aguardava a mesma task para sempre, e `NotificationScheduler.tick()` travava na
+    /// primeira linha (`refreshCacheIfStale`), parando em silêncio o pipeline inteiro de
+    /// lembretes até o app ser reiniciado.
+    private static let locationTimeoutSeconds: Double = 10
+
     private func fetchOneTimeLocation() async throws -> CLLocation {
         let status = locationManager.authorizationStatus
         guard status == .authorizedWhenInUse || status == .authorizedAlways else {
             logger.error("Location not authorized (authorizationStatus=\(status.rawValue, privacy: .public))")
             throw CLError(.denied)
         }
+
+        // Tudo aqui é @MainActor (o delegate também salta para cá), então a leitura e a
+        // limpeza de `locationContinuation` são serializadas: quem chegar primeiro
+        // resume e zera, e o outro encontra nil — nunca dois resumes na mesma.
+        let timeout = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(Self.locationTimeoutSeconds))
+            guard !Task.isCancelled, let pending = locationContinuation else { return }
+            locationContinuation = nil
+            logger.error("Location request timed out after \(Self.locationTimeoutSeconds, privacy: .public)s")
+            pending.resume(throwing: CLError(.locationUnknown))
+        }
+        defer { timeout.cancel() }
+
         return try await withCheckedThrowingContinuation { continuation in
             locationContinuation = continuation
             locationManager.requestLocation()
