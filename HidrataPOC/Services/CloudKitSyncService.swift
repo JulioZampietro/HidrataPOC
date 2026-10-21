@@ -71,14 +71,23 @@ final class CloudKitSyncService {
 
     // MARK: - Per-type pushes
 
+    /// Pseudonymized on purpose: this record lands in the **public** database, so it
+    /// carries only what the offline model actually consumes (see
+    /// `ml/python/dataset.py::_profile_features` — `bmi`, `age`, `female`, `goal_l`),
+    /// never the raw anthropometrics. Exact weight + height + age + sex together are a
+    /// quasi-identifier; BMI and a 5-year age band keep the model's inputs while
+    /// dropping the combination that singles a participant out. `generoAutoDeclarado`
+    /// (free text) is never pushed at all.
+    ///
+    /// Consequence for restore (`applyProfile`): a fresh install recovers the goal,
+    /// sex, time zone and custom amount, but not exact weight/height/age — those stay
+    /// on-device only. The age band's midpoint is used as an approximation.
     func push(_ profile: UserProfile) async {
         let record = existingOrNewRecord(type: "UserProfile", id: profile.id, systemFields: profile.ckSystemFields)
         record["userID"] = profile.userID
-        record["idade"] = profile.idade
+        record["faixaIdade"] = Self.ageBand(profile.idade)
         record["genero"] = profile.genero
-        record["generoAutoDeclarado"] = profile.generoAutoDeclarado
-        record["pesoKg"] = profile.pesoKg
-        record["alturaCm"] = profile.alturaCm
+        record["bmi"] = Self.bmi(pesoKg: profile.pesoKg, alturaCm: profile.alturaCm)
         record["fusoHorario"] = profile.fusoHorario
         record["metaDiariaML"] = profile.metaDiariaML
         record["customIntakeML"] = profile.customIntakeML
@@ -214,6 +223,35 @@ final class CloudKitSyncService {
 
     private func dailyGoalRecordName(_ goal: DailyGoal) -> String {
         "DailyGoal-\(goal.userID)-\(goal.dayKey)"
+    }
+
+    // MARK: - Pseudonymization (public-database fields)
+
+    /// 5-year band, e.g. 32 -> "30-34"; everything from 80 up collapses into "80+", so
+    /// the oldest participants aren't singled out by a narrow band. Non-private so
+    /// `CloudKitPseudonymizationTests` can cover the boundaries.
+    static func ageBand(_ idade: Int) -> String {
+        guard idade > 0 else { return "desconhecida" }
+        guard idade < 80 else { return "80+" }
+        let lower = (idade / 5) * 5
+        return "\(lower)-\(lower + 4)"
+    }
+
+    /// kg/m², one decimal — what the model uses in place of raw weight and height.
+    /// nil when height is missing/zero, so a bad profile pushes no value instead of
+    /// an infinity.
+    static func bmi(pesoKg: Double, alturaCm: Double) -> Double? {
+        let meters = alturaCm / 100
+        guard meters > 0, pesoKg > 0 else { return nil }
+        return ((pesoKg / (meters * meters)) * 10).rounded() / 10
+    }
+
+    /// Midpoint of an `ageBand` string, for the restore path. nil when unparseable.
+    static func ageFromBand(_ band: String) -> Int? {
+        if band == "80+" { return 82 }
+        let parts = band.split(separator: "-").compactMap { Int($0) }
+        guard parts.count == 2 else { return nil }
+        return (parts[0] + parts[1]) / 2
     }
 
     /// Pushed again whenever the scheduler or the policy updates the row (closing the
@@ -447,9 +485,17 @@ final class CloudKitSyncService {
             profile.syncStatus = .synced
         }
         profile.userID = userID
-        profile.idade = record["idade"] as? Int ?? profile.idade
+        // `idade` is only present on rows pushed by a build before pseudonymization
+        // (see `push(_ profile:)`); newer rows carry a 5-year band, whose midpoint is
+        // the best available approximation. Exact weight/height are no longer pushed at
+        // all, so they keep whatever this device already had (0 on a fresh install —
+        // the goal itself is restored below, so the app stays usable).
+        if let exactAge = record["idade"] as? Int {
+            profile.idade = exactAge
+        } else if let band = record["faixaIdade"] as? String, let approximate = Self.ageFromBand(band) {
+            profile.idade = approximate
+        }
         profile.genero = record["genero"] as? String
-        profile.generoAutoDeclarado = record["generoAutoDeclarado"] as? String
         profile.pesoKg = record["pesoKg"] as? Double ?? profile.pesoKg
         profile.alturaCm = record["alturaCm"] as? Double ?? profile.alturaCm
         profile.fusoHorario = record["fusoHorario"] as? String ?? profile.fusoHorario

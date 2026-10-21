@@ -125,6 +125,7 @@
 		12CE484794FFC757AC70F60D /* SlotDecision.swift in Sources */ = {isa = PBXBuildFile; fileRef = 895A66ADF648A6012778F8B5 /* SlotDecision.swift */; };
 		656AECD94C3D1D59A81A07F8 /* ThompsonPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E29859AFA6016B9CD4129DD3 /* ThompsonPolicyTests.swift */; };
 		824900A1E8879270B3E460CC /* HydrationPlannerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65C77B762E0FC00FF6BBCD52 /* HydrationPlannerTests.swift */; };
+		BE8E466EB4317977C12E7108 /* CloudKitPseudonymizationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85EC26A4A4F9A7CBAE5120EA /* CloudKitPseudonymizationTests.swift */; };
 		EB873C2FA0B19E03D6A4DE63 /* Fixtures/policy_parity_vectors.json in Resources */ = {isa = PBXBuildFile; fileRef = BBAB78F8BE483135D5CBDEE5 /* Fixtures/policy_parity_vectors.json */; };
 /* End PBXBuildFile section */
 
@@ -286,6 +287,7 @@
 		895A66ADF648A6012778F8B5 /* SlotDecision.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlotDecision.swift; sourceTree = "<group>"; };
 		E29859AFA6016B9CD4129DD3 /* ThompsonPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThompsonPolicyTests.swift; sourceTree = "<group>"; };
 		65C77B762E0FC00FF6BBCD52 /* HydrationPlannerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HydrationPlannerTests.swift; sourceTree = "<group>"; };
+		85EC26A4A4F9A7CBAE5120EA /* CloudKitPseudonymizationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitPseudonymizationTests.swift; sourceTree = "<group>"; };
 		BBAB78F8BE483135D5CBDEE5 /* Fixtures/policy_parity_vectors.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Fixtures/policy_parity_vectors.json; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -360,6 +362,7 @@
 				7C1D2E3F4A5B6C7D8E9F0A1C /* NotificationSlotDecisionTests.swift */,
 				E29859AFA6016B9CD4129DD3 /* ThompsonPolicyTests.swift */,
 				65C77B762E0FC00FF6BBCD52 /* HydrationPlannerTests.swift */,
+				85EC26A4A4F9A7CBAE5120EA /* CloudKitPseudonymizationTests.swift */,
 				BBAB78F8BE483135D5CBDEE5 /* Fixtures/policy_parity_vectors.json */,
 			);
 			path = HidrataPOCTests;
@@ -763,6 +766,7 @@
 				7C1D2E3F4A5B6C7D8E9F0A1B /* NotificationSlotDecisionTests.swift in Sources */,
 				656AECD94C3D1D59A81A07F8 /* ThompsonPolicyTests.swift in Sources */,
 				824900A1E8879270B3E460CC /* HydrationPlannerTests.swift in Sources */,
+				BE8E466EB4317977C12E7108 /* CloudKitPseudonymizationTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -69,14 +69,43 @@ def hour_features(hour):
             "hour_sin2": np.sin(2 * w), "hour_cos2": np.cos(2 * w)}
 
 
+def _age_from_band(band) -> float:
+    """Midpoint of the app's 5-year band ("30-34" -> 32.0, "80+" -> 82.0)."""
+    if not isinstance(band, str):
+        return np.nan
+    if band == "80+":
+        return 82.0
+    parts = band.split("-")
+    if len(parts) != 2:
+        return np.nan
+    try:
+        return (int(parts[0]) + int(parts[1])) / 2
+    except ValueError:
+        return np.nan
+
+
 def _profile_features(df: pd.DataFrame) -> pd.DataFrame:
+    """`age` and `bmi` come straight from the record when the app pseudonymized them
+    (CloudKitSyncService.push(_ profile:) sends `faixaIdade` + `bmi` instead of exact
+    age, weight and height). Exports taken before that change still carry the raw
+    columns, so both shapes are accepted and the older one wins when present."""
     df = df.copy()
-    df["age"] = df.get("idade")
     gen = df.get("genero")
     df["female"] = np.where(gen == "feminino", 1.0, np.where(gen == "masculino", 0.0, np.nan))
-    h = df.get("alturaCm") / 100.0
-    df["bmi"] = df.get("pesoKg") / (h * h)
     df["goal_l"] = df.get("metaDiariaML") / 1000.0
+
+    if "idade" in df:
+        df["age"] = df["idade"]
+    elif "faixaIdade" in df:
+        df["age"] = df["faixaIdade"].map(_age_from_band)
+    else:
+        df["age"] = np.nan
+
+    if "pesoKg" in df and "alturaCm" in df:
+        h = df["alturaCm"] / 100.0
+        df["bmi"] = df["pesoKg"] / (h * h)
+    elif "bmi" not in df:
+        df["bmi"] = np.nan
     return df
 
 
