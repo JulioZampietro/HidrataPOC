@@ -196,18 +196,29 @@ final class HealthKitService {
         }
         print("[HealthKit] syncFromHealthKit start=\(lastSync) now=\(Date.now)")
 
-        let predicate = HKQuery.predicateForSamples(withStart: lastSync, end: .now)
-        let samples: [HKQuantitySample] = await withCheckedContinuation { continuation in
+        // Fixed end bound, reused as the new `lastSyncKey`: using a later `.now` would
+        // skip samples that landed while the query ran.
+        let queryEnd = Date.now
+        let predicate = HKQuery.predicateForSamples(withStart: lastSync, end: queryEnd)
+        // nil = the query itself failed. Advancing `lastSyncKey` on a failure would skip
+        // that window permanently, so a failed read has to leave the bookmark alone.
+        let samples: [HKQuantitySample]? = await withCheckedContinuation { continuation in
             let query = HKSampleQuery(
                 sampleType: waterType,
                 predicate: predicate,
                 limit: HKObjectQueryNoLimit,
                 sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]
-            ) { _, results, _ in
-                continuation.resume(returning: (results as? [HKQuantitySample]) ?? [])
+            ) { _, results, error in
+                if let error {
+                    logger.error("HealthKit read failed, keeping lastSync: \(error.localizedDescription, privacy: .public)")
+                    continuation.resume(returning: nil)
+                } else {
+                    continuation.resume(returning: (results as? [HKQuantitySample]) ?? [])
+                }
             }
             store.execute(query)
         }
+        guard let samples else { return }
 
         let ourBundle = Bundle.main.bundleIdentifier ?? ""
         let external = samples.filter { $0.sourceRevision.source.bundleIdentifier != ourBundle }
@@ -240,7 +251,7 @@ final class HealthKitService {
 
         print("[HealthKit] inserted \(inserted) new records")
         if inserted > 0 { try? context.save() }
-        UserDefaults.standard.set(Date.now, forKey: lastSyncKey)
+        UserDefaults.standard.set(queryEnd, forKey: lastSyncKey)
     }
 
     /// Reseta a data de última sincronização para que a próxima chamada de
