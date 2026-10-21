@@ -602,6 +602,11 @@ struct ProfileView: View {
         profile.generoAutoDeclarado = nil
         profile.pesoKg = values.pesoKg
         profile.alturaCm = values.alturaCm
+        // Mantido em dia: o pipeline usa este campo para converter os timestamps em
+        // hora local (ml/python/dataset.py::to_local), e ele só era gravado no
+        // onboarding — um fuso velho desloca a hora de todo o histórico de quem muda
+        // de região.
+        profile.fusoHorario = TimeZone.current.identifier
         if values.resetGoalToCalculated || values.storedGoalML == nil {
             profile.metaDiariaML = UserProfile.suggestedGoalML(gender: values.genero?.gender, idade: values.idade, pesoKg: values.pesoKg, alturaCm: values.alturaCm)
         }
