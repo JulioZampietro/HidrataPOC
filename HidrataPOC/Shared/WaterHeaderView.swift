@@ -19,27 +19,8 @@ struct WaterHeaderView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.modelContext) private var modelContext
-    // Estreitados por predicado: sem ele, cada atualização do `body` — que o
-    // GeometryReader refaz a cada frame durante o arrasto entre páginas —
-    // materializava as tabelas inteiras. A janela é de 366 dias porque é o que a
-    // sequência olha (`currentStreak(maxDays: 365)`); o resto é hoje.
     @Query private var allLogs: [IntakeLog]
     @Query private var allDailyGoals: [DailyGoal]
-
-    init(profile: UserProfile, screen: AppScreen, onOpenProfile: @escaping () -> Void) {
-        self.profile = profile
-        self.screen = screen
-        self.onOpenProfile = onOpenProfile
-        let userID = profile.userID
-        let calendar = Calendar.current
-        let cutoff = calendar.date(byAdding: .day, value: -366, to: calendar.startOfDay(for: .now)) ?? .distantPast
-        _allLogs = Query(filter: #Predicate<IntakeLog> { $0.userID == userID && $0.timestamp >= cutoff },
-                         sort: \IntakeLog.timestamp)
-        // "yyyy-MM-dd" ordena cronologicamente como string (ver DailyGoalResolver).
-        let cutoffKey = DailyGoal.dayKey(for: cutoff)
-        _allDailyGoals = Query(filter: #Predicate<DailyGoal> { $0.userID == userID && $0.dayKey >= cutoffKey },
-                               sort: \DailyGoal.dayKey)
-    }
     @State private var tempContext: TemperatureAdjustmentContext?
     @State private var showShare = false
     @State private var showMiniGames = false

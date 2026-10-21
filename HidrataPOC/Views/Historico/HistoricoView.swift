@@ -83,13 +83,6 @@ struct HistoricoView: View {
     }()
     private var calendar: Calendar { Self.ptBRCalendar }
 
-    init(profile: UserProfile) {
-        self.profile = profile
-        let userID = profile.userID
-        _allLogs = Query(filter: #Predicate<IntakeLog> { $0.userID == userID }, sort: \IntakeLog.timestamp)
-        _allDailyGoals = Query(filter: #Predicate<DailyGoal> { $0.userID == userID }, sort: \DailyGoal.dayKey)
-    }
-
     private let weekdaySymbols = ["D", "S", "T", "Q", "Q", "S", "S"]
     private let columns = Array(repeating: GridItem(.flexible(), spacing: Self.gridColumnSpacing), count: 7)
 

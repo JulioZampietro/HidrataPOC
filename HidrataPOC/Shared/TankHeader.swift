@@ -83,19 +83,7 @@ struct CurrentMascotTankHeader: View {
     var mascotLine: String? = nil
 
     @Query private var profiles: [UserProfile]
-    // Só o consumo de hoje interessa aqui (o mascote do cabeçalho), então o predicado
-    // evita materializar a tabela toda a cada sheet aberta. O filtro em Swift abaixo
-    // continua sendo o que decide o dia — ver o comentário equivalente em HomeView.
     @Query private var allLogs: [IntakeLog]
-
-    init(title: String, subtitle: String, mascotLine: String? = nil) {
-        self.title = title
-        self.subtitle = subtitle
-        self.mascotLine = mascotLine
-        let dayStart = Calendar.current.startOfDay(for: .now)
-        _allLogs = Query(filter: #Predicate<IntakeLog> { $0.timestamp >= dayStart },
-                         sort: \IntakeLog.timestamp)
-    }
 
     private var mascotName: String {
         guard let profile = profiles.first, profile.metaDiariaML > 0 else { return "mascote5" }

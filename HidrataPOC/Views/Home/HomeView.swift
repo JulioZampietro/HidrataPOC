@@ -11,24 +11,8 @@ struct HomeView: View {
     // Barra e cartões têm tamanho fixo (o do texto em 100%): só o texto dentro deles acompanha
     // o Dynamic Type, limitado a `controlTextSizeRange` para caber sem ser cortado.
     private let progressBarHeight = TabScreenLayout.progressBarHeight
-    // Estreitados por predicado: sem ele, cada atualização do `body` materializava as
-    // tabelas inteiras de IntakeLog/DailyGoal para então filtrar em Swift. A Home só
-    // olha o dia de hoje, nos dois casos. Os filtros em Swift abaixo continuam: o
-    // predicado é fixado na criação da view, então depois da meia-noite ele deixa
-    // passar o dia anterior, e é o filtro que mantém a conta certa.
     @Query private var allLogs: [IntakeLog]
     @Query private var allDailyGoals: [DailyGoal]
-
-    init(profile: UserProfile) {
-        self.profile = profile
-        let userID = profile.userID
-        let dayStart = Calendar.current.startOfDay(for: .now)
-        _allLogs = Query(filter: #Predicate<IntakeLog> { $0.userID == userID && $0.timestamp >= dayStart },
-                         sort: \IntakeLog.timestamp)
-        let todayKey = DailyGoal.dayKey(for: .now)
-        _allDailyGoals = Query(filter: #Predicate<DailyGoal> { $0.userID == userID && $0.dayKey == todayKey },
-                               sort: \DailyGoal.dayKey)
-    }
     @State private var isLogging = false
     @State private var highlightedCard: String? = nil
     @State private var audioPlayer: AVAudioPlayer?

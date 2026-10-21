@@ -6,9 +6,6 @@ struct HealthConnectView: View {
     let profile: UserProfile
 
     @Environment(\.modelContext) private var modelContext
-    // Esta tela precisa de todo o histórico (é o que o backfill envia ao Saúde), mas
-    // não dos registros de outros usuários — o predicado faz esse corte no banco em vez
-    // de em Swift.
     @Query private var allLogs: [IntakeLog]
 
     @State private var isAuthorized = false
@@ -16,12 +13,6 @@ struct HealthConnectView: View {
     @State private var justSynced = false
 
     private let service = HealthKitService.shared
-
-    init(profile: UserProfile) {
-        self.profile = profile
-        let userID = profile.userID
-        _allLogs = Query(filter: #Predicate<IntakeLog> { $0.userID == userID }, sort: \IntakeLog.timestamp)
-    }
 
     private var lastSyncFormatted: String? {
         guard let date = service.lastSyncDate else { return nil }
