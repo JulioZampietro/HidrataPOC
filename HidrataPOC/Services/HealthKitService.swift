@@ -136,6 +136,30 @@ final class HealthKitService {
         }
     }
 
+    /// Apaga do HealthKit **todas** as amostras de água escritas por este app — a
+    /// parte "apagar meus dados" do consentimento (ver `MyDataView`). O predicado por
+    /// `HKSource.default()` garante que nada registrado por outros apps (Saúde,
+    /// MyFitnessPal…) seja tocado: aquilo nunca foi nosso para apagar.
+    /// Retorna false se o HealthKit recusar, para o chamador não alegar sucesso.
+    @discardableResult
+    func deleteAllOurSamples() async -> Bool {
+        guard isAuthorized else { return true } // nada foi escrito lá
+        let predicate = HKQuery.predicateForObjects(from: HKSource.default())
+        return await withCheckedContinuation { (continuation: CheckedContinuation<Bool, Never>) in
+            store.deleteObjects(of: waterType, predicate: predicate) { success, _, error in
+                if let error {
+                    // `noDataAvailable`: não havia nada para apagar — sucesso na prática.
+                    if (error as? HKError)?.code == .errorNoData {
+                        continuation.resume(returning: true)
+                        return
+                    }
+                    logger.error("HealthKit bulk delete failed: \(error.localizedDescription, privacy: .public)")
+                }
+                continuation.resume(returning: success)
+            }
+        }
+    }
+
     /// Remove do HealthKit a amostra associada ao logID informado.
     func delete(logID: UUID) async {
         guard isAuthorized else { return }

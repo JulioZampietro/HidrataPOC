@@ -301,6 +301,60 @@ final class CloudKitSyncService {
         }
     }
 
+    /// Erases from the public database every record this user ever pushed — the
+    /// "apagar meus dados" half of the consent promise (see `MyDataView`). Record names
+    /// are rebuilt from the local rows, which is the only place that mapping exists:
+    /// most types use the row's UUID, `DailyGoal` a deterministic per-day name.
+    ///
+    /// Returns false if anything failed, so the caller can tell the user the remote
+    /// half is incomplete instead of silently claiming success. Whatever failed is
+    /// queued for retry by `flushPending` like any other deletion.
+    func deleteAllRemoteRecords(context: ModelContext) async -> Bool {
+        var ids: [CKRecord.ID] = []
+        if let profiles = try? context.fetch(FetchDescriptor<UserProfile>()) {
+            ids += profiles.map { recordID(for: $0.id) }
+        }
+        if let logs = try? context.fetch(FetchDescriptor<IntakeLog>()) {
+            ids += logs.map { recordID(for: $0.id) }
+        }
+        if let events = try? context.fetch(FetchDescriptor<NotificationEvent>()) {
+            ids += events.map { recordID(for: $0.id) }
+        }
+        if let events = try? context.fetch(FetchDescriptor<UIInteractionEvent>()) {
+            ids += events.map { recordID(for: $0.id) }
+        }
+        if let decisions = try? context.fetch(FetchDescriptor<SlotDecision>()) {
+            ids += decisions.map { recordID(for: $0.id) }
+        }
+        if let goals = try? context.fetch(FetchDescriptor<DailyGoal>()) {
+            ids += goals.map { CKRecord.ID(recordName: dailyGoalRecordName($0)) }
+        }
+        guard !ids.isEmpty else { return true }
+
+        var allSucceeded = true
+        for start in stride(from: 0, to: ids.count, by: 300) {
+            let chunk = Array(ids[start..<min(start + 300, ids.count)])
+            do {
+                let (_, deleted) = try await container.publicCloudDatabase.modifyRecords(
+                    saving: [], deleting: chunk, savePolicy: .allKeys, atomically: false
+                )
+                for (id, result) in deleted {
+                    if case .failure(let error) = result {
+                        // Already gone is a success for our purposes.
+                        if (error as? CKError)?.code == .unknownItem { continue }
+                        allSucceeded = false
+                        queuePendingDeletion(recordType: "unknown", recordName: id.recordName)
+                    }
+                }
+            } catch {
+                logger.error("deleteAllRemoteRecords chunk failed: \(String(describing: error), privacy: .public)")
+                allSucceeded = false
+                for id in chunk { queuePendingDeletion(recordType: "unknown", recordName: id.recordName) }
+            }
+        }
+        return allSucceeded
+    }
+
     private func queuePendingDeletion(recordType: String, recordName: String) {
         var pending = loadPendingDeletions()
         pending.append(PendingDeletion(recordType: recordType, recordName: recordName))

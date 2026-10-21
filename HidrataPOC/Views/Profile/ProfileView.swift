@@ -17,6 +17,7 @@ struct ProfileView: View {
     @State private var showLiveActivities = false
     @State private var showSiriTutorial = false
     @State private var showHealthConnect = false
+    @State private var showMyData = false
 
     private var calculatedGoalML: Int {
         UserProfile.suggestedGoalML(gender: Genero(stored: profile.genero)?.gender, idade: profile.idade, pesoKg: profile.pesoKg, alturaCm: profile.alturaCm)
@@ -73,6 +74,7 @@ struct ProfileView: View {
                 liveActivitiesRow
                 siriRow
                 healthRow
+                myDataRow
                 #if DEBUG
                 debugNotificationRow
                 debugRandomCopyRow
@@ -341,6 +343,40 @@ struct ProfileView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+    }
+
+    // MARK: - Meus dados
+
+    /// Ver, exportar e apagar o que foi coletado — o que o `ConsentView` promete.
+    private var myDataRow: some View {
+        Button {
+            Haptic.tap.play()
+            InteractionTracker.log("my_data_row_tap", screen: .profile, userID: profile.userID, context: modelContext)
+            showMyData = true
+        } label: {
+            HStack {
+                Text("Meus dados")
+                    .font(AppFont.calloutStrong)
+                    .foregroundStyle(.primary)
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(.subheadline, weight: .semibold))
+                    .foregroundStyle(Color.appChevron)
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 16)
+            .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color(UIColor.secondarySystemBackground))
+                .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .sheet(isPresented: $showMyData) {
+            MyDataView(profile: profile)
+                .trackSheetLifecycle(.myData, screen: .profile, userID: profile.userID)
+        }
     }
 
     // MARK: - Debug Row
