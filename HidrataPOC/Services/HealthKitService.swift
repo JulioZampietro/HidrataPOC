@@ -17,9 +17,19 @@ final class HealthKitService {
 
     var isAvailable: Bool { HKHealthStore.isHealthDataAvailable() }
 
+    /// Autorização de **escrita**. É o que `authorizationStatus(for:)` reporta — a
+    /// Apple não expõe o estado da permissão de leitura de propósito (saber que o
+    /// usuário negou a leitura já é, por si, uma informação sobre ele).
     var isAuthorized: Bool {
         isAvailable && store.authorizationStatus(for: waterType) == .sharingAuthorized
     }
+
+    /// Gate das **leituras**. Usar `isAuthorized` aqui era errado: quem libera ler mas
+    /// nega escrever nunca importava nada do Saúde, porque o status de escrita barrava
+    /// a consulta. Como não há como consultar a permissão de leitura, o caminho certo é
+    /// tentar a query e tratar o resultado — o que `syncFromHealthKit` já faz (resultado
+    /// vazio e erro são indistinguíveis de fora, por design da Apple).
+    var canAttemptRead: Bool { isAvailable }
 
     func requestAuthorization() async -> Bool {
         guard isAvailable else { return false }
@@ -229,9 +239,7 @@ final class HealthKitService {
     }
 
     func syncFromHealthKit(userID: String, context: ModelContext) async {
-        guard isAuthorized else {
-            return
-        }
+        guard canAttemptRead else { return }
 
         // Na primeira sincronização (sem lastSyncDate gravado) busca todo o histórico.
         // Nas sincronizações incrementais, olha 1 hora antes do lastSyncDate para capturar
