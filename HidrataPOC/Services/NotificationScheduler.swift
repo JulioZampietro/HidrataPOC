@@ -1097,6 +1097,10 @@ final class NotificationScheduler {
 
     // MARK: - Debug
 
+    // Only the ProfileView rows that call these were `#if DEBUG`; the implementations
+    // shipped in the release binary. The whole group is compiled out now.
+#if DEBUG
+
     /// Fires a throwaway notification a few seconds from now, built exactly like a real
     /// reminder (same mascot selection + communication-notification path), with the
     /// expected mascot asset and progress spelled out in the body so the avatar the
@@ -1132,6 +1136,8 @@ final class NotificationScheduler {
         guard let pick = options.randomElement(), await sendDebugNotification(copy: pick.copy, after: seconds) else { return nil }
         return pick
     }
+
+#endif
 
     // MARK: - Keeping pending reminders' mascot current
 
