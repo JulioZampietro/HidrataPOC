@@ -1,7 +1,11 @@
 # Correções da auditoria
 
-Branch: `fix/auditoria` (a partir de `69cf825` em `liquidBolha`) · 41 commits · 2026-10-21
+Branch: `fix/auditoria` (a partir de `69cf825` em `liquidBolha`) · 44 commits · 2026-10-21
 Relatório de origem: [AUDITORIA.md](AUDITORIA.md)
+
+> **Atualização pós-entrega (mesmo dia):** o usuário reportou que o app travava ao
+> abrir Configurações. Investigado e corrigido — ver "Regressão encontrada depois da
+> entrega inicial" logo abaixo da tabela.
 
 ## Linha de base vs. final
 
@@ -27,7 +31,7 @@ O único warning restante é `NotificationScheduler.swift:983: consider using as
 | **C-2** | Corrigido | `a58d68e` | Texto reescrito: o que é coletado, para onde vai, que peso e altura não saem do aparelho, que a localização só serve para o clima, e o caminho para revogar. **A cópia merece sua revisão.** |
 | **C-3** | Corrigido | `09bcac1` | Tela "Meus dados" em Configurações: contagem, exportação JSON via ShareLink e exclusão total (local + CloudKit + HealthKit + `UserDefaults`). A exclusão avisa quando a parte remota falhou, em vez de alegar sucesso. |
 | **A-1** | Corrigido | `55a9b87` | `idealPlan` vira `@State` preenchido no `.task`. Era ~25 execuções de Monte Carlo por avaliação do `body`. |
-| **A-2** | Corrigido (parcial) | `d2bfa45`, `69cb74e` | 5 views com predicado completo; `HistoricoView` só por `userID`. O recorte por mês exibido exigiria extrair o calendário para uma subview (`displayedMonth` é `@State`, e `@Query` só é montado no init) — deixado de fora por escopo. |
+| **A-2** | **Revertido** | `d2bfa45`, `69cb74e` → `140eecf` | Causou uma regressão grave (ver seção abaixo): travava a navegação para Configurações. As 6 views voltaram ao `@Query` sem predicado. |
 | **A-3** | Corrigido | `e971d97` | `HydrationMath.totalsByDay` + `streak` em `@State`. Inclui normalização por `startOfDay` no laço, com teste de virada de horário de verão. |
 | **A-4** | Corrigido | `0d77034` | Uma consulta por lote de 500 em vez de uma por registro. Chamador também passa a filtrar por usuário. |
 | **A-5** | Corrigido | `6bb68b3` | Predicado `syncStatusRaw != "synced"` nas 6 tabelas. |
@@ -84,7 +88,61 @@ O único warning restante é `NotificationScheduler.swift:983: consider using as
 | **B-23** | **Não aplicável** | — | Confirmado em build limpo: o aviso vem só do target `HydrationKit` (framework sem intents). `HidrataPOC` e `HydrationWidget` escrevem `Metadata.appintents` normalmente — as frases da Siri estão registradas. |
 | **B-24** | **Precisa de você** | — | `aps-environment: development` só se confirma num archive de distribuição, que depende de assinatura. |
 
-**Resumo:** 47 corrigidos (3 parciais) · 2 não aplicáveis · 6 precisam de você.
+**Resumo:** 46 corrigidos (2 parciais) · 1 revertido (A-2) · 2 não aplicáveis · 6 precisam de você.
+
+## Regressão encontrada depois da entrega inicial
+
+**Sintoma relatado pelo usuário:** "Quando eu clico nas configurações o app trava."
+
+**Diagnóstico.** Sem acesso a toque real no simulador (confirmado de novo: `simctl`
+não tem injeção de toque, e `osascript`/System Events não enxerga a janela do
+Simulator sem permissão de Acessibilidade), reproduzi programaticamente: semeei um
+`UserProfile` através do `init` real do modelo (não SQL bruto) e automatizei o
+"toque" no gear disparando `showProfile = true` depois de a Home assentar — o mesmo
+efeito do botão, sem depender de um clique físico. Confirmado com screenshots e um
+log próprio gravado em `Documents/tempdebug.log` (já que `print()` não aparecia em
+nenhuma ferramenta de console disponível neste simulador — outra limitação de
+tooling, não do app).
+
+Depois de confirmar que a branch original `liquidBolha` navegava normalmente com a
+mesma técnica, fiz bissecção binária entre os 41 commits da branch, usando `git
+worktree` para testar commits isolados sem perturbar o branch principal:
+
+- Commit 19 (`e971d97`, A-3) — navega bem.
+- Commit 20 (`d2bfa45`, A-2: "adiciona predicado aos @Query") — já trava.
+
+**Causa raiz.** O commit A-2 deu a seis views (`HomeView`, `WaterHeaderView`,
+`HistoricoView`, `ProfileView`, `CurrentMascotTankHeader`, `HealthConnectView`) um
+`init` customizado que monta os `@Query` com `#Predicate` dentro do próprio
+corpo do init. `ProfileView` é construída pela primeira vez exatamente dentro de
+`.navigationDestination(isPresented: $showProfile)` — ou seja, o SwiftUI precisa
+rodar esse init, configurando um `@Query` novo com um `#Predicate` novo, **no meio
+da transição de push do `NavigationStack`**. Isso trava a transição: o estado
+`showProfile` vira `true` (confirmado pelo log), o `body` de `RootView` é
+reavaliado, mas a navegação nunca completa — a tela fica presa na anterior,
+indefinidamente, sem crash e sem nada no log do sistema.
+
+Revertendo isoladamente cada `init` do A-2: `WaterHeaderView` + `HomeView` +
+`HistoricoView` sozinhos **não bastaram** (a app ainda travava) — só ao reverter
+também `ProfileView`, a própria view de destino da navegação, é que ela voltou a
+funcionar. `TankHeader`/`HealthConnectView` foram revertidos por segurança, já que
+são o mesmo padrão de risco (views construídas pela primeira vez dentro de uma
+apresentação modal via `.sheet`).
+
+**Correção** (commit `140eecf`): as seis views voltam ao `@Query` sem predicado —
+exatamente o comportamento de antes do A-2 (carrega a tabela inteira e filtra em
+Swift, como o resto do app já fazia). O achado A-2 fica revertido; o ganho de
+performance que ele buscava não compensa quebrar a navegação.
+
+**Verificado:** Configurações, "Como usar o botão de ação", "Como usar a Siri",
+"Conectar ao Saúde" e "Meus dados" abrem normalmente no simulador. Suíte completa:
+73/73 testes, build Debug e Release OK.
+
+**Se quiser reaproveitar a ideia do A-2 no futuro:** o padrão problemático é
+configurar um `@Query` dinâmico dentro de um `init` síncrono chamado durante uma
+transição de apresentação (push ou sheet). Um caminho mais seguro seria popular o
+predicado via `@State` preenchido num `.task` **depois** da primeira aparição da
+view, não no `init` — o mesmo princípio já usado na correção do A-1.
 
 ## Achado extra, encontrado durante o trabalho
 
