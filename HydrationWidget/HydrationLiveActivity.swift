@@ -12,15 +12,8 @@ import WidgetKit
 struct HydrationLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: HydrationAttributes.self) { context in
-            Group {
-                if context.attributes.isIslandOnly {
-                    // Backup variant: nothing to show on the Lock Screen, only the island icon.
-                    Color.clear.frame(height: 1)
-                } else {
-                    HydrationLockScreenView(state: context.state)
-                }
-            }
-                .activityBackgroundTint(context.attributes.isIslandOnly ? Color.clear : LockScreenPalette.background)
+            HydrationLockScreenView(state: context.state)
+                .activityBackgroundTint(LockScreenPalette.background)
                 .activitySystemActionForegroundColor(Color.appAccent)
         } dynamicIsland: { context in
             DynamicIsland {
