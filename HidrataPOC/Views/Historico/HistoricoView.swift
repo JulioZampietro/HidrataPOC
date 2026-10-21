@@ -469,6 +469,12 @@ struct DayDetailSheet: View {
     let calendar: Calendar
     @Query private var logs: [IntakeLog]
     @State private var currentWeather: WeatherContext?
+    /// Calculado uma vez em `.task`, não por acesso: `HydrationPlanner.idealDayCurve`
+    /// roda Monte Carlo (200 amostras × 30 dimensões × 7 horários) e era alcançado por
+    /// uma cadeia de computed properties — `idealSeries`, `planHourBounds`,
+    /// `domainStart`/`domainEnd`, `chartYUpperBound` — cerca de 25 vezes por avaliação
+    /// do `body`, na main actor, antes de o Charts desenhar qualquer coisa.
+    @State private var idealPlan: [HydrationPlanPoint]?
 
     init(dia: DiaHistorico, metaDiariaML: Int, profile: UserProfile, calendar: Calendar) {
         self.dia = dia
@@ -498,18 +504,6 @@ struct DayDetailSheet: View {
             )
         }
         return isToday ? currentWeather : nil
-    }
-
-    /// That day's strategic hydration schedule, based on its own weather and
-    /// its own recorded goal — nil if there's no policy prior yet.
-    private var idealPlan: [HydrationPlanPoint]? {
-        HydrationPlanner.idealDayCurve(
-            profile: profile,
-            effectiveGoalML: metaDiariaML,
-            weather: dayWeather,
-            day: dia.date,
-            calendar: calendar
-        )
     }
 
     /// Same cumulative shape as `cumulativeSeries`, bracketed to the shared
@@ -739,8 +733,21 @@ struct DayDetailSheet: View {
             }
         }
         .task {
-            guard isToday, currentWeather == nil else { return }
-            currentWeather = await WeatherContextService.shared.currentContext()
+            // O clima primeiro: `dayWeather` (e por consequência o plano) depende dele
+            // para hoje, antes de qualquer registro ter cacheado uma leitura.
+            if isToday, currentWeather == nil {
+                currentWeather = await WeatherContextService.shared.currentContext()
+            }
+            // Uma vez por abertura da folha. A curva é determinística por dia
+            // (`HydrationPlanner` usa PRNG semeado), então não recalcular a cada
+            // atualização do `body` não muda o que o usuário vê.
+            idealPlan = HydrationPlanner.idealDayCurve(
+                profile: profile,
+                effectiveGoalML: metaDiariaML,
+                weather: dayWeather,
+                day: dia.date,
+                calendar: calendar
+            )
         }
     }
 
