@@ -88,4 +88,21 @@ struct DailyGoalTests {
         #expect(rows[1].baseGoalML == 3000)
         #expect(rows[1].adjustmentML == 250)
     }
+
+    @Test func freshForecastLaterTheSameDayDoesNotRaiseAnAlreadySettledGoal() throws {
+        let schema = Schema([DailyGoal.self])
+        let container = try ModelContainer(for: schema, configurations: [ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)])
+        let context = container.mainContext
+
+        // Afternoon: first real forecast of the day locks in a 150 mL adjustment.
+        DailyGoal.recordToday(userID: "user-1", baseGoalML: 2000, adjustmentML: 150, context: context, calendar: calendar, now: date(day: 15, hour: 14))
+        // Night: WeatherKit revised "today's high" upward, producing a bigger adjustment —
+        // this must NOT overwrite the goal the user already met this afternoon.
+        DailyGoal.recordToday(userID: "user-1", baseGoalML: 2000, adjustmentML: 400, context: context, calendar: calendar, now: date(day: 15, hour: 22))
+
+        let rows = try context.fetch(FetchDescriptor<DailyGoal>(predicate: #Predicate { $0.userID == "user-1" }))
+        #expect(rows.count == 1)
+        #expect(rows[0].adjustmentML == 150)
+        #expect(rows[0].goalML == 2150)
+    }
 }

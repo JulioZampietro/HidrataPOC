@@ -5,7 +5,6 @@ import SwiftUI
 struct HealthConnectView: View {
     let profile: UserProfile
 
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Query private var allLogs: [IntakeLog]
 
@@ -24,91 +23,65 @@ struct HealthConnectView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 28) {
-                    healthIcon
-                    statusSection
+        TankSheet {
+            VStack(spacing: 20) {
+                CurrentMascotTankHeader(
+                    title: "App Saúde",
+                    subtitle: "Seu consumo de água, sincronizado com o resto do seu histórico de saúde."
+                )
+
+                VStack(alignment: .leading, spacing: 16) {
+                    statusRow
                     if isAuthorized { connectedSection }
                     else if service.isAvailable { connectSection }
                     else { unavailableSection }
-                    Spacer(minLength: 0)
                 }
-                .padding(.horizontal, 24)
-                .padding(.top, 24)
-                .padding(.bottom, 40)
+                .padding(.horizontal, 20)
             }
-            .appScreenBackground()
-            .navigationTitle("Saúde")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Fechar", systemImage: "xmark") { dismiss() }
-                }
-            }
-            .task { isAuthorized = service.isAuthorized }
+            .padding(.bottom, 40)
         }
+        .task { isAuthorized = service.isAuthorized }
     }
 
     // MARK: - Subviews
 
-    private var healthIcon: some View {
-        ZStack {
+    private var statusRow: some View {
+        HStack(spacing: 6) {
             Circle()
-                .fill(Color.pink.opacity(0.12))
-                .frame(width: 88, height: 88)
-            Image(systemName: "heart.fill")
-                .font(.system(size: 40))
-                .foregroundStyle(.pink)
-        }
-    }
-
-    private var statusSection: some View {
-        VStack(spacing: 6) {
-            Text("App Saúde")
-                .font(AppFont.title2)
-
-            HStack(spacing: 6) {
-                Circle()
-                    .fill(isAuthorized ? Color.appSuccess : Color.appWarning)
-                    .frame(width: 8, height: 8)
-                Text(isAuthorized ? "Conectado" : "Não conectado")
-                    .font(AppFont.subheadline)
-                    .foregroundStyle(Color.appSecondary)
-            }
+                .fill(isAuthorized ? Color.appSuccess : Color.appWarning)
+                .frame(width: 7, height: 7)
+            Text(isAuthorized ? "Conectado" : "Não conectado")
+                .font(AppFont.subheadline)
+                .foregroundStyle(Color.appSecondary)
         }
     }
 
     private var connectSection: some View {
-        VStack(spacing: 16) {
-            VStack(spacing: 8) {
-                infoRow(icon: "arrow.down.circle.fill", color: Color.appAccentText,
-                        text: "Importa água registrada em outros apps (MyFitnessPal, Apple Watch…)")
-                infoRow(icon: "arrow.up.circle.fill", color: Color.appAccentText,
-                        text: "Envia cada gole registrado aqui para o seu histórico no Saúde")
-            }
+        VStack(alignment: .leading, spacing: 16) {
+            infoCard([
+                ("arrow.down.circle.fill", "Importa água registrada em outros apps (MyFitnessPal, Apple Watch…)"),
+                ("arrow.up.circle.fill", "Envia cada gole registrado aqui para o seu histórico no Saúde"),
+            ])
 
             Button {
+                Haptic.primary.play()
                 Task { await authorize() }
             } label: {
                 Text("Conectar ao Saúde")
                     .font(AppFont.calloutStrong)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
+                    .padding(.vertical, 10)
             }
-            .buttonStyle(.borderedProminent)
-            .tint(Color.appAccent)
+            .buttonStyle(.gradientProminent)
         }
     }
 
     private var connectedSection: some View {
-        VStack(spacing: 16) {
-            VStack(spacing: 8) {
-                infoRow(icon: "checkmark.circle.fill", color: Color.appSuccess,
-                        text: "Seus registros de água são enviados automaticamente ao Saúde")
-                infoRow(icon: "arrow.triangle.2.circlepath", color: Color.appAccentText,
-                        text: "Água adicionada por outros apps é importada ao abrir o Gole")
-            }
+        VStack(alignment: .leading, spacing: 16) {
+            infoCard([
+                ("checkmark.circle.fill", "Seus registros de água são enviados automaticamente ao Saúde"),
+                ("arrow.triangle.2.circlepath", "Água adicionada por outros apps é importada ao abrir o Gole"),
+            ])
 
             if let lastSync = lastSyncFormatted {
                 Text("Última sincronização \(lastSync)")
@@ -117,6 +90,7 @@ struct HealthConnectView: View {
             }
 
             Button {
+                Haptic.primary.play()
                 Task { await syncNow() }
             } label: {
                 Group {
@@ -126,18 +100,15 @@ struct HealthConnectView: View {
                     } else if justSynced {
                         Label("Sincronizado", systemImage: "checkmark")
                             .font(AppFont.calloutStrong)
-                            .foregroundStyle(.white)
                     } else {
                         Text("Sincronizar agora")
                             .font(AppFont.calloutStrong)
-                            .foregroundStyle(.white)
                     }
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
+                .padding(.vertical, 10)
             }
-            .buttonStyle(.borderedProminent)
-            .tint(isSyncing ? Color.gray : Color.appAccent)
+            .buttonStyle(.gradientProminent)
             .disabled(isSyncing || justSynced)
         }
     }
@@ -146,26 +117,35 @@ struct HealthConnectView: View {
         Text("O app Saúde não está disponível neste dispositivo.")
             .font(AppFont.subheadline)
             .foregroundStyle(Color.appSecondary)
-            .multilineTextAlignment(.center)
-            .padding(.horizontal, 16)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func infoRow(icon: String, color: Color, text: String) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: icon)
-                .font(.title3)
-                .foregroundStyle(color)
-                .frame(width: 28)
-            Text(text)
-                .font(AppFont.subheadline)
-                .foregroundStyle(Color.appSecondary)
-                .fixedSize(horizontal: false, vertical: true)
-            Spacer()
+    private func infoCard(_ rows: [(icon: String, text: String)]) -> some View {
+        VStack(spacing: 0) {
+            ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
+                VStack(spacing: 0) {
+                    HStack(alignment: .top, spacing: 12) {
+                        Image(systemName: row.icon)
+                            .font(.subheadline)
+                            .foregroundStyle(Color.appAccent)
+                            .frame(width: 20)
+                            .padding(.top, 1)
+                        Text(row.text)
+                            .font(AppFont.subheadline)
+                            .foregroundStyle(Color.appSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 14)
+
+                    if index < rows.count - 1 {
+                        Divider().padding(.leading, 18 + 20 + 12)
+                    }
+                }
+            }
         }
-        .padding(14)
-        .background(RoundedRectangle(cornerRadius: 14, style: .continuous)
-            .fill(Color(UIColor.secondarySystemBackground))
-            .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4))
+        .panelBackground()
     }
 
     // MARK: - Actions
@@ -173,6 +153,7 @@ struct HealthConnectView: View {
     private func authorize() async {
         let granted = await service.requestAuthorization()
         isAuthorized = granted
+        if !granted { Haptic.warning.play() }
         if granted {
             isSyncing = true
             // Backfill: envia histórico existente do app para o Health
@@ -182,6 +163,7 @@ struct HealthConnectView: View {
             await service.syncFromHealthKit(userID: profile.userID, context: modelContext)
             isSyncing = false
             justSynced = true
+            Haptic.success.play()
             try? await Task.sleep(for: .seconds(2))
             justSynced = false
         }
@@ -194,6 +176,7 @@ struct HealthConnectView: View {
         await service.syncFromHealthKit(userID: profile.userID, context: modelContext)
         isSyncing = false
         justSynced = true
+        Haptic.success.play()
         try? await Task.sleep(for: .seconds(2))
         justSynced = false
     }

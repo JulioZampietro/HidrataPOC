@@ -41,3 +41,19 @@ extension HydrationAttributes.ContentState {
         Date.now.timeIntervalSince(lastIntakeDate) >= reminderThreshold
     }
 }
+
+
+/// The Lock Screen always hands Live Activity views `colorScheme == .dark`, whatever the
+/// system appearance is, while `activityBackgroundTint` is resolved against the real
+/// one — so reading the environment gives white text on a light card. The app records
+/// the real system style here (App Group defaults) and the widget reads it, so the card
+/// background and its text are always picked from the same source.
+public enum LockScreenAppearance {
+    private static let key = "systemInterfaceStyleIsDark"
+    private static var defaults: UserDefaults? { UserDefaults(suiteName: "group.com.hidratapoc") }
+
+    public static var isDark: Bool {
+        get { defaults?.bool(forKey: key) ?? true }
+        set { defaults?.set(newValue, forKey: key) }
+    }
+}

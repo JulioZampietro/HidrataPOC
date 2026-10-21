@@ -8,10 +8,9 @@ struct HomeView: View {
     
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    // Medidas que acompanham o tamanho do texto: com Dynamic Type grande o rótulo da barra
-    // e o ícone do cabeçalho não podem ser cortados por uma altura fixa.
-    @ScaledMetric(relativeTo: .subheadline) private var progressBarHeight: CGFloat = 52
+    // Barra e cartões têm tamanho fixo (o do texto em 100%): só o texto dentro deles acompanha
+    // o Dynamic Type, limitado a `controlTextSizeRange` para caber sem ser cortado.
+    private let progressBarHeight = TabScreenLayout.progressBarHeight
     @Query private var allLogs: [IntakeLog]
     @Query private var allDailyGoals: [DailyGoal]
     @State private var isLogging = false
@@ -25,6 +24,23 @@ struct HomeView: View {
     @State private var weather: WeatherContext?
     @State private var isLoadingWeather = true
     @State private var tempContext: TemperatureAdjustmentContext?
+    /// Minijogo da meta batida: o aquário (`WaterHeaderView`) desenha, aqui ficam os botões.
+    @Environment(MiniGameController.self) private var miniGames
+    @State private var pressedJets = [Bool](repeating: false, count: RingGameSide.allCases.count)
+    @State private var pressedAimSides = [Bool](repeating: false, count: BubbleGameSide.allCases.count)
+    @State private var isFirePressed = false
+    @AppStorage(MiniGame.jumpBestStorageKey) private var jumpBestScore = 0
+    @AppStorage(MiniGame.flappyBestStorageKey) private var flappyBestScore = 0
+    /// Os dois botões de nadar da Gota Voadora (esquerda e direita).
+    @State private var pressedFlapSides = [false, false]
+    /// Última direção (e a outra metade, numa diagonal) mandada pelo joystick de quatro direções:
+    /// só manda de novo quando muda.
+    @State private var joystickDirections: [MazeDirection]?
+    @AppStorage(MiniGame.mazeBestStorageKey) private var mazeBestScore = 0
+    @AppStorage(MiniGame.sliceBestStorageKey) private var sliceBestScore = 0
+    @AppStorage(MiniGame.snakeBestStorageKey) private var snakeBestScore = 0
+    /// Os quatro cartões de ingestão viram os botões do jogo na mesma animação.
+    @Namespace private var controlsNamespace
 
     private var todayLogs: [IntakeLog] {
         allLogs.filter { $0.userID == profile.userID && Calendar.current.isDateInToday($0.timestamp) }
@@ -34,6 +50,14 @@ struct HomeView: View {
     
     private var dailyGoals: [DailyGoal] {
         allDailyGoals.filter { $0.userID == profile.userID }
+    }
+
+    /// True once today's temperature adjustment has already been fetched and locked
+    /// in (see `DailyGoal.recordToday`) — at that point a fresh WeatherKit call would
+    /// only repeat work `recordedAdjustmentML` already covers, so it's skipped.
+    private var isTodaysAdjustmentLocked: Bool {
+        let key = DailyGoal.dayKey(for: .now)
+        return dailyGoals.first { $0.dayKey == key }?.adjustmentLocked ?? false
     }
 
     private var effectiveGoalML: Int {
@@ -49,7 +73,19 @@ struct HomeView: View {
         return min(1, Double(consumedToday) / Double(effectiveGoalML))
     }
     
+    /// Ingestão de hoje pra barra de progresso, calculada uma vez por atualização do `body`: o
+    /// `GeometryReader` da tela refaz o conteúdo a cada frame enquanto a página desliza (o
+    /// arrasto entre Home e Histórico), e filtrar todos os registros lá dentro travava o arrasto.
+    private struct TodayIntake {
+        let consumedML: Int
+        let goalML: Int
+        let progress: Double
+    }
+
     var body: some View {
+        let consumed = consumedToday
+        let goal = effectiveGoalML
+        let today = TodayIntake(consumedML: consumed, goalML: goal, progress: goal > 0 ? min(1, Double(consumed) / Double(goal)) : 0)
         ZStack {
             AppTheme.screenBackground(for: colorScheme)
                 .ignoresSafeArea()
@@ -58,16 +94,25 @@ struct HomeView: View {
                 VStack(spacing: TabScreenLayout.spacing) {
                     // O recipiente de água (`WaterHeaderView`) é desenhado pelo
                     // `RootView`, fixo por cima das páginas; aqui fica só o espaço dele.
+                    // Na tela do minijogo ele ocupa também o lugar da barra e da primeira
+                    // linha de botões.
                     Color.clear
-                        .frame(height: TabScreenLayout.waterHeight(forVisibleHeight: geo.size.height, safeAreaTop: geo.safeAreaInsets.top))
+                        .frame(height: miniGames.showsGameControls
+                            ? TabScreenLayout.gameWaterHeight(forVisibleHeight: geo.size.height, safeAreaTop: geo.safeAreaInsets.top)
+                            : TabScreenLayout.waterHeight(forVisibleHeight: geo.size.height, safeAreaTop: geo.safeAreaInsets.top))
 
-                    progressBarButton
-                        .padding(.horizontal, 20)
+                    if !miniGames.showsGameControls {
+                        progressBarButton(today)
+                            .padding(.horizontal, 20)
+                    }
 
-                    intakeGrid(cardHeight: intakeCardHeight(forVisibleHeight: geo.size.height))
+                    bottomControls(cardHeight: intakeCardHeight(forVisibleHeight: geo.size.height))
                         .padding(.horizontal, 20)
                 }
                 .padding(.top, TabScreenLayout.waterTop(safeAreaTop: geo.safeAreaInsets.top))
+                // Travados enquanto o mascote anima (ver `MiniGameController.isMascotAnimating`).
+                .allowsHitTesting(!miniGames.isMascotAnimating)
+                .animation(.spring(response: 0.6, dampingFraction: 0.85), value: miniGames.showsGameControls)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 .ignoresSafeArea(edges: .top)
             }
@@ -80,7 +125,7 @@ struct HomeView: View {
             DailyGoal.recordToday(userID: profile.userID, baseGoalML: profile.metaDiariaML, adjustmentML: tempContext?.adjustmentML, context: modelContext)
         }
         .onAppear {
-            guard tempContext == nil else { return }
+            guard tempContext == nil, !isTodaysAdjustmentLocked else { return }
             Task {
                 tempContext = await WeatherContextService.shared.temperatureAdjustmentContext()
             }
@@ -91,7 +136,7 @@ struct HomeView: View {
             presenting: pendingDeleteLog
         ) { log in
             Button("Excluir", role: .destructive) { deleteLog(log) }
-            Button("Cancelar", role: .cancel) {}
+            Button("Cancelar", role: .cancel) { Haptic.dismiss.play() }
         } message: { log in
             Text("\(log.tipoEntrada.capitalized) · \(log.volumeML) mL será removido do seu histórico e da base de dados.")
         }
@@ -99,6 +144,9 @@ struct HomeView: View {
             CustomIntakeEditorView(initialValueML: profile.customIntakeML, onSave: saveCustomAmount)
                 .trackSheetLifecycle(.customAmountEditor, screen: .home, userID: profile.userID)
         }
+        // Os botões do jogo somem (ex.: seta de voltar à ingestão) ou o jogo troca: solta o que estiver apertado.
+        .onChange(of: miniGames.showsGameControls) { releaseGameButtons() }
+        .onChange(of: miniGames.runningGame) { releaseGameButtons() }
         .sheet(isPresented: $showSiriTutorial) { SiriTutorialView() }
         .sheet(isPresented: $showActionButtonTutorial) { ActionButtonTutorialView() }
         .sheet(isPresented: $showTodayLogs) {
@@ -107,7 +155,7 @@ struct HomeView: View {
             DayDetailSheet(
                 dia: DiaHistorico(date: .now, percentualMeta: progress),
                 metaDiariaML: effectiveGoalML,
-                userID: profile.userID,
+                profile: profile,
                 calendar: .current
             )
         }
@@ -115,32 +163,33 @@ struct HomeView: View {
     
     // MARK: - Subviews
     
-    private let intakeGridSpacing: CGFloat = 12
+    private let intakeGridSpacing = TabScreenLayout.intakeGridSpacing
+    private let controlTextSizeRange = ...DynamicTypeSize.xxxLarge
 
     /// The two rows of intake cards share what's left below the progress bar, so the
     /// grid ends `TabScreenLayout.spacing` above the bottom safe area.
     private func intakeCardHeight(forVisibleHeight height: CGFloat) -> CGFloat {
-        let gridHeight = TabScreenLayout.contentHeight(forVisibleHeight: height) - progressBarHeight - TabScreenLayout.spacing
-        return max((gridHeight - intakeGridSpacing) / 2, 116)
+        TabScreenLayout.intakeCardHeight(forVisibleHeight: height)
     }
 
     /// Tapping the bar opens today's intake logs (same sheet as a day in Histórico).
-    private var progressBarButton: some View {
+    private func progressBarButton(_ today: TodayIntake) -> some View {
         Button {
+            Haptic.tap.play()
             InteractionTracker.log("home_progress_bar_tap", screen: .home, userID: profile.userID, context: modelContext)
             showTodayLogs = true
         } label: {
-            progressBar
+            progressBar(today)
                 .contentShape(Capsule())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Consumo de hoje: \(consumedToday) de \(effectiveGoalML) mililitros")
+        .accessibilityLabel("Consumo de hoje: \(today.consumedML) de \(today.goalML) mililitros")
         .accessibilityHint("Mostra os registros de hoje")
     }
 
-    private var progressBar: some View {
+    private func progressBar(_ today: TodayIntake) -> some View {
         GeometryReader { geo in
-            let barWidth = max(geo.size.width * progress, 56)
+            let barWidth = max(geo.size.width * today.progress, 56)
             
             ZStack(alignment: .leading) {
                 // trilha, elevada com a mesma sombra dos cartões de ingestão
@@ -158,38 +207,228 @@ struct HomeView: View {
                 
                 // preenchimento azul
                 Capsule()
-                    .fill(Color.appAccent)
+                    .fill(LinearGradient.waterHeader)
                     .frame(width: barWidth, height: progressBarHeight)
-                    .animation(.easeOut(duration: 0.4), value: progress)
+                    .animation(.easeOut(duration: 0.4), value: today.progress)
                 
                 // Texto sempre branco, sobre a trilha e sobre o preenchimento.
-                progressLabel(color: .white)
+                progressLabel(today, color: .white)
 
-                // Indica que a barra é tocável (abre os registros de hoje).
-                // Nos tamanhos de acessibilidade o texto ocupa a barra toda e o ícone passaria
-                // por cima dele; a barra continua tocável (rótulo e dica no botão).
-                if !dynamicTypeSize.isAccessibilitySize {
-                    Image(systemName: "info.circle")
-                        .font(.system(.body, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                        .padding(.trailing, 18)
-                        .accessibilityHidden(true)
-                }
+                // Indica que a barra é tocável (abre os registros de hoje). Sempre branco,
+                // igual ao texto da barra.
+                Image(systemName: "info.circle")
+                    .font(.system(.body, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .padding(.trailing, 18)
+                    .accessibilityHidden(true)
             }
         }
         .frame(height: progressBarHeight)
+        .dynamicTypeSize(controlTextSizeRange)
     }
     
-    private func progressLabel(color: Color) -> some View {
-        Text("\(consumedToday) mL / \(effectiveGoalML) mL")
+    private func progressLabel(_ today: TodayIntake, color: Color) -> some View {
+        Text("\(today.consumedML) mL / \(today.goalML) mL")
             .font(AppFont.subheadlineHeavy)
             .foregroundStyle(color)
             .lineLimit(1)
             .minimumScaleFactor(0.75) // 15 pt × 0.75 ≈ 11 pt: o menor texto do app (HIG)
             .padding(.leading, 18)
-            .padding(.trailing, dynamicTypeSize.isAccessibilitySize ? 18 : 52)
+            .padding(.trailing, 52)
             .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Os quatro cartões de ingestão; com a meta batida e um minijogo rodando, viram os botões
+    /// do jogo (uma linha de três) no mesmo lugar (`matchedGeometryEffect`). A seta pra trás no
+    /// cabeçalho do aquário sai do jogo (escolhe "Sem jogo") e volta aos cartões.
+    private func bottomControls(cardHeight: CGFloat) -> some View {
+        ZStack {
+            if miniGames.showsGameControls, let game = miniGames.runningGame {
+                gameControls(game, cardHeight: cardHeight)
+            } else {
+                intakeGrid(cardHeight: cardHeight)
+            }
+        }
+        .animation(.spring(response: 0.6, dampingFraction: 0.85), value: miniGames.showsGameControls)
+    }
+
+    /// Uma linha de três botões, no lugar da última linha de cartões: esquerda, meio e direita.
+    /// Voltar à ingestão fica na seta pra trás do cabeçalho do aquário.
+    @ViewBuilder
+    private func gameControls(_ game: MiniGame, cardHeight: CGFloat) -> some View {
+        HStack(spacing: intakeGridSpacing) {
+            switch game {
+            case .rings:
+                jetButton(.left).matchedGeometryEffect(id: "gole", in: controlsNamespace)
+                jetButton(.center).matchedGeometryEffect(id: "bottle", in: controlsNamespace)
+                jetButton(.right).matchedGeometryEffect(id: "glass", in: controlsNamespace)
+            case .bubbles:
+                aimButton(.left).matchedGeometryEffect(id: "gole", in: controlsNamespace)
+                fireButton.matchedGeometryEffect(id: "bottle", in: controlsNamespace)
+                aimButton(.right).matchedGeometryEffect(id: "glass", in: controlsNamespace)
+            case .flappy:
+                // Um botão de nadar de cada lado, pra jogar com qualquer polegar; recorde no meio.
+                flapButton(0).matchedGeometryEffect(id: "gole", in: controlsNamespace)
+                JumpGameRecordCard(best: flappyBestScore, height: cardHeight)
+                    .matchedGeometryEffect(id: "bottle", in: controlsNamespace)
+                flapButton(1).matchedGeometryEffect(id: "glass", in: controlsNamespace)
+            case .maze:
+                recordRow(best: mazeBestScore, cardHeight: cardHeight) {
+                    directionJoystick(label: "Joystick do rim") { miniGames.mazeGame.setDirection($0, alternate: $1) }
+                }
+            case .snake:
+                // A cobrinha vira deslizando no aquário: no lugar dos controles, só a dica.
+                recordRow(best: snakeBestScore, cardHeight: cardHeight) {
+                    GameHintCard(title: "Deslize na água", subtitle: "Deslize o dedo pra controlar", height: cardHeight)
+                }
+            case .slice:
+                // O corte é no aquário: no lugar dos controles, só a dica.
+                recordRow(best: sliceBestScore, cardHeight: cardHeight) {
+                    GameHintCard(title: "Deslize na água", subtitle: "Corte as pedras e não corte o rim", height: cardHeight)
+                }
+            default:
+                recordRow(best: jumpBestScore, cardHeight: cardHeight) { jumpJoystick }
+            }
+        }
+        .frame(height: cardHeight)
+        .dynamicTypeSize(controlTextSizeRange)
+    }
+
+    private func jetButton(_ side: RingGameSide) -> some View {
+        RingGameControls(
+            side: side,
+            isPressed: pressedJets[side.rawValue],
+            onPressChange: { isPressed in
+                guard pressedJets[side.rawValue] != isPressed else { return }
+                pressedJets[side.rawValue] = isPressed
+                miniGames.ringGame.setJet(side, open: isPressed)
+                if isPressed { Haptic.tap.play() }
+            },
+            onAccessibilityPulse: { miniGames.ringGame.pulseJet(side) }
+        )
+    }
+
+    private func aimButton(_ side: BubbleGameSide) -> some View {
+        GameHoldButton(
+            symbol: side == .left ? "arrow.counterclockwise.circle.fill" : "arrow.clockwise.circle.fill",
+            accessibilityLabel: side == .left ? "Mirar pra esquerda" : "Mirar pra direita",
+            accessibilityHint: "Gira o canhão de bolhas enquanto estiver apertado",
+            isPressed: pressedAimSides[side.rawValue],
+            onPressChange: { isPressed in
+                guard pressedAimSides[side.rawValue] != isPressed else { return }
+                pressedAimSides[side.rawValue] = isPressed
+                miniGames.bubbleGame.setAim(side, held: isPressed)
+                if isPressed { Haptic.selection.play() }
+            },
+            onAccessibilityPulse: { miniGames.bubbleGame.pulseAim(side) }
+        )
+    }
+
+    /// Atira ao apertar; o pulso do toque completo (ver `GameHoldButton`) só cobre o caso em
+    /// que o `pressing` não chegou — a simulação ignora o segundo tiro enquanto o primeiro voa.
+    /// Nada pra cima ao apertar; o pulso do toque completo (ver `GameHoldButton`) só cobre o caso
+    /// em que o `pressing` não chegou — a simulação ignora braçadas coladas (`flapCooldown`).
+    private func flapButton(_ index: Int) -> some View {
+        GameHoldButton(
+            symbol: "arrow.up.circle.fill",
+            accessibilityLabel: "Nadar pra cima",
+            accessibilityHint: "Faz a gota nadar pra cima; tocar no aquário também",
+            isPressed: pressedFlapSides[index],
+            onPressChange: { isPressed in
+                guard pressedFlapSides[index] != isPressed else { return }
+                pressedFlapSides[index] = isPressed
+                if isPressed { miniGames.flappyGame.flap() }
+            },
+            onAccessibilityPulse: { miniGames.flappyGame.flap() }
+        )
+    }
+
+    /// Recorde num terço à esquerda e o controle do jogo (joystick ou dica) nos outros dois terços,
+    /// pro polegar ter espaço.
+    private func recordRow(best: Int, cardHeight: CGFloat, @ViewBuilder control: () -> some View) -> some View {
+        let joystick = control()
+        return GeometryReader { geo in
+            HStack(spacing: intakeGridSpacing) {
+                JumpGameRecordCard(best: best, height: cardHeight)
+                    .frame(width: (geo.size.width - intakeGridSpacing * 2) / 3)
+                    .matchedGeometryEffect(id: "gole", in: controlsNamespace)
+                joystick
+                    .matchedGeometryEffect(id: "glass", in: controlsNamespace)
+            }
+        }
+    }
+
+    /// Gota Saltitante: joystick só na horizontal; quanto mais pro lado, mais rápido a gota anda.
+    private var jumpJoystick: some View {
+        GameJoystick(
+            horizontalOnly: true,
+            accessibilityLabel: "Joystick da gota",
+            accessibilityActions: [
+                ("Esquerda", { miniGames.jumpGame.pulseDirection(.left) }),
+                ("Direita", { miniGames.jumpGame.pulseDirection(.right) }),
+            ],
+            onChange: { tilt in miniGames.jumpGame.setJoystick(Float(tilt.dx)) }
+        )
+    }
+
+    /// Joystick de quatro direções (Rim Comilão): vira pro lado em que o
+    /// polegar aponta mais, assim que ele sai um pouco do centro. Na diagonal (entre ~22° e ~68°
+    /// de um eixo) manda as duas direções, e o jogo pega a que der primeiro.
+    private func directionJoystick(label: String, onDirection: @escaping (MazeDirection, MazeDirection?) -> Void) -> some View {
+        GameJoystick(
+            horizontalOnly: false,
+            accessibilityLabel: label,
+            accessibilityActions: [
+                ("Cima", { onDirection(.up, nil) }),
+                ("Baixo", { onDirection(.down, nil) }),
+                ("Esquerda", { onDirection(.left, nil) }),
+                ("Direita", { onDirection(.right, nil) }),
+            ],
+            onChange: { tilt in
+                guard hypot(tilt.dx, tilt.dy) > 0.4 else {
+                    if tilt == .zero { joystickDirections = nil }
+                    return
+                }
+                let horizontal: MazeDirection = tilt.dx > 0 ? .right : .left
+                let vertical: MazeDirection = tilt.dy > 0 ? .down : .up
+                let (major, minor) = abs(tilt.dx) > abs(tilt.dy) ? (horizontal, vertical) : (vertical, horizontal)
+                // sen(22,5°) ≈ 0,38: o eixo menor pesa o bastante pra contar como diagonal.
+                let isDiagonal = min(abs(tilt.dx), abs(tilt.dy)) / hypot(tilt.dx, tilt.dy) > 0.38
+                let directions = isDiagonal ? [major, minor] : [major]
+                guard directions != joystickDirections else { return }
+                joystickDirections = directions
+                Haptic.selection.play()
+                onDirection(major, isDiagonal ? minor : nil)
+            }
+        )
+    }
+
+    private var fireButton: some View {
+        GameHoldButton(
+            symbol: "arrow.up.circle.fill",
+            accessibilityLabel: "Atirar bolha",
+            accessibilityHint: "Atira a bolha do canhão na direção da mira",
+            isPressed: isFirePressed,
+            onPressChange: { isPressed in
+                guard isFirePressed != isPressed else { return }
+                isFirePressed = isPressed
+                if isPressed { miniGames.bubbleGame.fire() }
+            },
+            onAccessibilityPulse: { miniGames.bubbleGame.fire() }
+        )
+    }
+
+    /// Solta qualquer botão de jogo que estivesse apertado (os botões sumiram ou o jogo trocou).
+    private func releaseGameButtons() {
+        pressedJets = [Bool](repeating: false, count: RingGameSide.allCases.count)
+        for side in RingGameSide.allCases { miniGames.ringGame.setJet(side, open: false) }
+        miniGames.jumpGame.setJoystick(0)
+        pressedAimSides = [Bool](repeating: false, count: BubbleGameSide.allCases.count)
+        isFirePressed = false
+        pressedFlapSides = [false, false]
+        joystickDirections = nil
+        for side in BubbleGameSide.allCases { miniGames.bubbleGame.setAim(side, held: false) }
     }
 
     private func intakeGrid(cardHeight: CGFloat) -> some View {
@@ -198,9 +437,13 @@ struct HomeView: View {
             spacing: intakeGridSpacing
         ) {
             goleCard(height: cardHeight)
+                .matchedGeometryEffect(id: "gole", in: controlsNamespace)
             intakeCard(.glass, height: cardHeight)
+                .matchedGeometryEffect(id: "glass", in: controlsNamespace)
             intakeCard(.bottle, height: cardHeight)
+                .matchedGeometryEffect(id: "bottle", in: controlsNamespace)
             customIntakeCard(height: cardHeight)
+                .matchedGeometryEffect(id: "custom", in: controlsNamespace)
         }
     }
 
@@ -244,6 +487,7 @@ struct HomeView: View {
             .buttonStyle(.plain)
             
             Button {
+                Haptic.tap.play()
                 isEditingCustomAmount = true
             } label: {
                 Image(systemName: "pencil.circle.fill")
@@ -282,7 +526,7 @@ struct HomeView: View {
         guard !isLogging else { return }
         isLogging = true
         playWaterSound()
-        UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+        Haptic.drink.play()
         withAnimation(.easeInOut(duration: 0.15)) { highlightedCard = cardID }
         Task {
             try? await Task.sleep(for: .seconds(0.7))
@@ -306,10 +550,12 @@ struct HomeView: View {
     }
     
     private func deleteLog(_ log: IntakeLog) {
+        Haptic.destructive.play()
         Task { await NotificationScheduler.shared.deleteIntake(log, context: modelContext) }
     }
     
     private func saveCustomAmount(_ newValue: Int) {
+        Haptic.success.play()
         profile.customIntakeML = newValue
         profile.atualizadoEm = .now
         profile.syncStatus = .pending
@@ -358,8 +604,8 @@ struct IntakeCardContent: View {
         isHighlighted ? .white : Color.appMutedInk
     }
 
-    private var backgroundIconColor: Color {
-        isHighlighted ? Color.white.opacity(0.28) : Color.appAccent
+    private var backgroundIconColor: AnyShapeStyle {
+        isHighlighted ? AnyShapeStyle(Color.white.opacity(0.28)) : AnyShapeStyle(LinearGradient.waterHeader)
     }
 
     var body: some View {
@@ -385,13 +631,14 @@ struct IntakeCardContent: View {
             }
             .background(
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(isHighlighted ? Color.appAccent : Color(UIColor.secondarySystemBackground))
+                    .fill(isHighlighted ? AnyShapeStyle(LinearGradient.waterHeader) : AnyShapeStyle(Color(UIColor.secondarySystemBackground)))
                     .homeCardShadow()
             )
             .contentShape(RoundedRectangle(cornerRadius: 18))
+            .dynamicTypeSize(...DynamicTypeSize.xxxLarge) // o cartão tem altura fixa; o texto não passa dela
     }
 
-    /// `minHeight` (e não `height`): o cartão cresce com o Dynamic Type em vez de cortar o texto.
+    /// Altura fixa: o cartão não muda com o Dynamic Type.
     private func textBlock(title titleColor: Color, subtitle subtitleColor: Color) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Spacer(minLength: 0)
@@ -405,8 +652,10 @@ struct IntakeCardContent: View {
                 .foregroundStyle(subtitleColor)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .frame(minHeight: height)
+        .padding(.vertical, 16)
+        .padding(.leading, 12)
+        .padding(.trailing, 16)
+        .frame(height: height)
     }
 
     private func iconLayer(_ icon: IntakeCardIcon) -> some View {
@@ -453,13 +702,13 @@ private struct BottleShape: Shape {
         path.move(to: pt(0.40, 0.15))
         path.addLine(to: pt(0.60, 0.15))
         path.addLine(to: pt(0.60, 0.19))
-        path.addQuadCurve(to: pt(0.81, 0.36), control: pt(0.81, 0.21))
-        path.addLine(to: pt(0.81, 0.88))
-        path.addQuadCurve(to: pt(0.71, 0.98), control: pt(0.81, 0.98))
-        path.addLine(to: pt(0.29, 0.98))
-        path.addQuadCurve(to: pt(0.19, 0.88), control: pt(0.19, 0.98))
-        path.addLine(to: pt(0.19, 0.36))
-        path.addQuadCurve(to: pt(0.40, 0.19), control: pt(0.19, 0.21))
+        path.addQuadCurve(to: pt(0.87, 0.36), control: pt(0.87, 0.21))
+        path.addLine(to: pt(0.87, 0.88))
+        path.addQuadCurve(to: pt(0.77, 0.98), control: pt(0.87, 0.98))
+        path.addLine(to: pt(0.23, 0.98))
+        path.addQuadCurve(to: pt(0.13, 0.88), control: pt(0.13, 0.98))
+        path.addLine(to: pt(0.13, 0.36))
+        path.addQuadCurve(to: pt(0.40, 0.19), control: pt(0.13, 0.21))
         path.closeSubpath()
 
         return path

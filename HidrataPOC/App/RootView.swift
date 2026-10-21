@@ -1,3 +1,4 @@
+import HydrationKit
 import SwiftData
 import SwiftUI
 
@@ -5,16 +6,28 @@ struct RootView: View {
     @AppStorage("hasAcceptedConsent") private var hasAcceptedConsent = false
     @AppStorage("hasSeenFeatureOnboarding") private var hasSeenFeatureOnboarding = false
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
     @Query private var profiles: [UserProfile]
 
     @State private var selectedPage: MainPage? = .home
     @State private var showProfile = false
+    /// Minijogos: o aquário desenha e a Home controla (ver `MiniGameController`).
+    @State private var miniGames = MiniGameController()
 
     /// Fresh install (or a new device): before showing onboarding, look for a backup
     /// in iCloud (CloudKit) and restore it.
     @State private var hasCheckedICloud = false
 
+    /// The widget can't read the real system appearance itself (see `LockScreenAppearance`).
+    private func recordSystemAppearance() {
+        LockScreenAppearance.isDark = UIScreen.main.traitCollection.userInterfaceStyle == .dark
+    }
+
     private var profile: UserProfile? { profiles.first }
+
+    /// Tela do minijogo: só na Home e com os botões do jogo no lugar dos cartões. O aquário
+    /// estica até a linha de botões, e não dá pra arrastar pro Histórico.
+    private var isGameLayout: Bool { miniGames.showsGameControls && selectedPage == .home }
 
     private var currentScreen: AppScreen {
         selectedPage == .historico ? .historico : .home
@@ -44,6 +57,8 @@ struct RootView: View {
                 OnboardingView()
             }
         }
+        .onAppear(perform: recordSystemAppearance)
+        .onChange(of: scenePhase) { if scenePhase == .active { recordSystemAppearance() } }
     }
 
     /// Sem tab bar: Home e Histórico são páginas lado a lado (Histórico à direita),
@@ -66,6 +81,7 @@ struct RootView: View {
             .scrollPosition(id: $selectedPage)
             .scrollIndicators(.hidden)
             .scrollBounceBehavior(.basedOnSize)
+            .scrollDisabled(isGameLayout)
             .overlay {
                 GeometryReader { geo in
                     // Recipiente de água fixo por cima das duas páginas, no mesmo
@@ -73,7 +89,10 @@ struct RootView: View {
                     // conteúdo abaixo dele troca. As partes sem toque deixam o arrasto
                     // chegar às páginas.
                     WaterHeaderView(profile: profile, screen: currentScreen, onOpenProfile: { showProfile = true })
-                        .frame(height: TabScreenLayout.waterHeight(forVisibleHeight: geo.size.height, safeAreaTop: geo.safeAreaInsets.top))
+                        .frame(height: isGameLayout
+                            ? TabScreenLayout.gameWaterHeight(forVisibleHeight: geo.size.height, safeAreaTop: geo.safeAreaInsets.top)
+                            : TabScreenLayout.waterHeight(forVisibleHeight: geo.size.height, safeAreaTop: geo.safeAreaInsets.top))
+                        .animation(.spring(response: 0.6, dampingFraction: 0.85), value: isGameLayout)
                         .padding(.horizontal, 10)
                         .padding(.top, TabScreenLayout.waterTop(safeAreaTop: geo.safeAreaInsets.top))
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -86,6 +105,8 @@ struct RootView: View {
                     // conteúdo (`spacing` acima da área segura) e a borda da tela.
                     PageDots(selection: $selectedPage)
                         .allowsHitTesting(false)
+                        .opacity(isGameLayout ? 0 : 1)
+                        .animation(.easeInOut(duration: 0.3), value: isGameLayout)
                         .padding(.bottom, (geo.safeAreaInsets.bottom + TabScreenLayout.spacing - PageDots.height) / 2)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                         .ignoresSafeArea(edges: .bottom)
@@ -93,11 +114,16 @@ struct RootView: View {
             }
             .appScreenBackground()
             .toolbar(.hidden, for: .navigationBar)
+            .onChange(of: selectedPage) { Haptic.selection.play() } // arrastar entre Home e Histórico
+            .onChange(of: showProfile) { _, isShowing in
+                if !isShowing { Haptic.dismiss.play() } // voltar do Perfil; abrir já vibra no botão
+            }
             .navigationDestination(isPresented: $showProfile) {
                 ProfileView(profile: profile)
-                    .navigationTitle("Perfil")
+                    .navigationTitle("Configurações")
             }
         }
+        .environment(miniGames)
         .tint(Color.appAccentText)
     }
 

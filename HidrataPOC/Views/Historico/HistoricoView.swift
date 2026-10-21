@@ -20,23 +20,33 @@ struct DiaHistorico: Identifiable {
 /// já ocorrido vira uma fração da meta daquele dia (`goals`, ver `DailyGoalResolver`);
 /// dias futuros ficam sem dado (`nil`).
 private enum HistoricoData {
-    static func percentual(for date: Date, logs: [IntakeLog], goals: DailyGoalResolver, calendar: Calendar) -> Double? {
-        let today = calendar.startOfDay(for: .now)
-        let dayStart = calendar.startOfDay(for: date)
+    static func percentual(for dayStart: Date, totalML: Int, goals: DailyGoalResolver, today: Date) -> Double? {
         guard dayStart <= today else { return nil }
         let goalML = goals.goalML(on: dayStart)
         guard goalML > 0 else { return 0 }
-        let total = HydrationMath.totalML(logs, on: dayStart, calendar: calendar)
-        return Double(total) / Double(goalML)
+        return Double(totalML) / Double(goalML)
     }
 
+    /// Roda a cada atualização da tela (inclusive no meio do arrasto entre as páginas), então
+    /// soma os registros do mês por dia numa passada só: comparar datas é barato, e só os
+    /// registros do mês pagam o `startOfDay`. Antes, cada um dos ~31 dias filtrava todos os
+    /// registros com o calendário, e o arrasto pra cá travava.
     static func generateMonth(for monthDate: Date, logs: [IntakeLog], goals: DailyGoalResolver, calendar: Calendar) -> [DiaHistorico] {
-        guard let range = calendar.range(of: .day, in: .month, for: monthDate) else { return [] }
+        guard let range = calendar.range(of: .day, in: .month, for: monthDate),
+              let month = calendar.dateInterval(of: .month, for: monthDate) else { return [] }
 
+        var totals: [Date: Int] = [:]
+        for log in logs {
+            let timestamp = log.timestamp
+            guard timestamp >= month.start, timestamp < month.end else { continue }
+            totals[calendar.startOfDay(for: timestamp), default: 0] += log.volumeML
+        }
+
+        let today = calendar.startOfDay(for: .now)
         return range.compactMap { day in
             guard let date = calendar.date(bySetting: .day, value: day, of: monthDate) else { return nil }
             let dayStart = calendar.startOfDay(for: date)
-            return DiaHistorico(date: dayStart, percentualMeta: percentual(for: dayStart, logs: logs, goals: goals, calendar: calendar))
+            return DiaHistorico(date: dayStart, percentualMeta: percentual(for: dayStart, totalML: totals[dayStart] ?? 0, goals: goals, today: today))
         }
     }
 }
@@ -84,17 +94,31 @@ struct HistoricoView: View {
         HistoricoData.generateMonth(for: displayedMonth, logs: userLogs, goals: goalResolver, calendar: calendar)
     }
 
-    private var gridCells: [DiaHistorico?] {
-        guard let firstOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: displayedMonth)) else {
-            return monthDays
-        }
-        let weekdayOfFirst = calendar.component(.weekday, from: firstOfMonth) - calendar.firstWeekday
-        let leadingEmptyCount = (weekdayOfFirst + 7) % 7
-        return Array(repeating: nil, count: leadingEmptyCount) + monthDays.map { Optional($0) }
+    /// O que o calendário mostra do mês, calculado uma vez por atualização do `body`. Os
+    /// `GeometryReader` desta tela refazem o conteúdo a cada frame enquanto a página desliza
+    /// (o arrasto entre Home e Histórico); se o mês fosse calculado lá dentro, o arrasto travava.
+    private struct MonthSummary {
+        let cells: [DiaHistorico?]
+        let metasBatidas: Int
+        let title: String
     }
 
-    private var metasBatidasCount: Int {
-        monthDays.filter { $0.bateuMeta }.count
+    private var monthSummary: MonthSummary {
+        let days = monthDays
+        var cells = days.map { Optional($0) }
+        if let firstOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: displayedMonth)) {
+            let weekdayOfFirst = calendar.component(.weekday, from: firstOfMonth) - calendar.firstWeekday
+            cells = Array(repeating: nil, count: (weekdayOfFirst + 7) % 7) + cells
+        }
+        return MonthSummary(cells: cells, metasBatidas: days.filter(\.bateuMeta).count, title: monthTitle)
+    }
+
+    /// True once today's temperature adjustment has already been fetched and locked
+    /// in (see `DailyGoal.recordToday`) — at that point a fresh WeatherKit call would
+    /// only repeat work `recordedAdjustmentML` already covers, so it's skipped.
+    private var isTodaysAdjustmentLocked: Bool {
+        let key = DailyGoal.dayKey(for: .now, calendar: calendar)
+        return dailyGoals.first { $0.dayKey == key }?.adjustmentLocked ?? false
     }
 
     /// Mesma meta ajustada pelo clima usada na Home — sem isso, o nível de água das
@@ -122,6 +146,8 @@ struct HistoricoView: View {
     }
 
     var body: some View {
+        let month = monthSummary
+        let chartData = cardPage == .semana ? weeklyChartData : []
         GeometryReader { geo in
             // Same layout as Home (`TabScreenLayout`): the water container
             // (`WaterHeaderView`) is drawn by `RootView`, fixed on top of both pages,
@@ -130,7 +156,7 @@ struct HistoricoView: View {
             VStack(spacing: TabScreenLayout.spacing) {
                 Color.clear
                     .frame(height: TabScreenLayout.waterHeight(forVisibleHeight: geo.size.height, safeAreaTop: geo.safeAreaInsets.top))
-                calendarCard(height: TabScreenLayout.contentHeight(forVisibleHeight: geo.size.height))
+                calendarCard(height: TabScreenLayout.contentHeight(forVisibleHeight: geo.size.height), month: month, chartData: chartData)
                     .padding(.horizontal)
             }
             .padding(.top, TabScreenLayout.waterTop(safeAreaTop: geo.safeAreaInsets.top))
@@ -139,13 +165,13 @@ struct HistoricoView: View {
         }
         .appScreenBackground()
         .onAppear {
-            guard tempContext == nil else { return }
+            guard tempContext == nil, !isTodaysAdjustmentLocked else { return }
             Task {
                 tempContext = await WeatherContextService.shared.temperatureAdjustmentContext()
             }
         }
         .sheet(item: $selectedDay) { dia in
-            DayDetailSheet(dia: dia, metaDiariaML: goalResolver.goalML(on: dia.date), userID: profile.userID, calendar: calendar)
+            DayDetailSheet(dia: dia, metaDiariaML: goalResolver.goalML(on: dia.date), profile: profile, calendar: calendar)
                 .trackSheetLifecycle(.historicoDayDetail, screen: .historico, userID: profile.userID, metadata: ["date": isoDate(dia.date)])
         }
     }
@@ -156,12 +182,12 @@ struct HistoricoView: View {
     /// Card com duas "páginas": o calendário do mês e um gráfico dos últimos
     /// 7 dias. Troca de página pela setinha (`pageToggleButton`, presente nos
     /// dois cabeçalhos) ou arrastando o card para o lado.
-    private func calendarCard(height: CGFloat) -> some View {
+    private func calendarCard(height: CGFloat, month: MonthSummary, chartData: [(day: Date, totalML: Int, goalML: Int)]) -> some View {
         VStack(spacing: 14) {
             if cardPage == .calendario {
-                calendarPageContent
+                calendarPageContent(month)
             } else {
-                weeklyChartPageContent
+                weeklyChartPageContent(chartData)
             }
         }
         .padding(20)
@@ -175,32 +201,36 @@ struct HistoricoView: View {
             .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4))
     }
 
-    private var calendarPageContent: some View {
+    private func calendarPageContent(_ month: MonthSummary) -> some View {
         VStack(spacing: 14) {
-            monthHeader
+            monthHeader(month)
             weekdayHeader
             // 6-row months stretch their cells to fill the space the card leaves for
             // the grid. Shorter months use square cells (capped so they still fit),
             // centered vertically in that space.
             GeometryReader { geo in
-                let rows = CGFloat((gridCells.count + 6) / 7)
+                let rows = CGFloat((month.cells.count + 6) / 7)
                 let fillHeight = max((geo.size.height - (rows - 1) * Self.gridRowSpacing) / rows, 26)
                 let cellWidth = (geo.size.width - 6 * Self.gridColumnSpacing) / 7
-                calendarGrid(cellHeight: rows >= 6 ? fillHeight : min(cellWidth, fillHeight))
+                calendarGrid(month.cells, cellHeight: rows >= 6 ? fillHeight : min(cellWidth, fillHeight))
                     .frame(width: geo.size.width, height: geo.size.height)
             }
         }
         .transition(.opacity)
     }
 
-    private func calendarGrid(cellHeight: CGFloat) -> some View {
+    private func calendarGrid(_ cells: [DiaHistorico?], cellHeight: CGFloat) -> some View {
         LazyVGrid(columns: columns, spacing: Self.gridRowSpacing) {
-            ForEach(Array(gridCells.enumerated()), id: \.offset) { _, cell in
+            ForEach(Array(cells.enumerated()), id: \.offset) { _, cell in
                 if let cell {
                     DayCell(dia: cell, isToday: calendar.isDateInToday(cell.date), height: cellHeight)
                         .contentShape(Rectangle())
                         .onTapGesture {
-                            guard !cell.isFuturo else { return }
+                            guard !cell.isFuturo else {
+                                Haptic.warning.play() // dia que ainda não chegou
+                                return
+                            }
+                            Haptic.tap.play()
                             InteractionTracker.log(
                                 "historico_day_tap",
                                 screen: .historico,
@@ -221,7 +251,7 @@ struct HistoricoView: View {
         }
     }
 
-    private var weeklyChartPageContent: some View {
+    private func weeklyChartPageContent(_ chartData: [(day: Date, totalML: Int, goalML: Int)]) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
                 Text("Últimos 7 dias")
@@ -229,13 +259,13 @@ struct HistoricoView: View {
                 Spacer()
                 pageToggleButton
             }
-            HydrationChartView(dailyTotals: weeklyChartData)
+            HydrationChartView(dailyTotals: chartData)
         }
         .frame(maxHeight: .infinity, alignment: .top)
         .transition(.opacity)
     }
 
-    private var monthHeader: some View {
+    private func monthHeader(_ month: MonthSummary) -> some View {
         HStack {
             HStack(spacing: 6) {
                 Button {
@@ -246,7 +276,7 @@ struct HistoricoView: View {
                 }
                 .accessibilityLabel("Mês anterior")
 
-                Text(monthTitle)
+                Text(month.title)
                     .font(AppFont.displayTitle)
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
@@ -265,7 +295,7 @@ struct HistoricoView: View {
 
             Spacer()
 
-            Text("\(metasBatidasCount) metas batidas")
+            Text("\(month.metasBatidas) metas batidas")
                 .font(AppFont.footnoteStrong)
                 .foregroundStyle(Color.appAccentText)
 
@@ -277,6 +307,7 @@ struct HistoricoView: View {
     /// para o lado não troca de página: esse gesto volta para a Home.
     private var pageToggleButton: some View {
         Button {
+            Haptic.selection.play()
             let toPage = cardPage == .calendario ? "semana" : "calendario"
             InteractionTracker.log("historico_page_toggle", screen: .historico, userID: profile.userID, metadata: ["method": "tap", "toPage": toPage], context: modelContext)
             withAnimation(.easeInOut(duration: 0.2)) {
@@ -305,6 +336,7 @@ struct HistoricoView: View {
     }
 
     private func changeMonth(by value: Int) {
+        Haptic.selection.play()
         InteractionTracker.log("historico_month_nav", screen: .historico, userID: profile.userID, metadata: ["direction": value < 0 ? "prev" : "next"], context: modelContext)
         guard let newDate = calendar.date(byAdding: .month, value: value, to: displayedMonth) else { return }
         displayedMonth = newDate
@@ -433,15 +465,63 @@ struct DayDetailSheet: View {
     @Environment(\.modelContext) private var modelContext
     let dia: DiaHistorico
     let metaDiariaML: Int
+    let profile: UserProfile
+    let calendar: Calendar
     @Query private var logs: [IntakeLog]
+    @State private var currentWeather: WeatherContext?
 
-    init(dia: DiaHistorico, metaDiariaML: Int, userID: String, calendar: Calendar) {
+    init(dia: DiaHistorico, metaDiariaML: Int, profile: UserProfile, calendar: Calendar) {
         self.dia = dia
         self.metaDiariaML = metaDiariaML
+        self.profile = profile
+        self.calendar = calendar
+        let userID = profile.userID
         let dayStart = calendar.startOfDay(for: dia.date)
         let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart) ?? dayStart
         let predicate = #Predicate<IntakeLog> { $0.userID == userID && $0.timestamp >= dayStart && $0.timestamp < dayEnd }
         _logs = Query(filter: predicate, sort: \IntakeLog.timestamp)
+    }
+
+    private var isToday: Bool { calendar.isDateInToday(dia.date) }
+
+    /// This day's own weather, from whatever was cached on its logs when they
+    /// were made (see `IntakeLog.temperaturaC` etc.) — so a past day's plan
+    /// reflects what the weather actually was that day, not today's. Falls back
+    /// to a live reading only for today, before any log has cached one yet
+    /// (e.g. first thing in the morning).
+    private var dayWeather: WeatherContext? {
+        if let logged = logs.first(where: { $0.temperaturaC != nil }) {
+            return WeatherContext(
+                temperaturaC: logged.temperaturaC!,
+                umidadeRelativa: logged.umidadeRelativa ?? 0,
+                sensacaoTermicaC: logged.sensacaoTermicaC ?? logged.temperaturaC!
+            )
+        }
+        return isToday ? currentWeather : nil
+    }
+
+    /// That day's strategic hydration schedule, based on its own weather and
+    /// its own recorded goal — nil if there's no policy prior yet.
+    private var idealPlan: [HydrationPlanPoint]? {
+        HydrationPlanner.idealDayCurve(
+            profile: profile,
+            effectiveGoalML: metaDiariaML,
+            weather: dayWeather,
+            day: dia.date,
+            calendar: calendar
+        )
+    }
+
+    /// Same cumulative shape as `cumulativeSeries`, bracketed to the shared
+    /// domain so both lines span the full chart.
+    private var idealSeries: [(hour: Int, totalML: Int)] {
+        guard let plan = idealPlan, !plan.isEmpty else { return [] }
+        var points: [(hour: Int, totalML: Int)] = [(hour: domainStart, totalML: 0)]
+        points.append(contentsOf: plan.map { (hour: $0.hour, totalML: $0.idealCumulativeML) })
+        if let last = plan.last {
+            points.append((hour: domainEnd, totalML: last.idealCumulativeML))
+        }
+        return points
     }
 
     private var totalML: Int {
@@ -452,9 +532,71 @@ struct DayDetailSheet: View {
         totalML >= metaDiariaML
     }
 
+    /// Preenche as horas sem registro, dentro da janela ativa do dia (do primeiro
+    /// ao último gole), com 0 mL — sem isso, as horas eram colocadas em um eixo
+    /// categórico (strings "08:00", "14:00") igualmente espaçadas, fazendo horas
+    /// distantes parecerem vizinhas. Com `hour: Int` como valor numérico, o eixo X
+    /// passa a refletir o tempo real entre os registros.
     private var hourlyBreakdown: [(hour: Int, ml: Int)] {
         let grouped = Dictionary(grouping: logs) { Calendar.current.component(.hour, from: $0.timestamp) }
-        return grouped.map { (hour: $0.key, ml: $0.value.reduce(0) { $0 + $1.volumeML }) }.sorted { $0.hour < $1.hour }
+        guard let firstHour = grouped.keys.min(), let lastHour = grouped.keys.max() else { return [] }
+        return (firstHour...lastHour).map { hour in
+            (hour: hour, ml: grouped[hour]?.reduce(0) { $0 + $1.volumeML } ?? 0)
+        }
+    }
+
+    /// Domínio do eixo X com 1h de folga de cada lado dos dados — sem isso, com um
+    /// só horário de registro no dia, `firstHour == lastHour` faria o domínio ter
+    /// largura zero e o Charts não desenha nada num eixo contínuo sem amplitude.
+    /// Dia sem registros: o gráfico vazio cobre o dia útil (6h às 22h).
+    private static let emptyDayHours = 6...22
+
+    /// The plan's own hour span, so a morning view of today (no logs yet) still
+    /// shows the full planned day instead of a near-empty domain.
+    private var planHourBounds: (min: Int, max: Int)? {
+        guard let plan = idealPlan, let first = plan.first, let last = plan.last else { return nil }
+        return (first.hour, last.hour)
+    }
+
+    private var domainStart: Int {
+        min(hourlyBreakdown.first.map { $0.hour - 1 } ?? Self.emptyDayHours.lowerBound,
+            planHourBounds.map { $0.min - 1 } ?? Self.emptyDayHours.lowerBound)
+    }
+    private var domainEnd: Int {
+        max(hourlyBreakdown.last.map { $0.hour + 1 } ?? Self.emptyDayHours.upperBound,
+            planHourBounds.map { $0.max + 1 } ?? Self.emptyDayHours.upperBound)
+    }
+
+    /// Soma corrida do consumo — 500 mL às 8h e mais 500 mL às 9h aparece como
+    /// 500 às 8h e 1000 às 9h, não dois picos iguais. Começa num ponto sintético
+    /// no início do domínio (0 mL) e termina com outro no fim, pra área ocupar o
+    /// gráfico inteiro em vez de parar (ou começar) no meio do eixo.
+    private var cumulativeSeries: [(hour: Int, totalML: Int)] {
+        guard !hourlyBreakdown.isEmpty else { return [] }
+        var running = 0
+        var points: [(hour: Int, totalML: Int)] = [(hour: domainStart, totalML: 0)]
+        for entry in hourlyBreakdown {
+            running += entry.ml
+            points.append((hour: entry.hour, totalML: running))
+        }
+        points.append((hour: domainEnd, totalML: running))
+        return points
+    }
+
+    private var chartYUpperBound: Int {
+        // Sem registros nem plano, o eixo mostra até a meta do dia, para o gráfico vazio ter escala.
+        guard !cumulativeSeries.isEmpty || !idealSeries.isEmpty else { return max(metaDiariaML, 1) }
+        let peak = max(cumulativeSeries.map(\.totalML).max() ?? 0, idealSeries.map(\.totalML).max() ?? 0)
+        return max(peak, 1) * 6 / 5
+    }
+
+    /// Marcas do eixo X a cada ~1/4 da janela, pra não lotar o eixo com uma
+    /// legenda por hora.
+    private var hourlyAxisMarks: [Int] {
+        let span = domainEnd - domainStart
+        guard span > 0 else { return [domainStart] }
+        let step = max(1, span / 4)
+        return Array(stride(from: domainStart, through: domainEnd, by: step))
     }
 
     private var dateTitle: String {
@@ -477,26 +619,114 @@ struct DayDetailSheet: View {
                             .foregroundStyle(atingiuMeta ? Color.appAccentText : Color.appSecondary)
                     }
 
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Consumo ao longo do dia")
-                            .font(AppFont.footnoteStrong)
-                            .foregroundStyle(Color.appSecondary)
-
-                        Chart {
-                            ForEach(hourlyBreakdown, id: \.hour) { entry in
-                                BarMark(
-                                    x: .value("Hora", String(format: "%02d:00", entry.hour)),
-                                    y: .value("mL", entry.ml)
-                                )
-                                .foregroundStyle(Color.appAccentText)
-                                .cornerRadius(4)
+                    VStack(alignment: .leading, spacing: 14) {
+                        HStack {
+                            Text("Consumo ao longo do dia")
+                                .font(AppFont.footnoteStrong)
+                                .foregroundStyle(Color.appSecondary)
+                            Spacer()
+                            if !idealSeries.isEmpty {
+                                chartLegend
                             }
                         }
-                        .frame(height: 200)
-                    }
 
-                    intakeList
+                        Chart {
+                            ForEach(cumulativeSeries, id: \.hour) { point in
+                                AreaMark(
+                                    x: .value("Hora", point.hour),
+                                    y: .value("Consumo", point.totalML)
+                                )
+                                .interpolationMethod(.monotone)
+                                // Mesmo azul de marca das barras antigas (`LinearGradient.waterHeader`),
+                                // só diluído pra área — não um azul inventado à parte.
+                                .foregroundStyle(LinearGradient.waterHeader.opacity(0.35))
+                            }
+                            ForEach(cumulativeSeries, id: \.hour) { point in
+                                LineMark(
+                                    x: .value("Hora", point.hour),
+                                    y: .value("Consumo", point.totalML)
+                                )
+                                .interpolationMethod(.monotone)
+                                .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                                // Série nomeada (não uma Color literal), senão o Charts pode
+                                // confundir o estilo desta linha com o da série seguinte quando
+                                // as duas compartilham o mesmo eixo sem uma escala discreta.
+                                .foregroundStyle(by: .value("Série", "Seu consumo"))
+                            }
+                            // Plano ideal: sobreposto, pontilhado, pra nunca ser confundido com
+                            // um registro real — é uma sugestão derivada dos horários
+                            // estratégicos do usuário e do clima daquele dia, não um dado real.
+                            ForEach(idealSeries, id: \.hour) { point in
+                                LineMark(
+                                    x: .value("Hora", point.hour),
+                                    y: .value("Plano ideal", point.totalML)
+                                )
+                                .interpolationMethod(.monotone)
+                                .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, dash: [6, 5]))
+                                .foregroundStyle(by: .value("Série", "Plano ideal"))
+                            }
+                        }
+                        .chartForegroundStyleScale([
+                            "Seu consumo": Color.appAccent,
+                            "Plano ideal": Color.appSecondary,
+                        ])
+                        .chartLegend(.hidden)
+                        .chartXScale(domain: domainStart...domainEnd)
+                        .chartXAxis {
+                            AxisMarks(values: hourlyAxisMarks) { value in
+                                AxisValueLabel {
+                                    if let hour = value.as(Int.self) {
+                                        Text("\(hour)h")
+                                            .font(AppFont.caption)
+                                            .foregroundStyle(Color.appSecondary)
+                                    }
+                                }
+                            }
+                        }
+                        .chartYAxis {
+                            AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { value in
+                                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                                    .foregroundStyle(Color.appSecondary.opacity(0.18))
+                                AxisValueLabel {
+                                    if let ml = value.as(Int.self) {
+                                        Text("\(ml)")
+                                            .font(AppFont.caption)
+                                            .foregroundStyle(Color.appSecondary)
+                                    }
+                                }
+                            }
+                        }
+                        .chartYScale(domain: 0...chartYUpperBound)
+                        .frame(height: 180)
+                        // Dia sem registros: o gráfico aparece vazio, com o aviso por cima.
+                        .overlay {
+                            if logs.isEmpty {
+                                Text(Calendar.current.isDateInToday(dia.date) ? "Sem registros ainda" : "Sem registros neste dia")
+                                    .font(AppFont.footnoteStrong)
+                                    .foregroundStyle(Color.appSecondary)
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 8)
+                                    .background(Color(.secondarySystemBackground), in: Capsule())
+                            }
+                        }
+
+                        if !idealSeries.isEmpty {
+                            Text("Plano baseado nos horários que funcionam melhor para você e no clima daquele dia.")
+                                .font(AppFont.caption)
+                                .foregroundStyle(Color.appSecondary)
+                        }
+                    }
+                    .padding(16)
+                    .panelBackground()
+
+                    // Sem registros, o aviso já está no gráfico; a lista só aparece com o que listar.
+                    if !logs.isEmpty {
+                        intakeList
+                    }
                 }
+                // Garante a largura total mesmo que nada aqui peça: sem isso a folha encolhia até
+                // o texto mais largo, deixando faixas brancas dos lados.
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(20)
             }
             .appScreenBackground()
@@ -504,9 +734,37 @@ struct DayDetailSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Fechar", systemImage: "xmark") { dismiss() }
+                    Button("Fechar", systemImage: "xmark") { Haptic.dismiss.play(); dismiss() }
                 }
             }
+        }
+        .task {
+            guard isToday, currentWeather == nil else { return }
+            currentWeather = await WeatherContextService.shared.currentContext()
+        }
+    }
+
+    private var chartLegend: some View {
+        HStack(spacing: 14) {
+            legendEntry(color: Color.appAccent, dashed: false, label: "Seu consumo")
+            legendEntry(color: Color.appSecondary, dashed: true, label: "Plano ideal")
+        }
+    }
+
+    private func legendEntry(color: Color, dashed: Bool, label: String) -> some View {
+        HStack(spacing: 5) {
+            if dashed {
+                HStack(spacing: 2) {
+                    ForEach(0..<3, id: \.self) { _ in
+                        Rectangle().fill(color).frame(width: 3, height: 2)
+                    }
+                }
+            } else {
+                Rectangle().fill(color).frame(width: 12, height: 2)
+            }
+            Text(label)
+                .font(AppFont.caption)
+                .foregroundStyle(Color.appSecondary)
         }
     }
 
@@ -516,27 +774,21 @@ struct DayDetailSheet: View {
                 .font(AppFont.footnoteStrong)
                 .foregroundStyle(Color.appSecondary)
 
-            if logs.isEmpty {
-                Text("Nenhum registro neste dia.")
-                    .font(AppFont.footnoteStrong)
-                    .foregroundStyle(Color.appSecondary)
-                    .padding(.vertical, 12)
-            } else {
-                VStack(spacing: 0) {
-                    ForEach(logs) { log in
-                        IntakeRow(log: log) { deleteIntake(log) }
-                        if log.id != logs.last?.id {
-                            Divider()
-                        }
+            VStack(spacing: 0) {
+                ForEach(logs) { log in
+                    IntakeRow(log: log) { deleteIntake(log) }
+                    if log.id != logs.last?.id {
+                        Divider()
                     }
                 }
-                .padding(.horizontal, 14)
-                .background(Color(.tertiarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
             }
+            .padding(.horizontal, 14)
+            .background(Color(.tertiarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
         }
     }
 
     private func deleteIntake(_ log: IntakeLog) {
+        Haptic.destructive.play()
         Task { await NotificationScheduler.shared.deleteIntake(log, context: modelContext) }
     }
 }
