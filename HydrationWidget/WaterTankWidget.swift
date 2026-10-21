@@ -69,9 +69,9 @@ struct WaterTankProvider: TimelineProvider {
         let startOfDay = Calendar.current.startOfDay(for: now)
         let predicate = #Predicate<IntakeLog> { $0.userID == userID && $0.timestamp >= startOfDay }
         let logs = (try? context.fetch(FetchDescriptor(predicate: predicate))) ?? []
-        let consumed = logs
-            .filter { Calendar.current.isDate($0.timestamp, inSameDayAs: now) }
-            .reduce(0) { $0 + $1.volumeML }
+        // O predicado acima já corta em startOfDay(now); filtrar de novo por dia era
+        // redundante.
+        let consumed = logs.reduce(0) { $0 + $1.volumeML }
         let goal = WidgetSync.effectiveGoal(on: now) ?? profile.metaDiariaML
         return WaterTankEntry(date: now, consumedML: consumed, goalML: goal)
     }
@@ -118,7 +118,7 @@ struct WaterTankWidgetView: View {
     }
 }
 
-/// Static stand-in for the app's animated water (`water` in Bubble.metal): the
+/// Static stand-in for the app's animated water (`water` in Water.metal): the
 /// accent blue tinting what's below the surface — lighter right under it, stronger
 /// at the bottom — with a bright line on the surface. Gentle wave, flat when full.
 private struct WaterLevelFill: View {

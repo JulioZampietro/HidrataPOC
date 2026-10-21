@@ -681,7 +681,7 @@ final class NotificationScheduler {
         // the slot was already armed with.
         let midday: [NotificationVariant] = [.middayNeutral, .symptomHeadacheMidday, .symptomConcentrationMidday]
         if let keeping, midday.contains(keeping) { return keeping }
-        return midday.randomElement()!
+        return midday.randomElement() ?? .middayNeutral
     }
 
     // MARK: - Interaction resolution

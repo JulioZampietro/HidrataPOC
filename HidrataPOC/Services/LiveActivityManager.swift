@@ -118,6 +118,9 @@ final class LiveActivityManager {
     private func watchForDismissal(id: String) {
         guard watchedIDs.insert(id).inserted else { return }
         Task { @MainActor in
+            // O id sai do conjunto quando a observação termina, senão ele cresce sem
+            // limite ao longo da vida do processo.
+            defer { watchedIDs.remove(id) }
             guard let activity = Activity<HydrationAttributes>.activities.first(where: { $0.id == id }),
                   !activity.attributes.isIslandOnly else { return }
             for await state in activity.activityStateUpdates where state == .dismissed {

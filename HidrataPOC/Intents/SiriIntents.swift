@@ -8,7 +8,7 @@ enum DrinkQuantity: Int, AppEnum, CaseIterable {
 
     static var typeDisplayRepresentation: TypeDisplayRepresentation { "Quantidade" }
 
-    static nonisolated(unsafe) var caseDisplayRepresentations: [DrinkQuantity: DisplayRepresentation] = [
+    static let caseDisplayRepresentations: [DrinkQuantity: DisplayRepresentation] = [
         .one:   "um",
         .two:   "dois",
         .three: "três",

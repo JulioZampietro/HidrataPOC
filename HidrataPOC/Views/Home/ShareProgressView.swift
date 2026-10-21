@@ -45,11 +45,20 @@ enum ShareCardInk: Hashable {
 }
 
 extension Color {
-    /// Luminância relativa (0 = preto, 1 = branco), para decidir sombra e fundo da prévia.
+    /// Luminância relativa (0 = preto, 1 = branco), para decidir sombra e fundo da
+    /// prévia. Os componentes sRGB são linearizados antes da soma ponderada (WCAG
+    /// 2.x): sem isso o valor não é luminância, e cores saturadas caíam no lado
+    /// errado do limiar.
     var luminance: Double {
         var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0
-        UIColor(self).getRed(&red, green: &green, blue: &blue, alpha: nil)
-        return 0.2126 * red + 0.7152 * green + 0.0722 * blue
+        // Falha com cores fora de um espaço RGB; aí os componentes ficam em 0 (preto),
+        // que é o lado seguro para a decisão de contraste que o chamador faz.
+        guard UIColor(self).getRed(&red, green: &green, blue: &blue, alpha: nil) else { return 0 }
+        func linear(_ component: CGFloat) -> Double {
+            let c = Double(component)
+            return c <= 0.03928 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4)
+        }
+        return 0.2126 * linear(red) + 0.7152 * linear(green) + 0.0722 * linear(blue)
     }
 }
 

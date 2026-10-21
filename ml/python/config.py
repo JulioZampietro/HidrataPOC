@@ -1,7 +1,10 @@
 """Shared constants. Anything the iOS app must reproduce lives here or in the
 exported policy_params.json, never hard-coded in two places."""
 
-SLOT_HOURS = [8, 10, 12, 14, 16, 18, 20, 22]   # the app's fixed grid
+# A grade completa considerada pelo pipeline. 22h existe aqui só para ser filtrada
+# por `is_quiet` abaixo; a grade que o app realmente usa
+# (Constants.notificationFixedHours) é ACTIVE_SLOT_HOURS, sem 22h.
+SLOT_HOURS = [8, 10, 12, 14, 16, 18, 20, 22]
 
 # Quiet hours, local time: no reminder may fire in [QUIET_START, QUIET_END).
 # The window wraps midnight, so 22:00 is excluded and 08:00 is allowed.
