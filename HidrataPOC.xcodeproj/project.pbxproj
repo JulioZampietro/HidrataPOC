@@ -25,6 +25,7 @@
 		AA4A16B07FD4CA11466BAE10 /* MascotBubbleTransitionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B532ECBDEBA5DAFC650D62D5 /* MascotBubbleTransitionView.swift */; };
 		1E0E8D58D49CFBE72BD691A5 /* HydrationChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36AFA6358F8646D4CE01B474 /* HydrationChartView.swift */; };
 		66C970624E67FD02862BF4AA /* MyDataView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C73C46BA27479CC14F1B00C8 /* MyDataView.swift */; };
+		8F05EA3A232FCAE05BC6351E /* RemindersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFC84EA1F699E1A35F2DEAC8 /* RemindersView.swift */; };
 		267A40DE9CF3539833AEA14D /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9EDD10460D867692F1B0943 /* HomeView.swift */; };
 		2A1D8B0D2B76B6F3EA0A6273 /* WaterIntakeCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD611C7BACD349B4B8CBC129 /* WaterIntakeCalculator.swift */; };
 		322E3A00D8FD3C5C771E2221 /* WeatherContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3BCAACF78A9164EF7C57D86 /* WeatherContext.swift */; };
@@ -208,6 +209,7 @@
 		2C99514CDA594E3EE16A0EE4 /* HydrationPlanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HydrationPlanner.swift; sourceTree = "<group>"; };
 		36AFA6358F8646D4CE01B474 /* HydrationChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HydrationChartView.swift; sourceTree = "<group>"; };
 		C73C46BA27479CC14F1B00C8 /* MyDataView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyDataView.swift; sourceTree = "<group>"; };
+		DFC84EA1F699E1A35F2DEAC8 /* RemindersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemindersView.swift; sourceTree = "<group>"; };
 		38B4362630654D550041595B /* Bubble.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = Bubble.metal; sourceTree = "<group>"; };
 		39B01B3E715DF9C6090B73F0 /* HydrationAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HydrationAttributes.swift; sourceTree = "<group>"; };
 		3CEB9412C32EF75ADC24DDFE /* CloudKitSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitSyncService.swift; sourceTree = "<group>"; };
@@ -540,6 +542,7 @@
 			children = (
 				36AFA6358F8646D4CE01B474 /* HydrationChartView.swift */,
 				C73C46BA27479CC14F1B00C8 /* MyDataView.swift */,
+				DFC84EA1F699E1A35F2DEAC8 /* RemindersView.swift */,
 				KK11223344556677889900KK /* HealthConnectView.swift */,
 				44B579DB179F9F9A74296475 /* ProfileFormView.swift */,
 				2D3D07956D972BB7565F7450 /* ProfileView.swift */,
@@ -814,6 +817,7 @@
 				F38FE2580C5C436E820BA2A8 /* NotificationVariant.swift in Sources */,
 				1E0E8D58D49CFBE72BD691A5 /* HydrationChartView.swift in Sources */,
 				66C970624E67FD02862BF4AA /* MyDataView.swift in Sources */,
+				8F05EA3A232FCAE05BC6351E /* RemindersView.swift in Sources */,
 				ED310A2AD7021F64EFBB3C64 /* HydrationMath.swift in Sources */,
 				8E5D6DFD9B3C8FF619ABA82D /* HydrationPlanner.swift in Sources */,
 				8DE7FD7B97BBF583ACF51FDF /* IntakeLog.swift in Sources */,

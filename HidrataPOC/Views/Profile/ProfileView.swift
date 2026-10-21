@@ -263,6 +263,10 @@ struct ProfileView: View {
             .padding(.vertical, 16)
         }
         .buttonStyle(GradientProminentButtonStyle(cornerRadius: 20))
+        .sheet(isPresented: $showReminders) {
+            RemindersView()
+                .trackSheetLifecycle(.reminders, screen: .profile, userID: profile.userID)
+        }
     }
 
     // MARK: - Live Activities Row
