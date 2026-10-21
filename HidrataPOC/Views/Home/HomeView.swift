@@ -495,7 +495,7 @@ struct HomeView: View {
         ZStack(alignment: .topTrailing) {
             Button { logIntake(.custom(volumeML: profile.customIntakeML), cardID: "custom") } label: {
                 IntakeCardContent(
-                    icon: nil,
+                    icon: .beaker,
                     title: "Outro",
                     subtitle: "\(profile.customIntakeML) mL",
                     isHighlighted: highlightedCard == "custom",
@@ -595,6 +595,8 @@ enum IntakeCardIcon {
     case symbol(String, mirrored: Bool = false)
     /// Garrafa sólida desenhada à mão — o `waterbottle.fill` tem uma gota vazada no meio.
     case bottle
+    /// Béquer sólido (tampa + corpo com marcas de volume vazadas), usado no cartão "Outro".
+    case beaker
 
     /// Quanto do ícone (fração do lado) fica para fora da borda esquerda.
     var leadingOverflow: CGFloat {
@@ -702,6 +704,8 @@ struct IntakeCardContent: View {
                 .scaleEffect(x: mirrored ? -1 : 1, y: 1)
         case .bottle:
             BottleShape()
+        case .beaker:
+            BeakerShape()
         }
     }
 }
@@ -735,6 +739,38 @@ private struct BottleShape: Shape {
         path.closeSubpath()
 
         return path
+    }
+}
+
+/// Béquer sólido: tampa em cápsula, corpo reto e quatro marcas de volume vazadas no lado direito.
+private struct BeakerShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        func r(_ x: CGFloat, _ y: CGFloat, _ w: CGFloat, _ h: CGFloat) -> CGRect {
+            CGRect(x: rect.minX + x * rect.width, y: rect.minY + y * rect.height,
+                   width: w * rect.width, height: h * rect.height)
+        }
+        var path = Path()
+
+        // Tampa: cápsula, com a ponta direita arredondada.
+        let lid = r(0.12, 0.02, 0.76, 0.045)
+        path.addRoundedRect(in: lid, cornerSize: CGSize(width: lid.height / 2, height: lid.height / 2), style: .continuous)
+
+        // Corpo.
+        path.addRoundedRect(
+            in: r(0.12, 0.093, 0.70, 0.887),
+            cornerSize: CGSize(width: rect.width * 0.04, height: rect.width * 0.04),
+            style: .continuous
+        )
+
+        // Marcas de volume (alinhadas à direita, alternando longa e curta).
+        var ticks = Path()
+        let marks: [(y: CGFloat, w: CGFloat)] = [(0.18, 0.135), (0.254, 0.086), (0.327, 0.135), (0.40, 0.086)]
+        let tickRight: CGFloat = 0.78
+        for mark in marks {
+            let tick = r(tickRight - mark.w, mark.y, mark.w, 0.023)
+            ticks.addRoundedRect(in: tick, cornerSize: CGSize(width: tick.height / 2, height: tick.height / 2), style: .continuous)
+        }
+        return path.subtracting(ticks)
     }
 }
 
