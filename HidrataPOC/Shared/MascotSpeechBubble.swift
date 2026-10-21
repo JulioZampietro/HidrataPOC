@@ -1,9 +1,12 @@
 import SwiftUI
 
-/// Balão de fala do mascote — cauda no canto inferior-esquerdo aponta
-/// para o centro da tela (onde o mascote está posicionado).
+/// Balão de fala do mascote — por padrão a cauda fica no canto inferior-esquerdo,
+/// apontando para o centro da tela (onde o mascote está na Home).
 struct MascotSpeechBubble: View {
     let text: String
+    /// Lado da base onde fica a cauda — `.trailing` quando o mascote está embaixo
+    /// e à direita do balão (cabeçalho dos tutoriais/onboarding).
+    var tailEdge: HorizontalEdge = .leading
 
     private let tailHeight: CGFloat = 10
     private let tailWidth: CGFloat = 14
@@ -31,7 +34,8 @@ struct MascotSpeechBubble: View {
                     cornerRadius: 14,
                     tailHeight: tailHeight,
                     tailWidth: tailWidth,
-                    tailX: tailX
+                    tailX: tailX,
+                    isTrailing: tailEdge == .trailing
                 )
                 .fill(Color(red: 0.9922, green: 0.9725, blue: 0.9451)) // #FDF8F1
                 .shadow(color: .black.opacity(0.15), radius: 6, x: 0, y: 2)
@@ -39,13 +43,14 @@ struct MascotSpeechBubble: View {
     }
 }
 
-/// Rounded rectangle com cauda triangular na base, deslocada para a esquerda.
-/// A cauda aponta para baixo-esquerda, em direção ao centro da tela.
+/// Rounded rectangle com cauda triangular na base, deslocada para a esquerda
+/// (aponta para baixo-esquerda) ou, espelhada, para a direita (baixo-direita).
 private struct SpeechBubbleShape: Shape {
     var cornerRadius: CGFloat
     var tailHeight: CGFloat
     var tailWidth: CGFloat
     var tailX: CGFloat
+    var isTrailing: Bool = false
 
     func path(in rect: CGRect) -> Path {
         let bubbleBottom = rect.maxY - tailHeight
@@ -55,9 +60,15 @@ private struct SpeechBubbleShape: Shape {
         var path = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                             .path(in: bubbleRect)
 
-        path.move(to: CGPoint(x: tailX, y: bubbleBottom))
-        path.addLine(to: CGPoint(x: tailX + tailWidth, y: bubbleBottom))
-        path.addLine(to: CGPoint(x: tailX, y: rect.maxY))
+        if isTrailing {
+            path.move(to: CGPoint(x: rect.maxX - tailX, y: bubbleBottom))
+            path.addLine(to: CGPoint(x: rect.maxX - tailX - tailWidth, y: bubbleBottom))
+            path.addLine(to: CGPoint(x: rect.maxX - tailX, y: rect.maxY))
+        } else {
+            path.move(to: CGPoint(x: tailX, y: bubbleBottom))
+            path.addLine(to: CGPoint(x: tailX + tailWidth, y: bubbleBottom))
+            path.addLine(to: CGPoint(x: tailX, y: rect.maxY))
+        }
         path.closeSubpath()
 
         return path
