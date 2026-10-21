@@ -388,7 +388,7 @@ struct HomeView: View {
     }
 
     private func goleCard(height: CGFloat) -> some View {
-        Button { logIntake(.custom(volumeML: 40), cardID: "gole") } label: {
+        Button { logIntake(.gole, cardID: "gole") } label: {
             IntakeCardContent(
                 icon: .symbol("drop.fill"),
                 title: "Gole",
