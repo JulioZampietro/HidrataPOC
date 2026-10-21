@@ -57,7 +57,6 @@ struct RootView: View {
                 OnboardingView()
             }
         }
-        .overlay(alignment: .bottomTrailing) { RestoreDiagnosticsOverlay() }
         .onAppear(perform: recordSystemAppearance)
         .onChange(of: scenePhase) { if scenePhase == .active { recordSystemAppearance() } }
     }
@@ -209,44 +208,4 @@ private struct PageDots: View {
 #Preview {
     RootView()
         .modelContainer(for: [UserProfile.self], inMemory: true)
-}
-
-
-/// TEMPORARY (account_debug branch): floating button that shows what the last
-/// `CloudKitSyncService.syncFromCloud` saw, so a failed restore can be diagnosed on
-/// device. Remove before merging.
-private struct RestoreDiagnosticsOverlay: View {
-    @State private var showing = false
-    private var service: CloudKitSyncService { .shared }
-
-    var body: some View {
-        Button { showing = true } label: {
-            Image(systemName: "ladybug.fill")
-                .padding(10)
-                .background(.thinMaterial, in: Circle())
-        }
-        .padding(.trailing, 8)
-        .padding(.bottom, 80)
-        .sheet(isPresented: $showing) {
-            NavigationStack {
-                ScrollView {
-                    Text(service.restoreDiagnostics.isEmpty ? "No pull has run yet." : service.restoreDiagnostics.joined(separator: "\n"))
-                        .font(.system(.footnote, design: .monospaced))
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding()
-                }
-                .navigationTitle("Restore diagnostics")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .topBarLeading) {
-                        Button("Copy") { UIPasteboard.general.string = service.restoreDiagnostics.joined(separator: "\n") }
-                    }
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button("Done") { showing = false }
-                    }
-                }
-            }
-        }
-    }
 }
