@@ -7,8 +7,13 @@ struct ProfileView: View {
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.modelContext) private var modelContext
-    @Query private var allLogs: [IntakeLog]
-    @Query private var allDailyGoals: [DailyGoal]
+    // Sem @Query com predicado de propósito — é exatamente aqui que a regressão do
+    // A-2 apareceu: esta view é construída fresca dentro de
+    // `.navigationDestination(isPresented:)`, e um @Query novo configurado num init
+    // síncrono nesse ponto travava a transição (ver CORRECOES.md). `.syncedFetch`
+    // busca via `.task`, que só roda depois da view já estar na hierarquia.
+    @State private var allLogs: [IntakeLog] = []
+    @State private var allDailyGoals: [DailyGoal] = []
     @State private var tempContext: TemperatureAdjustmentContext?
     @State private var isEditing = false
     @State private var isEditingGoal = false
@@ -121,6 +126,22 @@ struct ProfileView: View {
         }
         .sheet(isPresented: $showHealthConnect) {
             HealthConnectView(profile: profile)
+        }
+        .syncedFetch($allLogs, context: modelContext) {
+            let userID = profile.userID
+            let dayStart = Calendar.current.startOfDay(for: .now)
+            return FetchDescriptor<IntakeLog>(
+                predicate: #Predicate { $0.userID == userID && $0.timestamp >= dayStart },
+                sortBy: [SortDescriptor(\.timestamp)]
+            )
+        }
+        .syncedFetch($allDailyGoals, context: modelContext) {
+            let userID = profile.userID
+            let todayKey = DailyGoal.dayKey(for: .now)
+            return FetchDescriptor<DailyGoal>(
+                predicate: #Predicate { $0.userID == userID && $0.dayKey == todayKey },
+                sortBy: [SortDescriptor(\.dayKey)]
+            )
         }
     }
 

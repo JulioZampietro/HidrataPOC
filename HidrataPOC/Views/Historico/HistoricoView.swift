@@ -60,14 +60,14 @@ struct HistoricoView: View {
     let profile: UserProfile
 
     @Environment(\.modelContext) private var modelContext
-    // Corte por usuário feito no banco, não em Swift. O recorte por mês exibido fica
-    // de fora de propósito: `displayedMonth` é @State, e um `@Query` só é montado no
-    // init — escopá-lo ao mês exigiria extrair o calendário para uma subview que
-    // recebesse o mês por parâmetro, o que mexeria no layout cuidadosamente ajustado
-    // desta tela. Enquanto isso, as somas por dia já são feitas numa passada só
-    // (`HistoricoData.generateMonth`).
-    @Query private var allLogs: [IntakeLog]
-    @Query private var allDailyGoals: [DailyGoal]
+    // Sem @Query com predicado de propósito — ver o comentário equivalente em
+    // HomeView.swift (causa da regressão do A-2, documentada em CORRECOES.md). O
+    // recorte por mês exibido fica de fora de propósito: escopá-lo ao mês exigiria
+    // extrair o calendário pra uma subview que recebesse o mês por parâmetro, o que
+    // mexeria no layout cuidadosamente ajustado desta tela. Enquanto isso, as somas
+    // por dia já são feitas numa passada só (`HistoricoData.generateMonth`).
+    @State private var allLogs: [IntakeLog] = []
+    @State private var allDailyGoals: [DailyGoal] = []
     @State private var displayedMonth = Calendar.current.dateInterval(of: .month, for: .now)?.start ?? .now
     @State private var cardPage: HistoricoCardPage = .calendario
     @State private var selectedDay: DiaHistorico?
@@ -188,6 +188,14 @@ struct HistoricoView: View {
         .sheet(item: $selectedDay) { dia in
             DayDetailSheet(dia: dia, metaDiariaML: goalResolver.goalML(on: dia.date), profile: profile, calendar: calendar)
                 .trackSheetLifecycle(.historicoDayDetail, screen: .historico, userID: profile.userID, metadata: ["date": isoDate(dia.date)])
+        }
+        .syncedFetch($allLogs, context: modelContext) {
+            let userID = profile.userID
+            return FetchDescriptor<IntakeLog>(predicate: #Predicate { $0.userID == userID }, sortBy: [SortDescriptor(\.timestamp)])
+        }
+        .syncedFetch($allDailyGoals, context: modelContext) {
+            let userID = profile.userID
+            return FetchDescriptor<DailyGoal>(predicate: #Predicate { $0.userID == userID }, sortBy: [SortDescriptor(\.dayKey)])
         }
     }
 

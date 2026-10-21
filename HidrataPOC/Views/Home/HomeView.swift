@@ -11,8 +11,14 @@ struct HomeView: View {
     // Barra e cartões têm tamanho fixo (o do texto em 100%): só o texto dentro deles acompanha
     // o Dynamic Type, limitado a `controlTextSizeRange` para caber sem ser cortado.
     private let progressBarHeight = TabScreenLayout.progressBarHeight
-    @Query private var allLogs: [IntakeLog]
-    @Query private var allDailyGoals: [DailyGoal]
+    // Sem @Query com predicado de propósito: um init customizado configurando um
+    // @Query novo foi a causa da regressão do A-2 (ver CORRECOES.md) — travava a
+    // navegação quando a view era construída fresca no meio de uma transição do
+    // NavigationStack. Em vez disso, `.syncedFetch` busca só o recorte de hoje via
+    // `.task`, que roda depois da view já estar na hierarquia, e se atualiza sozinho
+    // a cada vez que o ModelContext salva algo.
+    @State private var allLogs: [IntakeLog] = []
+    @State private var allDailyGoals: [DailyGoal] = []
     @State private var isLogging = false
     @State private var highlightedCard: String? = nil
     @State private var audioPlayer: AVAudioPlayer?
@@ -140,8 +146,24 @@ struct HomeView: View {
                 calendar: .current
             )
         }
+        .syncedFetch($allLogs, context: modelContext) {
+            let userID = profile.userID
+            let dayStart = Calendar.current.startOfDay(for: .now)
+            return FetchDescriptor<IntakeLog>(
+                predicate: #Predicate { $0.userID == userID && $0.timestamp >= dayStart },
+                sortBy: [SortDescriptor(\.timestamp)]
+            )
+        }
+        .syncedFetch($allDailyGoals, context: modelContext) {
+            let userID = profile.userID
+            let todayKey = DailyGoal.dayKey(for: .now)
+            return FetchDescriptor<DailyGoal>(
+                predicate: #Predicate { $0.userID == userID && $0.dayKey == todayKey },
+                sortBy: [SortDescriptor(\.dayKey)]
+            )
+        }
     }
-    
+
     // MARK: - Subviews
     
     private let intakeGridSpacing = TabScreenLayout.intakeGridSpacing
