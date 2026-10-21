@@ -37,6 +37,9 @@ struct HidrataPOCApp: App {
 
     private func setUpOnLaunch() async {
         Haptic.prepare()
+        // A Live Activity can outlive the process; pick its dismissal watcher back up
+        // before anything else awaits (see `refreshLiveActivity`). Idempotent.
+        LiveActivityManager.shared.resumeWatching()
         // Only prompt for permissions once onboarding is fully done (consent accepted,
         // profile created, feature tour seen). On the first run RootView requests them
         // itself when the tour is dismissed; this covers later launches.
@@ -85,6 +88,11 @@ struct HidrataPOCApp: App {
     }
 
     private func refreshLiveActivity() async {
+        // Reattach the dismissal watcher to an activity that outlived the last run:
+        // `watchForDismissal` only catches a swipe while it's actually observing, and a
+        // card dismissed before the first tick would otherwise lose the island-only
+        // fallback for good.
+        LiveActivityManager.shared.resumeWatching()
         guard let profile = try? PersistenceController.context.fetch(FetchDescriptor<UserProfile>()).first else { return }
         await LiveActivityManager.shared.startIfNeeded(profile: profile, context: PersistenceController.context)
         await LiveActivityManager.shared.restartIfNearingLimit()
