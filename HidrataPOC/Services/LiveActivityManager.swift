@@ -47,10 +47,8 @@ final class LiveActivityManager {
         let carriedState = activity.content.state
         await activity.end(nil, dismissalPolicy: .immediate)
 
-        let attributes = HydrationAttributes(startedAt: .now, isIslandOnly: activity.attributes.isIslandOnly)
-        if let renewed = try? Activity.request(attributes: attributes, content: ActivityContent(state: carriedState, staleDate: nil)) {
-            watchForDismissal(id: renewed.id)
-        }
+        let attributes = HydrationAttributes(startedAt: .now)
+        _ = try? Activity.request(attributes: attributes, content: ActivityContent(state: carriedState, staleDate: nil))
     }
 
     /// FR-4b: push the edited custom-amount preset into the running activity's
@@ -88,7 +86,6 @@ final class LiveActivityManager {
             await requestIfOverdue(profile: profile, context: context)
             return
         }
-        watchForDismissal(id: activity.id)
         var state = activity.content.state
         state.lastIntakeDate = lastKnownIntakeDate(userID: profile.userID, context: context)
         state.customAmountML = profile.customIntakeML
@@ -105,35 +102,7 @@ final class LiveActivityManager {
 
         let attributes = HydrationAttributes(startedAt: .now)
         // A failed request is a best-effort UI feature (NR-1) — never block app startup on it.
-        if let activity = try? Activity.request(attributes: attributes, content: ActivityContent(state: state, staleDate: nil)) {
-            watchForDismissal(id: activity.id)
-        }
-    }
-
-    /// iOS ends an activity the moment the user swipes its Lock Screen card away, taking
-    /// the Dynamic Island icon with it. If that happens while still overdue, start the
-    /// island-only variant so the icon survives until an intake is logged.
-    private var watchedIDs: Set<String> = []
-
-    private func watchForDismissal(id: String) {
-        guard watchedIDs.insert(id).inserted else { return }
-        Task { @MainActor in
-            guard let activity = Activity<HydrationAttributes>.activities.first(where: { $0.id == id }),
-                  !activity.attributes.isIslandOnly else { return }
-            for await state in activity.activityStateUpdates where state == .dismissed {
-                let lastState = activity.content.state
-                guard lastState.isOverdue, ActivityAuthorizationInfo().areActivitiesEnabled,
-                      Activity<HydrationAttributes>.activities.isEmpty else { return }
-                let attributes = HydrationAttributes(startedAt: .now, isIslandOnly: true)
-                _ = try? Activity.request(attributes: attributes, content: ActivityContent(state: lastState, staleDate: nil))
-                return
-            }
-        }
-    }
-
-    /// Re-attaches the dismissal watcher to an activity that survived an app relaunch.
-    func resumeWatching() {
-        Activity<HydrationAttributes>.activities.forEach { watchForDismissal(id: $0.id) }
+        _ = try? Activity.request(attributes: attributes, content: ActivityContent(state: state, staleDate: nil))
     }
 
     /// NR-3: never fabricate `lastIntakeDate` — re-derive it from the last locally
