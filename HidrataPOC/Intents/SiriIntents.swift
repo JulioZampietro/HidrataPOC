@@ -188,19 +188,33 @@ struct HidrataPOCShortcuts: AppShortcutsProvider {
 
 // MARK: - Helpers
 
+/// "Bebi 5 copos" fazia cinco chamadas completas a `IntakeLogService.record` — cada uma
+/// com fetch, save, um push ao CloudKit aguardado inline e até 1s do retry de
+/// `endLiveActivity`. São cinco round trips de rede dentro de um intent da Siri, que
+/// tem orçamento curto. Agora só o último registro paga o encerramento da Live
+/// Activity, e o sync vai para o fim, de uma vez.
 @MainActor
 private func logIntakes(count: Int, preset: Constants.IntakePreset) async {
     let context = PersistenceController.context
-    guard let profile = try? context.fetch(FetchDescriptor<UserProfile>()).first else { return }
-    for _ in 0..<count {
+    guard let profile = try? context.fetch(FetchDescriptor<UserProfile>()).first, count > 0 else { return }
+    for index in 0..<count {
+        let isLast = index == count - 1
         await IntakeLogService.record(
             preset: preset,
             userID: profile.userID,
             source: "siri",
             weather: nil,
-            context: context
+            context: context,
+            // Só a última chamada espera a corrida de inicialização do ActivityKit: as
+            // anteriores já teriam encerrado a atividade, se houvesse uma.
+            waitForColdStartActivity: isLast,
+            // O processo da Siri pode ser suspenso quando o handler retorna, então o
+            // push não pode ser adiado para depois — mas pode ser feito uma vez, no fim.
+            deferCloudSync: !isLast
         )
     }
+    // Os pushes adiados acima: feitos aqui, ainda dentro do intent, em uma passada.
+    await CloudKitSyncService.shared.flushPending(context: context)
 }
 
 @MainActor
@@ -208,7 +222,9 @@ private func totalConsumedToday() async -> Int {
     let context = PersistenceController.context
     guard let profile = try? context.fetch(FetchDescriptor<UserProfile>()).first else { return 0 }
     let uid = profile.userID
-    let predicate = #Predicate<IntakeLog> { $0.userID == uid }
+    // Só hoje: antes carregava o histórico inteiro do usuário para somar um dia.
+    let dayStart = Calendar.current.startOfDay(for: .now)
+    let predicate = #Predicate<IntakeLog> { $0.userID == uid && $0.timestamp >= dayStart }
     let logs = (try? context.fetch(FetchDescriptor(predicate: predicate))) ?? []
     return HydrationMath.totalML(logs, on: .now)
 }
