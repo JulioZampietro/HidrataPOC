@@ -82,8 +82,9 @@ struct HidrataPOCApp: App {
               let profile = try? PersistenceController.context.fetch(FetchDescriptor<UserProfile>()).first
         else { return }
         let ctx = PersistenceController.context
-        let allLogs = (try? ctx.fetch(FetchDescriptor<IntakeLog>())) ?? []
-        await HealthKitService.shared.backfill(logs: allLogs)
+        let targetUserID = profile.userID
+        let userLogs = (try? ctx.fetch(FetchDescriptor<IntakeLog>(predicate: #Predicate { $0.userID == targetUserID }))) ?? []
+        await HealthKitService.shared.backfill(logs: userLogs)
         await HealthKitService.shared.syncFromHealthKit(userID: profile.userID, context: ctx)
     }
 

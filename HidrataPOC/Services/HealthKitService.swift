@@ -181,26 +181,53 @@ final class HealthKitService {
     /// desde a última sincronização e insere como IntakeLog no SwiftData.
     /// Escreve no HealthKit os logs do app que ainda não têm amostra correspondente lá.
     /// Seguro para chamar múltiplas vezes: verifica existência antes de salvar.
+    /// Uma consulta por lote, não por registro: antes isso rodava uma `HKSampleQuery`
+    /// para cada log, em série, sobre o histórico inteiro — e é chamado a cada vez que o
+    /// app volta ao primeiro plano (`HidrataPOCApp.syncHealthKitIfAuthorized`), ou seja,
+    /// milhares de IPCs para o `healthd` num trabalho que, depois da primeira passada,
+    /// não tem nada a fazer.
     func backfill(logs: [IntakeLog]) async {
         guard isAuthorized else { return }
-        for log in logs where log.source != "healthkit" {
-            guard await !existsInHealthKit(logID: log.id) else { continue }
+        let candidates = logs.filter { $0.source != "healthkit" }
+        guard !candidates.isEmpty else { return }
+
+        let alreadyThere = await existingExternalUUIDs(among: candidates.map(\.id))
+        for log in candidates where !alreadyThere.contains(log.id.uuidString) {
             await save(volumeML: log.volumeML, timestamp: log.timestamp, logID: log.id)
         }
     }
 
-    private func existsInHealthKit(logID: UUID) async -> Bool {
-        let predicate = HKQuery.predicateForObjects(
-            withMetadataKey: HKMetadataKeyExternalUUID,
-            allowedValues: [logID.uuidString]
-        )
-        return await withCheckedContinuation { continuation in
-            let query = HKSampleQuery(sampleType: waterType, predicate: predicate,
-                                      limit: 1, sortDescriptors: nil) { _, results, _ in
-                continuation.resume(returning: !(results ?? []).isEmpty)
+    /// Quais desses logs já têm amostra no HealthKit, consultando em lotes — um
+    /// predicado com `allowedValues` de milhares de itens de uma vez é grande demais
+    /// para valer a pena.
+    private func existingExternalUUIDs(among ids: [UUID]) async -> Set<String> {
+        var found: Set<String> = []
+        for start in stride(from: 0, to: ids.count, by: 500) {
+            let chunk = ids[start..<min(start + 500, ids.count)].map(\.uuidString)
+            let predicate = HKQuery.predicateForObjects(
+                withMetadataKey: HKMetadataKeyExternalUUID,
+                allowedValues: chunk
+            )
+            let batch: Set<String> = await withCheckedContinuation { continuation in
+                let query = HKSampleQuery(sampleType: waterType, predicate: predicate,
+                                          limit: HKObjectQueryNoLimit, sortDescriptors: nil) { _, results, error in
+                    if let error {
+                        logger.error("HealthKit backfill lookup failed: \(error.localizedDescription, privacy: .public)")
+                        // Com a consulta falhando, tratar tudo como "já existe" evita
+                        // reescrever (e duplicar) amostras às cegas no Saúde.
+                        continuation.resume(returning: Set(chunk))
+                        return
+                    }
+                    let uuids = (results ?? []).compactMap {
+                        $0.metadata?[HKMetadataKeyExternalUUID] as? String
+                    }
+                    continuation.resume(returning: Set(uuids))
+                }
+                store.execute(query)
             }
-            store.execute(query)
+            found.formUnion(batch)
         }
+        return found
     }
 
     func syncFromHealthKit(userID: String, context: ModelContext) async {
