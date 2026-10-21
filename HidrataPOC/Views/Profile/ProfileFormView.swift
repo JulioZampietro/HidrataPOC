@@ -152,7 +152,7 @@ struct ProfileFormView: View {
                         .multilineTextAlignment(.trailing)
                         .frame(width: ageFieldWidth)
                         .onChange(of: idadeText) { _, val in
-                            if let n = Int(val), (10...120).contains(n) { idade = n }
+                            if let n = Int(val), Self.idadeRange.contains(n) { idade = n }
                         }
                     Text("anos").foregroundStyle(Color.appSecondary)
                 }
@@ -165,7 +165,7 @@ struct ProfileFormView: View {
                         .multilineTextAlignment(.trailing)
                         .frame(width: measureFieldWidth)
                         .onChange(of: pesoText) { _, val in
-                            if let n = Self.parseDecimal(val) { pesoKg = n }
+                            if let n = Self.parseDecimal(val), Self.pesoRange.contains(n) { pesoKg = n }
                         }
                     Text("kg").foregroundStyle(Color.appSecondary)
                 }
@@ -178,7 +178,7 @@ struct ProfileFormView: View {
                         .multilineTextAlignment(.trailing)
                         .frame(width: measureFieldWidth)
                         .onChange(of: alturaText) { _, val in
-                            if let n = Self.parseDecimal(val) { alturaCm = n }
+                            if let n = Self.parseDecimal(val), Self.alturaRange.contains(n) { alturaCm = n }
                         }
                     Text("cm").foregroundStyle(Color.appSecondary)
                 }
@@ -235,15 +235,20 @@ struct ProfileFormView: View {
 
             Section {
                 Button(confirmLabel) {
-                    let finalIdade = Int(idadeText).map { max(10, min(120, $0)) } ?? idade
-                    let finalPeso = Self.parseDecimal(pesoText) ?? pesoKg
-                    let finalAltura = Self.parseDecimal(alturaText) ?? alturaCm
-                    onSave(ProfileFormValues(idade: finalIdade, genero: genero, pesoKg: finalPeso, alturaCm: finalAltura, customIntakeML: customIntakeML, storedGoalML: initialValues.storedGoalML, resetGoalToCalculated: resetGoal))
+                    guard let values = validatedValues else { return }
+                    onSave(values)
                 }
                 .frame(maxWidth: .infinity)
                 .font(AppFont.calloutStrong)
                 .foregroundStyle(.white)
                 .listRowBackground(LinearGradient.waterHeader)
+                .disabled(validatedValues == nil)
+            } footer: {
+                if let validationMessage {
+                    Text(validationMessage)
+                        .font(AppFont.footnote)
+                        .foregroundStyle(Color.appDestructive)
+                }
             }
             .id("confirmSection")
         }
@@ -285,6 +290,50 @@ struct ProfileFormView: View {
         } else {
             Haptic.warning.play()
         }
+    }
+
+    // MARK: - Validação
+
+    // Antes só a idade era limitada. Peso e altura aceitavam qualquer Double, e os dois
+    // extremos quebram o app em silêncio: com peso 0 a meta calculada vira 0 mL, e aí
+    // o progresso é sempre 0, o mascote nunca sai do primeiro estágio, a sequência
+    // nunca conta e o widget fica vazio — sem nenhuma mensagem. No outro extremo, 500 kg
+    // produz uma recomendação no teto de 11 L apresentada como orientação de saúde.
+    private static let idadeRange = 10...120
+    private static let pesoRange = 20.0...300.0
+    private static let alturaRange = 80.0...250.0
+
+    /// Os valores a salvar, ou nil quando algum campo está fora da faixa — é o que
+    /// desabilita o botão de confirmar.
+    private var validatedValues: ProfileFormValues? {
+        guard let idadeValue = Int(idadeText), Self.idadeRange.contains(idadeValue),
+              let pesoValue = Self.parseDecimal(pesoText), Self.pesoRange.contains(pesoValue),
+              let alturaValue = Self.parseDecimal(alturaText), Self.alturaRange.contains(alturaValue)
+        else { return nil }
+        return ProfileFormValues(
+            idade: idadeValue,
+            genero: genero,
+            pesoKg: pesoValue,
+            alturaCm: alturaValue,
+            customIntakeML: customIntakeML,
+            storedGoalML: initialValues.storedGoalML,
+            resetGoalToCalculated: resetGoal
+        )
+    }
+
+    /// Mensagem do primeiro campo inválido, na ordem em que aparecem no formulário.
+    private var validationMessage: String? {
+        guard let idadeValue = Int(idadeText), Self.idadeRange.contains(idadeValue) else {
+            return "Informe uma idade entre \(Self.idadeRange.lowerBound) e \(Self.idadeRange.upperBound) anos."
+        }
+        guard let pesoValue = Self.parseDecimal(pesoText), Self.pesoRange.contains(pesoValue) else {
+            return "Informe um peso entre \(Int(Self.pesoRange.lowerBound)) e \(Int(Self.pesoRange.upperBound)) kg."
+        }
+        guard let alturaValue = Self.parseDecimal(alturaText), Self.alturaRange.contains(alturaValue) else {
+            return "Informe uma altura entre \(Int(Self.alturaRange.lowerBound)) e \(Int(Self.alturaRange.upperBound)) cm."
+        }
+        _ = (idadeValue, pesoValue, alturaValue)
+        return nil
     }
 
     private static func parseDecimal(_ text: String) -> Double? {
