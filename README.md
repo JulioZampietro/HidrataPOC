@@ -55,8 +55,12 @@ of the box. `project.yml` now uses `com.hidratapoc` — update the rest as below
    - Do this in both the Development and Production environments once you deploy.
    - Keep the default **Creator** role (Read + Write): reinstall / new-device restore
      (`CloudKitSyncService.syncFromCloud`) queries the user's *own* records by `userID`.
-   - Under Schema → Indexes, add **QUERYABLE** indexes: `userID` on `UserProfile`,
-     `IntakeLog` and `DailyGoal`, and `timestamp` on `IntakeLog` (the `DailyGoal`
+   - Under Schema → Indexes, add **QUERYABLE** indexes: `userID` and
+     `createdUserRecordName` on `UserProfile`, `IntakeLog` and `DailyGoal`, and
+     `timestamp` on `IntakeLog`. The `_creator` role filters on the creator system
+     field, so without `createdUserRecordName` the restore fails with
+     "Field 'createdBy' is not marked queryable". `_creator` also needs **Read**
+     (not just Write) on those record types (the `DailyGoal`
      record type appears after the app pushes its first goal). Without them the
      restore query fails and the app falls back to onboarding. Deploy to Production too.
 4. **WeatherKit capability** — requires an active, paid Apple Developer Program
