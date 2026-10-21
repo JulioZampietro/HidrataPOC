@@ -123,6 +123,7 @@ private struct WaterContainerModifier<S: Shape>: ViewModifier {
     let shape: S
     let bleedsIntoTopSafeArea: Bool
     var externalMotion: WaterMotion?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var internalMotion = WaterMotion()
     @State private var containerHeight: CGFloat = 0
@@ -165,8 +166,13 @@ private struct WaterContainerModifier<S: Shape>: ViewModifier {
                             }
                     )
             }
-            .onAppear { motion.start() }
+            // Com "Reduzir Movimento", a água não se move, então ler o giroscópio a
+            // 60 Hz só gastaria bateria.
+            .onAppear { if !reduceMotion { motion.start() } }
             .onDisappear { motion.stop() }
+            .onChange(of: reduceMotion) { _, isReduced in
+                if isReduced { motion.stop() } else { motion.start() }
+            }
             .onReceive(NotificationCenter.default.publisher(for: .waterDebugShake)) { _ in
                 motion.simulateShake()
             }
@@ -180,6 +186,10 @@ private struct WaterRefractionView<Content: View>: View, @preconcurrency Animata
     var level: Double
     let motion: WaterMotion
     let content: Content
+    /// Com "Reduzir Movimento" ligado, a água é desenhada uma vez e para: estes dois
+    /// `TimelineView(.animation)` rodam a cada frame enquanto Home ou Histórico estão
+    /// visíveis — e o recipiente está sempre na tela.
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var animatableData: Double {
         get { level }
@@ -187,7 +197,7 @@ private struct WaterRefractionView<Content: View>: View, @preconcurrency Animata
     }
 
     var body: some View {
-        TimelineView(.animation) { context in
+        TimelineView(.animation(paused: reduceMotion)) { context in
             let time = Float(context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 10_000))
             // Valores copiados aqui porque o closure do visualEffect é @Sendable.
             let waterSize = motion.waterSize
@@ -231,6 +241,7 @@ struct WaterFillView: View, @preconcurrency Animatable {
     let layer: Layer
     let motion: WaterMotion
     var bleedsIntoTopSafeArea = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var animatableData: Double {
         get { level }
@@ -238,7 +249,9 @@ struct WaterFillView: View, @preconcurrency Animatable {
     }
 
     var body: some View {
-        TimelineView(.animation) { context in
+        // `paused` congela `context.date`, então `motion.advance` recebe dt ≈ 0 e a
+        // física para junto — a água continua desenhada no nível certo, sem movimento.
+        TimelineView(.animation(paused: reduceMotion)) { context in
             let time = Float(context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 10_000))
             GeometryReader { geo in
                 // Avança a simulação uma vez por frame (a segunda camada cai em dt≈0).

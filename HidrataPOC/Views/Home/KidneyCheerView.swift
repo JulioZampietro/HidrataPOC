@@ -3,8 +3,11 @@ import SwiftUI
 /// Os dois rins nos cantos de baixo do recipiente, pulando e comemorando — aparecem
 /// quando o usuário bate a meta do dia (ver `HomeView.topSection`).
 struct KidneyCheerView: View {
+    /// Com "Reduzir Movimento", os rins aparecem parados em vez de pular sem fim.
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 30)) { timeline in
+        TimelineView(.animation(minimumInterval: 1 / 30, paused: reduceMotion)) { timeline in
             let t = timeline.date.timeIntervalSinceReferenceDate
             Canvas { context, size in
                 for (x, mirrored, phase) in [(size.width * 0.11, false, 0.0), (size.width * 0.89, true, 0.45)] {
