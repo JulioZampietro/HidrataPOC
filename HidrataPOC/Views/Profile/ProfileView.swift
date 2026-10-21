@@ -7,6 +7,8 @@ struct ProfileView: View {
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.modelContext) private var modelContext
+    // Estreitados por predicado (ver o comentário equivalente em HomeView): esta tela
+    // só lê o consumo de hoje (`todayProgress`) e o ajuste gravado para hoje.
     @Query private var allLogs: [IntakeLog]
     @Query private var allDailyGoals: [DailyGoal]
     @State private var tempContext: TemperatureAdjustmentContext?
@@ -18,6 +20,17 @@ struct ProfileView: View {
     @State private var showSiriTutorial = false
     @State private var showHealthConnect = false
     @State private var showMyData = false
+
+    init(profile: UserProfile) {
+        self.profile = profile
+        let userID = profile.userID
+        let dayStart = Calendar.current.startOfDay(for: .now)
+        _allLogs = Query(filter: #Predicate<IntakeLog> { $0.userID == userID && $0.timestamp >= dayStart },
+                         sort: \IntakeLog.timestamp)
+        let todayKey = DailyGoal.dayKey(for: .now)
+        _allDailyGoals = Query(filter: #Predicate<DailyGoal> { $0.userID == userID && $0.dayKey == todayKey },
+                               sort: \DailyGoal.dayKey)
+    }
 
     private var calculatedGoalML: Int {
         UserProfile.suggestedGoalML(gender: Genero(stored: profile.genero)?.gender, idade: profile.idade, pesoKg: profile.pesoKg, alturaCm: profile.alturaCm)
