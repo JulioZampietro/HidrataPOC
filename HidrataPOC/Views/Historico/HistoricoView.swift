@@ -60,17 +60,34 @@ struct HistoricoView: View {
     let profile: UserProfile
 
     @Environment(\.modelContext) private var modelContext
+    // Corte por usuário feito no banco, não em Swift. O recorte por mês exibido fica
+    // de fora de propósito: `displayedMonth` é @State, e um `@Query` só é montado no
+    // init — escopá-lo ao mês exigiria extrair o calendário para uma subview que
+    // recebesse o mês por parâmetro, o que mexeria no layout cuidadosamente ajustado
+    // desta tela. Enquanto isso, as somas por dia já são feitas numa passada só
+    // (`HistoricoData.generateMonth`).
     @Query private var allLogs: [IntakeLog]
     @Query private var allDailyGoals: [DailyGoal]
     @State private var displayedMonth = Calendar.current.dateInterval(of: .month, for: .now)?.start ?? .now
     @State private var cardPage: HistoricoCardPage = .calendario
     @State private var selectedDay: DiaHistorico?
     @State private var tempContext: TemperatureAdjustmentContext?
-    private var calendar: Calendar {
+    /// `static let`: era uma computed property, e construir `Calendar` + `Locale` a
+    /// cada um dos ~40 acessos por atualização do `body` (um por célula do mês, entre
+    /// outros) é caro o bastante para aparecer no arrasto entre páginas.
+    private static let ptBRCalendar: Calendar = {
         var cal = Calendar(identifier: .gregorian)
         cal.locale = Locale(identifier: "pt_BR")
         cal.firstWeekday = 1
         return cal
+    }()
+    private var calendar: Calendar { Self.ptBRCalendar }
+
+    init(profile: UserProfile) {
+        self.profile = profile
+        let userID = profile.userID
+        _allLogs = Query(filter: #Predicate<IntakeLog> { $0.userID == userID }, sort: \IntakeLog.timestamp)
+        _allDailyGoals = Query(filter: #Predicate<DailyGoal> { $0.userID == userID }, sort: \DailyGoal.dayKey)
     }
 
     private let weekdaySymbols = ["D", "S", "T", "Q", "Q", "S", "S"]
@@ -131,11 +148,16 @@ struct HistoricoView: View {
         )
     }
 
-    private var monthTitle: String {
+    /// `DateFormatter` é caro de construir; antes nascia um por atualização do `body`.
+    private static let monthTitleFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "pt_BR")
         formatter.dateFormat = "LLLL yyyy"
-        let raw = formatter.string(from: displayedMonth)
+        return formatter
+    }()
+
+    private var monthTitle: String {
+        let raw = Self.monthTitleFormatter.string(from: displayedMonth)
         return raw.prefix(1).uppercased() + raw.dropFirst()
     }
 
@@ -342,11 +364,15 @@ struct HistoricoView: View {
         displayedMonth = newDate
     }
 
-    private func isoDate(_ date: Date) -> String {
+    private static let isoDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
-        formatter.timeZone = calendar.timeZone
-        return formatter.string(from: date)
+        formatter.timeZone = ptBRCalendar.timeZone
+        return formatter
+    }()
+
+    private func isoDate(_ date: Date) -> String {
+        Self.isoDateFormatter.string(from: date)
     }
 }
 
@@ -593,11 +619,15 @@ struct DayDetailSheet: View {
         return Array(stride(from: domainStart, through: domainEnd, by: step))
     }
 
-    private var dateTitle: String {
+    private static let dateTitleFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "pt_BR")
         formatter.dateFormat = "EEEE, d 'de' MMMM"
-        let raw = formatter.string(from: dia.date)
+        return formatter
+    }()
+
+    private var dateTitle: String {
+        let raw = Self.dateTitleFormatter.string(from: dia.date)
         return raw.prefix(1).uppercased() + raw.dropFirst()
     }
 
@@ -806,10 +836,14 @@ private struct IntakeRow: View {
     let log: IntakeLog
     let onDelete: () -> Void
 
-    private var timeLabel: String {
+    private static let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm"
-        return formatter.string(from: log.timestamp)
+        return formatter
+    }()
+
+    private var timeLabel: String {
+        Self.timeFormatter.string(from: log.timestamp)
     }
 
     var body: some View {
