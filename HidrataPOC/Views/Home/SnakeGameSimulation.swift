@@ -1,7 +1,7 @@
 import simd
 import SwiftUI
 
-/// Valores da Cobrinha de Pedra para ajustar à mão (mesma ideia de `JumpGameTuning`).
+/// Valores da Cobrinha para ajustar à mão (mesma ideia de `JumpGameTuning`).
 enum SnakeGameTuning {
     static let columns = 15                      // casas na largura; as fileiras saem da altura do aquário
     static let topMargin: Float = 58             // pt — abaixo dos botões do cabeçalho do aquário

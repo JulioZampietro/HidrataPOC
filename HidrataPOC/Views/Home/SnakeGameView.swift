@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Desenha a Cobrinha de Pedra (`SnakeGameSimulation`) dentro do recipiente de água, no mesmo lugar
+/// Desenha a Cobrinha (`SnakeGameSimulation`) dentro do recipiente de água, no mesmo lugar
 /// dos outros minijogos — então passa pela refração do shader. Recebe toque: deslizar no aquário
 /// vira a cobrinha pra direção do deslize (é o único controle; a Home só mostra a dica).
 struct SnakeGameView: View {

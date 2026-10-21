@@ -148,7 +148,8 @@ struct JumpGameRecordCard: View {
             icon: .symbol("trophy.fill"),
             title: "\(best)",
             subtitle: "Recorde",
-            height: height
+            height: height,
+            textOnTop: true
         )
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Recorde: \(best) pontos")
