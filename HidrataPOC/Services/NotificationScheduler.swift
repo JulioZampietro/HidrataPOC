@@ -565,10 +565,27 @@ final class NotificationScheduler {
             : await WeatherContextService.shared.currentContext()
 
         let targetUserID = profile.userID
-        let logs = (try? context.fetch(FetchDescriptor<IntakeLog>(predicate: #Predicate { $0.userID == targetUserID }))) ?? []
+        // Janela de 366 dias em vez do histórico inteiro: é o que `selectVariant`
+        // precisa (a sequência olha até 365 dias) e cobre o total do dia. O "minutos
+        // desde o último registro" sai de um fetch próprio, limitado a 1 — assim o
+        // valor continua exato mesmo se o último gole for mais antigo que a janela,
+        // o que importa porque ele vai para o dataset como feature.
+        let windowStart = Calendar.current.date(byAdding: .day, value: -366, to: Calendar.current.startOfDay(for: firesAt)) ?? .distantPast
+        let logs = (try? context.fetch(FetchDescriptor<IntakeLog>(
+            predicate: #Predicate { $0.userID == targetUserID && $0.timestamp >= windowStart }
+        ))) ?? []
         let consumidoHoje = HydrationMath.totalML(logs, on: firesAt)
         let deficit = HydrationMath.deficitML(metaDiariaML: profile.metaDiariaML, consumidoHojeML: consumidoHoje)
-        let minutesSinceLast = HydrationMath.minutesSinceLastIntake(logs, now: firesAt)
+        // Sem recorte por `firesAt`, e passando por `minutesSinceLastIntake` (que faz
+        // `max(0, …)`): é o `max` sobre todos os registros que a varredura antiga
+        // calculava, inclusive o clamp em 0 quando existe um registro posterior.
+        var lastDescriptor = FetchDescriptor<IntakeLog>(
+            predicate: #Predicate { $0.userID == targetUserID },
+            sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
+        )
+        lastDescriptor.fetchLimit = 1
+        let lastIntake = (try? context.fetch(lastDescriptor))?.first
+        let minutesSinceLast = lastIntake.flatMap { HydrationMath.minutesSinceLastIntake([$0], now: firesAt) }
         // The variant the slot is currently armed with (chosen at scheduling time).
         let armed = loadPendingSlots().first { $0.id == id }?.variant.flatMap(NotificationVariant.init(rawValue:))
         let alreadyFired = firesAt <= .now
@@ -823,15 +840,24 @@ final class NotificationScheduler {
 
     private func resolveTimedOutEvents(context: ModelContext) async {
         let cutoff = Date.now.addingTimeInterval(-Double(Constants.notificationResponseWindowMinutes) * 60)
-        let predicate = #Predicate<NotificationEvent> { $0.statusInteracao == nil && $0.sentAt <= cutoff }
-        guard let stale = try? context.fetch(FetchDescriptor(predicate: predicate)) else { return }
+        // Filtrado por usuário: isto roda a cada tick e varria a tabela toda, incluindo
+        // linhas de outro perfil que este aparelho nunca deveria resolver.
+        guard let profile = try? context.fetch(FetchDescriptor<UserProfile>()).first else { return }
+        let targetUserID = profile.userID
+        let predicate = #Predicate<NotificationEvent> {
+            $0.userID == targetUserID && $0.statusInteracao == nil && $0.sentAt <= cutoff
+        }
+        guard let stale = try? context.fetch(FetchDescriptor(predicate: predicate)), !stale.isEmpty else { return }
         for event in stale {
             event.statusInteracao = StatusInteracao.ignorada.rawValue
+        }
+        // Salva antes dos pushes: o estado local é a fonte de verdade e não deve
+        // depender da rede (NR-1). O que falhar fica `.pending` para o flushPending.
+        try? context.save()
+        for event in stale {
             await CloudKitSyncService.shared.push(event)
         }
-        if !stale.isEmpty {
-            try? context.save()
-        }
+        try? context.save()
     }
 
     private func fetchNotificationEvent(id: UUID, context: ModelContext) -> NotificationEvent? {
@@ -1043,7 +1069,13 @@ final class NotificationScheduler {
     private func currentHydrationState() async -> (consumidoHojeML: Int, goalML: Int)? {
         guard let profile = (try? PersistenceController.context.fetch(FetchDescriptor<UserProfile>()))?.first else { return nil }
         let targetUserID = profile.userID
-        let logs = (try? PersistenceController.context.fetch(FetchDescriptor<IntakeLog>(predicate: #Predicate { $0.userID == targetUserID }))) ?? []
+        // Só hoje: isto roda a cada tick (60s em primeiro plano, via
+        // `refreshPendingMascotIfNeeded`) e antes varria o histórico inteiro do usuário
+        // para somar um único dia.
+        let dayStart = Calendar.current.startOfDay(for: .now)
+        let logs = (try? PersistenceController.context.fetch(FetchDescriptor<IntakeLog>(
+            predicate: #Predicate { $0.userID == targetUserID && $0.timestamp >= dayStart }
+        ))) ?? []
         let consumidoHoje = HydrationMath.totalML(logs, on: .now)
         return (consumidoHoje, await effectiveGoalML(for: profile))
     }
