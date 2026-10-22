@@ -118,6 +118,8 @@
 		FA12B3C9D0E74A8B1C2D5F6E /* FeatureOnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA12B3C9D0E74A8B1C2D5F6F /* FeatureOnboardingView.swift */; };
 		FCC1324381344DB8DA982AE3 /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95F0050D87C688CD6A361091 /* Constants.swift */; };
 		FEF1E8A999A9841C843C2208 /* CustomIntakeEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20FA02344B32332B350BC11D /* CustomIntakeEditorView.swift */; };
+		A11E0000000000000000F001 /* AppFont.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD11223344556677889900DD /* AppFont.swift */; };
+		A11E0000000000000000F002 /* Nunito.ttf in Resources */ = {isa = PBXBuildFile; fileRef = EE11223344556677889900EE /* Nunito.ttf */; };
 		FF11223344556677889900FF /* AppFont.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD11223344556677889900DD /* AppFont.swift */; };
 		AA5511223344556677889901 /* Haptics.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA5511223344556677889902 /* Haptics.swift */; };
 		AA5511223344556677889903 /* MascotPhrases.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA5511223344556677889904 /* MascotPhrases.swift */; };
@@ -746,6 +748,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				6B35FD38E3103ECE4D7321B8 /* Assets.xcassets in Resources */,
+				A11E0000000000000000F002 /* Nunito.ttf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -902,6 +905,7 @@
 				DF7AE5DE9B5CAB95B932B397 /* WidgetSync.swift in Sources */,
 				D79129B170440EF290F85C00 /* WaterTankWidget.swift in Sources */,
 				456A8201CECF4DA1F5B33F5A /* AppTheme.swift in Sources */,
+				A11E0000000000000000F001 /* AppFont.swift in Sources */,
 				EF078C5CBDCA5F26C2F9D5F8 /* LogIntakeIntent.swift in Sources */,
 				D572116344EF1B76385B5E9B /* NotificationEvent.swift in Sources */,
 				A21C9E6F5B8E4E2D9C7A3F10 /* NotificationVariant.swift in Sources */,
