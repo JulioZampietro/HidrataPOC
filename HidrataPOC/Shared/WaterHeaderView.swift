@@ -19,10 +19,39 @@ struct WaterHeaderView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.modelContext) private var modelContext
-    // Sem @Query com predicado de propósito — ver o comentário equivalente em
-    // HomeView.swift (causa da regressão do A-2, documentada em CORRECOES.md).
-    @State private var allLogs: [IntakeLog] = []
-    @State private var allDailyGoals: [DailyGoal] = []
+    // Estreitados por predicado: sem ele, cada atualização do `body` — que o
+    // GeometryReader refaz a cada frame durante o arrasto entre páginas —
+    // materializava as tabelas inteiras. A janela é de 366 dias porque é o que a
+    // sequência olha (`currentStreak(maxDays: 365)`); o resto é hoje.
+    //
+    // @Query síncrono de propósito, não `.syncedFetch`: ao contrário de ProfileView
+    // (a real causa da regressão do A-2 — ver CORRECOES.md), este view nunca é
+    // construído no meio de uma transição de navegação/sheet; o RootView o desenha
+    // uma vez, fixo por cima das páginas. Com `.syncedFetch`, allLogs/allDailyGoals
+    // começavam vazios em toda abertura do app e só chegavam ao valor real um
+    // instante depois — e como o nível da água e o estágio do mascote são animados
+    // (`.animation(value: level)` em WaterFillView, `handleGoalTransition` abaixo),
+    // aquele salto de 0 pro valor real tocava a animação de encher o recipiente do
+    // zero e, se a meta do dia já tivesse sido batida antes, a comemoração de
+    // "pedrinhas quebrando" de novo — a cada relançamento. Síncrono elimina o salto:
+    // os dois já chegam certos no primeiro frame.
+    @Query private var allLogs: [IntakeLog]
+    @Query private var allDailyGoals: [DailyGoal]
+
+    init(profile: UserProfile, screen: AppScreen, onOpenProfile: @escaping () -> Void) {
+        self.profile = profile
+        self.screen = screen
+        self.onOpenProfile = onOpenProfile
+        let userID = profile.userID
+        let calendar = Calendar.current
+        let cutoff = calendar.date(byAdding: .day, value: -366, to: calendar.startOfDay(for: .now)) ?? .distantPast
+        _allLogs = Query(filter: #Predicate<IntakeLog> { $0.userID == userID && $0.timestamp >= cutoff },
+                         sort: \IntakeLog.timestamp)
+        // "yyyy-MM-dd" ordena cronologicamente como string (ver DailyGoalResolver).
+        let cutoffKey = DailyGoal.dayKey(for: cutoff)
+        _allDailyGoals = Query(filter: #Predicate<DailyGoal> { $0.userID == userID && $0.dayKey >= cutoffKey },
+                               sort: \DailyGoal.dayKey)
+    }
     @State private var tempContext: TemperatureAdjustmentContext?
     @State private var showShare = false
     @State private var showMiniGames = false
@@ -64,14 +93,6 @@ struct WaterHeaderView: View {
     /// `MascotShatterView(assembles:)`) ainda deve rodar. Começa true pra pegar a
     /// abertura do app; volta a true ao voltar do background. Só tem efeito com 0 mL.
     @State private var mascotAssemblyPending = true
-    /// true até o primeiro assentamento de `allLogs`/`allDailyGoals` (ver `.syncedFetch`
-    /// no fim do `body`): essas duas arrays começam vazias a cada abertura do app, então
-    /// `consumedToday`/`progress` começam em 0 até o fetch assíncrono chegar — mesmo
-    /// quando o valor real do dia não é 0. Sem essa guarda, toda vez que o app era
-    /// fechado e reaberto esse "0 passageiro" era lido como se o dia tivesse zerado: a
-    /// montagem tocava (mascote1 se formando) e, no instante seguinte, a transição de
-    /// bolhas "corrigia" pro estágio real, como se tivesse havido uma mudança de verdade.
-    @State private var hasSettledInitialProgress = false
     /// Durante a montagem: false enquanto só as pedrinhas soltas aparecem no fundo
     /// (`looseStonesDuration`), true quando os cacos começam a voar e se juntar.
     @State private var mascotAssemblyStarted = false
@@ -218,23 +239,6 @@ struct WaterHeaderView: View {
         // outra tela) e a meta do dia, que muda quando a previsão do clima chega.
         .onChange(of: allLogs.count, initial: true) { recomputeStreak() }
         .onChange(of: effectiveGoalML) { recomputeStreak() }
-        .syncedFetch($allLogs, context: modelContext) {
-            let userID = profile.userID
-            let cutoff = Calendar.current.date(byAdding: .day, value: -366, to: Calendar.current.startOfDay(for: .now)) ?? .distantPast
-            return FetchDescriptor<IntakeLog>(
-                predicate: #Predicate { $0.userID == userID && $0.timestamp >= cutoff },
-                sortBy: [SortDescriptor(\.timestamp)]
-            )
-        }
-        .syncedFetch($allDailyGoals, context: modelContext) {
-            let userID = profile.userID
-            let cutoff = Calendar.current.date(byAdding: .day, value: -366, to: Calendar.current.startOfDay(for: .now)) ?? .distantPast
-            let cutoffKey = DailyGoal.dayKey(for: cutoff)
-            return FetchDescriptor<DailyGoal>(
-                predicate: #Predicate { $0.userID == userID && $0.dayKey >= cutoffKey },
-                sortBy: [SortDescriptor(\.dayKey)]
-            )
-        }
     }
 
     // MARK: - Subviews
@@ -562,16 +566,6 @@ struct WaterHeaderView: View {
             // Já abriu com água registrada: não há montagem, e ela não deve disparar
             // depois só porque um registro foi excluído e o total voltou a 0.
             if consumedToday > 0 { mascotAssemblyPending = false }
-            Task {
-                // `allLogs`/`allDailyGoals` ainda devem estar vazias aqui (o
-                // `.syncedFetch` busca via `.task`, que roda depois deste
-                // `.onAppear`) — esse atraso dá tempo de elas assentarem antes de
-                // `hasSettledInitialProgress` liberar as transições ao vivo.
-                try? await Task.sleep(for: .milliseconds(200))
-                hasSettledInitialProgress = true
-                if consumedToday > 0 { mascotAssemblyPending = false }
-                syncStonesWithProgress()
-            }
         }
         .onChange(of: scenePhase) { oldPhase, newPhase in
             // Voltar do background conta como "abrir o app" de novo.
@@ -587,9 +581,6 @@ struct WaterHeaderView: View {
             }
         }
         .onChange(of: progress) { oldValue, newValue in
-            // Antes de assentar (ver `hasSettledInitialProgress`), essa "mudança" é só o
-            // fetch inicial chegando, não uma transição de verdade.
-            guard hasSettledInitialProgress else { return }
             handleGoalTransition(from: oldValue, to: newValue)
         }
         // Mudou de estágio: a fala do balão passa a ser do estágio novo.
@@ -598,8 +589,7 @@ struct WaterHeaderView: View {
         .onChange(of: tempContext?.humidityPct) { pickIdlePhrase() }
         // Registrou água (por qualquer origem): o mascote reclama por alguns segundos.
         .onChange(of: consumedToday) { oldValue, newValue in
-            guard hasSettledInitialProgress, newValue > oldValue,
-                  let reaction = MascotPhrases.drinkReactions.randomElement() else { return }
+            guard newValue > oldValue, let reaction = MascotPhrases.drinkReactions.randomElement() else { return }
             say(reaction, for: 3)
         }
     }
