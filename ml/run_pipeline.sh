@@ -21,7 +21,16 @@ py() { "$VENV/bin/python" "$@"; }
 case "${1:-}" in
   setup)
     python3 -m venv "$VENV"
-    "$VENV/bin/pip" install -q -r python/requirements.txt
+    # requirements.lock (M-17, AUDITORIA.md) pins every dependency, direct and
+    # transitive, to the exact version last known to fit cleanly — requirements.txt's
+    # bare `>=` floors meant the prior bundled in the app wasn't reproducible from the
+    # repo. Regenerate it after bumping requirements.txt: pip install -r
+    # python/requirements.txt && pip freeze > python/requirements.lock.
+    if [ -f python/requirements.lock ]; then
+      "$VENV/bin/pip" install -q -r python/requirements.lock
+    else
+      "$VENV/bin/pip" install -q -r python/requirements.txt
+    fi
     # PyTensor passes -ld64 on macOS >= 15, but current Xcode no longer ships that
     # linker, so its C compile step fails; drop the flag from the venv copy.
     #

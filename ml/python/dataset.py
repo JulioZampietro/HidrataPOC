@@ -125,8 +125,9 @@ def raw_features_from_events(events: pd.DataFrame, profiles: pd.DataFrame) -> pd
 
     df["apparent_temp"] = df["sensacaoTermicaC"].fillna(df["temperaturaC"])
     df["humidity"] = df["umidadeRelativa"]
-    df["busy"] = df["ocupadoNoMomento"].astype(float)
-    df["event_density"] = df["densidadeEventosDia"].astype(float)
+    # `ocupadoNoMomento`/`densidadeEventosDia` stay in the NotificationEvent export
+    # (same decision as B-5 for generoAutoDeclarado) but are no longer turned into
+    # features here — see config.LINEAR_FEATURES.
     df["deficit_frac"] = (df["deficitAcumuladoML"] / df["metaDiariaML"]).clip(-1.0, 1.5)
     mins = df["tempoDesdeUltimoRegistroMin"]
     df["no_intake_yet"] = mins.isna().astype(float)
@@ -134,6 +135,17 @@ def raw_features_from_events(events: pd.DataFrame, profiles: pd.DataFrame) -> pd
     df["variant"] = df["notificationVariant"].fillna("unknown")
 
     df["send"] = 1
+    # `resultouEmConsumo` vs. `intakeInWindow` (B-22, AUDITORIA.md): same definition
+    # of success — "an IntakeLog inside [sentAt/slotFiresAt, +RESPONSE_WINDOW_MIN]" —
+    # computed from opposite ends in Swift. `intakeInWindow`
+    # (PolicyCoordinator.resolveOutcomes) checks every open SlotDecision against that
+    # window directly. `resultouEmConsumo` (IntakeLogService.record) instead runs when
+    # a log arrives and credits the single most recently sent NotificationEvent within
+    # the window — so two NotificationEvents whose windows overlap (fixed hourly slots
+    # don't, but an ad-hoc snooze slot close to one can) would both qualify under
+    # `intakeInWindow`'s rule, while only the newer one gets credited here. Harmless
+    # today (snooze slots are rare and the windows are short), but it is the one case
+    # where the two labels are not strictly the same statistic.
     df["y"] = df["resultouEmConsumo"].astype(int)
     df["decision_time"] = df["sentAt"]
     return _add_user_history(df)

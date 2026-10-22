@@ -74,8 +74,6 @@ struct SlotContext {
     var temperaturaC: Double?
     var umidadeRelativa: Double?
     var sensacaoTermicaC: Double?
-    var ocupadoNoMomento: Bool?       // busy at the slot time (EventKit can answer for the future)
-    var densidadeEventosDia: Int?
     var deficitAcumuladoML: Double?
     var metaDiariaML: Double?
     var lastIntake: Date?
@@ -100,8 +98,8 @@ enum PolicyFeatures {
 
         if let t = c.sensacaoTermicaC ?? c.temperaturaC { f["apparent_temp"] = t }
         if let h = c.umidadeRelativa { f["humidity"] = h }
-        if let b = c.ocupadoNoMomento { f["busy"] = b ? 1 : 0 }
-        if let d = c.densidadeEventosDia { f["event_density"] = Double(d) }
+        // `busy`/`event_density` removed (M-16): no EventKit integration ever set
+        // these to anything but false/0, so they were two zero-variance features.
         if let deficit = c.deficitAcumuladoML, let goal = c.metaDiariaML, goal > 0 {
             f["deficit_frac"] = min(max(deficit / goal, -1.0), 1.5)
         }

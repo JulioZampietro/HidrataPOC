@@ -32,6 +32,11 @@ enum IntakeLogService {
         deferCloudSync: Bool = false,
         deferLiveActivityEnd: Bool = false
     ) async -> (log: IntakeLog, saved: Bool) {
+        // Credits only the single most recent matching NotificationEvent — same
+        // "intake inside the response window" definition PolicyCoordinator.resolveOutcomes
+        // uses for SlotDecision.intakeInWindow, but computed from the opposite end (from
+        // the log, looking back) instead of from the slot (looking forward). The two can
+        // diverge if two events' windows overlap (see B-22, ml/python/dataset.py).
         let cutoff = Date.now.addingTimeInterval(-Double(Constants.notificationResponseWindowMinutes) * 60)
         let predicate = #Predicate<NotificationEvent> { $0.userID == userID && $0.sentAt >= cutoff }
         let recentEvents = (try? context.fetch(FetchDescriptor(predicate: predicate)))?.sorted { $0.sentAt > $1.sentAt } ?? []

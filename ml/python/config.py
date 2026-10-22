@@ -27,15 +27,20 @@ RECORD_TYPES = ["UserProfile", "IntakeLog", "NotificationEvent", "SlotDecision"]
 
 # Features of the linear model (population prior + on-device bandit).
 # ORDER MATTERS: it is the order of the vector on the device.
+#
+# `busy`/`event_density` (calendar context) were removed (M-16, AUDITORIA.md): the
+# app never had an EventKit integration, so both were always 0/false — two
+# zero-variance columns standardized and trained for nothing. Reintroducing calendar
+# context means adding it back here AND populating it for real in
+# `AppPolicyContextProvider`, not just restoring the names.
 LINEAR_FEATURES = [
     "hour_sin", "hour_cos", "hour_sin2", "hour_cos2",   # 24h + 12h harmonics: up to two peaks/day
     "weekend",
     "apparent_temp", "humidity",
-    "busy", "event_density",
     "deficit_frac", "log_min_since_last", "no_intake_yet",
     "age", "female",
 ]
-BINARY_FEATURES = {"weekend", "busy", "no_intake_yet", "female"}
+BINARY_FEATURES = {"weekend", "no_intake_yet", "female"}
 
 # Features whose effect may vary per user in the hierarchical model.
 RANDOM_SLOPES = ["hour_sin", "hour_cos", "hour_sin2", "hour_cos2"]          # bootstrap fit (send only)
