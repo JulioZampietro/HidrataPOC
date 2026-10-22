@@ -1,6 +1,6 @@
 # Correções da auditoria
 
-Branch: `fix/auditoria` (a partir de `69cf825` em `liquidBolha`) · 44 commits · 2026-10-21
+Branch: `fix/auditoria` (a partir de `69cf825` em `liquidBolha`) · 48 commits · 2026-10-22
 Relatório de origem: [AUDITORIA.md](AUDITORIA.md)
 
 > **Atualização pós-entrega (mesmo dia):** o usuário reportou que o app travava ao
@@ -44,7 +44,7 @@ O único warning restante é `NotificationScheduler.swift:983: consider using as
 | **A-12** | Corrigido | `38ae3ad` | `currentHydrationState` só busca hoje; `captureContext` usa janela de 366 dias + fetch limitado a 1. **As features do dataset foram preservadas exatamente**, inclusive o clamp em 0. |
 | **A-13** | Corrigido | `0dc9e3a` | `resumeWatching()` no launch e no `.active`. |
 | **M-1** | Corrigido | `5f7310a` | 12 `print()` → `Logger`. Zero `print()` restante no app. |
-| **M-2** | Corrigido (parcial) | `ec44e2a` | `ModelContext.saveLogging(_:)` nos 11 pontos onde perder a escrita é invisível. **Avisar o usuário na tela quando o registro de água falha ficou de fora**: é mudança de UX e precisa de decisão sua. |
+| **M-2** | Corrigido | `ec44e2a` + aviso na tela | `ModelContext.saveLogging(_:)` nos 11 pontos onde perder a escrita é invisível. `recordManualIntake` agora devolve se o registro foi salvo; a Home mostra um alerta com "Tentar de novo" quando o toque não persiste. |
 | **M-3** | Corrigido | `7f973e5` | `canAttemptRead` separa leitura de escrita; em `HidrataPOCApp` o backfill é condicionado separadamente da importação. |
 | **M-4** | Corrigido | `0406a83` | `lastSyncKey` só avança em query bem-sucedida, e usa o limite superior fixo da consulta. |
 | **M-5** | Corrigido | `a63dd8f` | `lastRefreshKey` gravado após o fetch; falha agora é logada. |
@@ -58,16 +58,16 @@ O único warning restante é `NotificationScheduler.swift:983: consider using as
 | **M-13** | Corrigido | `0369adc` | Só o último registro espera o ActivityKit; pushes adiados e feitos de uma vez no fim. |
 | **M-14** | Corrigido | `535cadd` | Pasta `notification/` removida + referência órfã no pbxproj. |
 | **M-15** | Corrigido | `535cadd` | `BubblePOC.swift` removido. |
-| **M-16** | **Precisa de você** | — | Remover `busy`/`event_density` muda o vetor de features de 14 para 12, o que invalida o `policy_params.json` embarcado (`priorMean`/`priorVar` têm 30 elementos). Exige refit do prior e publicação — não é mudança que eu possa fazer sozinho. |
+| **M-16** | **Descartado (decisão do usuário)** | — | `busy`/`event_density` seguem sem uso: o produto não vai integrar contexto de calendário/EventKit. Como o vetor de features só muda (e o `policy_params.json` só é invalidado) junto com um refit do modelo, não há ação de código pendente — só não reintroduzir essas features sem repopulá-las de verdade. |
 | **M-17** | **Precisa de você** | — | Gerar lockfile exige instalar o ambiente (`ml/.venv` não existe aqui) e é operação de dependência. Comando em "Ações que dependem de você". |
 | **M-18** | Corrigido | `3adafdb` | Patch do PyTensor agora em Python, portátil e idempotente. |
-| **M-19** | **Precisa de você** | — | Localização é decisão de produto (o app é 100% pt-BR literal, ~17k linhas). Nenhuma mudança feita. |
+| **M-19** | **Descartado (decisão do usuário)** | — | Localização é decisão de produto — o app continua 100% pt-BR, sem internacionalização planejada. Nenhuma mudança feita. |
 | **M-20** | Corrigido (parcial) | `840b5f4` | `IntakeOriginTests` cobre a lógica de `origem` (a inferência central do dataset). `CloudKitSyncService.applyProfile/applyIntakeLog/applyDailyGoal` seguem sem teste — exigiriam fabricar `CKRecord`, trabalho maior que o escopo. |
 | **B-1** | Corrigido | `e11b70b` | `appAccentLight`, `appOnTrack`, `appCardBackground`. |
 | **B-2** | Corrigido | `ae0a393` | `resetSyncDate()`. |
 | **B-3** | Corrigido | `7350c7d` | Diálogo de exclusão inalcançável da Home. |
 | **B-4** | Corrigido | `7350c7d` | `weather`/`isLoadingWeather` + o `.task` que gastava GPS/WeatherKit sem consumidor. |
-| **B-5** | **Precisa de você** | — | Remover `generoAutoDeclarado` é mudança de schema do SwiftData. O campo já não é mais enviado ao CloudKit (C-1) e o comentário foi atualizado (`358ff85`) dizendo por que ele continua lá. |
+| **B-5** | **Descartado (decisão do usuário)** | — | `generoAutoDeclarado` segue sem uso pretendido — decisão do usuário de não perseguir essa feature. Removê-lo exigiria uma migração de schema do SwiftData; como ninguém vai usar o campo, não há necessidade dessa migração agora. Já não é mais enviado ao CloudKit (C-1) e o comentário (`358ff85`) documenta por que ele continua lá. |
 | **B-6** | Corrigido | `842746d` | Em vez de remover: `fusoHorario` passa a ser atualizado ao salvar o perfil. O pipeline usa o campo (`dataset.py::to_local`), então removê-lo quebraria o treino — um fuso velho desloca a hora de todo o histórico de quem muda de região. |
 | **B-7** | Corrigido | `358ff85` | Comentários sobre `Genero` em `WaterIntakeCalculator` e `UserProfile`. |
 | **B-8** | Corrigido | `7bf929a` | `fbm` removida (warning do compilador zerado). |
@@ -88,7 +88,7 @@ O único warning restante é `NotificationScheduler.swift:983: consider using as
 | **B-23** | **Não aplicável** | — | Confirmado em build limpo: o aviso vem só do target `HydrationKit` (framework sem intents). `HidrataPOC` e `HydrationWidget` escrevem `Metadata.appintents` normalmente — as frases da Siri estão registradas. |
 | **B-24** | **Precisa de você** | — | `aps-environment: development` só se confirma num archive de distribuição, que depende de assinatura. |
 
-**Resumo:** 47 corrigidos (2 parciais) · 2 não aplicáveis · 6 precisam de você.
+**Resumo:** 52 corrigidos (1 parcial) · 2 não aplicáveis · 3 descartados por decisão do usuário (M-16, M-19, B-5) · 3 precisam de você (M-17, B-22, B-24).
 
 ## Regressão encontrada depois da entrega inicial
 
