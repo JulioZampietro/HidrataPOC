@@ -119,7 +119,7 @@ struct ProfileView: View {
                 .trackSheetLifecycle(.goalExplainer, screen: .profile, userID: profile.userID)
         }
         .sheet(isPresented: $isEditingGoal) {
-            EditGoalView(initialValueML: profile.metaDiariaML, onSave: saveGoal)
+            CustomIntakeEditorView(title: "Alterar meta", initialValueML: profile.metaDiariaML, range: 0...10000, onSave: saveGoal)
                 .trackSheetLifecycle(.editGoal, screen: .profile, userID: profile.userID)
         }
         .sheet(isPresented: $showHealthConnect) {

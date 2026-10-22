@@ -1,24 +1,30 @@
 import SwiftUI
 
-/// Popup for the volume of the "Personalizado" quick-log button, reached from its
-/// pencil icon on the Home screen. The track and the text field share one value so
-/// they always agree — the track snaps to 50 mL steps, the text field accepts any
-/// integer. Styled like the onboarding screens: gradient wave header with the number
-/// centered on it, a pill-shaped water track below.
+/// Popup de volume compartilhado pelo botão "Personalizado" da Home (pencil icon) e
+/// pelo "Alterar meta" do Perfil — mesmo visual (header em onda com o número
+/// centralizado, trilho de água em pílula), diferenciados pelo título, o intervalo
+/// arrastável e o destino do valor salvo. O trilho e o campo de texto compartilham um
+/// valor só, então sempre concordam — o trilho anda em passos de `step`, o campo
+/// aceita qualquer inteiro (clampado em `range` só ao salvar, pra deixar a pessoa
+/// digitar livremente enquanto edita).
 struct CustomIntakeEditorView: View {
+    let title: String
     let onSave: (Int) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var amountML: Double
     @FocusState private var fieldFocused: Bool
 
-    private static let range: ClosedRange<Double> = 50...2000
-    private static let step: Double = 50
+    private let range: ClosedRange<Double>
+    private let step: Double
     private let headerHeight: CGFloat = 300
     private let trackHeight: CGFloat = 56
 
-    init(initialValueML: Int, onSave: @escaping (Int) -> Void) {
+    init(title: String, initialValueML: Int, range: ClosedRange<Double> = 50...2000, step: Double = 50, onSave: @escaping (Int) -> Void) {
+        self.title = title
         self.onSave = onSave
+        self.range = range
+        self.step = step
         _amountML = State(initialValue: Double(initialValueML))
     }
 
@@ -28,8 +34,7 @@ struct CustomIntakeEditorView: View {
 
     /// Fração (0...1) do trilho preenchida; valores digitados fora do intervalo ficam presos nas pontas.
     private var fillFraction: Double {
-        let r = Self.range
-        return min(max((amountML - r.lowerBound) / (r.upperBound - r.lowerBound), 0), 1)
+        min(max((amountML - range.lowerBound) / (range.upperBound - range.lowerBound), 0), 1)
     }
 
     /// Cada passo do trilho dá um "clique"; digitar no campo não passa por aqui.
@@ -39,40 +44,46 @@ struct CustomIntakeEditorView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            header
-            VStack(spacing: 10) {
-                track
-                HStack {
-                    Text("50 mL")
-                    Spacer()
-                    Text("2.000 mL")
+        NavigationStack {
+            VStack(spacing: 0) {
+                header
+                VStack(spacing: 10) {
+                    track
+                    HStack {
+                        Text("\(Int(range.lowerBound), format: .number) mL")
+                        Spacer()
+                        Text("\(Int(range.upperBound), format: .number) mL")
+                    }
+                    .font(AppFont.footnoteStrong)
+                    .foregroundStyle(Color.appSecondary)
+                    .padding(.horizontal, 6)
                 }
-                .font(AppFont.footnoteStrong)
-                .foregroundStyle(Color.appSecondary)
-                .padding(.horizontal, 6)
-            }
-            .padding(.horizontal, 24)
-            .padding(.top, 52)
+                .padding(.horizontal, 24)
+                .padding(.top, 52)
 
-            Spacer(minLength: 0)
+                Spacer(minLength: 0)
 
-            Button {
-                onSave(max(Int(Self.range.lowerBound), Int(amountML.rounded())))
-                dismiss()
-            } label: {
-                Text("Salvar")
-                    .font(AppFont.calloutStrong)
-                    .padding(.horizontal, 32)
-                    .padding(.vertical, 6)
+                Button {
+                    let clamped = min(max(amountML.rounded(), range.lowerBound), range.upperBound)
+                    onSave(Int(clamped))
+                    dismiss()
+                } label: {
+                    Text("Salvar")
+                        .font(AppFont.calloutStrong)
+                        .padding(.horizontal, 32)
+                        .padding(.vertical, 6)
+                }
+                .buttonStyle(.glassProminent)
+                .tint(Color.appAccent)
+                .padding(.bottom, 16)
             }
-            .buttonStyle(.glassProminent)
-            .tint(Color.appAccent)
-            .padding(.bottom, 16)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .appScreenBackground()
+            .keyboardDoneToolbar()
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(.hidden, for: .navigationBar)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .appScreenBackground()
-        .keyboardDoneToolbar()
         .presentationDetents([.fraction(0.8)])
     }
 
@@ -156,9 +167,8 @@ struct CustomIntakeEditorView: View {
                     .onChanged { drag in
                         fieldFocused = false
                         let fraction = min(max(drag.location.x / geo.size.width, 0), 1)
-                        let r = Self.range
-                        let raw = r.lowerBound + fraction * (r.upperBound - r.lowerBound)
-                        setFromTrack((raw / Self.step).rounded() * Self.step)
+                        let raw = range.lowerBound + fraction * (range.upperBound - range.lowerBound)
+                        setFromTrack((raw / step).rounded() * step)
                     }
             )
         }
@@ -167,14 +177,14 @@ struct CustomIntakeEditorView: View {
         .accessibilityLabel("Volume")
         .accessibilityValue("\(Int(amountML.rounded())) mililitros")
         .accessibilityAdjustableAction { direction in
-            let delta = direction == .increment ? Self.step : -Self.step
-            setFromTrack(min(max(amountML + delta, Self.range.lowerBound), Self.range.upperBound))
+            let delta = direction == .increment ? step : -step
+            setFromTrack(min(max(amountML + delta, range.lowerBound), range.upperBound))
         }
     }
 }
 
 #Preview {
     Color.clear.sheet(isPresented: .constant(true)) {
-        CustomIntakeEditorView(initialValueML: 300, onSave: { _ in })
+        CustomIntakeEditorView(title: "Outro", initialValueML: 300, onSave: { _ in })
     }
 }

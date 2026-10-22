@@ -40,7 +40,6 @@
 		5CA9B1161DAD92BD19B3E346 /* HydrationLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77D39C48CF3E7F2C6FADD5F4 /* HydrationLiveActivity.swift */; };
 		5F256BC9AF4E497BB9D96E6C /* UIInteractionEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = F51BAE834F7A497D9A17644C /* UIInteractionEvent.swift */; };
 		65DAF3C87F6774FC3208F113 /* LiquidBubbleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D4758DA97785CE3AE8FB879 /* LiquidBubbleView.swift */; };
-		6972D75383481BBDAD2D6345 /* EditGoalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FD7F3234633C2BD519D6504 /* EditGoalView.swift */; };
 		6B35FD38E3103ECE4D7321B8 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A0D580C72F1533B3EFE57FD3 /* Assets.xcassets */; };
 		6B9F8313D8B9172C4DF3C1D0 /* IntakeLogService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FA657D469BE9DC8A54167C5 /* IntakeLogService.swift */; };
 		E5202CE03DBA75052C081A6C /* SyncedFetch.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5EDE7E1D9A01E7CB6759B0F /* SyncedFetch.swift */; };
@@ -235,7 +234,6 @@
 		646191BC23E0F875E444DFCF /* LiveActivityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityManager.swift; sourceTree = "<group>"; };
 		6CBDEB26A3C91B6C2C231FD8 /* SiriTutorialView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiriTutorialView.swift; sourceTree = "<group>"; };
 		6D36EF2EADD04FF7B2EE0E4F /* InteractionTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractionTracker.swift; sourceTree = "<group>"; };
-		6FD7F3234633C2BD519D6504 /* EditGoalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditGoalView.swift; sourceTree = "<group>"; };
 		70608375406AEFAB8FD9A05D /* PermissionsCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionsCoordinator.swift; sourceTree = "<group>"; };
 		71707F70B58A641E997517DB /* NotificationDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationDelegate.swift; sourceTree = "<group>"; };
 		774252888FE898F0E8A81CAA /* HydrationControlWidgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HydrationControlWidgets.swift; sourceTree = "<group>"; };
@@ -582,7 +580,6 @@
 				KK11223344556677889900KK /* HealthConnectView.swift */,
 				44B579DB179F9F9A74296475 /* ProfileFormView.swift */,
 				2D3D07956D972BB7565F7450 /* ProfileView.swift */,
-				6FD7F3234633C2BD519D6504 /* EditGoalView.swift */,
 			);
 			path = Profile;
 			sourceTree = "<group>";
@@ -911,7 +908,6 @@
 				50D08C3D5EA73F9F85F1EA6A /* WaterIntakeCalculator.swift in Sources */,
 				322E3A00D8FD3C5C771E2221 /* WeatherContext.swift in Sources */,
 				044AFD6D58D9A11B3600EC06 /* WeatherContextService.swift in Sources */,
-				6972D75383481BBDAD2D6345 /* EditGoalView.swift in Sources */,
 				953A56756B889D9D4A320FDC /* LogIntakeIntent.swift in Sources */,
 				1296A932E1117A61AB227D6C /* LogIntakeControlIntent.swift in Sources */,
 			);
