@@ -30,7 +30,7 @@ struct OnboardingView: View {
                 pesoKg: values.pesoKg,
                 alturaCm: values.alturaCm,
                 fusoHorario: TimeZone.current.identifier,
-                metaDiariaML: UserProfile.suggestedGoalML(gender: values.genero?.gender, idade: values.idade, pesoKg: values.pesoKg, alturaCm: values.alturaCm),
+                metaDiariaML: values.goalML,
                 customIntakeML: values.customIntakeML
             )
             modelContext.insert(profile)
