@@ -1,6 +1,6 @@
 # Correções da auditoria
 
-Branch: `fix/auditoria` (a partir de `69cf825` em `liquidBolha`) · 48 commits · 2026-10-22
+Branch: `fix/auditoria` (a partir de `69cf825` em `liquidBolha`) · 49 commits · 2026-10-22
 Relatório de origem: [AUDITORIA.md](AUDITORIA.md)
 
 > **Atualização pós-entrega (mesmo dia):** o usuário reportou que o app travava ao
