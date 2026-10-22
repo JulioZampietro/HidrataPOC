@@ -365,7 +365,7 @@ extension View {
     /// Cartão "molhado": fundo azul bem claro com contorno fino, em vez de sombra —
     /// usado nas telas de marca forte (`TankHeader`) pra combinar com o gradiente do
     /// cabeçalho em vez do cartão neutro padrão do resto do app.
-    func panelBackground(cornerRadius: CGFloat = 20) -> some View {
+    func panelBackground(cornerRadius: CGFloat = 20, isVisible: Bool = true) -> some View {
         background(
             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                 .fill(Color.appAccent.opacity(0.06))
@@ -373,6 +373,7 @@ extension View {
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                         .strokeBorder(Color.appAccent.opacity(0.16), lineWidth: 1)
                 )
+                .opacity(isVisible ? 1 : 0)
         )
     }
 }

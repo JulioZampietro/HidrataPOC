@@ -535,12 +535,12 @@ struct DayDetailSheet: View {
 
     /// Same cumulative shape as `cumulativeSeries`, bracketed to the shared
     /// domain so both lines span the full chart.
-    private var idealSeries: [(hour: Int, totalML: Int)] {
+    private var idealSeries: [(hour: Double, totalML: Int)] {
         guard let plan = idealPlan, !plan.isEmpty else { return [] }
-        var points: [(hour: Int, totalML: Int)] = [(hour: domainStart, totalML: 0)]
-        points.append(contentsOf: plan.map { (hour: $0.hour, totalML: $0.idealCumulativeML) })
+        var points: [(hour: Double, totalML: Int)] = [(hour: Double(domainStart), totalML: 0)]
+        points.append(contentsOf: plan.map { (hour: Double($0.hour), totalML: $0.idealCumulativeML) })
         if let last = plan.last {
-            points.append((hour: domainEnd, totalML: last.idealCumulativeML))
+            points.append((hour: Double(domainEnd), totalML: last.idealCumulativeML))
         }
         return points
     }
@@ -549,8 +549,16 @@ struct DayDetailSheet: View {
         logs.reduce(0) { $0 + $1.volumeML }
     }
 
-    private var atingiuMeta: Bool {
-        totalML >= metaDiariaML
+    /// Fração da meta cumprida, presa em 0...1 pra barra do cabeçalho.
+    private var progress: Double {
+        guard metaDiariaML > 0 else { return 0 }
+        return min(1, max(0, Double(totalML) / Double(metaDiariaML)))
+    }
+
+    /// Hora atual como número fracionário (17h42 → 17,7), pra o ponto do "agora" no gráfico.
+    private var nowHour: Double {
+        let parts = Calendar.current.dateComponents([.hour, .minute], from: .now)
+        return Double(parts.hour ?? 0) + Double(parts.minute ?? 0) / 60
     }
 
     /// Preenche as horas sem registro, dentro da janela ativa do dia (do primeiro
@@ -590,18 +598,25 @@ struct DayDetailSheet: View {
 
     /// Soma corrida do consumo — 500 mL às 8h e mais 500 mL às 9h aparece como
     /// 500 às 8h e 1000 às 9h, não dois picos iguais. Começa num ponto sintético
-    /// no início do domínio (0 mL) e termina com outro no fim, pra área ocupar o
-    /// gráfico inteiro em vez de parar (ou começar) no meio do eixo.
-    private var cumulativeSeries: [(hour: Int, totalML: Int)] {
+    /// no início do domínio (0 mL). Num dia passado termina com outro no fim do domínio,
+    /// pra área ocupar o gráfico inteiro; hoje termina na hora atual — o ponto do "agora".
+    private var cumulativeSeries: [(hour: Double, totalML: Int)] {
         guard !hourlyBreakdown.isEmpty else { return [] }
         var running = 0
-        var points: [(hour: Int, totalML: Int)] = [(hour: domainStart, totalML: 0)]
+        var points: [(hour: Double, totalML: Int)] = [(hour: Double(domainStart), totalML: 0)]
         for entry in hourlyBreakdown {
             running += entry.ml
-            points.append((hour: entry.hour, totalML: running))
+            points.append((hour: Double(entry.hour), totalML: running))
         }
-        points.append((hour: domainEnd, totalML: running))
+        points.append((hour: currentTimeMark?.hour ?? Double(domainEnd), totalML: running))
         return points
+    }
+
+    /// O "agora" no gráfico: só em hoje, e depois do último registro (que é plotado na hora cheia).
+    private var currentTimeMark: (hour: Double, totalML: Int)? {
+        guard isToday, let last = hourlyBreakdown.last else { return nil }
+        let hour = min(max(nowHour, Double(last.hour)), Double(domainEnd))
+        return (hour, logs.reduce(0) { $0 + $1.volumeML })
     }
 
     private var chartYUpperBound: Int {
@@ -632,117 +647,20 @@ struct DayDetailSheet: View {
         return raw.prefix(1).uppercased() + raw.dropFirst()
     }
 
+    private static let ptBR = Locale(identifier: "pt_BR")
+
+    /// "1.800" — milhar com ponto, como no resto do app em português.
+    private static func formatML(_ value: Int) -> String {
+        value.formatted(.number.locale(ptBR))
+    }
+
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(dateTitle)
-                            .font(AppFont.displayTitle)
-                        Text("\(totalML) mL de \(metaDiariaML) mL da meta")
-                            .font(AppFont.footnoteStrong)
-                            .foregroundStyle(atingiuMeta ? Color.appAccentText : Color.appSecondary)
-                    }
+        ScrollView {
+            VStack(spacing: 0) {
+                hero
 
-                    VStack(alignment: .leading, spacing: 14) {
-                        HStack {
-                            Text("Consumo ao longo do dia")
-                                .font(AppFont.footnoteStrong)
-                                .foregroundStyle(Color.appSecondary)
-                            Spacer()
-                            if !idealSeries.isEmpty {
-                                chartLegend
-                            }
-                        }
-
-                        Chart {
-                            ForEach(cumulativeSeries, id: \.hour) { point in
-                                AreaMark(
-                                    x: .value("Hora", point.hour),
-                                    y: .value("Consumo", point.totalML)
-                                )
-                                .interpolationMethod(.monotone)
-                                // Mesmo azul de marca das barras antigas (`LinearGradient.waterHeader`),
-                                // só diluído pra área — não um azul inventado à parte.
-                                .foregroundStyle(LinearGradient.waterHeader.opacity(0.35))
-                            }
-                            ForEach(cumulativeSeries, id: \.hour) { point in
-                                LineMark(
-                                    x: .value("Hora", point.hour),
-                                    y: .value("Consumo", point.totalML)
-                                )
-                                .interpolationMethod(.monotone)
-                                .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round))
-                                // Série nomeada (não uma Color literal), senão o Charts pode
-                                // confundir o estilo desta linha com o da série seguinte quando
-                                // as duas compartilham o mesmo eixo sem uma escala discreta.
-                                .foregroundStyle(by: .value("Série", "Seu consumo"))
-                            }
-                            // Plano ideal: sobreposto, pontilhado, pra nunca ser confundido com
-                            // um registro real — é uma sugestão derivada dos horários
-                            // estratégicos do usuário e do clima daquele dia, não um dado real.
-                            ForEach(idealSeries, id: \.hour) { point in
-                                LineMark(
-                                    x: .value("Hora", point.hour),
-                                    y: .value("Plano ideal", point.totalML)
-                                )
-                                .interpolationMethod(.monotone)
-                                .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, dash: [6, 5]))
-                                .foregroundStyle(by: .value("Série", "Plano ideal"))
-                            }
-                        }
-                        .chartForegroundStyleScale([
-                            "Seu consumo": Color.appAccent,
-                            "Plano ideal": Color.appSecondary,
-                        ])
-                        .chartLegend(.hidden)
-                        .chartXScale(domain: domainStart...domainEnd)
-                        .chartXAxis {
-                            AxisMarks(values: hourlyAxisMarks) { value in
-                                AxisValueLabel {
-                                    if let hour = value.as(Int.self) {
-                                        Text("\(hour)h")
-                                            .font(AppFont.caption)
-                                            .foregroundStyle(Color.appSecondary)
-                                    }
-                                }
-                            }
-                        }
-                        .chartYAxis {
-                            AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { value in
-                                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                                    .foregroundStyle(Color.appSecondary.opacity(0.18))
-                                AxisValueLabel {
-                                    if let ml = value.as(Int.self) {
-                                        Text("\(ml)")
-                                            .font(AppFont.caption)
-                                            .foregroundStyle(Color.appSecondary)
-                                    }
-                                }
-                            }
-                        }
-                        .chartYScale(domain: 0...chartYUpperBound)
-                        .frame(height: 180)
-                        // Dia sem registros: o gráfico aparece vazio, com o aviso por cima.
-                        .overlay {
-                            if logs.isEmpty {
-                                Text(Calendar.current.isDateInToday(dia.date) ? "Sem registros ainda" : "Sem registros neste dia")
-                                    .font(AppFont.footnoteStrong)
-                                    .foregroundStyle(Color.appSecondary)
-                                    .padding(.horizontal, 14)
-                                    .padding(.vertical, 8)
-                                    .background(Color(.secondarySystemBackground), in: Capsule())
-                            }
-                        }
-
-                        if !idealSeries.isEmpty {
-                            Text("Plano baseado nos horários que funcionam melhor para você e no clima daquele dia.")
-                                .font(AppFont.caption)
-                                .foregroundStyle(Color.appSecondary)
-                        }
-                    }
-                    .padding(16)
-                    .panelBackground()
+                VStack(alignment: .leading, spacing: 12) {
+                    chartCard
 
                     // Sem registros, o aviso já está no gráfico; a lista só aparece com o que listar.
                     if !logs.isEmpty {
@@ -752,16 +670,27 @@ struct DayDetailSheet: View {
                 // Garante a largura total mesmo que nada aqui peça: sem isso a folha encolhia até
                 // o texto mais largo, deixando faixas brancas dos lados.
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(20)
+                .padding(.horizontal, 20)
+                .padding(.top, 26)
+                .padding(.bottom, 24)
             }
-            .appScreenBackground()
-            .navigationTitle("Detalhe do dia")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Fechar", systemImage: "xmark") { Haptic.dismiss.play(); dismiss() }
-                }
+        }
+        .scrollIndicators(.hidden)
+        .appScreenBackground()
+        .overlay(alignment: .topLeading) {
+            Button {
+                Haptic.dismiss.play()
+                dismiss()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(.subheadline, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 44, height: 44)
+                    .glassEffect(.regular.interactive(), in: Circle())
             }
+            .accessibilityLabel("Fechar")
+            .padding(.leading, 16)
+            .padding(.top, 16)
         }
         .task {
             // O clima primeiro: `dayWeather` (e por consequência o plano) depende dele
@@ -782,11 +711,163 @@ struct DayDetailSheet: View {
         }
     }
 
-    private var chartLegend: some View {
-        HStack(spacing: 14) {
-            legendEntry(color: Color.appAccent, dashed: false, label: "Seu consumo")
-            legendEntry(color: Color.appSecondary, dashed: true, label: "Plano ideal")
+    // MARK: - Hero
+
+    private var hero: some View {
+        VStack(spacing: 2) {
+            Text(dateTitle)
+                .font(AppFont.subheadlineStrong)
+                .foregroundStyle(.white.opacity(0.9))
+
+            Text(Self.formatML(totalML))
+                .font(AppFont.numberDay)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+                .foregroundStyle(.white)
+
+            Text("de \(Self.formatML(metaDiariaML)) mL da meta")
+                .font(AppFont.headline)
+                .foregroundStyle(.white.opacity(0.9))
+
+            progressBar
+                .padding(.top, 14)
         }
+        .padding(.horizontal, 28)
+        .padding(.top, 70)
+        .padding(.bottom, 44)
+        .frame(maxWidth: .infinity)
+        .background(alignment: .top) {
+            LinearGradient.waterHeader
+                .clipShape(WaveShape())
+        }
+    }
+
+    private var progressBar: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule().fill(.white.opacity(0.28))
+                Capsule().fill(.white)
+                    .frame(width: geo.size.width * progress)
+            }
+        }
+        .frame(height: 26)
+        .accessibilityElement()
+        .accessibilityLabel("Progresso da meta")
+        .accessibilityValue("\(Int((progress * 100).rounded())) por cento")
+    }
+
+    // MARK: - Chart
+
+    private var chartCard: some View {
+        VStack(spacing: 8) {
+            chartLegend
+
+            Chart {
+                ForEach(Array(cumulativeSeries.enumerated()), id: \.offset) { _, point in
+                    AreaMark(
+                        x: .value("Hora", point.hour),
+                        y: .value("Consumo", point.totalML)
+                    )
+                    .interpolationMethod(.monotone)
+                    // Mesmo azul de marca das barras antigas (`LinearGradient.waterHeader`),
+                    // só diluído pra área — não um azul inventado à parte.
+                    .foregroundStyle(LinearGradient.waterHeader.opacity(0.35))
+                }
+                ForEach(Array(cumulativeSeries.enumerated()), id: \.offset) { _, point in
+                    LineMark(
+                        x: .value("Hora", point.hour),
+                        y: .value("Consumo", point.totalML)
+                    )
+                    .interpolationMethod(.monotone)
+                    .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                    // Série nomeada (não uma Color literal), senão o Charts pode
+                    // confundir o estilo desta linha com o da série seguinte quando
+                    // as duas compartilham o mesmo eixo sem uma escala discreta.
+                    .foregroundStyle(by: .value("Série", "Seu consumo"))
+                }
+                // Plano ideal: sobreposto, pontilhado, pra nunca ser confundido com
+                // um registro real — é uma sugestão derivada dos horários
+                // estratégicos do usuário e do clima daquele dia, não um dado real.
+                ForEach(Array(idealSeries.enumerated()), id: \.offset) { _, point in
+                    LineMark(
+                        x: .value("Hora", point.hour),
+                        y: .value("Plano ideal", point.totalML)
+                    )
+                    .interpolationMethod(.monotone)
+                    .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, dash: [6, 5]))
+                    .foregroundStyle(by: .value("Série", "Plano ideal"))
+                }
+                // O "agora": só hoje, na ponta da linha de consumo.
+                if let mark = currentTimeMark {
+                    PointMark(
+                        x: .value("Hora", mark.hour),
+                        y: .value("Consumo", mark.totalML)
+                    )
+                    .symbol {
+                        Circle()
+                            .fill(.white)
+                            .overlay(Circle().stroke(Color.appAccent, lineWidth: 3))
+                            .frame(width: 12, height: 12)
+                    }
+                }
+            }
+            .chartForegroundStyleScale([
+                "Seu consumo": Color.appAccent,
+                "Plano ideal": Color.appSecondary,
+            ])
+            .chartLegend(.hidden)
+            .chartXScale(domain: Double(domainStart)...Double(domainEnd))
+            .chartXAxis {
+                AxisMarks(values: hourlyAxisMarks.map(Double.init)) { value in
+                    AxisValueLabel {
+                        if let hour = value.as(Double.self) {
+                            Text("\(Int(hour))h")
+                                .font(AppFont.captionStrong)
+                                .foregroundStyle(Color.appSecondary)
+                        }
+                    }
+                }
+            }
+            .chartYAxis {
+                AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { value in
+                    AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                        .foregroundStyle(Color.appAccent.opacity(0.14))
+                    AxisValueLabel {
+                        if let ml = value.as(Int.self) {
+                            Text(Self.formatML(ml))
+                                .font(AppFont.captionStrong)
+                                .foregroundStyle(Color.appSecondary)
+                        }
+                    }
+                }
+            }
+            .chartYScale(domain: 0...chartYUpperBound)
+            .frame(height: 150)
+            // Dia sem registros: o gráfico aparece vazio, com o aviso por cima.
+            .overlay {
+                if logs.isEmpty {
+                    Text(isToday ? "Sem registros ainda" : "Sem registros neste dia")
+                        .font(AppFont.footnoteStrong)
+                        .foregroundStyle(Color.appSecondary)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(Color(.secondarySystemBackground), in: Capsule())
+                }
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .panelBackground(cornerRadius: 22)
+    }
+
+    private var chartLegend: some View {
+        HStack(spacing: 16) {
+            legendEntry(color: Color.appAccent, dashed: false, label: "Você")
+            if !idealSeries.isEmpty {
+                legendEntry(color: Color.appSecondary, dashed: true, label: "Ideal")
+            }
+        }
+        .frame(maxWidth: .infinity)
     }
 
     private func legendEntry(color: Color, dashed: Bool, label: String) -> some View {
@@ -801,33 +882,58 @@ struct DayDetailSheet: View {
                 Rectangle().fill(color).frame(width: 12, height: 2)
             }
             Text(label)
-                .font(AppFont.caption)
+                .font(AppFont.captionStrong)
                 .foregroundStyle(Color.appSecondary)
         }
     }
 
+    // MARK: - Registros
+
+    /// Do mais recente pro mais antigo.
+    private var logsNewestFirst: [IntakeLog] { logs.reversed() }
+
     private var intakeList: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 6) {
             Text("Registros do dia")
                 .font(AppFont.footnoteStrong)
                 .foregroundStyle(Color.appSecondary)
+                .padding(.horizontal, 4)
+                .padding(.top, 2)
 
+            let ordered = logsNewestFirst
             VStack(spacing: 0) {
-                ForEach(logs) { log in
+                ForEach(ordered) { log in
                     IntakeRow(log: log) { deleteIntake(log) }
-                    if log.id != logs.last?.id {
-                        Divider()
+                    if log.id != ordered.last?.id {
+                        DashedDivider()
                     }
                 }
             }
-            .padding(.horizontal, 14)
-            .background(Color(.tertiarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
+            .panelBackground(cornerRadius: 22)
         }
     }
 
     private func deleteIntake(_ log: IntakeLog) {
         Haptic.destructive.play()
         Task { await NotificationScheduler.shared.deleteIntake(log, context: modelContext) }
+    }
+}
+
+/// Tracejado que separa as linhas dos cartões (o mesmo `appDivider` dos tutoriais).
+private struct DashedDivider: View {
+    var body: some View {
+        Line()
+            .stroke(Color.appAccent.opacity(0.2), style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+            .frame(height: 1)
+    }
+
+    private struct Line: Shape {
+        func path(in rect: CGRect) -> Path {
+            var path = Path()
+            path.move(to: CGPoint(x: rect.minX, y: rect.midY))
+            path.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
+            return path
+        }
     }
 }
 
@@ -851,19 +957,23 @@ private struct IntakeRow: View {
         HStack(spacing: 12) {
             Image(systemName: "drop.fill")
                 .font(.footnote)
-                .foregroundStyle(Color.appAccentText)
-                .frame(width: 30, height: 30)
-                .background(Color.appAccent.opacity(0.12), in: Circle())
+                .foregroundStyle(Color.appAccent)
+                .frame(width: 34, height: 34)
+                .background(Color.appAccent.opacity(0.12), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(log.tipoEntrada.capitalized)
+                    .font(AppFont.calloutStrong)
                 Text(timeLabel)
-                    .font(AppFont.footnoteStrong)
-                Text("\(log.tipoEntrada.capitalized) · \(log.volumeML) mL")
-                    .font(AppFont.footnoteStrong)
+                    .font(AppFont.caption)
                     .foregroundStyle(Color.appSecondary)
             }
 
             Spacer()
+
+            Text("\(log.volumeML) mL")
+                .font(AppFont.headline)
+                .foregroundStyle(Color.appAccentText)
 
             Button(role: .destructive, action: onDelete) {
                 Image(systemName: "trash")
@@ -872,9 +982,12 @@ private struct IntakeRow: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .padding(.trailing, -10)
             .accessibilityLabel("Apagar registro das \(timeLabel)")
         }
-        .padding(.vertical, 10)
+        .padding(.leading, 16)
+        .padding(.trailing, 14)
+        .padding(.vertical, 4)
     }
 }
 

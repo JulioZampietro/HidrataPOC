@@ -112,6 +112,7 @@ struct ProfileView: View {
                     onSave: save
                 )
             }
+            .presentationDetents([.fraction(0.86), .large])
             .trackSheetLifecycle(.editPersonalData, screen: .profile, userID: profile.userID)
         }
         .sheet(isPresented: $showGoalExplainer) {
@@ -580,9 +581,7 @@ struct ProfileView: View {
         // onboarding — um fuso velho desloca a hora de todo o histórico de quem muda
         // de região.
         profile.fusoHorario = TimeZone.current.identifier
-        if values.resetGoalToCalculated || values.storedGoalML == nil {
-            profile.metaDiariaML = UserProfile.suggestedGoalML(gender: values.genero?.gender, idade: values.idade, pesoKg: values.pesoKg, alturaCm: values.alturaCm)
-        }
+        profile.metaDiariaML = values.goalML
         profile.atualizadoEm = .now
         profile.syncStatus = .pending
         modelContext.saveLogging("dados pessoais")

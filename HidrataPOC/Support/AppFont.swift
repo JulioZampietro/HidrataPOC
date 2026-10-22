@@ -118,6 +118,12 @@ enum AppFont {
     static let metric = nunito(40, .heavy, relativeTo: .largeTitle)
     /// Número gigante e editável do popup de volume personalizado.
     static let numberHero = nunito(96, .black, relativeTo: .largeTitle)
+    /// Total do dia no cabeçalho do detalhe do dia.
+    static let numberDay = nunito(64, .black, relativeTo: .largeTitle)
+    /// Meta diária no cabeçalho do formulário de perfil.
+    static let numberLarge = nunito(72, .black, relativeTo: .largeTitle)
+    /// Idade, peso e altura nos cartões do formulário de perfil.
+    static let numberTile = nunito(44, .black, relativeTo: .title)
     static let largeTitle = nunito(34, .heavy, relativeTo: .largeTitle)
     static let title = nunito(26, .heavy, relativeTo: .title)
     static let title2 = nunito(22, .heavy, relativeTo: .title2)

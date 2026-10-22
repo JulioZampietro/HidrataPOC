@@ -39,11 +39,12 @@ struct ProfileFormValues {
     var customIntakeML: Int
     /// Current persisted goal — nil during onboarding (no stored value yet).
     var storedGoalML: Int?
-    /// When true, save() recalculates the goal from the formula instead of preserving a manual value.
-    var resetGoalToCalculated: Bool = false
+    /// Output only: the goal to save — the manual value if the user typed one in the form,
+    /// otherwise the one calculated from the other fields.
+    var goalML: Int = 0
 
     static var new: ProfileFormValues {
-        ProfileFormValues(idade: 25, genero: nil, pesoKg: 70, alturaCm: 170, customIntakeML: 300, storedGoalML: nil, resetGoalToCalculated: false)
+        ProfileFormValues(idade: 25, genero: nil, pesoKg: 70, alturaCm: 170, customIntakeML: 300, storedGoalML: nil)
     }
 
     static func from(_ profile: UserProfile) -> ProfileFormValues {
@@ -59,13 +60,9 @@ struct ProfileFormValues {
 }
 
 /// Shared between onboarding and the profile-edit sheet — same fields, different title/action.
+/// Styled like the other onboarding-style popups: gradient wave header whose hero is the
+/// (editable) daily goal, then tiles for the body data, all numbers underlined to read as editable.
 struct ProfileFormView: View {
-    // Campos numéricos com largura que acompanha o Dynamic Type (com texto grande, "170" ou
-    // "1500" estourava uma largura fixa).
-    @ScaledMetric(relativeTo: .body) private var ageFieldWidth: CGFloat = 60
-    @ScaledMetric(relativeTo: .body) private var measureFieldWidth: CGFloat = 80
-    @ScaledMetric(relativeTo: .body) private var volumeFieldWidth: CGFloat = 90
-
     let title: String
     let confirmLabel: String
     let initialValues: ProfileFormValues
@@ -79,6 +76,7 @@ struct ProfileFormView: View {
     let onSave: (ProfileFormValues) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @FocusState private var focusedField: Field?
 
     @State private var idade: Int
     @State private var idadeText: String
@@ -89,12 +87,34 @@ struct ProfileFormView: View {
     @State private var alturaText: String
     @State private var customIntakeML: Int
     @State private var isFetchingFromHealth = false
-    @State private var resetGoal = false
+    /// Meta digitada pelo usuário; `nil` enquanto ela acompanha o valor calculado.
+    @State private var goalOverride: String?
 
-    /// Read-only — recommended from the profile fields via `WaterIntakeCalculator`;
-    /// no longer directly editable (see spec discussion on the heuristic model).
-    private var metaDiariaML: Int {
+    private enum Field: Hashable { case goal, idade, peso, altura, custom }
+
+    private static let maxGoalML = 10000
+
+    // Faixas aceitas: peso 0 zeraria a meta calculada (progresso sempre 0, mascote parado) e
+    // extremos absurdos gerariam recomendações de saúde sem sentido.
+    private static let idadeRange = 10...120
+    private static let pesoRange = 20.0...300.0
+    private static let alturaRange = 80.0...250.0
+
+    /// Recommended from the profile fields via `WaterIntakeCalculator`; follows the fields live.
+    private var calculatedGoalML: Int {
         UserProfile.suggestedGoalML(gender: genero?.gender, idade: idade, pesoKg: pesoKg, alturaCm: alturaCm)
+    }
+
+    private var manualGoalML: Int? {
+        guard let text = goalOverride, let value = Int(text), value > 0 else { return nil }
+        return min(value, Self.maxGoalML)
+    }
+
+    private var goalBinding: Binding<String> {
+        Binding(
+            get: { goalOverride ?? String(calculatedGoalML) },
+            set: { goalOverride = String($0.filter(\.isNumber).prefix(5)) }
+        )
     }
 
     init(title: String, confirmLabel: String, initialValues: ProfileFormValues, showsCustomIntakeField: Bool, showsCancelButton: Bool = false, onSave: @escaping (ProfileFormValues) -> Void) {
@@ -112,213 +132,283 @@ struct ProfileFormView: View {
         _alturaCm = State(initialValue: initialValues.alturaCm)
         _alturaText = State(initialValue: Self.formatDecimal(initialValues.alturaCm))
         _customIntakeML = State(initialValue: initialValues.customIntakeML)
+
+        // Uma meta guardada diferente da calculada foi editada à mão: continua valendo.
+        let calculated = UserProfile.suggestedGoalML(gender: initialValues.genero?.gender, idade: initialValues.idade, pesoKg: initialValues.pesoKg, alturaCm: initialValues.alturaCm)
+        if let stored = initialValues.storedGoalML, stored != calculated {
+            _goalOverride = State(initialValue: "\(stored)")
+        } else {
+            _goalOverride = State(initialValue: nil)
+        }
     }
 
     var body: some View {
-        ScrollViewReader { proxy in
-        Form {
-            Section {
-                Button {
-                    Haptic.tap.play()
-                    Task { await fillFromHealth() }
-                } label: {
-                    HStack(spacing: 12) {
-                        if isFetchingFromHealth {
-                            ProgressView().frame(width: 22, height: 22)
-                        } else {
-                            Image(systemName: "heart.fill")
-                                .foregroundStyle(.pink)
-                                .frame(width: 22)
-                        }
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Sincronizar com Saúde")
-                                .font(AppFont.calloutStrong)
-                                .foregroundStyle(Color.primary)
-                            Text("Importa sexo biológico, nascimento, peso e altura")
-                                .font(AppFont.caption)
-                                .foregroundStyle(Color.appSecondary)
-                        }
+        GeometryReader { geo in
+        ScrollView {
+            VStack(spacing: 0) {
+                header(topInset: geo.safeAreaInsets.top)
+
+                VStack(spacing: 16) {
+                    syncButton
+
+                    HStack(spacing: 10) {
+                        tile("Idade", unit: "anos", text: $idadeText, field: .idade, keyboard: .numberPad)
+                            .onChange(of: idadeText) { _, val in
+                                if let n = Int(val), Self.idadeRange.contains(n) { idade = n }
+                            }
+                        tile("Peso", unit: "kg", text: $pesoText, field: .peso, keyboard: .decimalPad)
+                            .onChange(of: pesoText) { _, val in
+                                if let n = Self.parseDecimal(val), Self.pesoRange.contains(n) { pesoKg = n }
+                            }
+                        tile("Altura", unit: "cm", text: $alturaText, field: .altura, keyboard: .decimalPad)
+                            .onChange(of: alturaText) { _, val in
+                                if let n = Self.parseDecimal(val), Self.alturaRange.contains(n) { alturaCm = n }
+                            }
                     }
+
+                    sexSection
+
+                    if showsCustomIntakeField { customIntakeRow }
+
+                    saveButton
                 }
-                .disabled(isFetchingFromHealth)
+                .padding(.horizontal, 20)
+                .padding(.top, 14)
+                .padding(.bottom, 24)
             }
-
-            Section {
-                HStack {
-                    Text("Idade")
-                    Spacer()
-                    TextField("anos", text: $idadeText)
-                        .keyboardType(.numberPad)
-                        .multilineTextAlignment(.trailing)
-                        .frame(width: ageFieldWidth)
-                        .onChange(of: idadeText) { _, val in
-                            if let n = Int(val), Self.idadeRange.contains(n) { idade = n }
-                        }
-                    Text("anos").foregroundStyle(Color.appSecondary)
-                }
-
-                HStack {
-                    Text("Peso")
-                    Spacer()
-                    TextField("kg", text: $pesoText)
-                        .keyboardType(.decimalPad)
-                        .multilineTextAlignment(.trailing)
-                        .frame(width: measureFieldWidth)
-                        .onChange(of: pesoText) { _, val in
-                            if let n = Self.parseDecimal(val), Self.pesoRange.contains(n) { pesoKg = n }
-                        }
-                    Text("kg").foregroundStyle(Color.appSecondary)
-                }
-
-                HStack {
-                    Text("Altura")
-                    Spacer()
-                    TextField("cm", text: $alturaText)
-                        .keyboardType(.decimalPad)
-                        .multilineTextAlignment(.trailing)
-                        .frame(width: measureFieldWidth)
-                        .onChange(of: alturaText) { _, val in
-                            if let n = Self.parseDecimal(val), Self.alturaRange.contains(n) { alturaCm = n }
-                        }
-                    Text("cm").foregroundStyle(Color.appSecondary)
-                }
-            } header: {
-                Text("Sobre você").font(AppFont.footnote).foregroundStyle(Color.appSecondary)
-            }
-
-            Section {
-                Picker("Sexo", selection: $genero) {
-                    ForEach(Genero.allCases) { option in
-                        Text(option.label).tag(Optional(option))
-                    }
-                }
-                .haptic(.selection, on: genero)
-            } footer: {
-                Text("Usado apenas para calcular sua necessidade diária de água.")
-                    .font(AppFont.footnote)
-                    .foregroundStyle(Color.appSecondary)
-            }
-
-            Section {
-                let displayedGoal = resetGoal ? metaDiariaML : (initialValues.storedGoalML ?? metaDiariaML)
-                LabeledContent("Meta diária", value: "\(displayedGoal) mL")
-
-                if let stored = initialValues.storedGoalML, stored != metaDiariaML {
-                    if resetGoal {
-                        Button("Manter meta manual — \(stored) mL") { Haptic.selection.play(); resetGoal = false }
-                            .foregroundStyle(Color.appSecondary)
-                    } else {
-                        Button("Redefinir para meta calculada — \(metaDiariaML) mL") { Haptic.selection.play(); resetGoal = true }
-                    }
-                }
-            } footer: {
-                if resetGoal {
-                    Text("A meta será redefinida para \(metaDiariaML) mL ao salvar.")
-                        .font(AppFont.footnote)
-                        .foregroundStyle(Color.appSecondary)
-                }
-            }
-
-            if showsCustomIntakeField {
-                Section {
-                    HStack {
-                        Text("Botão personalizado")
-                        Spacer()
-                        TextField("mL", value: $customIntakeML, format: .number)
-                            .keyboardType(.numberPad)
-                            .multilineTextAlignment(.trailing)
-                            .frame(width: volumeFieldWidth)
-                        Text("mL").foregroundStyle(Color.appSecondary)
-                    }
-                }
-            }
-
-            Section {
-                Button(confirmLabel) {
-                    guard let values = validatedValues else { return }
-                    onSave(values)
-                }
-                .frame(maxWidth: .infinity)
-                .font(AppFont.calloutStrong)
-                .foregroundStyle(.white)
-                .listRowBackground(LinearGradient.waterHeader)
-                .disabled(validatedValues == nil)
-            } footer: {
-                if let validationMessage {
-                    Text(validationMessage)
-                        .font(AppFont.footnote)
-                        .foregroundStyle(Color.appDestructive)
-                }
-            }
-            .id("confirmSection")
         }
-        .font(AppFont.body)
-        .navigationTitle(title)
-        .scrollContentBackground(.hidden)
+        .scrollIndicators(.hidden)
+        .ignoresSafeArea(edges: .top) // o gradiente do cabeçalho sobe até o topo da tela
+        } // GeometryReader
         .appScreenBackground()
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            if showsCancelButton {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Fechar", systemImage: "xmark") { dismiss() }
-                }
-            }
-        }
+        .navigationTitle(title)
+        .toolbar(.hidden, for: .navigationBar)
         // Number/decimal pads have no return key, so let a tap outside or a scroll dismiss the keyboard.
         .scrollDismissesKeyboard(.interactively)
         .keyboardDoneToolbar()
         .background(DismissKeyboardOnTap())
-        .onChange(of: isFetchingFromHealth) { _, isFetching in
-            guard !isFetching else { return }
-            withAnimation(.easeInOut(duration: 0.5)) {
-                proxy.scrollTo("confirmSection", anchor: .bottom)
+        .overlay(alignment: .topLeading) {
+            if showsCancelButton {
+                Button {
+                    Haptic.dismiss.play()
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(.subheadline, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 44, height: 44)
+                        .glassEffect(.regular.interactive(), in: Circle())
+                }
+                .accessibilityLabel("Fechar")
+                .padding(.leading, 16)
+                .padding(.top, 16)
             }
         }
-        } // ScrollViewReader
     }
 
-    private func fillFromHealth() async {
-        isFetchingFromHealth = true
-        let data = await HealthKitService.shared.fetchProfileData()
-        if let age = data.idade { idade = age; idadeText = "\(age)" }
-        if let g = data.genero { genero = g }
-        if let w = data.pesoKg { pesoKg = w.rounded(); pesoText = Self.formatDecimal(w.rounded()) }
-        if let h = data.alturaCm { alturaCm = h.rounded(); alturaText = Self.formatDecimal(h.rounded()) }
-        isFetchingFromHealth = false
-        if data.idade != nil || data.genero != nil || data.pesoKg != nil || data.alturaCm != nil {
-            Haptic.success.play()
-        } else {
-            Haptic.warning.play()
+    // MARK: - Header
+
+    /// `topInset` é a área da barra de status (0 numa sheet): o conteúdo do cabeçalho desce\n    /// esse tanto, e o gradiente ocupa a tela até o topo.
+    private func header(topInset: CGFloat) -> some View {
+        VStack(spacing: 4) {
+            Text("Meta diária")
+                .font(AppFont.subheadlineStrong)
+                .foregroundStyle(.white.opacity(0.85))
+
+            // O texto invisível dá ao campo a largura exata dos dígitos; o campo fica por cima.
+            Text(verbatim: goalBinding.wrappedValue)
+                .font(AppFont.numberLarge)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+                .hidden()
+                .padding(.horizontal, 10)
+                .frame(minWidth: 100)
+                .overlay {
+                    TextField("mL", text: goalBinding)
+                        .keyboardType(.numberPad)
+                        .focused($focusedField, equals: .goal)
+                        .multilineTextAlignment(.center)
+                        .font(AppFont.numberLarge)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.5)
+                        .foregroundStyle(.white)
+                        .tint(.white)
+                        .accessibilityLabel("Meta diária em mililitros")
+                }
+                .overlay(alignment: .bottom) {
+                    Capsule().fill(.white.opacity(0.55)).frame(height: 3)
+                }
+
+            Text("mL")
+                .font(AppFont.title3)
+                .foregroundStyle(.white.opacity(0.9))
+
+            if let manual = manualGoalML, manual != calculatedGoalML {
+                Button {
+                    Haptic.selection.play()
+                    goalOverride = nil
+                } label: {
+                    Text("Redefinir para meta calculada")
+                        .font(AppFont.footnoteStrong)
+                        .foregroundStyle(.white)
+                        .underline()
+                }
+                .padding(.top, 2)
+            }
+        }
+        .padding(.top, 56 + topInset)
+        .padding(.bottom, 40)
+        .frame(maxWidth: .infinity)
+        .background(alignment: .top) {
+            LinearGradient.waterHeader
+                .clipShape(WaveShape())
         }
     }
 
-    // MARK: - Validação
+    // MARK: - Sync
 
-    // Antes só a idade era limitada. Peso e altura aceitavam qualquer Double, e os dois
-    // extremos quebram o app em silêncio: com peso 0 a meta calculada vira 0 mL, e aí
-    // o progresso é sempre 0, o mascote nunca sai do primeiro estágio, a sequência
-    // nunca conta e o widget fica vazio — sem nenhuma mensagem. No outro extremo, 500 kg
-    // produz uma recomendação no teto de 11 L apresentada como orientação de saúde.
-    private static let idadeRange = 10...120
-    private static let pesoRange = 20.0...300.0
-    private static let alturaRange = 80.0...250.0
+    private var syncButton: some View {
+        Button {
+            Haptic.tap.play()
+            Task { await fillFromHealth() }
+        } label: {
+            HStack(spacing: 8) {
+                if isFetchingFromHealth {
+                    ProgressView()
+                } else {
+                    Image(systemName: "heart.fill").foregroundStyle(.pink)
+                }
+                Text("Sincronizar com Saúde")
+                    .font(AppFont.subheadlineStrong)
+                    .foregroundStyle(Color.appAccentTextOnWhite)
+            }
+            .padding(.horizontal, 20)
+            .frame(height: 44)
+            .background(Capsule().fill(.white))
+            .overlay(Capsule().strokeBorder(Color.appAccent.opacity(0.25), lineWidth: 1))
+            .shadow(color: Color.appAccent.opacity(0.12), radius: 5, y: 2)
+        }
+        .disabled(isFetchingFromHealth)
+    }
 
-    /// Os valores a salvar, ou nil quando algum campo está fora da faixa — é o que
-    /// desabilita o botão de confirmar.
+    // MARK: - Tiles
+
+    private func tile(_ label: String, unit: String, text: Binding<String>, field: Field, keyboard: UIKeyboardType) -> some View {
+        VStack(spacing: 2) {
+            Text(label)
+                .font(AppFont.footnoteStrong)
+                .foregroundStyle(Color.appSecondary)
+
+            Text(verbatim: text.wrappedValue.isEmpty ? "0" : text.wrappedValue)
+                .font(AppFont.numberTile)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+                .hidden()
+                .padding(.horizontal, 6)
+                .frame(minWidth: 44)
+                .overlay {
+                    TextField("0", text: text)
+                        .keyboardType(keyboard)
+                        .focused($focusedField, equals: field)
+                        .multilineTextAlignment(.center)
+                        .font(AppFont.numberTile)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.5)
+                        .foregroundStyle(Color.appAccentText)
+                        .accessibilityLabel(label)
+                }
+                .overlay(alignment: .bottom) {
+                    Capsule().fill(Color.appAccent.opacity(0.3)).frame(height: 3)
+                }
+
+            Text(unit)
+                .font(AppFont.subheadlineStrong)
+                .foregroundStyle(Color.appSecondary)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 150)
+        .panelBackground(cornerRadius: 22)
+        .contentShape(Rectangle())
+        .onTapGesture { focusedField = field }
+    }
+
+    // MARK: - Sexo
+
+    private var sexSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Sexo")
+                .font(AppFont.footnoteStrong)
+                .foregroundStyle(Color.appSecondary)
+                .padding(.horizontal, 4)
+
+            HStack(spacing: 12) {
+                ForEach(Genero.allCases) { option in
+                    sexOption(option)
+                }
+            }
+        }
+        .haptic(.selection, on: genero)
+    }
+
+    private func sexOption(_ option: Genero) -> some View {
+        let isSelected = genero == option
+        return Button {
+            genero = option
+        } label: {
+            VStack(spacing: 4) {
+                Image(systemName: option == .masculino ? "figure.stand" : "figure.stand.dress")
+                    .font(.system(.title2, weight: .semibold))
+                Text(option.label)
+                    .font(AppFont.calloutStrong)
+            }
+            .foregroundStyle(isSelected ? Color.white : Color.appSecondary)
+            .frame(maxWidth: .infinity)
+            .frame(height: 84)
+            .background {
+                if isSelected {
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .fill(LinearGradient.waterHeader)
+                        .shadow(color: Color.appAccent.opacity(0.35), radius: 6, y: 3)
+                }
+            }
+            .panelBackground(cornerRadius: 22, isVisible: !isSelected)
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    // MARK: - Onboarding-only field
+
+    private var customIntakeRow: some View {
+        HStack {
+            Text("Botão personalizado")
+                .font(AppFont.calloutStrong)
+            Spacer()
+            TextField("mL", value: $customIntakeML, format: .number.grouping(.never))
+                .keyboardType(.numberPad)
+                .focused($focusedField, equals: .custom)
+                .multilineTextAlignment(.trailing)
+                .font(AppFont.calloutStrong)
+                .foregroundStyle(Color.appAccentText)
+                .frame(width: 80)
+            Text("mL").foregroundStyle(Color.appSecondary)
+        }
+        .padding(.horizontal, 18)
+        .frame(height: 54)
+        .panelBackground(cornerRadius: 22)
+    }
+
+    // MARK: - Save
+
+    /// Os valores a salvar, ou nil quando algum campo está fora da faixa — é o que desabilita o botão.
     private var validatedValues: ProfileFormValues? {
         guard let idadeValue = Int(idadeText), Self.idadeRange.contains(idadeValue),
               let pesoValue = Self.parseDecimal(pesoText), Self.pesoRange.contains(pesoValue),
               let alturaValue = Self.parseDecimal(alturaText), Self.alturaRange.contains(alturaValue)
         else { return nil }
-        return ProfileFormValues(
-            idade: idadeValue,
-            genero: genero,
-            pesoKg: pesoValue,
-            alturaCm: alturaValue,
-            customIntakeML: customIntakeML,
-            storedGoalML: initialValues.storedGoalML,
-            resetGoalToCalculated: resetGoal
-        )
+        let goal = manualGoalML
+            ?? UserProfile.suggestedGoalML(gender: genero?.gender, idade: idadeValue, pesoKg: pesoValue, alturaCm: alturaValue)
+        return ProfileFormValues(idade: idadeValue, genero: genero, pesoKg: pesoValue, alturaCm: alturaValue, customIntakeML: customIntakeML, storedGoalML: initialValues.storedGoalML, goalML: goal)
     }
 
     /// Mensagem do primeiro campo inválido, na ordem em que aparecem no formulário.
@@ -334,6 +424,46 @@ struct ProfileFormView: View {
         }
         _ = (idadeValue, pesoValue, alturaValue)
         return nil
+    }
+
+    private var saveButton: some View {
+        VStack(spacing: 8) {
+            if let validationMessage {
+                Text(validationMessage)
+                    .font(AppFont.footnote)
+                    .foregroundStyle(Color.appDestructive)
+                    .multilineTextAlignment(.center)
+            }
+            Button {
+                guard let values = validatedValues else { return }
+                focusedField = nil
+                onSave(values)
+            } label: {
+                Text(confirmLabel)
+                    .font(AppFont.calloutStrong)
+                    .padding(.horizontal, 32)
+                    .padding(.vertical, 6)
+            }
+            .buttonStyle(.glassProminent)
+            .tint(Color.appAccent)
+            .disabled(validatedValues == nil)
+        }
+        .padding(.top, 4)
+    }
+
+    private func fillFromHealth() async {
+        isFetchingFromHealth = true
+        let data = await HealthKitService.shared.fetchProfileData()
+        if let age = data.idade { idade = age; idadeText = "\(age)" }
+        if let g = data.genero { genero = g }
+        if let w = data.pesoKg { pesoKg = w.rounded(); pesoText = Self.formatDecimal(w.rounded()) }
+        if let h = data.alturaCm { alturaCm = h.rounded(); alturaText = Self.formatDecimal(h.rounded()) }
+        isFetchingFromHealth = false
+        if data.idade != nil || data.genero != nil || data.pesoKg != nil || data.alturaCm != nil {
+            Haptic.success.play()
+        } else {
+            Haptic.warning.play()
+        }
     }
 
     private static func parseDecimal(_ text: String) -> Double? {
