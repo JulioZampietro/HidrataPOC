@@ -11,14 +11,35 @@ struct HomeView: View {
     // Barra e cartões têm tamanho fixo (o do texto em 100%): só o texto dentro deles acompanha
     // o Dynamic Type, limitado a `controlTextSizeRange` para caber sem ser cortado.
     private let progressBarHeight = TabScreenLayout.progressBarHeight
-    // Sem @Query com predicado de propósito: um init customizado configurando um
-    // @Query novo foi a causa da regressão do A-2 (ver CORRECOES.md) — travava a
-    // navegação quando a view era construída fresca no meio de uma transição do
-    // NavigationStack. Em vez disso, `.syncedFetch` busca só o recorte de hoje via
-    // `.task`, que roda depois da view já estar na hierarquia, e se atualiza sozinho
-    // a cada vez que o ModelContext salva algo.
-    @State private var allLogs: [IntakeLog] = []
-    @State private var allDailyGoals: [DailyGoal] = []
+    // Estreitados por predicado: sem ele, cada atualização do `body` materializava as
+    // tabelas inteiras de IntakeLog/DailyGoal para então filtrar em Swift. A Home só
+    // olha o dia de hoje, nos dois casos. Os filtros em Swift abaixo continuam: o
+    // predicado é fixado na criação da view, então depois da meia-noite ele deixa
+    // passar o dia anterior, e é o filtro que mantém a conta certa.
+    //
+    // @Query síncrono de propósito, não `.syncedFetch`: a real causa da regressão do
+    // A-2 (ver CORRECOES.md) foi isolada no `init` de ProfileView, construída fresca
+    // no meio de `.navigationDestination(isPresented:)` — revertendo isoladamente
+    // WaterHeaderView/HomeView/HistoricoView não bastou pra destravar a navegação,
+    // só ProfileView era o problema. HomeView nunca é construída numa transição (o
+    // RootView a desenha uma vez, dentro do LazyHStack fixo), então não corre o mesmo
+    // risco. Com `.syncedFetch`, allLogs/allDailyGoals começavam vazios em toda
+    // abertura do app, e a barra de progresso (que anima por `value: today.progress`)
+    // tocava a animação de encher do zero a cada relançamento — o mesmo bug do
+    // mascote em WaterHeaderView, mesma causa raiz, mesma correção.
+    @Query private var allLogs: [IntakeLog]
+    @Query private var allDailyGoals: [DailyGoal]
+
+    init(profile: UserProfile) {
+        self.profile = profile
+        let userID = profile.userID
+        let dayStart = Calendar.current.startOfDay(for: .now)
+        _allLogs = Query(filter: #Predicate<IntakeLog> { $0.userID == userID && $0.timestamp >= dayStart },
+                         sort: \IntakeLog.timestamp)
+        let todayKey = DailyGoal.dayKey(for: .now)
+        _allDailyGoals = Query(filter: #Predicate<DailyGoal> { $0.userID == userID && $0.dayKey == todayKey },
+                               sort: \DailyGoal.dayKey)
+    }
     @State private var isLogging = false
     @State private var highlightedCard: String? = nil
     @State private var audioPlayer: AVAudioPlayer?
@@ -139,7 +160,7 @@ struct HomeView: View {
             }
         }
         .sheet(isPresented: $isEditingCustomAmount) {
-            CustomIntakeEditorView(initialValueML: profile.customIntakeML, onSave: saveCustomAmount)
+            CustomIntakeEditorView(title: "Outro", initialValueML: profile.customIntakeML, onSave: saveCustomAmount)
                 .trackSheetLifecycle(.customAmountEditor, screen: .home, userID: profile.userID)
         }
         // Os botões do jogo somem (ex.: seta de voltar à ingestão) ou o jogo troca: solta o que estiver apertado.
@@ -168,22 +189,6 @@ struct HomeView: View {
             Button("Cancelar", role: .cancel) { pendingRetry = nil }
         } message: {
             Text("O registro de água não foi salvo. Verifique o espaço de armazenamento do aparelho e tente de novo.")
-        }
-        .syncedFetch($allLogs, context: modelContext) {
-            let userID = profile.userID
-            let dayStart = Calendar.current.startOfDay(for: .now)
-            return FetchDescriptor<IntakeLog>(
-                predicate: #Predicate { $0.userID == userID && $0.timestamp >= dayStart },
-                sortBy: [SortDescriptor(\.timestamp)]
-            )
-        }
-        .syncedFetch($allDailyGoals, context: modelContext) {
-            let userID = profile.userID
-            let todayKey = DailyGoal.dayKey(for: .now)
-            return FetchDescriptor<DailyGoal>(
-                predicate: #Predicate { $0.userID == userID && $0.dayKey == todayKey },
-                sortBy: [SortDescriptor(\.dayKey)]
-            )
         }
     }
 
