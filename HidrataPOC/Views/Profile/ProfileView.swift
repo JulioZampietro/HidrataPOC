@@ -239,45 +239,6 @@ struct ProfileView: View {
         )
     }
 
-<<<<<<< HEAD
-    // MARK: - Reminders Card
-
-    private var remindersCard: some View {
-        Button {
-            Haptic.primary.play()
-            showReminders = true
-        } label: {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Configurar lembretes")
-                        .font(AppFont.headline)
-
-                    Text("O monstro te provoca quando\nvocê esquece de beber")
-                        .font(AppFont.footnote)
-                        .opacity(0.85)
-                        .lineSpacing(2)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .multilineTextAlignment(.leading)
-                }
-
-                Spacer()
-
-                Image(systemName: "chevron.right")
-                    .font(.system(.callout, weight: .semibold))
-            }
-            .foregroundStyle(.white)
-            .padding(.horizontal, 18)
-            .padding(.vertical, 16)
-        }
-        .buttonStyle(GradientProminentButtonStyle(cornerRadius: 20))
-        .sheet(isPresented: $showReminders) {
-            RemindersView()
-                .trackSheetLifecycle(.reminders, screen: .profile, userID: profile.userID)
-        }
-    }
-
-=======
->>>>>>> main
     // MARK: - Live Activities Row
 
     private var liveActivitiesRow: some View {

@@ -106,42 +106,7 @@ final class LiveActivityManager {
 
         let attributes = HydrationAttributes(startedAt: .now, phrase: Self.randomPhrase(progress: state.progress))
         // A failed request is a best-effort UI feature (NR-1) — never block app startup on it.
-<<<<<<< HEAD
-        if let activity = try? Activity.request(attributes: attributes, content: ActivityContent(state: state, staleDate: nil)) {
-            watchForDismissal(id: activity.id)
-        }
-    }
-
-    /// iOS ends an activity the moment the user swipes its Lock Screen card away, taking
-    /// the Dynamic Island icon with it. If that happens while still overdue, start the
-    /// island-only variant so the icon survives until an intake is logged.
-    private var watchedIDs: Set<String> = []
-
-    private func watchForDismissal(id: String) {
-        guard watchedIDs.insert(id).inserted else { return }
-        Task { @MainActor in
-            // O id sai do conjunto quando a observação termina, senão ele cresce sem
-            // limite ao longo da vida do processo.
-            defer { watchedIDs.remove(id) }
-            guard let activity = Activity<HydrationAttributes>.activities.first(where: { $0.id == id }),
-                  !activity.attributes.isIslandOnly else { return }
-            for await state in activity.activityStateUpdates where state == .dismissed {
-                let lastState = activity.content.state
-                guard lastState.isOverdue, ActivityAuthorizationInfo().areActivitiesEnabled,
-                      Activity<HydrationAttributes>.activities.isEmpty else { return }
-                let attributes = HydrationAttributes(startedAt: .now, isIslandOnly: true)
-                _ = try? Activity.request(attributes: attributes, content: ActivityContent(state: lastState, staleDate: nil))
-                return
-            }
-        }
-    }
-
-    /// Re-attaches the dismissal watcher to an activity that survived an app relaunch.
-    func resumeWatching() {
-        Activity<HydrationAttributes>.activities.forEach { watchForDismissal(id: $0.id) }
-=======
         _ = try? Activity.request(attributes: attributes, content: ActivityContent(state: state, staleDate: nil))
->>>>>>> main
     }
 
     /// NR-3: never fabricate `lastIntakeDate` — re-derive it from the last locally

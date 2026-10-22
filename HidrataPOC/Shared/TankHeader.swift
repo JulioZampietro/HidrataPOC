@@ -120,8 +120,8 @@ struct CurrentMascotTankHeader: View {
     }
 
     var body: some View {
-<<<<<<< HEAD
-        TankHeader(title: title, subtitle: subtitle, mascotLine: mascotLine, mascotName: mascotName)
+        TankHeader(title: title, subtitle: subtitle, mascotLine: mascotLine, mascotName: mascotName,
+                   showsBackground: showsBackground)
             .syncedFetch($allLogs, context: modelContext) {
                 let dayStart = Calendar.current.startOfDay(for: .now)
                 return FetchDescriptor<IntakeLog>(
@@ -129,10 +129,6 @@ struct CurrentMascotTankHeader: View {
                     sortBy: [SortDescriptor(\.timestamp)]
                 )
             }
-=======
-        TankHeader(title: title, subtitle: subtitle, mascotLine: mascotLine, mascotName: mascotName,
-                   showsBackground: showsBackground)
->>>>>>> main
     }
 }
 
