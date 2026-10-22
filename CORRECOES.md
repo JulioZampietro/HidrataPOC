@@ -1,6 +1,6 @@
 # Correções da auditoria
 
-Branch: `fix/auditoria` (a partir de `69cf825` em `liquidBolha`) · 49 commits · 2026-10-22
+Branch: `fix/auditoria` (a partir de `69cf825` em `liquidBolha`) · 52 commits · 2026-10-22
 Relatório de origem: [AUDITORIA.md](AUDITORIA.md)
 
 > **Atualização pós-entrega (mesmo dia):** o usuário reportou que o app travava ao
@@ -58,8 +58,8 @@ O único warning restante é `NotificationScheduler.swift:983: consider using as
 | **M-13** | Corrigido | `0369adc` | Só o último registro espera o ActivityKit; pushes adiados e feitos de uma vez no fim. |
 | **M-14** | Corrigido | `535cadd` | Pasta `notification/` removida + referência órfã no pbxproj. |
 | **M-15** | Corrigido | `535cadd` | `BubblePOC.swift` removido. |
-| **M-16** | **Descartado (decisão do usuário)** | — | `busy`/`event_density` seguem sem uso: o produto não vai integrar contexto de calendário/EventKit. Como o vetor de features só muda (e o `policy_params.json` só é invalidado) junto com um refit do modelo, não há ação de código pendente — só não reintroduzir essas features sem repopulá-las de verdade. |
-| **M-17** | **Precisa de você** | — | Gerar lockfile exige instalar o ambiente (`ml/.venv` não existe aqui) e é operação de dependência. Comando em "Ações que dependem de você". |
+| **M-16** | Corrigido | `72723cb` | `busy`/`event_density` removidos de `config.LINEAR_FEATURES`, `dataset.py`, `PolicyParams.swift` e `AppPolicyContextProvider.swift`. Vetor de 14→12 features; `policy_params.json`/`policy_parity_vectors.json` regenerados (30→26 elementos) com `build_prior.py` sobre dados sintéticos (`simulate.py`, já que não há export real/credenciais aqui). `ThompsonPolicyTests.matchesPythonReference` confirma a paridade Swift↔Python. **Antes de publicar pra produção**, refaça o fit com dados reais: `ml/run_pipeline.sh export` (precisa do seu `CK_KEY_ID`/`CK_KEY_FILE`) → `prior` → `install` → `publish`. |
+| **M-17** | Corrigido | `72723cb` | `ml/python/requirements.lock` gerado (`pip freeze` sobre o ambiente que `setup` monta — sem hashes, porque `pip-compile`/`uv` não estavam disponíveis aqui, mas já fixa toda a árvore de versões, diretas e transitivas). `run_pipeline.sh setup` passa a instalar dele quando existir. README documenta a versão de Python exigida (pymc/bambi não rodam no `python3` 3.9 padrão do macOS) e a dependência do `libomp` do LightGBM, que só dava erro bem depois do `setup`. |
 | **M-18** | Corrigido | `3adafdb` | Patch do PyTensor agora em Python, portátil e idempotente. |
 | **M-19** | **Descartado (decisão do usuário)** | — | Localização é decisão de produto — o app continua 100% pt-BR, sem internacionalização planejada. Nenhuma mudança feita. |
 | **M-20** | Corrigido (parcial) | `840b5f4` | `IntakeOriginTests` cobre a lógica de `origem` (a inferência central do dataset). `CloudKitSyncService.applyProfile/applyIntakeLog/applyDailyGoal` seguem sem teste — exigiriam fabricar `CKRecord`, trabalho maior que o escopo. |
@@ -84,11 +84,11 @@ O único warning restante é `NotificationScheduler.swift:983: consider using as
 | **B-19** | Corrigido | `e820898` | Comentário do `SLOT_HOURS`. |
 | **B-20** | Corrigido | `c5a36de` | Trio de debug sob `#if DEBUG`; verificado com build Release. |
 | **B-21** | Corrigido | `e820898` | Filtro redundante no widget. |
-| **B-22** | **Precisa de você** | — | `resultouEmConsumo` vs. `intakeInWindow` como rótulo nas duas fontes de treino: é decisão de modelagem, não defeito. Não mexi. |
+| **B-22** | Corrigido | `72723cb` | Confirmado: mesma definição de sucesso ("IntakeLog dentro de `RESPONSE_WINDOW_MIN`"), calculada de pontas opostas em `IntakeLogService.record` (do log pro evento) e `PolicyCoordinator.resolveOutcomes` (do slot pro log). Só divergem se duas janelas se sobrepuserem (ex. um slot de "lembrar mais tarde" perto de um horário fixo) — `intakeInWindow` creditaria os dois, `resultouEmConsumo` só o mais recente. Documentado em `dataset.py`, `IntakeLogService.swift` e no README do pipeline; não unifiquei porque o caso é raro e mudar o comportamento de matching é risco maior que o benefício. |
 | **B-23** | **Não aplicável** | — | Confirmado em build limpo: o aviso vem só do target `HydrationKit` (framework sem intents). `HidrataPOC` e `HydrationWidget` escrevem `Metadata.appintents` normalmente — as frases da Siri estão registradas. |
 | **B-24** | **Precisa de você** | — | `aps-environment: development` só se confirma num archive de distribuição, que depende de assinatura. |
 
-**Resumo:** 52 corrigidos (1 parcial) · 2 não aplicáveis · 3 descartados por decisão do usuário (M-16, M-19, B-5) · 3 precisam de você (M-17, B-22, B-24).
+**Resumo:** 55 corrigidos (1 parcial) · 2 não aplicáveis · 2 descartados por decisão do usuário (M-19, B-5) · 1 precisa de você (B-24).
 
 ## Regressão encontrada depois da entrega inicial
 
