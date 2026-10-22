@@ -83,6 +83,19 @@ struct CustomIntakeEditorView: View {
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.hidden, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button {
+                        Haptic.dismiss.play()
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(.subheadline, weight: .semibold))
+                            .foregroundStyle(.white)
+                    }
+                    .accessibilityLabel("Cancelar")
+                }
+            }
         }
         .presentationDetents([.fraction(0.8)])
     }
@@ -128,21 +141,6 @@ struct CustomIntakeEditorView: View {
             .padding(.top, 20)
         }
         .frame(height: headerHeight)
-        .overlay(alignment: .topLeading) {
-            Button {
-                Haptic.dismiss.play()
-                dismiss()
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.system(.subheadline, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 44, height: 44)
-                    .glassEffect(.regular.interactive(), in: Circle())
-            }
-            .accessibilityLabel("Cancelar")
-            .padding(.leading, 16)
-            .padding(.top, 16)
-        }
     }
 
     // MARK: - Track
