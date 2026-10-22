@@ -32,13 +32,22 @@ struct HomeView: View {
     /// Minijogo da meta batida: o aquário (`WaterHeaderView`) desenha, aqui ficam os botões.
     @Environment(MiniGameController.self) private var miniGames
     @State private var pressedJets = [Bool](repeating: false, count: RingGameSide.allCases.count)
-    @State private var pressedJumpSides = [Bool](repeating: false, count: JumpGameSide.allCases.count)
     @State private var pressedAimSides = [Bool](repeating: false, count: BubbleGameSide.allCases.count)
     @State private var isFirePressed = false
     @AppStorage(MiniGame.jumpBestStorageKey) private var jumpBestScore = 0
     @AppStorage(MiniGame.flappyBestStorageKey) private var flappyBestScore = 0
     /// Os dois botões de nadar da Gota Voadora (esquerda e direita).
     @State private var pressedFlapSides = [false, false]
+    /// Última direção (e a outra metade, numa diagonal) mandada pelo joystick de quatro direções:
+    /// só manda de novo quando muda.
+    @State private var joystickDirections: [MazeDirection]?
+    @AppStorage(MiniGame.mazeBestStorageKey) private var mazeBestScore = 0
+    @AppStorage(MiniGame.sliceBestStorageKey) private var sliceBestScore = 0
+    @AppStorage(MiniGame.snakeBestStorageKey) private var snakeBestScore = 0
+    @AppStorage(MiniGame.minesBestStorageKey) private var minesBestScore = 0
+    @AppStorage(MiniGame.runnerBestStorageKey) private var runnerBestScore = 0
+    /// Campo Minado: tocar na água marca bandeira em vez de abrir (espelha `minesGame.flagMode`).
+    @State private var minesFlagMode = false
     /// Os quatro cartões de ingestão viram os botões do jogo na mesma animação.
     @Namespace private var controlsNamespace
 
@@ -290,11 +299,36 @@ struct HomeView: View {
                 JumpGameRecordCard(best: flappyBestScore, height: cardHeight)
                     .matchedGeometryEffect(id: "bottle", in: controlsNamespace)
                 flapButton(1).matchedGeometryEffect(id: "glass", in: controlsNamespace)
+            case .maze:
+                recordRow(best: mazeBestScore, cardHeight: cardHeight) {
+                    directionJoystick(label: "Joystick do rim") { miniGames.mazeGame.setDirection($0, alternate: $1) }
+                }
+            case .snake:
+                // A cobrinha vira deslizando no aquário: no lugar dos controles, só a dica.
+                recordRow(best: snakeBestScore, cardHeight: cardHeight) {
+                    GameHintCard(title: "Deslize na água", subtitle: "Deslize o dedo pra controlar", height: cardHeight)
+                }
+            case .slice:
+                // O corte é no aquário: no lugar dos controles, só a dica.
+                recordRow(best: sliceBestScore, cardHeight: cardHeight) {
+                    GameHintCard(title: "Deslize na água", subtitle: "Corte as pedras e não corte o rim", height: cardHeight)
+                }
+            case .mines:
+                // As casas se abrem tocando no aquário; aqui fica a troca entre abrir e marcar.
+                recordRow(best: minesBestScore, cardHeight: cardHeight) {
+                    MinesModeCard(isFlagging: minesFlagMode, height: cardHeight) {
+                        minesFlagMode.toggle()
+                        miniGames.minesGame.flagMode = minesFlagMode
+                    }
+                    .onAppear { miniGames.minesGame.flagMode = minesFlagMode }
+                }
+            case .runner:
+                // A gota desvia deslizando no aquário: no lugar dos controles, só a dica.
+                recordRow(best: runnerBestScore, cardHeight: cardHeight) {
+                    GameHintCard(title: "Deslize na água", subtitle: "Pros lados, pra cima ou pra baixo", height: cardHeight)
+                }
             default:
-                jumpButton(.left).matchedGeometryEffect(id: "gole", in: controlsNamespace)
-                JumpGameRecordCard(best: jumpBestScore, height: cardHeight)
-                    .matchedGeometryEffect(id: "bottle", in: controlsNamespace)
-                jumpButton(.right).matchedGeometryEffect(id: "glass", in: controlsNamespace)
+                recordRow(best: jumpBestScore, cardHeight: cardHeight) { jumpJoystick }
             }
         }
         .frame(height: cardHeight)
@@ -312,22 +346,6 @@ struct HomeView: View {
                 if isPressed { Haptic.tap.play() }
             },
             onAccessibilityPulse: { miniGames.ringGame.pulseJet(side) }
-        )
-    }
-
-    private func jumpButton(_ side: JumpGameSide) -> some View {
-        GameHoldButton(
-            symbol: side == .left ? "arrow.left.circle.fill" : "arrow.right.circle.fill",
-            accessibilityLabel: side == .left ? "Pular pra esquerda" : "Pular pra direita",
-            accessibilityHint: "Leva a gota pro lado enquanto estiver apertado",
-            isPressed: pressedJumpSides[side.rawValue],
-            onPressChange: { isPressed in
-                guard pressedJumpSides[side.rawValue] != isPressed else { return }
-                pressedJumpSides[side.rawValue] = isPressed
-                miniGames.jumpGame.setDirection(side, held: isPressed)
-                if isPressed { Haptic.tap.play() }
-            },
-            onAccessibilityPulse: { miniGames.jumpGame.pulseDirection(side) }
         )
     }
 
@@ -366,6 +384,66 @@ struct HomeView: View {
         )
     }
 
+    /// Recorde num terço à esquerda e o controle do jogo (joystick ou dica) nos outros dois terços,
+    /// pro polegar ter espaço.
+    private func recordRow(best: Int, cardHeight: CGFloat, @ViewBuilder control: () -> some View) -> some View {
+        let joystick = control()
+        return GeometryReader { geo in
+            HStack(spacing: intakeGridSpacing) {
+                JumpGameRecordCard(best: best, height: cardHeight)
+                    .frame(width: (geo.size.width - intakeGridSpacing * 2) / 3)
+                    .matchedGeometryEffect(id: "gole", in: controlsNamespace)
+                joystick
+                    .matchedGeometryEffect(id: "glass", in: controlsNamespace)
+            }
+        }
+    }
+
+    /// Gota Saltitante: joystick só na horizontal; quanto mais pro lado, mais rápido a gota anda.
+    private var jumpJoystick: some View {
+        GameJoystick(
+            horizontalOnly: true,
+            accessibilityLabel: "Joystick da gota",
+            accessibilityActions: [
+                ("Esquerda", { miniGames.jumpGame.pulseDirection(.left) }),
+                ("Direita", { miniGames.jumpGame.pulseDirection(.right) }),
+            ],
+            onChange: { tilt in miniGames.jumpGame.setJoystick(Float(tilt.dx)) }
+        )
+    }
+
+    /// Joystick de quatro direções (Rim Comilão): vira pro lado em que o
+    /// polegar aponta mais, assim que ele sai um pouco do centro. Na diagonal (entre ~22° e ~68°
+    /// de um eixo) manda as duas direções, e o jogo pega a que der primeiro.
+    private func directionJoystick(label: String, onDirection: @escaping (MazeDirection, MazeDirection?) -> Void) -> some View {
+        GameJoystick(
+            horizontalOnly: false,
+            accessibilityLabel: label,
+            accessibilityActions: [
+                ("Cima", { onDirection(.up, nil) }),
+                ("Baixo", { onDirection(.down, nil) }),
+                ("Esquerda", { onDirection(.left, nil) }),
+                ("Direita", { onDirection(.right, nil) }),
+            ],
+            onChange: { tilt in
+                guard hypot(tilt.dx, tilt.dy) > 0.4 else {
+                    if tilt == .zero { joystickDirections = nil }
+                    return
+                }
+                let horizontal: MazeDirection = tilt.dx > 0 ? .right : .left
+                let vertical: MazeDirection = tilt.dy > 0 ? .down : .up
+                let (major, minor) = abs(tilt.dx) > abs(tilt.dy) ? (horizontal, vertical) : (vertical, horizontal)
+                // sen(22,5°) ≈ 0,38: o eixo menor pesa o bastante pra contar como diagonal.
+                let isDiagonal = min(abs(tilt.dx), abs(tilt.dy)) / hypot(tilt.dx, tilt.dy) > 0.38
+                let directions = isDiagonal ? [major, minor] : [major]
+                guard directions != joystickDirections else { return }
+                joystickDirections = directions
+                Haptic.selection.play()
+                onDirection(major, isDiagonal ? minor : nil)
+            }
+        )
+    }
+
     private var fireButton: some View {
         GameHoldButton(
             symbol: "arrow.up.circle.fill",
@@ -385,11 +463,11 @@ struct HomeView: View {
     private func releaseGameButtons() {
         pressedJets = [Bool](repeating: false, count: RingGameSide.allCases.count)
         for side in RingGameSide.allCases { miniGames.ringGame.setJet(side, open: false) }
-        pressedJumpSides = [Bool](repeating: false, count: JumpGameSide.allCases.count)
-        for side in JumpGameSide.allCases { miniGames.jumpGame.setDirection(side, held: false) }
+        miniGames.jumpGame.setJoystick(0)
         pressedAimSides = [Bool](repeating: false, count: BubbleGameSide.allCases.count)
         isFirePressed = false
         pressedFlapSides = [false, false]
+        joystickDirections = nil
         for side in BubbleGameSide.allCases { miniGames.bubbleGame.setAim(side, held: false) }
     }
 
@@ -439,7 +517,7 @@ struct HomeView: View {
         ZStack(alignment: .topTrailing) {
             Button { logIntake(.custom(volumeML: profile.customIntakeML), cardID: "custom") } label: {
                 IntakeCardContent(
-                    icon: nil,
+                    icon: .beaker,
                     title: "Outro",
                     subtitle: "\(profile.customIntakeML) mL",
                     isHighlighted: highlightedCard == "custom",
@@ -530,6 +608,8 @@ enum IntakeCardIcon {
     case symbol(String, mirrored: Bool = false)
     /// Garrafa sólida desenhada à mão — o `waterbottle.fill` tem uma gota vazada no meio.
     case bottle
+    /// Béquer sólido (tampa + corpo com marcas de volume vazadas), usado no cartão "Outro".
+    case beaker
 
     /// Quanto do ícone (fração do lado) fica para fora da borda esquerda.
     var leadingOverflow: CGFloat {
@@ -547,6 +627,8 @@ struct IntakeCardContent: View {
     let subtitle: String
     var isHighlighted: Bool = false
     var height: CGFloat? = nil
+    /// Texto no topo do cartão em vez de no rodapé, longe da parte mais cheia do ícone.
+    var textOnTop: Bool = false
 
     /// Tinta do texto sobre o cartão liso (fora do ícone).
     private var titleInk: Color {
@@ -594,7 +676,7 @@ struct IntakeCardContent: View {
     /// Altura fixa: o cartão não muda com o Dynamic Type.
     private func textBlock(title titleColor: Color, subtitle subtitleColor: Color) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            Spacer(minLength: 0)
+            if !textOnTop { Spacer(minLength: 0) }
 
             Text(title)
                 .font(AppFont.headline)
@@ -603,9 +685,12 @@ struct IntakeCardContent: View {
             Text(subtitle)
                 .font(AppFont.subheadline)
                 .foregroundStyle(subtitleColor)
+
+            if textOnTop { Spacer(minLength: 0) }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 16)
+        .padding(.top, textOnTop ? 20 : 0) // no topo, desce um pouco pra não colar na borda
         .padding(.leading, 12)
         .padding(.trailing, 16)
         .frame(height: height)
@@ -632,6 +717,8 @@ struct IntakeCardContent: View {
                 .scaleEffect(x: mirrored ? -1 : 1, y: 1)
         case .bottle:
             BottleShape()
+        case .beaker:
+            BeakerShape()
         }
     }
 }
@@ -665,6 +752,38 @@ private struct BottleShape: Shape {
         path.closeSubpath()
 
         return path
+    }
+}
+
+/// Béquer sólido: tampa em cápsula, corpo reto e quatro marcas de volume vazadas no lado direito.
+private struct BeakerShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        func r(_ x: CGFloat, _ y: CGFloat, _ w: CGFloat, _ h: CGFloat) -> CGRect {
+            CGRect(x: rect.minX + x * rect.width, y: rect.minY + y * rect.height,
+                   width: w * rect.width, height: h * rect.height)
+        }
+        var path = Path()
+
+        // Tampa: cápsula, com a ponta direita arredondada.
+        let lid = r(0.12, 0.02, 0.76, 0.045)
+        path.addRoundedRect(in: lid, cornerSize: CGSize(width: lid.height / 2, height: lid.height / 2), style: .continuous)
+
+        // Corpo.
+        path.addRoundedRect(
+            in: r(0.12, 0.093, 0.70, 0.887),
+            cornerSize: CGSize(width: rect.width * 0.04, height: rect.width * 0.04),
+            style: .continuous
+        )
+
+        // Marcas de volume (alinhadas à direita, alternando longa e curta).
+        var ticks = Path()
+        let marks: [(y: CGFloat, w: CGFloat)] = [(0.18, 0.135), (0.254, 0.086), (0.327, 0.135), (0.40, 0.086)]
+        let tickRight: CGFloat = 0.78
+        for mark in marks {
+            let tick = r(tickRight - mark.w, mark.y, mark.w, 0.023)
+            ticks.addRoundedRect(in: tick, cornerSize: CGSize(width: tick.height / 2, height: tick.height / 2), style: .continuous)
+        }
+        return path.subtracting(ticks)
     }
 }
 

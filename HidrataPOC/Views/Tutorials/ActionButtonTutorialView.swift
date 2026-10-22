@@ -51,15 +51,25 @@ struct ActionButtonStepsContent: View {
 
     var body: some View {
         VStack(spacing: 20) {
-            CurrentMascotTankHeader(
-                title: "Botão de Ação",
-                subtitle: "Registre água com um toque lateral — sem desbloquear o iPhone.",
-                mascotLine: showsMascotLine ? "Um toque e já era? Isso não é justo." : nil
-            )
-
-            stepsCard
-                .padding(.horizontal, 20)
+            header()
+            cards
         }
+    }
+
+    /// Separados pra o onboarding poder desenhar o fundo azul fixo e paginar só
+    /// texto/mascote e cards por cima dele.
+    func header(showsBackground: Bool = true) -> some View {
+        CurrentMascotTankHeader(
+            title: "Botão de Ação",
+            subtitle: "Registre água com um toque lateral — sem desbloquear o iPhone.",
+            mascotLine: showsMascotLine ? "Um toque e já era? Isso não é justo." : nil,
+            showsBackground: showsBackground
+        )
+    }
+
+    var cards: some View {
+        stepsCard
+            .padding(.horizontal, 20)
     }
 
     private var stepsCard: some View {

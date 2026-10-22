@@ -18,7 +18,6 @@ struct ProfileView: View {
     @State private var isEditing = false
     @State private var isEditingGoal = false
     @State private var showGoalExplainer = false
-    @State private var showReminders = false
     @State private var showLiveActivities = false
     @State private var showSiriTutorial = false
     @State private var showHealthConnect = false
@@ -75,7 +74,6 @@ struct ProfileView: View {
         ScrollView {
             VStack(spacing: 16) {
                 goalCard
-                remindersCard
                 liveActivitiesRow
                 siriRow
                 healthRow
@@ -241,6 +239,7 @@ struct ProfileView: View {
         )
     }
 
+<<<<<<< HEAD
     // MARK: - Reminders Card
 
     private var remindersCard: some View {
@@ -277,6 +276,8 @@ struct ProfileView: View {
         }
     }
 
+=======
+>>>>>>> main
     // MARK: - Live Activities Row
 
     private var liveActivitiesRow: some View {

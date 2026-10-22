@@ -358,8 +358,10 @@ struct WaterHeaderView: View {
             }
             .animation(.spring(response: 0.5, dampingFraction: 0.7), value: goalReached)
             // Minijogo: no conteúdo do recipiente, então passa pela mesma refração da água.
-            // Os botões ficam na Home; só as Bolhas Coloridas (mirar e atirar) e a Gota Voadora
-            // (nadar) recebem toque aqui.
+            // Os botões ficam na Home; só as Bolhas Coloridas (mirar e atirar), a Gota Voadora
+            // (nadar), o Rim Comilão e a Cobrinha (deslizar pra virar), o Quebra-Pedras, o
+            // Campo Minado (tocar nas casas) e a Gota Surfista (deslizar pra desviar)
+            // (cortar) recebem toque aqui.
             .overlay {
                 Group {
                     switch runningGame {
@@ -371,11 +373,21 @@ struct WaterHeaderView: View {
                         BubbleGameView(simulation: miniGames.bubbleGame, water: waterMotion)
                     case .flappy:
                         FlappyGameView(simulation: miniGames.flappyGame, water: waterMotion)
+                    case .maze:
+                        MazeGameView(simulation: miniGames.mazeGame, water: waterMotion)
+                    case .slice:
+                        SliceGameView(simulation: miniGames.sliceGame, water: waterMotion)
+                    case .snake:
+                        SnakeGameView(simulation: miniGames.snakeGame, water: waterMotion)
+                    case .mines:
+                        MinesGameView(simulation: miniGames.minesGame, water: waterMotion)
+                    case .runner:
+                        RunnerGameView(simulation: miniGames.runnerGame, water: waterMotion)
                     case .noGame, nil:
                         EmptyView()
                     }
                 }
-                .allowsHitTesting(runningGame == .bubbles || runningGame == .flappy)
+                .allowsHitTesting([.bubbles, .flappy, .maze, .slice, .snake, .mines, .runner].contains(runningGame))
                 .transition(.opacity)
             }
         .background {
@@ -643,6 +655,11 @@ struct WaterHeaderView: View {
         if newGame != .jump { miniGames.jumpGame.stop() }
         if newGame != .bubbles { miniGames.bubbleGame.stop() }
         if newGame != .flappy { miniGames.flappyGame.stop() }
+        if newGame != .maze { miniGames.mazeGame.stop() }
+        if newGame != .slice { miniGames.sliceGame.stop() }
+        if newGame != .snake { miniGames.snakeGame.stop() }
+        if newGame != .mines { miniGames.minesGame.stop() }
+        if newGame != .runner { miniGames.runnerGame.stop() }
 
         guard let newGame else {
             if goalReached, oldGame != nil { waterMotion.scatterStonesAtRest() }
@@ -671,6 +688,36 @@ struct WaterHeaderView: View {
             UserDefaults.standard.set(max(best, score), forKey: MiniGame.flappyBestStorageKey)
             InteractionTracker.log("flappy_game_over", screen: screen, userID: profile.userID, context: modelContext)
         }
+        miniGames.mazeGame.onGameOver = { score in
+            let best = UserDefaults.standard.integer(forKey: MiniGame.mazeBestStorageKey)
+            (score > best ? Haptic.success : Haptic.warning).play()
+            UserDefaults.standard.set(max(best, score), forKey: MiniGame.mazeBestStorageKey)
+            InteractionTracker.log("maze_game_over", screen: screen, userID: profile.userID, context: modelContext)
+        }
+        miniGames.sliceGame.onGameOver = { score in
+            let best = UserDefaults.standard.integer(forKey: MiniGame.sliceBestStorageKey)
+            (score > best ? Haptic.success : Haptic.warning).play()
+            UserDefaults.standard.set(max(best, score), forKey: MiniGame.sliceBestStorageKey)
+            InteractionTracker.log("slice_game_over", screen: screen, userID: profile.userID, context: modelContext)
+        }
+        miniGames.snakeGame.onGameOver = { score in
+            let best = UserDefaults.standard.integer(forKey: MiniGame.snakeBestStorageKey)
+            (score > best ? Haptic.success : Haptic.warning).play()
+            UserDefaults.standard.set(max(best, score), forKey: MiniGame.snakeBestStorageKey)
+            InteractionTracker.log("snake_game_over", screen: screen, userID: profile.userID, context: modelContext)
+        }
+        miniGames.minesGame.onGameOver = { score in
+            let best = UserDefaults.standard.integer(forKey: MiniGame.minesBestStorageKey)
+            (score > best ? Haptic.success : Haptic.warning).play()
+            UserDefaults.standard.set(max(best, score), forKey: MiniGame.minesBestStorageKey)
+            InteractionTracker.log("mines_game_over", screen: screen, userID: profile.userID, context: modelContext)
+        }
+        miniGames.runnerGame.onGameOver = { score in
+            let best = UserDefaults.standard.integer(forKey: MiniGame.runnerBestStorageKey)
+            (score > best ? Haptic.success : Haptic.warning).play()
+            UserDefaults.standard.set(max(best, score), forKey: MiniGame.runnerBestStorageKey)
+            InteractionTracker.log("runner_game_over", screen: screen, userID: profile.userID, context: modelContext)
+        }
         // A comemoração da meta já acabou quando o jogo chega aqui (`showsGoalReached`): só
         // espera o aquário esticar pra tela do jogo.
         Task {
@@ -681,6 +728,11 @@ struct WaterHeaderView: View {
             case .jump: miniGames.jumpGame.start()
             case .bubbles: miniGames.bubbleGame.start()
             case .flappy: miniGames.flappyGame.start()
+            case .maze: miniGames.mazeGame.start()
+            case .slice: miniGames.sliceGame.start()
+            case .snake: miniGames.snakeGame.start()
+            case .mines: miniGames.minesGame.start()
+            case .runner: miniGames.runnerGame.start()
             case .noGame: return
             }
             if isLiveTransition {

@@ -2,6 +2,7 @@ import ActivityKit
 import Foundation
 import HydrationKit
 import SwiftData
+import UIKit
 
 /// Owns the hydration Live Activity's request lifecycle and the "should one exist at
 /// all right now" decision — the only place that calls `Activity<HydrationAttributes>
@@ -47,10 +48,9 @@ final class LiveActivityManager {
         let carriedState = activity.content.state
         await activity.end(nil, dismissalPolicy: .immediate)
 
-        let attributes = HydrationAttributes(startedAt: .now, isIslandOnly: activity.attributes.isIslandOnly)
-        if let renewed = try? Activity.request(attributes: attributes, content: ActivityContent(state: carriedState, staleDate: nil)) {
-            watchForDismissal(id: renewed.id)
-        }
+        // Same phrase as before: the restart is invisible to the user, so the card shouldn't change.
+        let attributes = HydrationAttributes(startedAt: .now, phrase: activity.attributes.phrase)
+        _ = try? Activity.request(attributes: attributes, content: ActivityContent(state: carriedState, staleDate: nil))
     }
 
     /// FR-4b: push the edited custom-amount preset into the running activity's
@@ -88,10 +88,10 @@ final class LiveActivityManager {
             await requestIfOverdue(profile: profile, context: context)
             return
         }
-        watchForDismissal(id: activity.id)
         var state = activity.content.state
         state.lastIntakeDate = lastKnownIntakeDate(userID: profile.userID, context: context)
         state.customAmountML = profile.customIntakeML
+        state.progress = todayProgress(profile: profile, context: context)
         await activity.update(ActivityContent(state: state, staleDate: nil))
     }
 
@@ -99,12 +99,14 @@ final class LiveActivityManager {
         let state = HydrationAttributes.ContentState(
             lastIntakeDate: lastKnownIntakeDate(userID: profile.userID, context: context),
             reminderThreshold: Constants.hydrationReminderThresholdSeconds,
-            customAmountML: profile.customIntakeML
+            customAmountML: profile.customIntakeML,
+            progress: todayProgress(profile: profile, context: context)
         )
         guard state.isOverdue else { return }
 
-        let attributes = HydrationAttributes(startedAt: .now)
+        let attributes = HydrationAttributes(startedAt: .now, phrase: Self.randomPhrase(progress: state.progress))
         // A failed request is a best-effort UI feature (NR-1) — never block app startup on it.
+<<<<<<< HEAD
         if let activity = try? Activity.request(attributes: attributes, content: ActivityContent(state: state, staleDate: nil)) {
             watchForDismissal(id: activity.id)
         }
@@ -137,6 +139,9 @@ final class LiveActivityManager {
     /// Re-attaches the dismissal watcher to an activity that survived an app relaunch.
     func resumeWatching() {
         Activity<HydrationAttributes>.activities.forEach { watchForDismissal(id: $0.id) }
+=======
+        _ = try? Activity.request(attributes: attributes, content: ActivityContent(state: state, staleDate: nil))
+>>>>>>> main
     }
 
     /// NR-3: never fabricate `lastIntakeDate` — re-derive it from the last locally
@@ -165,5 +170,59 @@ final class LiveActivityManager {
             attemptsRemaining -= 1
         }
         return activities
+    }
+
+    // MARK: - Progress
+
+    /// Same ratio the Home screen's mascot is driven by: today's intake over today's goal
+    /// (base goal plus the temperature adjustment already recorded for today), capped at 1.
+    private func todayProgress(profile: UserProfile, context: ModelContext) -> Double {
+        let userID = profile.userID
+        let logs = (try? context.fetch(FetchDescriptor<IntakeLog>(predicate: #Predicate { $0.userID == userID }))) ?? []
+        let goals = (try? context.fetch(FetchDescriptor<DailyGoal>(predicate: #Predicate { $0.userID == userID }))) ?? []
+        let goalML = HydrationMath.effectiveGoalML(
+            baseGoalML: profile.metaDiariaML,
+            tempContext: nil,
+            recordedAdjustmentML: DailyGoalResolver.recordedAdjustmentML(in: goals, on: .now)
+        )
+        guard goalML > 0 else { return 0 }
+        return min(1, Double(HydrationMath.totalML(logs, on: .now)) / Double(goalML))
+    }
+
+    // MARK: - Card phrase
+
+    /// A random mascot line (the stage's and the time of day's, like the Home bubble) that
+    /// fits the Lock Screen card's title on a single line. Falls back to the shortest line
+    /// if none fits (very small screens).
+    static func randomPhrase(progress: Double, now: Date = .now) -> String {
+        let context = MascotPhraseContext(
+            stage: AppTheme.mascotStage(for: progress),
+            hour: Calendar.current.component(.hour, from: now),
+            lastIntakeWasGole: false,
+            lastIntakeKeptStage: false,
+            isDryDay: false
+        )
+        let pool = MascotPhrases.idle(in: context)
+        let fitting = pool.filter(fitsCardTitle)
+        return fitting.randomElement()
+            ?? pool.min { titleWidth($0) < titleWidth($1) }
+            ?? "Hora de beber água!"
+    }
+
+    // Lock Screen card geometry, matching `HydrationLockScreenView`: the card is the screen
+    // minus 16 pt margins; inside it 12 pt padding, a 6 pt inset, the 50 pt mascot and a 12 pt gap.
+    private static let cardChromeWidth: CGFloat = 32 + 24 + 12 + 50 + 12
+    /// Headroom so a line that just barely fits by measurement doesn't wrap on-device.
+    private static let fitMargin: CGFloat = 0.94
+
+    private static func titleWidth(_ text: String) -> CGFloat {
+        let base = UIFont(name: "Nunito", size: 17) ?? .systemFont(ofSize: 17)
+        let descriptor = base.fontDescriptor.addingAttributes([.traits: [UIFontDescriptor.TraitKey.weight: UIFont.Weight.heavy]])
+        let font = UIFont(descriptor: descriptor, size: 17)
+        return ceil((text as NSString).size(withAttributes: [.font: font]).width)
+    }
+
+    private static func fitsCardTitle(_ text: String) -> Bool {
+        titleWidth(text) <= (UIScreen.main.bounds.width - cardChromeWidth) * fitMargin
     }
 }

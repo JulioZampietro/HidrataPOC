@@ -84,6 +84,16 @@
 		1A0B0C0D0E0F101112150001 /* PebbleDrawing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0B0C0D0E0F101112150002 /* PebbleDrawing.swift */; };
 		1A0B0C0D0E0F101112160001 /* FlappyGameSimulation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0B0C0D0E0F101112160002 /* FlappyGameSimulation.swift */; };
 		1A0B0C0D0E0F101112160003 /* FlappyGameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0B0C0D0E0F101112160004 /* FlappyGameView.swift */; };
+		1A0B0C0D0E0F101112170001 /* MazeGameSimulation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0B0C0D0E0F101112170002 /* MazeGameSimulation.swift */; };
+		1A0B0C0D0E0F101112170003 /* MazeGameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0B0C0D0E0F101112170004 /* MazeGameView.swift */; };
+		1A0B0C0D0E0F101112180001 /* SliceGameSimulation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0B0C0D0E0F101112180002 /* SliceGameSimulation.swift */; };
+		1A0B0C0D0E0F101112180003 /* SliceGameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0B0C0D0E0F101112180004 /* SliceGameView.swift */; };
+		1A0B0C0D0E0F101112190001 /* SnakeGameSimulation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0B0C0D0E0F101112190002 /* SnakeGameSimulation.swift */; };
+		1A0B0C0D0E0F101112190003 /* SnakeGameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0B0C0D0E0F101112190004 /* SnakeGameView.swift */; };
+		1A0B0C0D0E0F1011121A0003 /* MinesGameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0B0C0D0E0F1011121A0004 /* MinesGameView.swift */; };
+		1A0B0C0D0E0F1011121A0001 /* MinesGameSimulation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0B0C0D0E0F1011121A0002 /* MinesGameSimulation.swift */; };
+		1A0B0C0D0E0F1011121B0003 /* RunnerGameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0B0C0D0E0F1011121B0004 /* RunnerGameView.swift */; };
+		1A0B0C0D0E0F1011121B0001 /* RunnerGameSimulation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0B0C0D0E0F1011121B0002 /* RunnerGameSimulation.swift */; };
 		C390E2FE5A235D47F6B6B6B0 /* HydrationAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39B01B3E715DF9C6090B73F0 /* HydrationAttributes.swift */; };
 		C4D59AF23B75095AE1776740 /* PersistenceController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18681BFBE503481336FBEBD8 /* PersistenceController.swift */; };
 		C875CDDF311D834B8785DD94 /* ConsentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F93CA27F187823B29EA02167 /* ConsentView.swift */; };
@@ -115,6 +125,8 @@
 		FA12B3C9D0E74A8B1C2D5F6E /* FeatureOnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA12B3C9D0E74A8B1C2D5F6F /* FeatureOnboardingView.swift */; };
 		FCC1324381344DB8DA982AE3 /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95F0050D87C688CD6A361091 /* Constants.swift */; };
 		FEF1E8A999A9841C843C2208 /* CustomIntakeEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20FA02344B32332B350BC11D /* CustomIntakeEditorView.swift */; };
+		A11E0000000000000000F001 /* AppFont.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD11223344556677889900DD /* AppFont.swift */; };
+		A11E0000000000000000F002 /* Nunito.ttf in Resources */ = {isa = PBXBuildFile; fileRef = EE11223344556677889900EE /* Nunito.ttf */; };
 		FF11223344556677889900FF /* AppFont.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD11223344556677889900DD /* AppFont.swift */; };
 		AA5511223344556677889901 /* Haptics.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA5511223344556677889902 /* Haptics.swift */; };
 		AA5511223344556677889903 /* MascotPhrases.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA5511223344556677889904 /* MascotPhrases.swift */; };
@@ -264,6 +276,16 @@
 		1A0B0C0D0E0F101112150002 /* PebbleDrawing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PebbleDrawing.swift; sourceTree = "<group>"; };
 		1A0B0C0D0E0F101112160002 /* FlappyGameSimulation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlappyGameSimulation.swift; sourceTree = "<group>"; };
 		1A0B0C0D0E0F101112160004 /* FlappyGameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlappyGameView.swift; sourceTree = "<group>"; };
+		1A0B0C0D0E0F101112170002 /* MazeGameSimulation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MazeGameSimulation.swift; sourceTree = "<group>"; };
+		1A0B0C0D0E0F101112170004 /* MazeGameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MazeGameView.swift; sourceTree = "<group>"; };
+		1A0B0C0D0E0F101112180002 /* SliceGameSimulation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SliceGameSimulation.swift; sourceTree = "<group>"; };
+		1A0B0C0D0E0F101112180004 /* SliceGameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SliceGameView.swift; sourceTree = "<group>"; };
+		1A0B0C0D0E0F101112190002 /* SnakeGameSimulation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnakeGameSimulation.swift; sourceTree = "<group>"; };
+		1A0B0C0D0E0F101112190004 /* SnakeGameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnakeGameView.swift; sourceTree = "<group>"; };
+		1A0B0C0D0E0F1011121A0004 /* MinesGameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MinesGameView.swift; sourceTree = "<group>"; };
+		1A0B0C0D0E0F1011121A0002 /* MinesGameSimulation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MinesGameSimulation.swift; sourceTree = "<group>"; };
+		1A0B0C0D0E0F1011121B0004 /* RunnerGameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerGameView.swift; sourceTree = "<group>"; };
+		1A0B0C0D0E0F1011121B0002 /* RunnerGameSimulation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerGameSimulation.swift; sourceTree = "<group>"; };
 		C3BCAACF78A9164EF7C57D86 /* WeatherContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherContext.swift; sourceTree = "<group>"; };
 		C7A5DA61EDA45323AB04B6E6 /* HydrationWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HydrationWidgetBundle.swift; sourceTree = "<group>"; };
 		CD611C7BACD349B4B8CBC129 /* WaterIntakeCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaterIntakeCalculator.swift; sourceTree = "<group>"; };
@@ -457,6 +479,16 @@
 				1A0B0C0D0E0F101112140004 /* BubbleGameView.swift */,
 				1A0B0C0D0E0F101112150002 /* PebbleDrawing.swift */,
 				1A0B0C0D0E0F101112160004 /* FlappyGameView.swift */,
+				1A0B0C0D0E0F101112170004 /* MazeGameView.swift */,
+				1A0B0C0D0E0F101112180004 /* SliceGameView.swift */,
+				1A0B0C0D0E0F101112190004 /* SnakeGameView.swift */,
+				1A0B0C0D0E0F101112190002 /* SnakeGameSimulation.swift */,
+				1A0B0C0D0E0F1011121A0004 /* MinesGameView.swift */,
+				1A0B0C0D0E0F1011121A0002 /* MinesGameSimulation.swift */,
+				1A0B0C0D0E0F1011121B0004 /* RunnerGameView.swift */,
+				1A0B0C0D0E0F1011121B0002 /* RunnerGameSimulation.swift */,
+				1A0B0C0D0E0F101112180002 /* SliceGameSimulation.swift */,
+				1A0B0C0D0E0F101112170002 /* MazeGameSimulation.swift */,
 				1A0B0C0D0E0F101112160002 /* FlappyGameSimulation.swift */,
 				1A0B0C0D0E0F101112140002 /* BubbleGameSimulation.swift */,
 				A9EDD10460D867692F1B0943 /* HomeView.swift */,
@@ -738,6 +770,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				6B35FD38E3103ECE4D7321B8 /* Assets.xcassets in Resources */,
+				A11E0000000000000000F002 /* Nunito.ttf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -808,6 +841,16 @@
 				1A0B0C0D0E0F101112140003 /* BubbleGameView.swift in Sources */,
 				1A0B0C0D0E0F101112150001 /* PebbleDrawing.swift in Sources */,
 				1A0B0C0D0E0F101112160003 /* FlappyGameView.swift in Sources */,
+				1A0B0C0D0E0F101112170003 /* MazeGameView.swift in Sources */,
+				1A0B0C0D0E0F101112180003 /* SliceGameView.swift in Sources */,
+				1A0B0C0D0E0F101112190003 /* SnakeGameView.swift in Sources */,
+				1A0B0C0D0E0F101112190001 /* SnakeGameSimulation.swift in Sources */,
+				1A0B0C0D0E0F1011121A0003 /* MinesGameView.swift in Sources */,
+				1A0B0C0D0E0F1011121A0001 /* MinesGameSimulation.swift in Sources */,
+				1A0B0C0D0E0F1011121B0003 /* RunnerGameView.swift in Sources */,
+				1A0B0C0D0E0F1011121B0001 /* RunnerGameSimulation.swift in Sources */,
+				1A0B0C0D0E0F101112180001 /* SliceGameSimulation.swift in Sources */,
+				1A0B0C0D0E0F101112170001 /* MazeGameSimulation.swift in Sources */,
 				1A0B0C0D0E0F101112160001 /* FlappyGameSimulation.swift in Sources */,
 				1A0B0C0D0E0F101112140001 /* BubbleGameSimulation.swift in Sources */,
 				A0DEC0A1B2C3D4E5F6000001 /* KidneyCheerView.swift in Sources */,
@@ -894,6 +937,7 @@
 				DF7AE5DE9B5CAB95B932B397 /* WidgetSync.swift in Sources */,
 				D79129B170440EF290F85C00 /* WaterTankWidget.swift in Sources */,
 				456A8201CECF4DA1F5B33F5A /* AppTheme.swift in Sources */,
+				A11E0000000000000000F001 /* AppFont.swift in Sources */,
 				EF078C5CBDCA5F26C2F9D5F8 /* LogIntakeIntent.swift in Sources */,
 				D572116344EF1B76385B5E9B /* NotificationEvent.swift in Sources */,
 				A21C9E6F5B8E4E2D9C7A3F10 /* NotificationVariant.swift in Sources */,

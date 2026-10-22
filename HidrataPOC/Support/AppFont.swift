@@ -116,6 +116,8 @@ enum AppFont {
 
     /// Números grandes (meta diária, estatísticas).
     static let metric = nunito(40, .heavy, relativeTo: .largeTitle)
+    /// Número gigante e editável do popup de volume personalizado.
+    static let numberHero = nunito(96, .black, relativeTo: .largeTitle)
     static let largeTitle = nunito(34, .heavy, relativeTo: .largeTitle)
     static let title = nunito(26, .heavy, relativeTo: .title)
     static let title2 = nunito(22, .heavy, relativeTo: .title2)

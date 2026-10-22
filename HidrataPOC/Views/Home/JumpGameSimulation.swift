@@ -7,10 +7,11 @@ enum JumpGameTuning {
     static let gravity: Float = 1050             // pt/s² — na água, um pouco mais "boiante" que no ar
     static let jumpSpeed: Float = 640            // pt/s pra cima a cada quique numa folha (sobe ~195 pt)
     static let springSpeed: Float = 1000         // pt/s pra cima numa folha com mola (bolha)
-    static let moveSpeed: Float = 320            // pt/s de lado com o botão apertado
+    static let moveSpeed: Float = 320            // pt/s de lado com o joystick todo pro lado
     static let moveResponse: Float = 12          // 1/s — quão rápido a gota pega/perde velocidade lateral
     static let tiltGain: Float = 520             // pt/s por unidade de inclinação (`down.x`) — inclinar o aparelho também move
     static let tiltDeadZone: Float = 0.08        // inclinação ignorada (aparelho quase em pé)
+    static let joystickDeadZone: Float = 0.12    // joystick quase no centro conta como parado
 
     // Folhas (plataformas)
     static let leafWidth: Float = 58
@@ -39,7 +40,7 @@ enum JumpGameTuning {
     static let bounceWaterPush: Float = 6        // agito na superfície a cada quique
 }
 
-/// Para que lado a gota está sendo empurrada pelos botões.
+/// Lado de um empurrão curto na gota (ações do VoiceOver no joystick, ver `pulseDirection`).
 enum JumpGameSide: Int, CaseIterable {
     case left, right
 }
@@ -73,8 +74,8 @@ struct JumpGameSnapshot: Sendable {
     let isGameOver: Bool
 }
 
-/// Doodle Jump dentro do aquário: uma gota quica sozinha de folha em folha, e os botões
-/// (ou inclinar o aparelho) a levam pros lados. A câmera sobe junto quando ela passa da
+/// Doodle Jump dentro do aquário: uma gota quica sozinha de pedra em pedra, e o joystick
+/// (ou inclinar o aparelho) a leva pros lados. A câmera sobe junto quando ela passa da
 /// linha `cameraLine`; cair abaixo do fundo da tela é fim de jogo, e uma nova partida
 /// começa sozinha logo depois. Física própria em Swift, no mesmo molde de `RingGameSimulation`.
 @MainActor
@@ -110,7 +111,9 @@ final class JumpGameSimulation {
     private var squash: Float = 0
     private var leaves: [Leaf] = []
     private var bubbles: [Bubble] = []
-    private var held = [Bool](repeating: false, count: JumpGameSide.allCases.count)
+    /// Joystick, de −1 (todo pra esquerda) a 1 (todo pra direita): a velocidade pro lado é
+    /// proporcional a ele.
+    private var joystick: Float = 0
     private var pulse = [Float](repeating: 0, count: JumpGameSide.allCases.count)
     /// Topo da tela em coordenadas do mundo (diminui conforme a câmera sobe).
     private var cameraY: Float = 0
@@ -137,17 +140,18 @@ final class JumpGameSimulation {
         isRunning = false
         leaves.removeAll()
         bubbles.removeAll()
-        held = [Bool](repeating: false, count: JumpGameSide.allCases.count)
+        joystick = 0
         pulse = [Float](repeating: 0, count: JumpGameSide.allCases.count)
         score = 0
         lastFrame = nil
     }
 
-    func setDirection(_ side: JumpGameSide, held isHeld: Bool) {
-        held[side.rawValue] = isHeld
+    /// Inclinação horizontal do joystick (−1…1); 0 ao soltar.
+    func setJoystick(_ value: Float) {
+        joystick = max(-1, min(1, value))
     }
 
-    /// Empurrão curto, pra quem aciona o botão sem segurar (VoiceOver, toque rápido).
+    /// Empurrão curto pra um lado, pras ações do VoiceOver no joystick.
     func pulseDirection(_ side: JumpGameSide) {
         pulse[side.rawValue] = 0.25
     }
@@ -205,9 +209,9 @@ final class JumpGameSimulation {
     }
 
     private func inputDirection(down: SIMD2<Float>) -> Float {
-        var direction: Float = 0
-        if held[JumpGameSide.left.rawValue] || pulse[JumpGameSide.left.rawValue] > 0 { direction -= 1 }
-        if held[JumpGameSide.right.rawValue] || pulse[JumpGameSide.right.rawValue] > 0 { direction += 1 }
+        var direction: Float = abs(joystick) > JumpGameTuning.joystickDeadZone ? joystick : 0
+        if pulse[JumpGameSide.left.rawValue] > 0 { direction -= 1 }
+        if pulse[JumpGameSide.right.rawValue] > 0 { direction += 1 }
         var target = direction * JumpGameTuning.moveSpeed
         // Inclinar o aparelho pro lado também leva a gota (como no Doodle Jump original).
         let tilt = down.x

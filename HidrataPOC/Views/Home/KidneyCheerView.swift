@@ -22,6 +22,19 @@ struct KidneyCheerView: View {
         }
     }
 
+    /// Contorno do rim em feijão, com a reentrância à direita (x positivo), centrado na origem e
+    /// com ~36 pt de altura. Também é o corpo do personagem do Rim Comilão.
+    static let beanPath: Path = {
+        var bean = Path()
+        bean.move(to: CGPoint(x: 2, y: -18))
+        bean.addCurve(to: CGPoint(x: 2, y: 18), control1: CGPoint(x: -26, y: -24), control2: CGPoint(x: -26, y: 24))
+        bean.addCurve(to: CGPoint(x: 10, y: 4), control1: CGPoint(x: 12, y: 18), control2: CGPoint(x: 14, y: 10))
+        bean.addQuadCurve(to: CGPoint(x: 10, y: -4), control: CGPoint(x: 5, y: 0))
+        bean.addCurve(to: CGPoint(x: 2, y: -18), control1: CGPoint(x: 14, y: -10), control2: CGPoint(x: 12, y: -18))
+        bean.closeSubpath()
+        return bean
+    }()
+
     private func drawKidney(in context: inout GraphicsContext, at center: CGPoint, mirrored: Bool, squash: Double, armsUp: Bool) {
         var ctx = context
         ctx.translateBy(x: center.x, y: center.y)
@@ -39,13 +52,7 @@ struct KidneyCheerView: View {
         ctx.stroke(arms, with: .color(outline), style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
 
         // Corpo em feijão: a reentrância fica do lado de dentro (virado pro centro).
-        var bean = Path()
-        bean.move(to: CGPoint(x: 2, y: -18))
-        bean.addCurve(to: CGPoint(x: 2, y: 18), control1: CGPoint(x: -26, y: -24), control2: CGPoint(x: -26, y: 24))
-        bean.addCurve(to: CGPoint(x: 10, y: 4), control1: CGPoint(x: 12, y: 18), control2: CGPoint(x: 14, y: 10))
-        bean.addQuadCurve(to: CGPoint(x: 10, y: -4), control: CGPoint(x: 5, y: 0))
-        bean.addCurve(to: CGPoint(x: 2, y: -18), control1: CGPoint(x: 14, y: -10), control2: CGPoint(x: 12, y: -18))
-        bean.closeSubpath()
+        let bean = Self.beanPath
         ctx.fill(bean, with: .linearGradient(
             Gradient(colors: [Color(red: 0.97, green: 0.60, blue: 0.60), skin]),
             startPoint: CGPoint(x: -10, y: -18), endPoint: CGPoint(x: 6, y: 18)

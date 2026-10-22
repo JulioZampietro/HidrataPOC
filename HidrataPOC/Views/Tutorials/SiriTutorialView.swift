@@ -20,38 +20,48 @@ struct SiriStepsContent: View {
 
     var body: some View {
         VStack(spacing: 20) {
-            CurrentMascotTankHeader(
-                title: "Siri",
-                subtitle: "Registre água sem tirar o celular do bolso — funciona com a tela bloqueada.",
-                mascotLine: showsMascotLine ? "Agora nem precisa olhar pra mim pra me vencer." : nil
-            )
-
-            VStack(spacing: 20) {
-                intakeCard(title: "Gole", volume: "40 mL", phrases: [
-                    ("Bebi um gole de Gole", "40 mL"),
-                    ("Tomei um gole de Gole", "40 mL"),
-                    ("Dei um gole de Gole", "40 mL"),
-                    ("Bebi 3 goles de Gole", "120 mL"),
-                    ("Bebi água no Gole", "40 mL"),
-                ])
-                intakeCard(title: "Copo", volume: "250 mL", phrases: [
-                    ("Bebi um copo de Gole", "250 mL"),
-                    ("Tomei um copo de Gole", "250 mL"),
-                    ("Registra um copo no Gole", "250 mL"),
-                    ("Acabei de tomar um copo de Gole", "250 mL"),
-                    ("Bebi 2 copos de Gole", "500 mL"),
-                ])
-                intakeCard(title: "Garrafa", volume: "500 mL", phrases: [
-                    ("Bebi uma garrafa de Gole", "500 mL"),
-                    ("Tomei uma garrafa de Gole", "500 mL"),
-                    ("Terminei uma garrafa de Gole", "500 mL"),
-                    ("Acabei minha garrafa no Gole", "500 mL"),
-                    ("Bebi 2 garrafas de Gole", "1000 mL"),
-                ])
-                tipsCard
-            }
-            .padding(.horizontal, 20)
+            header()
+            cards
         }
+    }
+
+    /// Separados pra o onboarding poder desenhar o fundo azul fixo e paginar só
+    /// texto/mascote e cards por cima dele.
+    func header(showsBackground: Bool = true) -> some View {
+        CurrentMascotTankHeader(
+            title: "Siri",
+            subtitle: "Registre água sem tirar o celular do bolso — funciona com a tela bloqueada.",
+            mascotLine: showsMascotLine ? "Agora nem precisa olhar pra mim pra me vencer." : nil,
+            showsBackground: showsBackground
+        )
+    }
+
+    var cards: some View {
+        VStack(spacing: 20) {
+            intakeCard(title: "Gole", volume: "40 mL", phrases: [
+                ("Bebi um gole de Gole", "40 mL"),
+                ("Tomei um gole de Gole", "40 mL"),
+                ("Dei um gole de Gole", "40 mL"),
+                ("Bebi 3 goles de Gole", "120 mL"),
+                ("Bebi água no Gole", "40 mL"),
+            ])
+            intakeCard(title: "Copo", volume: "250 mL", phrases: [
+                ("Bebi um copo de Gole", "250 mL"),
+                ("Tomei um copo de Gole", "250 mL"),
+                ("Registra um copo no Gole", "250 mL"),
+                ("Acabei de tomar um copo de Gole", "250 mL"),
+                ("Bebi 2 copos de Gole", "500 mL"),
+            ])
+            intakeCard(title: "Garrafa", volume: "500 mL", phrases: [
+                ("Bebi uma garrafa de Gole", "500 mL"),
+                ("Tomei uma garrafa de Gole", "500 mL"),
+                ("Terminei uma garrafa de Gole", "500 mL"),
+                ("Acabei minha garrafa no Gole", "500 mL"),
+                ("Bebi 2 garrafas de Gole", "1000 mL"),
+            ])
+            tipsCard
+        }
+        .padding(.horizontal, 20)
     }
 
     // MARK: - Intake Card

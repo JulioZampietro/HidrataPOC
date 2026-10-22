@@ -28,8 +28,38 @@ struct TankHeader: View {
     /// (usado nas sheets standalone; o onboarding de primeiro uso continua com a fala).
     var mascotLine: String? = nil
     var mascotName: String = "mascote2"
+    /// `false` devolve só texto + mascote, sem gradiente/onda/respiro de safe area —
+    /// pra quem desenha o fundo por conta própria (o onboarding mantém um único
+    /// fundo fixo atrás das páginas, pra o azul não "emendar" no meio do arrasto).
+    var showsBackground: Bool = true
 
     var body: some View {
+        if showsBackground {
+            framed
+        } else {
+            content
+                .padding(.leading, 22)
+                .padding(.trailing, 18)
+        }
+    }
+
+    private var framed: some View {
+        content
+            .padding(.leading, 22)
+            .padding(.trailing, 18)
+            // O header inteiro (fundo E texto) ignora a área segura pra o gradiente
+            // sangrar até o topo real do sheet — então o texto precisa do próprio
+            // respiro, calculado (status bar/notch + a altura fixa da toolbar em modo
+            // inline, 44pt), pra não ficar embaixo do "X" nativo que mora na toolbar.
+            .padding(.top, currentTopSafeAreaInset + 44 - 6)
+            .padding(.bottom, 44)
+            .background(LinearGradient.waterHeader)
+            .clipShape(WaveShape())
+            .ignoresSafeArea(edges: .top)
+            .accessibilityElement(children: .combine)
+    }
+
+    private var content: some View {
         // Texto e mascote na MESMA linha (não um overlay solto por cima): assim os
         // dois ficam alinhados ao centro um do outro de verdade, e o mascote nunca
         // escapa do padding do header — fica sempre dentro do gradiente, nunca
@@ -48,7 +78,9 @@ struct TankHeader: View {
 
             VStack(alignment: .trailing, spacing: 6) {
                 if let mascotLine {
-                    MascotSpeechBubble(text: mascotLine)
+                    // Mascote fica embaixo e à direita do balão: cauda à direita,
+                    // apontando pra ele (não pro título à esquerda).
+                    MascotSpeechBubble(text: mascotLine, tailEdge: .trailing)
                 }
                 Image(mascotName)
                     .resizable()
@@ -57,18 +89,6 @@ struct TankHeader: View {
                     .shadow(color: .black.opacity(0.18), radius: 6, x: 0, y: 3)
             }
         }
-        .padding(.leading, 22)
-        .padding(.trailing, 18)
-        // O header inteiro (fundo E texto) ignora a área segura pra o gradiente
-        // sangrar até o topo real do sheet — então o texto precisa do próprio
-        // respiro, calculado (status bar/notch + a altura fixa da toolbar em modo
-        // inline, 44pt), pra não ficar embaixo do "X" nativo que mora na toolbar.
-        .padding(.top, currentTopSafeAreaInset + 44 - 6)
-        .padding(.bottom, 44)
-        .background(LinearGradient.waterHeader)
-        .clipShape(WaveShape())
-        .ignoresSafeArea(edges: .top)
-        .accessibilityElement(children: .combine)
     }
 }
 
@@ -81,6 +101,7 @@ struct CurrentMascotTankHeader: View {
     let title: String
     let subtitle: String
     var mascotLine: String? = nil
+    var showsBackground: Bool = true
 
     @Environment(\.modelContext) private var modelContext
     @Query private var profiles: [UserProfile]
@@ -99,6 +120,7 @@ struct CurrentMascotTankHeader: View {
     }
 
     var body: some View {
+<<<<<<< HEAD
         TankHeader(title: title, subtitle: subtitle, mascotLine: mascotLine, mascotName: mascotName)
             .syncedFetch($allLogs, context: modelContext) {
                 let dayStart = Calendar.current.startOfDay(for: .now)
@@ -107,6 +129,10 @@ struct CurrentMascotTankHeader: View {
                     sortBy: [SortDescriptor(\.timestamp)]
                 )
             }
+=======
+        TankHeader(title: title, subtitle: subtitle, mascotLine: mascotLine, mascotName: mascotName,
+                   showsBackground: showsBackground)
+>>>>>>> main
     }
 }
 
@@ -168,6 +194,35 @@ struct WaveShape: Shape {
             control2: CGPoint(x: width * 0.78, y: height - waveHeight * 2.1)
         )
         path.addLine(to: CGPoint(x: width, y: 0))
+        path.closeSubpath()
+        return path
+    }
+}
+
+/// Complemento da borda de `WaveShape`: o topo segue a mesma curva da onda (o
+/// ponto mais alto em y = 0, nas laterais, e o mais baixo em `waveHeight`, no
+/// centro). Usado como máscara do conteúdo que rola embaixo de um header fixo,
+/// pra ele sumir rente à onda em vez de passar por cima do azul.
+struct BelowWaveShape: Shape {
+    var waveHeight: CGFloat = 16
+
+    func path(in rect: CGRect) -> Path {
+        let width = rect.width
+
+        var path = Path()
+        path.move(to: CGPoint(x: 0, y: 0))
+        path.addCurve(
+            to: CGPoint(x: width * 0.5, y: waveHeight),
+            control1: CGPoint(x: width * 0.22, y: -waveHeight * 1.1),
+            control2: CGPoint(x: width * 0.28, y: waveHeight)
+        )
+        path.addCurve(
+            to: CGPoint(x: width, y: 0),
+            control1: CGPoint(x: width * 0.72, y: waveHeight),
+            control2: CGPoint(x: width * 0.78, y: -waveHeight * 1.1)
+        )
+        path.addLine(to: CGPoint(x: width, y: rect.maxY))
+        path.addLine(to: CGPoint(x: 0, y: rect.maxY))
         path.closeSubpath()
         return path
     }

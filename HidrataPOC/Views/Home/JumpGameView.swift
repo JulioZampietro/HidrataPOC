@@ -110,8 +110,9 @@ struct JumpGameView: View {
 /// do círculo de baixo na origem do `context` e a ponta pra cima (a 2,1 × `radius`), então quem
 /// chama posiciona, gira e achata com as transformações do `context`.
 enum DropDrawing {
-    /// `facing`: −1 olhando pra esquerda, 1 pra direita.
-    static func draw(radius r: CGFloat, facing: CGFloat, in ctx: inout GraphicsContext) {
+    /// `facing`: −1 olhando pra esquerda, 1 pra direita. Sem `eyes`, é só a gota (as gotinhas
+    /// que o rim come no Rim Comilão).
+    static func draw(radius r: CGFloat, facing: CGFloat, eyes: Bool = true, in ctx: inout GraphicsContext) {
         // Gota: círculo embaixo, ponta em cima.
         var drop = Path()
         drop.move(to: CGPoint(x: 0, y: -r * 2.1))
@@ -127,6 +128,7 @@ enum DropDrawing {
         ctx.stroke(drop, with: .color(.white.opacity(0.9)), lineWidth: 1.5)
         // Brilho.
         ctx.fill(Path(ellipseIn: CGRect(x: -r * 0.6, y: -r * 0.9, width: r * 0.45, height: r * 0.6)), with: .color(.white.opacity(0.7)))
+        guard eyes else { return }
         // Olhinhos, olhando pra onde está indo.
         let look = facing * r * 0.18
         for side: CGFloat in [-1, 1] {
@@ -146,7 +148,8 @@ struct JumpGameRecordCard: View {
             icon: .symbol("trophy.fill"),
             title: "\(best)",
             subtitle: "Recorde",
-            height: height
+            height: height,
+            textOnTop: true
         )
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Recorde: \(best) pontos")

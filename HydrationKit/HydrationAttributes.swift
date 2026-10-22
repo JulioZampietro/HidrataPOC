@@ -16,26 +16,29 @@ public struct HydrationAttributes: ActivityAttributes {
     /// "within 30 minutes of the 8h system cap" (FR-10) without a separate store.
     public let startedAt: Date
 
-    /// The "backup" variant started after the user swipes the Lock Screen card away
-    /// while still overdue: iOS ends an activity whenever its card is dismissed, so
-    /// this one keeps only the Dynamic Island icon alive and renders an invisible
-    /// Lock Screen presentation.
-    public let isIslandOnly: Bool
+    /// The mascot's taunt shown as the Lock Screen card's title. Picked once, when the
+    /// activity appears, so it stays put for the activity's whole life (an immutable
+    /// attribute, unlike `ContentState`).
+    public let phrase: String
 
-    public init(startedAt: Date, isIslandOnly: Bool = false) {
+    public init(startedAt: Date, phrase: String) {
         self.startedAt = startedAt
-        self.isIslandOnly = isIslandOnly
+        self.phrase = phrase
     }
 
     public struct ContentState: Codable, Hashable {
         public var lastIntakeDate: Date
         public var reminderThreshold: TimeInterval
         public var customAmountML: Int
+        /// Today's intake over today's goal (0...1) — picks the mascot on the Lock
+        /// Screen card the same way the Home screen does.
+        public var progress: Double
 
-        public init(lastIntakeDate: Date, reminderThreshold: TimeInterval, customAmountML: Int) {
+        public init(lastIntakeDate: Date, reminderThreshold: TimeInterval, customAmountML: Int, progress: Double) {
             self.lastIntakeDate = lastIntakeDate
             self.reminderThreshold = reminderThreshold
             self.customAmountML = customAmountML
+            self.progress = progress
         }
     }
 }
