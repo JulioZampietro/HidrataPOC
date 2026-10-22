@@ -64,6 +64,14 @@ struct WaterHeaderView: View {
     /// `MascotShatterView(assembles:)`) ainda deve rodar. Começa true pra pegar a
     /// abertura do app; volta a true ao voltar do background. Só tem efeito com 0 mL.
     @State private var mascotAssemblyPending = true
+    /// true até o primeiro assentamento de `allLogs`/`allDailyGoals` (ver `.syncedFetch`
+    /// no fim do `body`): essas duas arrays começam vazias a cada abertura do app, então
+    /// `consumedToday`/`progress` começam em 0 até o fetch assíncrono chegar — mesmo
+    /// quando o valor real do dia não é 0. Sem essa guarda, toda vez que o app era
+    /// fechado e reaberto esse "0 passageiro" era lido como se o dia tivesse zerado: a
+    /// montagem tocava (mascote1 se formando) e, no instante seguinte, a transição de
+    /// bolhas "corrigia" pro estágio real, como se tivesse havido uma mudança de verdade.
+    @State private var hasSettledInitialProgress = false
     /// Durante a montagem: false enquanto só as pedrinhas soltas aparecem no fundo
     /// (`looseStonesDuration`), true quando os cacos começam a voar e se juntar.
     @State private var mascotAssemblyStarted = false
@@ -554,6 +562,16 @@ struct WaterHeaderView: View {
             // Já abriu com água registrada: não há montagem, e ela não deve disparar
             // depois só porque um registro foi excluído e o total voltou a 0.
             if consumedToday > 0 { mascotAssemblyPending = false }
+            Task {
+                // `allLogs`/`allDailyGoals` ainda devem estar vazias aqui (o
+                // `.syncedFetch` busca via `.task`, que roda depois deste
+                // `.onAppear`) — esse atraso dá tempo de elas assentarem antes de
+                // `hasSettledInitialProgress` liberar as transições ao vivo.
+                try? await Task.sleep(for: .milliseconds(200))
+                hasSettledInitialProgress = true
+                if consumedToday > 0 { mascotAssemblyPending = false }
+                syncStonesWithProgress()
+            }
         }
         .onChange(of: scenePhase) { oldPhase, newPhase in
             // Voltar do background conta como "abrir o app" de novo.
@@ -569,6 +587,9 @@ struct WaterHeaderView: View {
             }
         }
         .onChange(of: progress) { oldValue, newValue in
+            // Antes de assentar (ver `hasSettledInitialProgress`), essa "mudança" é só o
+            // fetch inicial chegando, não uma transição de verdade.
+            guard hasSettledInitialProgress else { return }
             handleGoalTransition(from: oldValue, to: newValue)
         }
         // Mudou de estágio: a fala do balão passa a ser do estágio novo.
@@ -577,7 +598,8 @@ struct WaterHeaderView: View {
         .onChange(of: tempContext?.humidityPct) { pickIdlePhrase() }
         // Registrou água (por qualquer origem): o mascote reclama por alguns segundos.
         .onChange(of: consumedToday) { oldValue, newValue in
-            guard newValue > oldValue, let reaction = MascotPhrases.drinkReactions.randomElement() else { return }
+            guard hasSettledInitialProgress, newValue > oldValue,
+                  let reaction = MascotPhrases.drinkReactions.randomElement() else { return }
             say(reaction, for: 3)
         }
     }
