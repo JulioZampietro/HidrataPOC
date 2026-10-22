@@ -189,7 +189,7 @@ struct ProfileView: View {
                     Haptic.tap.play()
                     showGoalExplainer = true
                 } label: {
-                    Text("Entender minha meta")
+                    Text("Entender meta")
                         .font(AppFont.subheadlineStrong)
                         .foregroundStyle(Color.appAccentTextOnWhite)
                         .frame(maxWidth: .infinity)
@@ -221,14 +221,17 @@ struct ProfileView: View {
                     Haptic.tap.play()
                     isEditingGoal = true
                 } label: {
-                    Text("Editar")
+                    Text("Alterar meta")
                         .font(AppFont.subheadlineStrong)
                         .foregroundStyle(.white)
-                        .padding(.vertical, 6)
-                        .padding(.horizontal, 8)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 13)
+                        .background {
+                            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                                .strokeBorder(Color.white, lineWidth: 1.5)
+                        }
                 }
-                .buttonStyle(.bordered)
-                .tint(.white)
+                .buttonStyle(.plain)
             }
         }
         .padding(18)
