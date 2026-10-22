@@ -17,9 +17,19 @@ final class HealthKitService {
 
     var isAvailable: Bool { HKHealthStore.isHealthDataAvailable() }
 
+    /// Autorização de **escrita**. É o que `authorizationStatus(for:)` reporta — a
+    /// Apple não expõe o estado da permissão de leitura de propósito (saber que o
+    /// usuário negou a leitura já é, por si, uma informação sobre ele).
     var isAuthorized: Bool {
         isAvailable && store.authorizationStatus(for: waterType) == .sharingAuthorized
     }
+
+    /// Gate das **leituras**. Usar `isAuthorized` aqui era errado: quem libera ler mas
+    /// nega escrever nunca importava nada do Saúde, porque o status de escrita barrava
+    /// a consulta. Como não há como consultar a permissão de leitura, o caminho certo é
+    /// tentar a query e tratar o resultado — o que `syncFromHealthKit` já faz (resultado
+    /// vazio e erro são indistinguíveis de fora, por design da Apple).
+    var canAttemptRead: Bool { isAvailable }
 
     func requestAuthorization() async -> Bool {
         guard isAvailable else { return false }
@@ -27,7 +37,6 @@ final class HealthKitService {
             store.requestAuthorization(toShare: [waterType], read: [waterType]) { _, error in
                 if let error { logger.error("HealthKit auth error: \(error.localizedDescription, privacy: .public)") }
                 let authorized = self.store.authorizationStatus(for: self.waterType) == .sharingAuthorized
-                print("[HealthKit] requestAuthorization done – sharingAuthorized=\(authorized)")
                 continuation.resume(returning: authorized)
             }
         }
@@ -114,7 +123,6 @@ final class HealthKitService {
     func save(volumeML: Int, timestamp: Date, logID: UUID) async {
         guard isAuthorized else {
             logger.warning("HealthKit: save skipped – not authorized (status=\(self.store.authorizationStatus(for: self.waterType).rawValue, privacy: .public))")
-            print("[HealthKit] save skipped – isAuthorized=false for logID=\(logID)")
             return
         }
         let sample = HKQuantitySample(
@@ -132,6 +140,30 @@ final class HealthKitService {
                     logger.debug("HealthKit save callback success=\(success)")
                 }
                 continuation.resume()
+            }
+        }
+    }
+
+    /// Apaga do HealthKit **todas** as amostras de água escritas por este app — a
+    /// parte "apagar meus dados" do consentimento (ver `MyDataView`). O predicado por
+    /// `HKSource.default()` garante que nada registrado por outros apps (Saúde,
+    /// MyFitnessPal…) seja tocado: aquilo nunca foi nosso para apagar.
+    /// Retorna false se o HealthKit recusar, para o chamador não alegar sucesso.
+    @discardableResult
+    func deleteAllOurSamples() async -> Bool {
+        guard isAuthorized else { return true } // nada foi escrito lá
+        let predicate = HKQuery.predicateForObjects(from: HKSource.default())
+        return await withCheckedContinuation { (continuation: CheckedContinuation<Bool, Never>) in
+            store.deleteObjects(of: waterType, predicate: predicate) { success, _, error in
+                if let error {
+                    // `noDataAvailable`: não havia nada para apagar — sucesso na prática.
+                    if (error as? HKError)?.code == .errorNoData {
+                        continuation.resume(returning: true)
+                        return
+                    }
+                    logger.error("HealthKit bulk delete failed: \(error.localizedDescription, privacy: .public)")
+                }
+                continuation.resume(returning: success)
             }
         }
     }
@@ -157,33 +189,57 @@ final class HealthKitService {
     /// desde a última sincronização e insere como IntakeLog no SwiftData.
     /// Escreve no HealthKit os logs do app que ainda não têm amostra correspondente lá.
     /// Seguro para chamar múltiplas vezes: verifica existência antes de salvar.
+    /// Uma consulta por lote, não por registro: antes isso rodava uma `HKSampleQuery`
+    /// para cada log, em série, sobre o histórico inteiro — e é chamado a cada vez que o
+    /// app volta ao primeiro plano (`HidrataPOCApp.syncHealthKitIfAuthorized`), ou seja,
+    /// milhares de IPCs para o `healthd` num trabalho que, depois da primeira passada,
+    /// não tem nada a fazer.
     func backfill(logs: [IntakeLog]) async {
         guard isAuthorized else { return }
-        for log in logs where log.source != "healthkit" {
-            guard await !existsInHealthKit(logID: log.id) else { continue }
+        let candidates = logs.filter { $0.source != "healthkit" }
+        guard !candidates.isEmpty else { return }
+
+        let alreadyThere = await existingExternalUUIDs(among: candidates.map(\.id))
+        for log in candidates where !alreadyThere.contains(log.id.uuidString) {
             await save(volumeML: log.volumeML, timestamp: log.timestamp, logID: log.id)
         }
     }
 
-    private func existsInHealthKit(logID: UUID) async -> Bool {
-        let predicate = HKQuery.predicateForObjects(
-            withMetadataKey: HKMetadataKeyExternalUUID,
-            allowedValues: [logID.uuidString]
-        )
-        return await withCheckedContinuation { continuation in
-            let query = HKSampleQuery(sampleType: waterType, predicate: predicate,
-                                      limit: 1, sortDescriptors: nil) { _, results, _ in
-                continuation.resume(returning: !(results ?? []).isEmpty)
+    /// Quais desses logs já têm amostra no HealthKit, consultando em lotes — um
+    /// predicado com `allowedValues` de milhares de itens de uma vez é grande demais
+    /// para valer a pena.
+    private func existingExternalUUIDs(among ids: [UUID]) async -> Set<String> {
+        var found: Set<String> = []
+        for start in stride(from: 0, to: ids.count, by: 500) {
+            let chunk = ids[start..<min(start + 500, ids.count)].map(\.uuidString)
+            let predicate = HKQuery.predicateForObjects(
+                withMetadataKey: HKMetadataKeyExternalUUID,
+                allowedValues: chunk
+            )
+            let batch: Set<String> = await withCheckedContinuation { continuation in
+                let query = HKSampleQuery(sampleType: waterType, predicate: predicate,
+                                          limit: HKObjectQueryNoLimit, sortDescriptors: nil) { _, results, error in
+                    if let error {
+                        logger.error("HealthKit backfill lookup failed: \(error.localizedDescription, privacy: .public)")
+                        // Com a consulta falhando, tratar tudo como "já existe" evita
+                        // reescrever (e duplicar) amostras às cegas no Saúde.
+                        continuation.resume(returning: Set(chunk))
+                        return
+                    }
+                    let uuids = (results ?? []).compactMap {
+                        $0.metadata?[HKMetadataKeyExternalUUID] as? String
+                    }
+                    continuation.resume(returning: Set(uuids))
+                }
+                store.execute(query)
             }
-            store.execute(query)
+            found.formUnion(batch)
         }
+        return found
     }
 
     func syncFromHealthKit(userID: String, context: ModelContext) async {
-        guard isAuthorized else {
-            print("[HealthKit] syncFromHealthKit skipped – not authorized")
-            return
-        }
+        guard canAttemptRead else { return }
 
         // Na primeira sincronização (sem lastSyncDate gravado) busca todo o histórico.
         // Nas sincronizações incrementais, olha 1 hora antes do lastSyncDate para capturar
@@ -194,24 +250,35 @@ final class HealthKitService {
         } else {
             lastSync = Date.distantPast
         }
-        print("[HealthKit] syncFromHealthKit start=\(lastSync) now=\(Date.now)")
+        logger.debug("syncFromHealthKit a partir de \(lastSync, privacy: .public)")
 
-        let predicate = HKQuery.predicateForSamples(withStart: lastSync, end: .now)
-        let samples: [HKQuantitySample] = await withCheckedContinuation { continuation in
+        // Fixed end bound, reused as the new `lastSyncKey`: using a later `.now` would
+        // skip samples that landed while the query ran.
+        let queryEnd = Date.now
+        let predicate = HKQuery.predicateForSamples(withStart: lastSync, end: queryEnd)
+        // nil = the query itself failed. Advancing `lastSyncKey` on a failure would skip
+        // that window permanently, so a failed read has to leave the bookmark alone.
+        let samples: [HKQuantitySample]? = await withCheckedContinuation { continuation in
             let query = HKSampleQuery(
                 sampleType: waterType,
                 predicate: predicate,
                 limit: HKObjectQueryNoLimit,
                 sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]
-            ) { _, results, _ in
-                continuation.resume(returning: (results as? [HKQuantitySample]) ?? [])
+            ) { _, results, error in
+                if let error {
+                    logger.error("HealthKit read failed, keeping lastSync: \(error.localizedDescription, privacy: .public)")
+                    continuation.resume(returning: nil)
+                } else {
+                    continuation.resume(returning: (results as? [HKQuantitySample]) ?? [])
+                }
             }
             store.execute(query)
         }
+        guard let samples else { return }
 
         let ourBundle = Bundle.main.bundleIdentifier ?? ""
         let external = samples.filter { $0.sourceRevision.source.bundleIdentifier != ourBundle }
-        print("[HealthKit] query returned \(samples.count) samples, \(external.count) external")
+        logger.debug("query devolveu \(samples.count, privacy: .public) amostras, \(external.count, privacy: .public) externas")
 
         var inserted = 0
         for sample in external {
@@ -238,15 +305,9 @@ final class HealthKitService {
             inserted += 1
         }
 
-        print("[HealthKit] inserted \(inserted) new records")
+        logger.debug("importou \(inserted, privacy: .public) registros novos")
         if inserted > 0 { try? context.save() }
-        UserDefaults.standard.set(Date.now, forKey: lastSyncKey)
-    }
-
-    /// Reseta a data de última sincronização para que a próxima chamada de
-    /// `syncFromHealthKit` releia o histórico a partir do início do dia atual.
-    func resetSyncDate() {
-        UserDefaults.standard.removeObject(forKey: lastSyncKey)
+        UserDefaults.standard.set(queryEnd, forKey: lastSyncKey)
     }
 
     var lastSyncDate: Date? {

@@ -6,7 +6,10 @@ struct HealthConnectView: View {
     let profile: UserProfile
 
     @Environment(\.modelContext) private var modelContext
-    @Query private var allLogs: [IntakeLog]
+    // Sem @Query com predicado de propósito — ver o comentário equivalente em
+    // HomeView.swift (causa da regressão do A-2, documentada em CORRECOES.md). Esta
+    // view nasce fresca dentro de uma sheet do ProfileView, o mesmo cenário de risco.
+    @State private var allLogs: [IntakeLog] = []
 
     @State private var isAuthorized = false
     @State private var isSyncing = false
@@ -41,6 +44,10 @@ struct HealthConnectView: View {
             .padding(.bottom, 40)
         }
         .task { isAuthorized = service.isAuthorized }
+        .syncedFetch($allLogs, context: modelContext) {
+            let userID = profile.userID
+            return FetchDescriptor<IntakeLog>(predicate: #Predicate { $0.userID == userID }, sortBy: [SortDescriptor(\.timestamp)])
+        }
     }
 
     // MARK: - Subviews

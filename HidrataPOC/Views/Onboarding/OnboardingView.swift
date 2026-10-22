@@ -34,7 +34,7 @@ struct OnboardingView: View {
                 customIntakeML: values.customIntakeML
             )
             modelContext.insert(profile)
-            try? modelContext.save()
+            modelContext.saveLogging("perfil novo")
             await CloudKitSyncService.shared.push(profile)
             try? modelContext.save()
         }

@@ -7,8 +7,13 @@ struct ProfileView: View {
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.modelContext) private var modelContext
-    @Query private var allLogs: [IntakeLog]
-    @Query private var allDailyGoals: [DailyGoal]
+    // Sem @Query com predicado de propósito — é exatamente aqui que a regressão do
+    // A-2 apareceu: esta view é construída fresca dentro de
+    // `.navigationDestination(isPresented:)`, e um @Query novo configurado num init
+    // síncrono nesse ponto travava a transição (ver CORRECOES.md). `.syncedFetch`
+    // busca via `.task`, que só roda depois da view já estar na hierarquia.
+    @State private var allLogs: [IntakeLog] = []
+    @State private var allDailyGoals: [DailyGoal] = []
     @State private var tempContext: TemperatureAdjustmentContext?
     @State private var isEditing = false
     @State private var isEditingGoal = false
@@ -16,6 +21,7 @@ struct ProfileView: View {
     @State private var showLiveActivities = false
     @State private var showSiriTutorial = false
     @State private var showHealthConnect = false
+    @State private var showMyData = false
 
     private var calculatedGoalML: Int {
         UserProfile.suggestedGoalML(gender: Genero(stored: profile.genero)?.gender, idade: profile.idade, pesoKg: profile.pesoKg, alturaCm: profile.alturaCm)
@@ -71,6 +77,7 @@ struct ProfileView: View {
                 liveActivitiesRow
                 siriRow
                 healthRow
+                myDataRow
                 #if DEBUG
                 debugNotificationRow
                 debugRandomCopyRow
@@ -118,6 +125,22 @@ struct ProfileView: View {
         }
         .sheet(isPresented: $showHealthConnect) {
             HealthConnectView(profile: profile)
+        }
+        .syncedFetch($allLogs, context: modelContext) {
+            let userID = profile.userID
+            let dayStart = Calendar.current.startOfDay(for: .now)
+            return FetchDescriptor<IntakeLog>(
+                predicate: #Predicate { $0.userID == userID && $0.timestamp >= dayStart },
+                sortBy: [SortDescriptor(\.timestamp)]
+            )
+        }
+        .syncedFetch($allDailyGoals, context: modelContext) {
+            let userID = profile.userID
+            let todayKey = DailyGoal.dayKey(for: .now)
+            return FetchDescriptor<DailyGoal>(
+                predicate: #Predicate { $0.userID == userID && $0.dayKey == todayKey },
+                sortBy: [SortDescriptor(\.dayKey)]
+            )
         }
     }
 
@@ -308,6 +331,40 @@ struct ProfileView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+    }
+
+    // MARK: - Meus dados
+
+    /// Ver, exportar e apagar o que foi coletado — o que o `ConsentView` promete.
+    private var myDataRow: some View {
+        Button {
+            Haptic.tap.play()
+            InteractionTracker.log("my_data_row_tap", screen: .profile, userID: profile.userID, context: modelContext)
+            showMyData = true
+        } label: {
+            HStack {
+                Text("Meus dados")
+                    .font(AppFont.calloutStrong)
+                    .foregroundStyle(.primary)
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(.subheadline, weight: .semibold))
+                    .foregroundStyle(Color.appChevron)
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 16)
+            .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color(UIColor.secondarySystemBackground))
+                .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .sheet(isPresented: $showMyData) {
+            MyDataView(profile: profile)
+                .trackSheetLifecycle(.myData, screen: .profile, userID: profile.userID)
+        }
     }
 
     // MARK: - Debug Row
@@ -516,10 +573,15 @@ struct ProfileView: View {
         profile.generoAutoDeclarado = nil
         profile.pesoKg = values.pesoKg
         profile.alturaCm = values.alturaCm
+        // Mantido em dia: o pipeline usa este campo para converter os timestamps em
+        // hora local (ml/python/dataset.py::to_local), e ele só era gravado no
+        // onboarding — um fuso velho desloca a hora de todo o histórico de quem muda
+        // de região.
+        profile.fusoHorario = TimeZone.current.identifier
         profile.metaDiariaML = values.goalML
         profile.atualizadoEm = .now
         profile.syncStatus = .pending
-        try? modelContext.save()
+        modelContext.saveLogging("dados pessoais")
         recordTodayGoal()
         isEditing = false
         InteractionTracker.log("edit_personal_data_save", screen: .profile, userID: profile.userID, context: modelContext)
@@ -534,7 +596,7 @@ struct ProfileView: View {
         profile.metaDiariaML = newValue
         profile.atualizadoEm = .now
         profile.syncStatus = .pending
-        try? modelContext.save()
+        modelContext.saveLogging("meta editada")
         recordTodayGoal()
         InteractionTracker.log("edit_goal_save", screen: .profile, userID: profile.userID, metadata: ["newGoalML": "\(newValue)"], context: modelContext)
         Task {

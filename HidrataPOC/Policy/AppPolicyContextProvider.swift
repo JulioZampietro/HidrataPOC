@@ -41,9 +41,6 @@ final class AppPolicyContextProvider: PolicyContextProvider {
             temperaturaC: dayWeather?.temperaturaC,
             umidadeRelativa: dayWeather?.umidadeRelativa,
             sensacaoTermicaC: dayWeather?.sensacaoTermicaC,
-            // The calendar context was removed from the app; NotificationEvent records the same constants.
-            ocupadoNoMomento: false,
-            densidadeEventosDia: 0,
             deficitAcumuladoML: Double(deficit),
             metaDiariaML: Double(profile.metaDiariaML),
             lastIntake: logs.map(\.timestamp).filter { $0 <= now }.max(),

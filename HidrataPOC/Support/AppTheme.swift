@@ -235,9 +235,6 @@ extension Color {
     /// Com texto branco por cima dá 5,0:1.
     static let appAccent = Color(red: 0.08, green: 0.40, blue: 0.93)
 
-    /// Azul de marca um tom mais claro: brilho em volta da barra de progresso com a meta batida.
-    static let appAccentLight = Color(red: 0.30, green: 0.58, blue: 0.96)
-
     /// Azul para **texto e ícones** sobre o fundo do app / cartões (≥ 4,5:1 nos dois
     /// modos). Mais escuro que `appAccent` no claro e mais claro no escuro.
     static let appAccentText = adaptive(
@@ -263,12 +260,6 @@ extension Color {
     static let appMutedInk = adaptive(
         light: Color(red: 0.28, green: 0.36, blue: 0.50),
         dark: Color(red: 0.60, green: 0.60, blue: 0.64)
-    )
-
-    /// Texto/ícone por cima da trilha da barra de progresso (parte ainda não preenchida).
-    static let appOnTrack = adaptive(
-        light: Color(red: 0.06, green: 0.08, blue: 0.13),
-        dark: .white
     )
 
     /// Laranja e verde de aviso/sucesso legíveis sobre fundo claro.
@@ -371,17 +362,6 @@ extension ButtonStyle where Self == GradientProminentButtonStyle {
 // MARK: - Cartões
 
 extension View {
-    /// Cartão de conteúdo padrão do app: fundo secundário do sistema com a sombra suave
-    /// dos cartões do Perfil. Conteúdo não usa Liquid Glass — o vidro fica para controles
-    /// e navegação (HIG).
-    func appCardBackground(cornerRadius: CGFloat = 18) -> some View {
-        background(
-            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .fill(Color(UIColor.secondarySystemBackground))
-                .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4)
-        )
-    }
-
     /// Cartão "molhado": fundo azul bem claro com contorno fino, em vez de sombra —
     /// usado nas telas de marca forte (`TankHeader`) pra combinar com o gradiente do
     /// cabeçalho em vez do cartão neutro padrão do resto do app.

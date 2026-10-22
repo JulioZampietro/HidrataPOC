@@ -11,18 +11,23 @@ struct HomeView: View {
     // Barra e cartões têm tamanho fixo (o do texto em 100%): só o texto dentro deles acompanha
     // o Dynamic Type, limitado a `controlTextSizeRange` para caber sem ser cortado.
     private let progressBarHeight = TabScreenLayout.progressBarHeight
-    @Query private var allLogs: [IntakeLog]
-    @Query private var allDailyGoals: [DailyGoal]
+    // Sem @Query com predicado de propósito: um init customizado configurando um
+    // @Query novo foi a causa da regressão do A-2 (ver CORRECOES.md) — travava a
+    // navegação quando a view era construída fresca no meio de uma transição do
+    // NavigationStack. Em vez disso, `.syncedFetch` busca só o recorte de hoje via
+    // `.task`, que roda depois da view já estar na hierarquia, e se atualiza sozinho
+    // a cada vez que o ModelContext salva algo.
+    @State private var allLogs: [IntakeLog] = []
+    @State private var allDailyGoals: [DailyGoal] = []
     @State private var isLogging = false
     @State private var highlightedCard: String? = nil
     @State private var audioPlayer: AVAudioPlayer?
-    @State private var pendingDeleteLog: IntakeLog?
     @State private var isEditingCustomAmount = false
     @State private var showSiriTutorial = false
     @State private var showActionButtonTutorial = false
     @State private var showTodayLogs = false
-    @State private var weather: WeatherContext?
-    @State private var isLoadingWeather = true
+    @State private var showSaveFailedAlert = false
+    @State private var pendingRetry: (preset: Constants.IntakePreset, cardID: String)?
     @State private var tempContext: TemperatureAdjustmentContext?
     /// Minijogo da meta batida: o aquário (`WaterHeaderView`) desenha, aqui ficam os botões.
     @Environment(MiniGameController.self) private var miniGames
@@ -121,7 +126,6 @@ struct HomeView: View {
                 .ignoresSafeArea(edges: .top)
             }
         }
-        .task { await loadWeather() }
         // Keeps the Home Screen water tank widget filling against the same goal as the bar,
         // and snapshots it as today's goal so later edits never touch this day.
         .onChange(of: effectiveGoalML, initial: true) { _, goal in
@@ -133,16 +137,6 @@ struct HomeView: View {
             Task {
                 tempContext = await WeatherContextService.shared.temperatureAdjustmentContext()
             }
-        }
-        .confirmationDialog(
-            "Excluir este registro?",
-            isPresented: isPresentingDeleteConfirm,
-            presenting: pendingDeleteLog
-        ) { log in
-            Button("Excluir", role: .destructive) { deleteLog(log) }
-            Button("Cancelar", role: .cancel) { Haptic.dismiss.play() }
-        } message: { log in
-            Text("\(log.tipoEntrada.capitalized) · \(log.volumeML) mL será removido do seu histórico e da base de dados.")
         }
         .sheet(isPresented: $isEditingCustomAmount) {
             CustomIntakeEditorView(initialValueML: profile.customIntakeML, onSave: saveCustomAmount)
@@ -163,8 +157,36 @@ struct HomeView: View {
                 calendar: .current
             )
         }
+        // M-2: ModelContext.saveLogging já loga a falha; sem isso, o toque só some da
+        // tela no próximo lançamento do app, sem explicação (ver CORRECOES.md).
+        .alert("Não foi possível registrar", isPresented: $showSaveFailedAlert) {
+            Button("Tentar de novo") {
+                if let pendingRetry {
+                    logIntake(pendingRetry.preset, cardID: pendingRetry.cardID)
+                }
+            }
+            Button("Cancelar", role: .cancel) { pendingRetry = nil }
+        } message: {
+            Text("O registro de água não foi salvo. Verifique o espaço de armazenamento do aparelho e tente de novo.")
+        }
+        .syncedFetch($allLogs, context: modelContext) {
+            let userID = profile.userID
+            let dayStart = Calendar.current.startOfDay(for: .now)
+            return FetchDescriptor<IntakeLog>(
+                predicate: #Predicate { $0.userID == userID && $0.timestamp >= dayStart },
+                sortBy: [SortDescriptor(\.timestamp)]
+            )
+        }
+        .syncedFetch($allDailyGoals, context: modelContext) {
+            let userID = profile.userID
+            let todayKey = DailyGoal.dayKey(for: .now)
+            return FetchDescriptor<DailyGoal>(
+                predicate: #Predicate { $0.userID == userID && $0.dayKey == todayKey },
+                sortBy: [SortDescriptor(\.dayKey)]
+            )
+        }
     }
-    
+
     // MARK: - Subviews
     
     private let intakeGridSpacing = TabScreenLayout.intakeGridSpacing
@@ -466,7 +488,7 @@ struct HomeView: View {
     }
 
     private func goleCard(height: CGFloat) -> some View {
-        Button { logIntake(.custom(volumeML: 40), cardID: "gole") } label: {
+        Button { logIntake(.gole, cardID: "gole") } label: {
             IntakeCardContent(
                 icon: .symbol("drop.fill"),
                 title: "Gole",
@@ -522,10 +544,6 @@ struct HomeView: View {
     
     // MARK: - Helpers
     
-    private var isPresentingDeleteConfirm: Binding<Bool> {
-        Binding(get: { pendingDeleteLog != nil }, set: { if !$0 { pendingDeleteLog = nil } })
-    }
-    
     private func intakeIcon(for preset: Constants.IntakePreset) -> IntakeCardIcon? {
         switch preset {
         case .glass: return .symbol("mug.fill", mirrored: true)
@@ -533,11 +551,6 @@ struct HomeView: View {
         case .gole: return .symbol("drop.fill")
         case .custom: return nil
         }
-    }
-    
-    private func loadWeather() async {
-        weather = await WeatherContextService.shared.currentContext()
-        isLoadingWeather = false
     }
     
     private func logIntake(_ preset: Constants.IntakePreset, cardID: String) {
@@ -551,8 +564,13 @@ struct HomeView: View {
             withAnimation(.easeInOut(duration: 0.2)) { highlightedCard = nil }
         }
         Task {
-            await NotificationScheduler.shared.recordManualIntake(preset: preset, userID: profile.userID, context: modelContext)
+            let saved = await NotificationScheduler.shared.recordManualIntake(preset: preset, userID: profile.userID, context: modelContext)
             isLogging = false
+            if !saved {
+                pendingRetry = (preset, cardID)
+                Haptic.warning.play()
+                showSaveFailedAlert = true
+            }
         }
     }
 
@@ -567,17 +585,12 @@ struct HomeView: View {
         }
     }
     
-    private func deleteLog(_ log: IntakeLog) {
-        Haptic.destructive.play()
-        Task { await NotificationScheduler.shared.deleteIntake(log, context: modelContext) }
-    }
-    
     private func saveCustomAmount(_ newValue: Int) {
         Haptic.success.play()
         profile.customIntakeML = newValue
         profile.atualizadoEm = .now
         profile.syncStatus = .pending
-        try? modelContext.save()
+        modelContext.saveLogging("volume personalizado")
         InteractionTracker.log("custom_amount_editor_save", screen: .home, userID: profile.userID, metadata: ["amountML": "\(newValue)"], context: modelContext)
         Task {
             await CloudKitSyncService.shared.push(profile)

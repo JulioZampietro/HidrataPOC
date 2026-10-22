@@ -1,3 +1,4 @@
+import SwiftData
 import SwiftUI
 
 /// Registra abertura/fechamento de uma sheet via `onAppear`/`onDisappear` do seu

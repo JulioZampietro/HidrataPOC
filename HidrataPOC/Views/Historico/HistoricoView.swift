@@ -60,18 +60,28 @@ struct HistoricoView: View {
     let profile: UserProfile
 
     @Environment(\.modelContext) private var modelContext
-    @Query private var allLogs: [IntakeLog]
-    @Query private var allDailyGoals: [DailyGoal]
+    // Sem @Query com predicado de propósito — ver o comentário equivalente em
+    // HomeView.swift (causa da regressão do A-2, documentada em CORRECOES.md). O
+    // recorte por mês exibido fica de fora de propósito: escopá-lo ao mês exigiria
+    // extrair o calendário pra uma subview que recebesse o mês por parâmetro, o que
+    // mexeria no layout cuidadosamente ajustado desta tela. Enquanto isso, as somas
+    // por dia já são feitas numa passada só (`HistoricoData.generateMonth`).
+    @State private var allLogs: [IntakeLog] = []
+    @State private var allDailyGoals: [DailyGoal] = []
     @State private var displayedMonth = Calendar.current.dateInterval(of: .month, for: .now)?.start ?? .now
     @State private var cardPage: HistoricoCardPage = .calendario
     @State private var selectedDay: DiaHistorico?
     @State private var tempContext: TemperatureAdjustmentContext?
-    private var calendar: Calendar {
+    /// `static let`: era uma computed property, e construir `Calendar` + `Locale` a
+    /// cada um dos ~40 acessos por atualização do `body` (um por célula do mês, entre
+    /// outros) é caro o bastante para aparecer no arrasto entre páginas.
+    private static let ptBRCalendar: Calendar = {
         var cal = Calendar(identifier: .gregorian)
         cal.locale = Locale(identifier: "pt_BR")
         cal.firstWeekday = 1
         return cal
-    }
+    }()
+    private var calendar: Calendar { Self.ptBRCalendar }
 
     private let weekdaySymbols = ["D", "S", "T", "Q", "Q", "S", "S"]
     private let columns = Array(repeating: GridItem(.flexible(), spacing: Self.gridColumnSpacing), count: 7)
@@ -131,11 +141,16 @@ struct HistoricoView: View {
         )
     }
 
-    private var monthTitle: String {
+    /// `DateFormatter` é caro de construir; antes nascia um por atualização do `body`.
+    private static let monthTitleFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "pt_BR")
         formatter.dateFormat = "LLLL yyyy"
-        let raw = formatter.string(from: displayedMonth)
+        return formatter
+    }()
+
+    private var monthTitle: String {
+        let raw = Self.monthTitleFormatter.string(from: displayedMonth)
         return raw.prefix(1).uppercased() + raw.dropFirst()
     }
 
@@ -173,6 +188,14 @@ struct HistoricoView: View {
         .sheet(item: $selectedDay) { dia in
             DayDetailSheet(dia: dia, metaDiariaML: goalResolver.goalML(on: dia.date), profile: profile, calendar: calendar)
                 .trackSheetLifecycle(.historicoDayDetail, screen: .historico, userID: profile.userID, metadata: ["date": isoDate(dia.date)])
+        }
+        .syncedFetch($allLogs, context: modelContext) {
+            let userID = profile.userID
+            return FetchDescriptor<IntakeLog>(predicate: #Predicate { $0.userID == userID }, sortBy: [SortDescriptor(\.timestamp)])
+        }
+        .syncedFetch($allDailyGoals, context: modelContext) {
+            let userID = profile.userID
+            return FetchDescriptor<DailyGoal>(predicate: #Predicate { $0.userID == userID }, sortBy: [SortDescriptor(\.dayKey)])
         }
     }
 
@@ -342,11 +365,15 @@ struct HistoricoView: View {
         displayedMonth = newDate
     }
 
-    private func isoDate(_ date: Date) -> String {
+    private static let isoDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
-        formatter.timeZone = calendar.timeZone
-        return formatter.string(from: date)
+        formatter.timeZone = ptBRCalendar.timeZone
+        return formatter
+    }()
+
+    private func isoDate(_ date: Date) -> String {
+        Self.isoDateFormatter.string(from: date)
     }
 }
 
@@ -469,6 +496,12 @@ struct DayDetailSheet: View {
     let calendar: Calendar
     @Query private var logs: [IntakeLog]
     @State private var currentWeather: WeatherContext?
+    /// Calculado uma vez em `.task`, não por acesso: `HydrationPlanner.idealDayCurve`
+    /// roda Monte Carlo (200 amostras × 30 dimensões × 7 horários) e era alcançado por
+    /// uma cadeia de computed properties — `idealSeries`, `planHourBounds`,
+    /// `domainStart`/`domainEnd`, `chartYUpperBound` — cerca de 25 vezes por avaliação
+    /// do `body`, na main actor, antes de o Charts desenhar qualquer coisa.
+    @State private var idealPlan: [HydrationPlanPoint]?
 
     init(dia: DiaHistorico, metaDiariaML: Int, profile: UserProfile, calendar: Calendar) {
         self.dia = dia
@@ -498,18 +531,6 @@ struct DayDetailSheet: View {
             )
         }
         return isToday ? currentWeather : nil
-    }
-
-    /// That day's strategic hydration schedule, based on its own weather and
-    /// its own recorded goal — nil if there's no policy prior yet.
-    private var idealPlan: [HydrationPlanPoint]? {
-        HydrationPlanner.idealDayCurve(
-            profile: profile,
-            effectiveGoalML: metaDiariaML,
-            weather: dayWeather,
-            day: dia.date,
-            calendar: calendar
-        )
     }
 
     /// Same cumulative shape as `cumulativeSeries`, bracketed to the shared
@@ -599,11 +620,15 @@ struct DayDetailSheet: View {
         return Array(stride(from: domainStart, through: domainEnd, by: step))
     }
 
-    private var dateTitle: String {
+    private static let dateTitleFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "pt_BR")
         formatter.dateFormat = "EEEE, d 'de' MMMM"
-        let raw = formatter.string(from: dia.date)
+        return formatter
+    }()
+
+    private var dateTitle: String {
+        let raw = Self.dateTitleFormatter.string(from: dia.date)
         return raw.prefix(1).uppercased() + raw.dropFirst()
     }
 
@@ -739,8 +764,21 @@ struct DayDetailSheet: View {
             }
         }
         .task {
-            guard isToday, currentWeather == nil else { return }
-            currentWeather = await WeatherContextService.shared.currentContext()
+            // O clima primeiro: `dayWeather` (e por consequência o plano) depende dele
+            // para hoje, antes de qualquer registro ter cacheado uma leitura.
+            if isToday, currentWeather == nil {
+                currentWeather = await WeatherContextService.shared.currentContext()
+            }
+            // Uma vez por abertura da folha. A curva é determinística por dia
+            // (`HydrationPlanner` usa PRNG semeado), então não recalcular a cada
+            // atualização do `body` não muda o que o usuário vê.
+            idealPlan = HydrationPlanner.idealDayCurve(
+                profile: profile,
+                effectiveGoalML: metaDiariaML,
+                weather: dayWeather,
+                day: dia.date,
+                calendar: calendar
+            )
         }
     }
 
@@ -799,10 +837,14 @@ private struct IntakeRow: View {
     let log: IntakeLog
     let onDelete: () -> Void
 
-    private var timeLabel: String {
+    private static let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm"
-        return formatter.string(from: log.timestamp)
+        return formatter
+    }()
+
+    private var timeLabel: String {
+        Self.timeFormatter.string(from: log.timestamp)
     }
 
     var body: some View {

@@ -31,7 +31,12 @@ enum IntakeLogService {
         waitForColdStartActivity: Bool = true,
         deferCloudSync: Bool = false,
         deferLiveActivityEnd: Bool = false
-    ) async -> IntakeLog {
+    ) async -> (log: IntakeLog, saved: Bool) {
+        // Credits only the single most recent matching NotificationEvent — same
+        // "intake inside the response window" definition PolicyCoordinator.resolveOutcomes
+        // uses for SlotDecision.intakeInWindow, but computed from the opposite end (from
+        // the log, looking back) instead of from the slot (looking forward). The two can
+        // diverge if two events' windows overlap (see B-22, ml/python/dataset.py).
         let cutoff = Date.now.addingTimeInterval(-Double(Constants.notificationResponseWindowMinutes) * 60)
         let predicate = #Predicate<NotificationEvent> { $0.userID == userID && $0.sentAt >= cutoff }
         let recentEvents = (try? context.fetch(FetchDescriptor(predicate: predicate)))?.sorted { $0.sentAt > $1.sentAt } ?? []
@@ -53,7 +58,7 @@ enum IntakeLogService {
                 matchedEvent.tempoAteAgirMin = max(0, Int(Date.now.timeIntervalSince(matchedEvent.sentAt) / 60))
             }
         }
-        try? context.save()
+        let saved = context.saveLogging("registro de água")
         WidgetSync.reloadWaterTank()
 
         await onIntakeRecorded?(log.volumeML, log.timestamp, log.id)
@@ -89,7 +94,7 @@ enum IntakeLogService {
                 if let matchedEvent {
                     await CloudKitSyncService.shared.push(matchedEvent)
                 }
-                try? context.save()
+                context.saveLogging("sync do registro de água")
             }
         } else {
             await CloudKitSyncService.shared.push(log)
@@ -99,7 +104,7 @@ enum IntakeLogService {
             try? context.save()
         }
 
-        return log
+        return (log, saved)
     }
 
     /// Ends the running Live Activity (Lock Screen card and Dynamic Island water drop

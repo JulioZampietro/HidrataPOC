@@ -24,13 +24,14 @@
 		98ABE434F234B5BFEF1F72D6 /* MascotShatterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE7F365F2411B00DB1CBCB64 /* MascotShatterView.swift */; };
 		AA4A16B07FD4CA11466BAE10 /* MascotBubbleTransitionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B532ECBDEBA5DAFC650D62D5 /* MascotBubbleTransitionView.swift */; };
 		1E0E8D58D49CFBE72BD691A5 /* HydrationChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36AFA6358F8646D4CE01B474 /* HydrationChartView.swift */; };
+		66C970624E67FD02862BF4AA /* MyDataView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C73C46BA27479CC14F1B00C8 /* MyDataView.swift */; };
 		267A40DE9CF3539833AEA14D /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9EDD10460D867692F1B0943 /* HomeView.swift */; };
 		2A1D8B0D2B76B6F3EA0A6273 /* WaterIntakeCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD611C7BACD349B4B8CBC129 /* WaterIntakeCalculator.swift */; };
 		322E3A00D8FD3C5C771E2221 /* WeatherContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3BCAACF78A9164EF7C57D86 /* WeatherContext.swift */; };
-		38B4362730654D550041595B /* Bubble.metal in Sources */ = {isa = PBXBuildFile; fileRef = 38B4362630654D550041595B /* Bubble.metal */; };
-		38B4362830654D550041595B /* Bubble.metal in Sources */ = {isa = PBXBuildFile; fileRef = 38B4362630654D550041595B /* Bubble.metal */; };
-		38B4362930654D550041595B /* Bubble.metal in Sources */ = {isa = PBXBuildFile; fileRef = 38B4362630654D550041595B /* Bubble.metal */; };
-		38B4362A30654D550041595B /* Bubble.metal in Sources */ = {isa = PBXBuildFile; fileRef = 38B4362630654D550041595B /* Bubble.metal */; };
+		38B4362730654D550041595B /* Water.metal in Sources */ = {isa = PBXBuildFile; fileRef = 38B4362630654D550041595B /* Water.metal */; };
+		38B4362830654D550041595B /* Water.metal in Sources */ = {isa = PBXBuildFile; fileRef = 38B4362630654D550041595B /* Water.metal */; };
+		38B4362930654D550041595B /* Water.metal in Sources */ = {isa = PBXBuildFile; fileRef = 38B4362630654D550041595B /* Water.metal */; };
+		38B4362A30654D550041595B /* Water.metal in Sources */ = {isa = PBXBuildFile; fileRef = 38B4362630654D550041595B /* Water.metal */; };
 		3CA2848723C8F162BFD85334 /* HydrationKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E25C2DCFF2A32A6FFCA18FE5 /* HydrationKit.framework */; };
 		456A8201CECF4DA1F5B33F5A /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00E817B37463672B4A760387 /* AppTheme.swift */; };
 		4FA77BB80B7BFEFCD0CAC8AD /* LiveActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 646191BC23E0F875E444DFCF /* LiveActivityManager.swift */; };
@@ -42,6 +43,9 @@
 		6972D75383481BBDAD2D6345 /* EditGoalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FD7F3234633C2BD519D6504 /* EditGoalView.swift */; };
 		6B35FD38E3103ECE4D7321B8 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A0D580C72F1533B3EFE57FD3 /* Assets.xcassets */; };
 		6B9F8313D8B9172C4DF3C1D0 /* IntakeLogService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FA657D469BE9DC8A54167C5 /* IntakeLogService.swift */; };
+		E5202CE03DBA75052C081A6C /* SyncedFetch.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5EDE7E1D9A01E7CB6759B0F /* SyncedFetch.swift */; };
+		C465AEDE2E3607829B82F00E /* SyncedFetch.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5EDE7E1D9A01E7CB6759B0F /* SyncedFetch.swift */; };
+		5674545EC97A9EE8478BDFFC /* ModelContextSaving.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71633D4942F7FC63BE4A16CC /* ModelContextSaving.swift */; };
 		7096EB9CD8E24648B9AC6B2B /* UIInteractionEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = F51BAE834F7A497D9A17644C /* UIInteractionEvent.swift */; };
 		73C759A59FD446198468D604 /* HydrationControlWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 774252888FE898F0E8A81CAA /* HydrationControlWidgets.swift */; };
 		75ED8417F44DA378C2F7848E /* PersistenceController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18681BFBE503481336FBEBD8 /* PersistenceController.swift */; };
@@ -65,6 +69,7 @@
 		A21C9E6F5B8E4E2D9C7A3F10 /* NotificationVariant.swift in Sources */ = {isa = PBXBuildFile; fileRef = 064BE38709D54C95B06FC813 /* NotificationVariant.swift */; };
 		A3082F6D802FB359064B17EC /* NotificationScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C74A3F1511E9062686EF2C1 /* NotificationScheduler.swift */; };
 		A6F8E0F841F2C32C7DA91AF1 /* IntakeLogService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FA657D469BE9DC8A54167C5 /* IntakeLogService.swift */; };
+		886E10A13740CBD8C2CA239D /* ModelContextSaving.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71633D4942F7FC63BE4A16CC /* ModelContextSaving.swift */; };
 		A8D10111F22B609AB5FA8266 /* SiriTutorialView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CBDEB26A3C91B6C2C231FD8 /* SiriTutorialView.swift */; };
 		AC52395F9A5B66242F66926D /* IntakeLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4DF682424276EED691E73FE /* IntakeLog.swift */; };
 		BAD54F5B8B4D14D2F3D4E044 /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D3D07956D972BB7565F7450 /* ProfileView.swift */; };
@@ -115,6 +120,7 @@
 		F14DB73464BA11FAAA80A200 /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00E817B37463672B4A760387 /* AppTheme.swift */; };
 		F38FE2580C5C436E820BA2A8 /* NotificationVariant.swift in Sources */ = {isa = PBXBuildFile; fileRef = 064BE38709D54C95B06FC813 /* NotificationVariant.swift */; };
 		F40ED5533A05C10C3ED5268A /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95F0050D87C688CD6A361091 /* Constants.swift */; };
+		407D0C3F0CBF8CDB0FBE54B2 /* AppStateReset.swift in Sources */ = {isa = PBXBuildFile; fileRef = A42668CD8F8F25CD804C8995 /* AppStateReset.swift */; };
 		FA12B3C9D0E74A8B1C2D5F6E /* FeatureOnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA12B3C9D0E74A8B1C2D5F6F /* FeatureOnboardingView.swift */; };
 		FCC1324381344DB8DA982AE3 /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95F0050D87C688CD6A361091 /* Constants.swift */; };
 		FEF1E8A999A9841C843C2208 /* CustomIntakeEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20FA02344B32332B350BC11D /* CustomIntakeEditorView.swift */; };
@@ -137,6 +143,9 @@
 		12CE484794FFC757AC70F60D /* SlotDecision.swift in Sources */ = {isa = PBXBuildFile; fileRef = 895A66ADF648A6012778F8B5 /* SlotDecision.swift */; };
 		656AECD94C3D1D59A81A07F8 /* ThompsonPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E29859AFA6016B9CD4129DD3 /* ThompsonPolicyTests.swift */; };
 		824900A1E8879270B3E460CC /* HydrationPlannerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65C77B762E0FC00FF6BBCD52 /* HydrationPlannerTests.swift */; };
+		BB5F91D3528D864590C5783F /* IntakeOriginTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58912920FA1F3F9827CDB477 /* IntakeOriginTests.swift */; };
+		D3028745967C188C45480524 /* HydrationMathTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16DE1DEB5879CAB16009712D /* HydrationMathTests.swift */; };
+		BE8E466EB4317977C12E7108 /* CloudKitPseudonymizationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85EC26A4A4F9A7CBAE5120EA /* CloudKitPseudonymizationTests.swift */; };
 		EB873C2FA0B19E03D6A4DE63 /* Fixtures/policy_parity_vectors.json in Resources */ = {isa = PBXBuildFile; fileRef = BBAB78F8BE483135D5CBDEE5 /* Fixtures/policy_parity_vectors.json */; };
 /* End PBXBuildFile section */
 
@@ -213,7 +222,8 @@
 		2F84FE05B740FBD73D4C2851 /* HydrationMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HydrationMath.swift; sourceTree = "<group>"; };
 		2C99514CDA594E3EE16A0EE4 /* HydrationPlanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HydrationPlanner.swift; sourceTree = "<group>"; };
 		36AFA6358F8646D4CE01B474 /* HydrationChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HydrationChartView.swift; sourceTree = "<group>"; };
-		38B4362630654D550041595B /* Bubble.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = Bubble.metal; sourceTree = "<group>"; };
+		C73C46BA27479CC14F1B00C8 /* MyDataView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyDataView.swift; sourceTree = "<group>"; };
+		38B4362630654D550041595B /* Water.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = Water.metal; sourceTree = "<group>"; };
 		39B01B3E715DF9C6090B73F0 /* HydrationAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HydrationAttributes.swift; sourceTree = "<group>"; };
 		3CEB9412C32EF75ADC24DDFE /* CloudKitSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitSyncService.swift; sourceTree = "<group>"; };
 		44B579DB179F9F9A74296475 /* ProfileFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileFormView.swift; sourceTree = "<group>"; };
@@ -234,8 +244,11 @@
 		7C1D2E3F4A5B6C7D8E9F0A1C /* NotificationSlotDecisionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationSlotDecisionTests.swift; sourceTree = "<group>"; };
 		89E03889516701BE00C6A8E4 /* UserProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserProfile.swift; sourceTree = "<group>"; };
 		8FA657D469BE9DC8A54167C5 /* IntakeLogService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntakeLogService.swift; sourceTree = "<group>"; };
+		A5EDE7E1D9A01E7CB6759B0F /* SyncedFetch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncedFetch.swift; sourceTree = "<group>"; };
+		71633D4942F7FC63BE4A16CC /* ModelContextSaving.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelContextSaving.swift; sourceTree = "<group>"; };
 		949353F3A50444289F1B24C6 /* NotificationVariantSelectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationVariantSelectionTests.swift; sourceTree = "<group>"; };
 		95F0050D87C688CD6A361091 /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constants.swift; sourceTree = "<group>"; };
+		A42668CD8F8F25CD804C8995 /* AppStateReset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStateReset.swift; sourceTree = "<group>"; };
 		9D4758DA97785CE3AE8FB879 /* LiquidBubbleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiquidBubbleView.swift; sourceTree = "<group>"; };
 		A0D580C72F1533B3EFE57FD3 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A0DEC0A1B2C3D4E5F6000002 /* KidneyCheerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KidneyCheerView.swift; sourceTree = "<group>"; };
@@ -308,12 +321,12 @@
 		895A66ADF648A6012778F8B5 /* SlotDecision.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlotDecision.swift; sourceTree = "<group>"; };
 		E29859AFA6016B9CD4129DD3 /* ThompsonPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThompsonPolicyTests.swift; sourceTree = "<group>"; };
 		65C77B762E0FC00FF6BBCD52 /* HydrationPlannerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HydrationPlannerTests.swift; sourceTree = "<group>"; };
+		58912920FA1F3F9827CDB477 /* IntakeOriginTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntakeOriginTests.swift; sourceTree = "<group>"; };
+		16DE1DEB5879CAB16009712D /* HydrationMathTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HydrationMathTests.swift; sourceTree = "<group>"; };
+		85EC26A4A4F9A7CBAE5120EA /* CloudKitPseudonymizationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitPseudonymizationTests.swift; sourceTree = "<group>"; };
 		BBAB78F8BE483135D5CBDEE5 /* Fixtures/policy_parity_vectors.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Fixtures/policy_parity_vectors.json; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
-/* Begin PBXFileSystemSynchronizedRootGroup section */
-		38054D603063FAE5002AAA24 /* notification */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = notification; sourceTree = "<group>"; };
-/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		5108A204B4BB55CAD7920E43 /* Frameworks */ = {
@@ -343,6 +356,7 @@
 				AA5511223344556677889904 /* MascotPhrases.swift */,
 				00E817B37463672B4A760387 /* AppTheme.swift */,
 				95F0050D87C688CD6A361091 /* Constants.swift */,
+				A42668CD8F8F25CD804C8995 /* AppStateReset.swift */,
 				E0CB3E3BA72A80075634FCBB /* HidrataPOC.entitlements */,
 				DEF14391DFF4F9227FB24BDF /* Info.plist */,
 				07906A779A28D5273E2D70DB /* Fonts */,
@@ -382,6 +396,9 @@
 				7C1D2E3F4A5B6C7D8E9F0A1C /* NotificationSlotDecisionTests.swift */,
 				E29859AFA6016B9CD4129DD3 /* ThompsonPolicyTests.swift */,
 				65C77B762E0FC00FF6BBCD52 /* HydrationPlannerTests.swift */,
+				58912920FA1F3F9827CDB477 /* IntakeOriginTests.swift */,
+				16DE1DEB5879CAB16009712D /* HydrationMathTests.swift */,
+				85EC26A4A4F9A7CBAE5120EA /* CloudKitPseudonymizationTests.swift */,
 				BBAB78F8BE483135D5CBDEE5 /* Fixtures/policy_parity_vectors.json */,
 			);
 			path = HidrataPOCTests;
@@ -390,7 +407,7 @@
 		38B4363B306569EE0041595B /* Shaders */ = {
 			isa = PBXGroup;
 			children = (
-				38B4362630654D550041595B /* Bubble.metal */,
+				38B4362630654D550041595B /* Water.metal */,
 			);
 			path = Shaders;
 			sourceTree = "<group>";
@@ -423,7 +440,6 @@
 				37A7FBDE48AA63EF35F8635C /* HidrataPOCTests */,
 				D75F7703392B61CB93FD3B8F /* HydrationKit */,
 				CCE68074A395D0577E56F79D /* HydrationWidget */,
-				38054D603063FAE5002AAA24 /* notification */,
 				46ECE8838F4FE464DCC19DD6 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -432,6 +448,8 @@
 			isa = PBXGroup;
 			children = (
 				8FA657D469BE9DC8A54167C5 /* IntakeLogService.swift */,
+				A5EDE7E1D9A01E7CB6759B0F /* SyncedFetch.swift */,
+				71633D4942F7FC63BE4A16CC /* ModelContextSaving.swift */,
 				C3BCAACF78A9164EF7C57D86 /* WeatherContext.swift */,
 				9D4758DA97785CE3AE8FB879 /* LiquidBubbleView.swift */,
 				2D3E4F5A6B7C8D9E0F1A2B3C /* MascotSpeechBubble.swift */,
@@ -560,6 +578,7 @@
 			isa = PBXGroup;
 			children = (
 				36AFA6358F8646D4CE01B474 /* HydrationChartView.swift */,
+				C73C46BA27479CC14F1B00C8 /* MyDataView.swift */,
 				KK11223344556677889900KK /* HealthConnectView.swift */,
 				44B579DB179F9F9A74296475 /* ProfileFormView.swift */,
 				2D3D07956D972BB7565F7450 /* ProfileView.swift */,
@@ -780,7 +799,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				C390E2FE5A235D47F6B6B6B0 /* HydrationAttributes.swift in Sources */,
-				38B4362830654D550041595B /* Bubble.metal in Sources */,
+				38B4362830654D550041595B /* Water.metal in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -789,13 +808,16 @@
 			buildActionMask = 2147483647;
 			files = (
 				D5CEFFA72BEE705454B64795 /* WaterIntakeCalculatorTests.swift in Sources */,
-				38B4362730654D550041595B /* Bubble.metal in Sources */,
+				38B4362730654D550041595B /* Water.metal in Sources */,
 				F08622324B2A40469FE2AC5D /* InteractionTrackerTests.swift in Sources */,
 				D6A1B2C3D4E5F60718293A4F /* DailyGoalTests.swift in Sources */,
 				15A0FC549FFA47EEA262A4FA /* NotificationVariantSelectionTests.swift in Sources */,
 				7C1D2E3F4A5B6C7D8E9F0A1B /* NotificationSlotDecisionTests.swift in Sources */,
 				656AECD94C3D1D59A81A07F8 /* ThompsonPolicyTests.swift in Sources */,
 				824900A1E8879270B3E460CC /* HydrationPlannerTests.swift in Sources */,
+				BB5F91D3528D864590C5783F /* IntakeOriginTests.swift in Sources */,
+				D3028745967C188C45480524 /* HydrationMathTests.swift in Sources */,
+				BE8E466EB4317977C12E7108 /* CloudKitPseudonymizationTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -808,6 +830,7 @@
 				8E5B4900F427BAEF3A7D9579 /* CloudKitSyncService.swift in Sources */,
 				C875CDDF311D834B8785DD94 /* ConsentView.swift in Sources */,
 				F40ED5533A05C10C3ED5268A /* Constants.swift in Sources */,
+				407D0C3F0CBF8CDB0FBE54B2 /* AppStateReset.swift in Sources */,
 				FEF1E8A999A9841C843C2208 /* CustomIntakeEditorView.swift in Sources */,
 				C05E71C5A1B2C3D4E5F60001 /* MiniGamesView.swift in Sources */,
 				1A0B0C0D0E0F101112130003 /* JumpGameView.swift in Sources */,
@@ -841,10 +864,13 @@
 				F14DB73464BA11FAAA80A200 /* AppTheme.swift in Sources */,
 				F38FE2580C5C436E820BA2A8 /* NotificationVariant.swift in Sources */,
 				1E0E8D58D49CFBE72BD691A5 /* HydrationChartView.swift in Sources */,
+				66C970624E67FD02862BF4AA /* MyDataView.swift in Sources */,
 				ED310A2AD7021F64EFBB3C64 /* HydrationMath.swift in Sources */,
 				8E5D6DFD9B3C8FF619ABA82D /* HydrationPlanner.swift in Sources */,
 				8DE7FD7B97BBF583ACF51FDF /* IntakeLog.swift in Sources */,
 				A6F8E0F841F2C32C7DA91AF1 /* IntakeLogService.swift in Sources */,
+				C465AEDE2E3607829B82F00E /* SyncedFetch.swift in Sources */,
+				886E10A13740CBD8C2CA239D /* ModelContextSaving.swift in Sources */,
 				90B88EEE30E6120D1C0931C0 /* WidgetSync.swift in Sources */,
 				65DAF3C87F6774FC3208F113 /* LiquidBubbleView.swift in Sources */,
 				1D2F3A4B5C6D7E8F9A0B1C2D /* MascotSpeechBubble.swift in Sources */,
@@ -864,7 +890,7 @@
 				8600636CF4C7AB64E4086DD8 /* OnboardingView.swift in Sources */,
 				FA12B3C9D0E74A8B1C2D5F6E /* FeatureOnboardingView.swift in Sources */,
 				9E0E56EBE65D19A248EAEE28 /* PermissionsCoordinator.swift in Sources */,
-				38B4362930654D550041595B /* Bubble.metal in Sources */,
+				38B4362930654D550041595B /* Water.metal in Sources */,
 				C4D59AF23B75095AE1776740 /* PersistenceController.swift in Sources */,
 				0A32D669D718433CBF742D37 /* PolicyParams.swift in Sources */,
 				946DC7DF28CB2F9A4403CA7C /* ThompsonPolicy.swift in Sources */,
@@ -902,6 +928,8 @@
 				EB788AF77AB02B3393EC1CC6 /* HydrationWidgetBundle.swift in Sources */,
 				AC52395F9A5B66242F66926D /* IntakeLog.swift in Sources */,
 				6B9F8313D8B9172C4DF3C1D0 /* IntakeLogService.swift in Sources */,
+				E5202CE03DBA75052C081A6C /* SyncedFetch.swift in Sources */,
+				5674545EC97A9EE8478BDFFC /* ModelContextSaving.swift in Sources */,
 				DF7AE5DE9B5CAB95B932B397 /* WidgetSync.swift in Sources */,
 				D79129B170440EF290F85C00 /* WaterTankWidget.swift in Sources */,
 				456A8201CECF4DA1F5B33F5A /* AppTheme.swift in Sources */,
@@ -918,7 +946,7 @@
 				2A1D8B0D2B76B6F3EA0A6273 /* WaterIntakeCalculator.swift in Sources */,
 				E99D10C4C6CAA04B92BBBBF7 /* WeatherContext.swift in Sources */,
 				7BF46EBBAC10831198475513 /* LogIntakeControlIntent.swift in Sources */,
-				38B4362A30654D550041595B /* Bubble.metal in Sources */,
+				38B4362A30654D550041595B /* Water.metal in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

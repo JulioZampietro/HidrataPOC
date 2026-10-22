@@ -94,6 +94,12 @@ struct ProfileFormView: View {
 
     private static let maxGoalML = 10000
 
+    // Faixas aceitas: peso 0 zeraria a meta calculada (progresso sempre 0, mascote parado) e
+    // extremos absurdos gerariam recomendações de saúde sem sentido.
+    private static let idadeRange = 10...120
+    private static let pesoRange = 20.0...300.0
+    private static let alturaRange = 80.0...250.0
+
     /// Recommended from the profile fields via `WaterIntakeCalculator`; follows the fields live.
     private var calculatedGoalML: Int {
         UserProfile.suggestedGoalML(gender: genero?.gender, idade: idade, pesoKg: pesoKg, alturaCm: alturaCm)
@@ -148,15 +154,15 @@ struct ProfileFormView: View {
                     HStack(spacing: 10) {
                         tile("Idade", unit: "anos", text: $idadeText, field: .idade, keyboard: .numberPad)
                             .onChange(of: idadeText) { _, val in
-                                if let n = Int(val), (10...120).contains(n) { idade = n }
+                                if let n = Int(val), Self.idadeRange.contains(n) { idade = n }
                             }
                         tile("Peso", unit: "kg", text: $pesoText, field: .peso, keyboard: .decimalPad)
                             .onChange(of: pesoText) { _, val in
-                                if let n = Self.parseDecimal(val) { pesoKg = n }
+                                if let n = Self.parseDecimal(val), Self.pesoRange.contains(n) { pesoKg = n }
                             }
                         tile("Altura", unit: "cm", text: $alturaText, field: .altura, keyboard: .decimalPad)
                             .onChange(of: alturaText) { _, val in
-                                if let n = Self.parseDecimal(val) { alturaCm = n }
+                                if let n = Self.parseDecimal(val), Self.alturaRange.contains(n) { alturaCm = n }
                             }
                     }
 
@@ -394,23 +400,54 @@ struct ProfileFormView: View {
 
     // MARK: - Save
 
-    private var saveButton: some View {
-        Button {
-            focusedField = nil
-            let finalIdade = Int(idadeText).map { max(10, min(120, $0)) } ?? idade
-            let finalPeso = Self.parseDecimal(pesoText) ?? pesoKg
-            let finalAltura = Self.parseDecimal(alturaText) ?? alturaCm
-            let finalGoal = manualGoalML
-                ?? UserProfile.suggestedGoalML(gender: genero?.gender, idade: finalIdade, pesoKg: finalPeso, alturaCm: finalAltura)
-            onSave(ProfileFormValues(idade: finalIdade, genero: genero, pesoKg: finalPeso, alturaCm: finalAltura, customIntakeML: customIntakeML, storedGoalML: initialValues.storedGoalML, goalML: finalGoal))
-        } label: {
-            Text(confirmLabel)
-                .font(AppFont.calloutStrong)
-                .padding(.horizontal, 32)
-                .padding(.vertical, 6)
+    /// Os valores a salvar, ou nil quando algum campo está fora da faixa — é o que desabilita o botão.
+    private var validatedValues: ProfileFormValues? {
+        guard let idadeValue = Int(idadeText), Self.idadeRange.contains(idadeValue),
+              let pesoValue = Self.parseDecimal(pesoText), Self.pesoRange.contains(pesoValue),
+              let alturaValue = Self.parseDecimal(alturaText), Self.alturaRange.contains(alturaValue)
+        else { return nil }
+        let goal = manualGoalML
+            ?? UserProfile.suggestedGoalML(gender: genero?.gender, idade: idadeValue, pesoKg: pesoValue, alturaCm: alturaValue)
+        return ProfileFormValues(idade: idadeValue, genero: genero, pesoKg: pesoValue, alturaCm: alturaValue, customIntakeML: customIntakeML, storedGoalML: initialValues.storedGoalML, goalML: goal)
+    }
+
+    /// Mensagem do primeiro campo inválido, na ordem em que aparecem no formulário.
+    private var validationMessage: String? {
+        guard let idadeValue = Int(idadeText), Self.idadeRange.contains(idadeValue) else {
+            return "Informe uma idade entre \(Self.idadeRange.lowerBound) e \(Self.idadeRange.upperBound) anos."
         }
-        .buttonStyle(.glassProminent)
-        .tint(Color.appAccent)
+        guard let pesoValue = Self.parseDecimal(pesoText), Self.pesoRange.contains(pesoValue) else {
+            return "Informe um peso entre \(Int(Self.pesoRange.lowerBound)) e \(Int(Self.pesoRange.upperBound)) kg."
+        }
+        guard let alturaValue = Self.parseDecimal(alturaText), Self.alturaRange.contains(alturaValue) else {
+            return "Informe uma altura entre \(Int(Self.alturaRange.lowerBound)) e \(Int(Self.alturaRange.upperBound)) cm."
+        }
+        _ = (idadeValue, pesoValue, alturaValue)
+        return nil
+    }
+
+    private var saveButton: some View {
+        VStack(spacing: 8) {
+            if let validationMessage {
+                Text(validationMessage)
+                    .font(AppFont.footnote)
+                    .foregroundStyle(Color.appDestructive)
+                    .multilineTextAlignment(.center)
+            }
+            Button {
+                guard let values = validatedValues else { return }
+                focusedField = nil
+                onSave(values)
+            } label: {
+                Text(confirmLabel)
+                    .font(AppFont.calloutStrong)
+                    .padding(.horizontal, 32)
+                    .padding(.vertical, 6)
+            }
+            .buttonStyle(.glassProminent)
+            .tint(Color.appAccent)
+            .disabled(validatedValues == nil)
+        }
         .padding(.top, 4)
     }
 

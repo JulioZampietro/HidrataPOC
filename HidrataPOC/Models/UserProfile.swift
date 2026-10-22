@@ -10,7 +10,10 @@ final class UserProfile {
     var idade: Int
     var genero: String?
 
-    /// Free-text label, set only when `genero == "autodeclarado"` ("self-identify").
+    /// Rótulo livre, das builds que ofereciam "autodeclarado". Nenhuma tela escreve
+    /// nele hoje (`Genero` só tem masculino/feminino) e ele não é mais enviado ao
+    /// CloudKit — ver `CloudKitSyncService.push(_ profile:)`. Mantido porque removê-lo
+    /// é mudança de schema.
     var generoAutoDeclarado: String?
 
     var pesoKg: Double
@@ -66,10 +69,11 @@ final class UserProfile {
     /// weight) plus activity, per the model spec. Only a starting point; the user can
     /// edit it in the onboarding/profile form.
     ///
-    /// `gender` is `nil` for every `Genero` case other than male/female (nonbinary,
-    /// self-identify, decline to state) — averages the male/female baselines rather
-    /// than guessing, since there's no gender-neutral Adequate Intake figure in the
-    /// source model.
+    /// `gender` é `nil` só quando o perfil nunca teve sexo definido (perfil novo, ou
+    /// linha antiga das builds que ofereciam nonbinary / autodeclarado / prefiro não
+    /// dizer) — nesse caso faz a média das linhas de base masculina e feminina, em vez
+    /// de adivinhar, já que o modelo de origem não tem um valor de Ingestão Adequada
+    /// neutro.
     ///
     /// `activityLevel` isn't collected yet (spec §6 open question), so this always
     /// passes `.sedentary`. `tempC`/`rhPercent` are fixed at mild, unremarkable values

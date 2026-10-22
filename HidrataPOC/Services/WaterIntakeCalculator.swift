@@ -1,10 +1,11 @@
 import Foundation
 
 /// Gender as used by the recommendation model — only male/female have a distinct
-/// Adequate Intake baseline. Distinct from the app's `Genero` enum, which has three
-/// more options (nonbinary, self-identify, decline to state); see `Genero.gender` in
-/// ProfileFormView.swift for the mapping — those three all resolve to `nil` here and
-/// are treated as a male/female average by `UserProfile.suggestedGoalML`.
+/// Adequate Intake baseline. Mirrors the app's `Genero` enum one-to-one (see
+/// `Genero.gender` in ProfileFormView.swift). `nil` reaches
+/// `UserProfile.suggestedGoalML` only for a profile whose gender was never set — a
+/// new profile, or a legacy row from the builds that also offered nonbinary /
+/// self-identify / decline-to-state — and is treated as a male/female average.
 enum Gender: String, Codable {
     case male, female
 }
@@ -42,22 +43,34 @@ enum WaterIntakeCalculator {
 
     /// IOM (2004) *Dietary Reference Intakes for Water* — sedentary adult Adequate
     /// Intake (total water, food + fluids). https://www.nationalacademies.org/read/10925/chapter/6
-    private static let iomBaselineL: [Gender: Double] = [.male: 3.0, .female: 2.2]
+    private static func iomBaselineL(_ gender: Gender) -> Double {
+        switch gender {
+        case .male: 3.0
+        case .female: 2.2
+        }
+    }
 
     /// IOM reference body weight (kg) the baseline above is defined at.
-    private static let iomReferenceWeightKg: [Gender: Double] = [.male: 70.0, .female: 57.0]
+    private static func iomReferenceWeightKg(_ gender: Gender) -> Double {
+        switch gender {
+        case .male: 70.0
+        case .female: 57.0
+        }
+    }
 
     // MARK: - §3.2 Activity increment
 
     /// ACSM Position Stand on Exercise and Fluid Replacement, converted into rough
     /// daily buckets. Least rigorously validated component of this model — there's
     /// no consensus table the way there is for heat (§3.3).
-    private static let activityIncrementL: [ActivityLevel: Double] = [
-        .sedentary: 0.00,
-        .light: 0.35,
-        .moderate: 0.70,
-        .active: 1.20,
-    ]
+    private static func activityIncrementL(_ level: ActivityLevel) -> Double {
+        switch level {
+        case .sedentary: 0.00
+        case .light: 0.35
+        case .moderate: 0.70
+        case .active: 1.20
+        }
+    }
 
     // MARK: - §3.3 Environment increment
 
@@ -65,13 +78,27 @@ enum WaterIntakeCalculator {
     /// Public Health Center's WBGT fluid-replacement table (TB MED 507 / "Garrison
     /// Operations"), scaled down from laborers to a mostly-sedentary general
     /// population. https://api.army.mil/e2/c/downloads/488892.pdf
-    private static let environmentIncrementL: [HeatCategory: [ActivityLevel: Double]] = [
-        .none: [.sedentary: 0.00, .light: 0.00, .moderate: 0.00, .active: 0.00],
-        .caution: [.sedentary: 0.10, .light: 0.25, .moderate: 0.40, .active: 0.60],
-        .extremeCaution: [.sedentary: 0.25, .light: 0.50, .moderate: 0.80, .active: 1.20],
-        .danger: [.sedentary: 0.50, .light: 0.90, .moderate: 1.30, .active: 1.80],
-        .extremeDanger: [.sedentary: 0.75, .light: 1.20, .moderate: 1.70, .active: 2.20],
-    ]
+    private static func environmentIncrementL(_ category: HeatCategory, _ level: ActivityLevel) -> Double {
+        switch (category, level) {
+        case (.none, _):                      0.00
+        case (.caution, .sedentary):          0.10
+        case (.caution, .light):              0.25
+        case (.caution, .moderate):           0.40
+        case (.caution, .active):             0.60
+        case (.extremeCaution, .sedentary):   0.25
+        case (.extremeCaution, .light):       0.50
+        case (.extremeCaution, .moderate):    0.80
+        case (.extremeCaution, .active):      1.20
+        case (.danger, .sedentary):           0.50
+        case (.danger, .light):               0.90
+        case (.danger, .moderate):            1.30
+        case (.danger, .active):              1.80
+        case (.extremeDanger, .sedentary):    0.75
+        case (.extremeDanger, .light):        1.20
+        case (.extremeDanger, .moderate):     1.70
+        case (.extremeDanger, .active):       2.20
+        }
+    }
 
     // MARK: - §3.5 Safety ceiling
 
@@ -97,14 +124,17 @@ enum WaterIntakeCalculator {
         tempC: Double,
         rhPercent: Double
     ) -> WaterIntakeRecommendation {
-        let mlPerKg = (iomBaselineL[gender]! * 1000) / iomReferenceWeightKg[gender]!
+        // Switches exaustivos em vez de lookups com `!`: os valores são os mesmos do
+        // spec, mas agora acrescentar um caso aos enums é erro de compilação, não um
+        // crash em produção.
+        let mlPerKg = (iomBaselineL(gender) * 1000) / iomReferenceWeightKg(gender)
         let baselineL = (mlPerKg * weightKg) / 1000
 
-        let activityIncrementL = self.activityIncrementL[activityLevel]!
+        let activityIncrementL = Self.activityIncrementL(activityLevel)
 
         let heatIndexF = heatIndex(tempC: tempC, rhPercent: rhPercent)
         let heatCategory = heatCategory(forHeatIndexF: heatIndexF)
-        let environmentIncrementL = self.environmentIncrementL[heatCategory]![activityLevel]!
+        let environmentIncrementL = Self.environmentIncrementL(heatCategory, activityLevel)
 
         let rawTotal = baselineL + activityIncrementL + environmentIncrementL
         let capped = rawTotal > dailyCeilingL

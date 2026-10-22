@@ -1,8 +1,11 @@
 import Foundation
 import Intents
+import os
 import SwiftData
 import UIKit
 import UserNotifications
+
+private let logger = Logger(subsystem: "com.hidratapoc", category: "NotificationScheduler")
 
 /// A slot the app has committed to firing a local notification at, but hasn't yet
 /// captured weather/calendar/deficit context for. Local-only bookkeeping (UserDefaults
@@ -303,7 +306,7 @@ final class NotificationScheduler {
                 return decisions.map { ($0.slotFiresAt, !$0.isSend) }
             }
         } catch {
-            print("⚠️ NotificationScheduler: send-time policy failed, falling back to every fixed hour: \(error)")
+            logger.error("Send-time policy failed, falling back to every fixed hour: \(String(describing: error), privacy: .public)")
         }
 
         let calendar = Calendar.current
@@ -565,10 +568,27 @@ final class NotificationScheduler {
             : await WeatherContextService.shared.currentContext()
 
         let targetUserID = profile.userID
-        let logs = (try? context.fetch(FetchDescriptor<IntakeLog>(predicate: #Predicate { $0.userID == targetUserID }))) ?? []
+        // Janela de 366 dias em vez do histórico inteiro: é o que `selectVariant`
+        // precisa (a sequência olha até 365 dias) e cobre o total do dia. O "minutos
+        // desde o último registro" sai de um fetch próprio, limitado a 1 — assim o
+        // valor continua exato mesmo se o último gole for mais antigo que a janela,
+        // o que importa porque ele vai para o dataset como feature.
+        let windowStart = Calendar.current.date(byAdding: .day, value: -366, to: Calendar.current.startOfDay(for: firesAt)) ?? .distantPast
+        let logs = (try? context.fetch(FetchDescriptor<IntakeLog>(
+            predicate: #Predicate { $0.userID == targetUserID && $0.timestamp >= windowStart }
+        ))) ?? []
         let consumidoHoje = HydrationMath.totalML(logs, on: firesAt)
         let deficit = HydrationMath.deficitML(metaDiariaML: profile.metaDiariaML, consumidoHojeML: consumidoHoje)
-        let minutesSinceLast = HydrationMath.minutesSinceLastIntake(logs, now: firesAt)
+        // Sem recorte por `firesAt`, e passando por `minutesSinceLastIntake` (que faz
+        // `max(0, …)`): é o `max` sobre todos os registros que a varredura antiga
+        // calculava, inclusive o clamp em 0 quando existe um registro posterior.
+        var lastDescriptor = FetchDescriptor<IntakeLog>(
+            predicate: #Predicate { $0.userID == targetUserID },
+            sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
+        )
+        lastDescriptor.fetchLimit = 1
+        let lastIntake = (try? context.fetch(lastDescriptor))?.first
+        let minutesSinceLast = lastIntake.flatMap { HydrationMath.minutesSinceLastIntake([$0], now: firesAt) }
         // The variant the slot is currently armed with (chosen at scheduling time).
         let armed = loadPendingSlots().first { $0.id == id }?.variant.flatMap(NotificationVariant.init(rawValue:))
         let alreadyFired = firesAt <= .now
@@ -597,7 +617,7 @@ final class NotificationScheduler {
             notificationVariant: variant
         )
         context.insert(event)
-        try? context.save()
+        context.saveLogging("evento de notificação")
         await CloudKitSyncService.shared.push(event)
         try? context.save()
 
@@ -661,7 +681,7 @@ final class NotificationScheduler {
         // the slot was already armed with.
         let midday: [NotificationVariant] = [.middayNeutral, .symptomHeadacheMidday, .symptomConcentrationMidday]
         if let keeping, midday.contains(keeping) { return keeping }
-        return midday.randomElement()!
+        return midday.randomElement() ?? .middayNeutral
     }
 
     // MARK: - Interaction resolution
@@ -718,7 +738,7 @@ final class NotificationScheduler {
             event.tempoAteAgirMin = max(0, Int(Date.now.timeIntervalSince(event.sentAt) / 60))
         }
         event.resultouEmConsumo = true
-        try? context.save()
+        context.saveLogging("ação rápida da notificação")
 
         await CloudKitSyncService.shared.push(log)
         await CloudKitSyncService.shared.push(event)
@@ -735,14 +755,19 @@ final class NotificationScheduler {
     /// counts as `"notificacao"` (even though the tester used the app, not a
     /// notification action) — this is what lets a future model tell "the notification
     /// caused this drink" apart from "the user would have drunk water anyway."
-    func recordManualIntake(preset: Constants.IntakePreset, userID: String, context: ModelContext) async {
+    /// Returns whether the log actually reached disk, so the Home screen can tell the
+    /// tester when a tap didn't save (see `ModelContextSaving.saveLogging` — without
+    /// this, a failed write was invisible: the UI already shows the in-memory log, but
+    /// it vanishes on next launch with no explanation).
+    @discardableResult
+    func recordManualIntake(preset: Constants.IntakePreset, userID: String, context: ModelContext) async -> Bool {
         // Called from the Home screen's always-visible buttons, i.e. while the app is
         // already running in the foreground — there's no widget-extension cold-start
         // race to ride out here, so skip `endLiveActivity`'s retry wait, and defer the
         // CloudKit sync inside `record` to the background (otherwise every tap pays
         // up to 1s of artificial delay plus a full network round trip on the common
         // case of no Live Activity running).
-        await IntakeLogService.record(
+        let result = await IntakeLogService.record(
             preset: preset,
             userID: userID,
             source: "app",
@@ -759,6 +784,7 @@ final class NotificationScheduler {
         Task {
             await refreshPendingMascotIfNeeded()
         }
+        return result.saved
     }
 
     /// Removes an `IntakeLog` the tester logged by mistake. If it was linked to a
@@ -772,7 +798,7 @@ final class NotificationScheduler {
         let logID = log.id
         let notificationEventID = log.notificationEventID
         context.delete(log)
-        try? context.save()
+        context.saveLogging("exclusão de registro")
         WidgetSync.reloadWaterTank()
 
         await HealthKitService.shared.delete(logID: logID)
@@ -823,15 +849,24 @@ final class NotificationScheduler {
 
     private func resolveTimedOutEvents(context: ModelContext) async {
         let cutoff = Date.now.addingTimeInterval(-Double(Constants.notificationResponseWindowMinutes) * 60)
-        let predicate = #Predicate<NotificationEvent> { $0.statusInteracao == nil && $0.sentAt <= cutoff }
-        guard let stale = try? context.fetch(FetchDescriptor(predicate: predicate)) else { return }
+        // Filtrado por usuário: isto roda a cada tick e varria a tabela toda, incluindo
+        // linhas de outro perfil que este aparelho nunca deveria resolver.
+        guard let profile = try? context.fetch(FetchDescriptor<UserProfile>()).first else { return }
+        let targetUserID = profile.userID
+        let predicate = #Predicate<NotificationEvent> {
+            $0.userID == targetUserID && $0.statusInteracao == nil && $0.sentAt <= cutoff
+        }
+        guard let stale = try? context.fetch(FetchDescriptor(predicate: predicate)), !stale.isEmpty else { return }
         for event in stale {
             event.statusInteracao = StatusInteracao.ignorada.rawValue
+        }
+        // Salva antes dos pushes: o estado local é a fonte de verdade e não deve
+        // depender da rede (NR-1). O que falhar fica `.pending` para o flushPending.
+        try? context.save()
+        for event in stale {
             await CloudKitSyncService.shared.push(event)
         }
-        if !stale.isEmpty {
-            try? context.save()
-        }
+        try? context.save()
     }
 
     private func fetchNotificationEvent(id: UUID, context: ModelContext) -> NotificationEvent? {
@@ -863,7 +898,7 @@ final class NotificationScheduler {
     /// always a regression (no SwiftData lookup: this also runs from the dismiss path).
     private func armSlot(id: UUID, firesAt: Date, variant: NotificationVariant, sender: MascotSender?) async {
         if variant == .fallbackGeneric {
-            print("⚠️ NotificationScheduler: arming fallback_generic for \(id) — a persona variant should have been chosen")
+            logger.error("Arming fallback_generic for \(id, privacy: .public) — a persona variant should have been chosen")
         }
         let copy = variant.copy(for: id)
         await scheduleSystemNotification(id: id, firesAt: firesAt, title: copy.title, body: copy.body, sender: sender)
@@ -939,9 +974,9 @@ final class NotificationScheduler {
 
             do {
                 finalContent = try content.updating(from: intent)
-                print("✅ NotificationScheduler: built communication notification content for sender \(sender.person.displayName ?? "?")")
+                logger.debug("Built communication notification content for sender \(sender.person.displayName, privacy: .public)")
             } catch {
-                print("⚠️ NotificationScheduler: failed to build communication notification content: \(error)")
+                logger.error("Failed to build communication notification content: \(String(describing: error), privacy: .public)")
             }
         }
 
@@ -953,7 +988,7 @@ final class NotificationScheduler {
         guard requestGenerations[key, default: 0] == generation else { return }
         center.add(request) { error in
             if let error {
-                print("⚠️ NotificationScheduler: failed to schedule notification: \(error)")
+                logger.error("Failed to schedule notification: \(String(describing: error), privacy: .public)")
             }
         }
     }
@@ -966,7 +1001,7 @@ final class NotificationScheduler {
         await withCheckedContinuation { continuation in
             interaction.donate { error in
                 if let error {
-                    print("⚠️ NotificationScheduler: failed to donate mascot sender interaction: \(error)")
+                    logger.error("Failed to donate mascot sender interaction: \(String(describing: error), privacy: .public)")
                 }
                 continuation.resume()
             }
@@ -1043,7 +1078,13 @@ final class NotificationScheduler {
     private func currentHydrationState() async -> (consumidoHojeML: Int, goalML: Int)? {
         guard let profile = (try? PersistenceController.context.fetch(FetchDescriptor<UserProfile>()))?.first else { return nil }
         let targetUserID = profile.userID
-        let logs = (try? PersistenceController.context.fetch(FetchDescriptor<IntakeLog>(predicate: #Predicate { $0.userID == targetUserID }))) ?? []
+        // Só hoje: isto roda a cada tick (60s em primeiro plano, via
+        // `refreshPendingMascotIfNeeded`) e antes varria o histórico inteiro do usuário
+        // para somar um único dia.
+        let dayStart = Calendar.current.startOfDay(for: .now)
+        let logs = (try? PersistenceController.context.fetch(FetchDescriptor<IntakeLog>(
+            predicate: #Predicate { $0.userID == targetUserID && $0.timestamp >= dayStart }
+        ))) ?? []
         let consumidoHoje = HydrationMath.totalML(logs, on: .now)
         return (consumidoHoje, await effectiveGoalML(for: profile))
     }
@@ -1097,6 +1138,10 @@ final class NotificationScheduler {
 
     // MARK: - Debug
 
+    // Only the ProfileView rows that call these were `#if DEBUG`; the implementations
+    // shipped in the release binary. The whole group is compiled out now.
+#if DEBUG
+
     /// Fires a throwaway notification a few seconds from now, built exactly like a real
     /// reminder (same mascot selection + communication-notification path), with the
     /// expected mascot asset and progress spelled out in the body so the avatar the
@@ -1132,6 +1177,8 @@ final class NotificationScheduler {
         guard let pick = options.randomElement(), await sendDebugNotification(copy: pick.copy, after: seconds) else { return nil }
         return pick
     }
+
+#endif
 
     // MARK: - Keeping pending reminders' mascot current
 

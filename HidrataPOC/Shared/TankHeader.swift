@@ -103,8 +103,13 @@ struct CurrentMascotTankHeader: View {
     var mascotLine: String? = nil
     var showsBackground: Bool = true
 
+    @Environment(\.modelContext) private var modelContext
     @Query private var profiles: [UserProfile]
-    @Query private var allLogs: [IntakeLog]
+    // Sem @Query com predicado de propósito — ver o comentário equivalente em
+    // HomeView.swift (causa da regressão do A-2, documentada em CORRECOES.md). Esta
+    // view nasce fresca dentro de sheets (RemindersView, MyDataView,
+    // HealthConnectView...), o mesmo cenário de risco de ProfileView.
+    @State private var allLogs: [IntakeLog] = []
 
     private var mascotName: String {
         guard let profile = profiles.first, profile.metaDiariaML > 0 else { return "mascote5" }
@@ -117,6 +122,13 @@ struct CurrentMascotTankHeader: View {
     var body: some View {
         TankHeader(title: title, subtitle: subtitle, mascotLine: mascotLine, mascotName: mascotName,
                    showsBackground: showsBackground)
+            .syncedFetch($allLogs, context: modelContext) {
+                let dayStart = Calendar.current.startOfDay(for: .now)
+                return FetchDescriptor<IntakeLog>(
+                    predicate: #Predicate { $0.timestamp >= dayStart },
+                    sortBy: [SortDescriptor(\.timestamp)]
+                )
+            }
     }
 }
 

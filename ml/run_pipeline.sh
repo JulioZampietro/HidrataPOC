@@ -21,11 +21,38 @@ py() { "$VENV/bin/python" "$@"; }
 case "${1:-}" in
   setup)
     python3 -m venv "$VENV"
-    "$VENV/bin/pip" install -q -r python/requirements.txt
+    # requirements.lock (M-17, AUDITORIA.md) pins every dependency, direct and
+    # transitive, to the exact version last known to fit cleanly — requirements.txt's
+    # bare `>=` floors meant the prior bundled in the app wasn't reproducible from the
+    # repo. Regenerate it after bumping requirements.txt: pip install -r
+    # python/requirements.txt && pip freeze > python/requirements.lock.
+    if [ -f python/requirements.lock ]; then
+      "$VENV/bin/pip" install -q -r python/requirements.lock
+    else
+      "$VENV/bin/pip" install -q -r python/requirements.txt
+    fi
     # PyTensor passes -ld64 on macOS >= 15, but current Xcode no longer ships that
     # linker, so its C compile step fails; drop the flag from the venv copy.
-    f=$(echo "$VENV"/lib/python3*/site-packages/pytensor/link/c/cmodule.py)
-    sed -i '' 's/cxxflags.append("-ld64")/pass/' "$f"
+    #
+    # Feito em Python, não com `sed -i ''`: aquela é a sintaxe BSD do -i (quebra em
+    # Linux/CI) e o caminho vinha de um glob `python3*` que pode casar mais de um
+    # diretório. Aqui o próprio interpretador do venv resolve o site-packages, e o
+    # patch é idempotente — se a linha não existir nesta versão do PyTensor, avisa e
+    # segue, em vez de falhar ou corromper o arquivo.
+    "$VENV/bin/python" - <<'PY'
+import pathlib, sys, sysconfig
+target = pathlib.Path(sysconfig.get_paths()["purelib"]) / "pytensor/link/c/cmodule.py"
+needle = 'cxxflags.append("-ld64")'
+if not target.exists():
+    print(f"aviso: {target} nao existe; patch do -ld64 nao aplicado")
+    sys.exit(0)
+src = target.read_text()
+if needle not in src:
+    print("patch do -ld64 desnecessario (linha ausente nesta versao do PyTensor)")
+    sys.exit(0)
+target.write_text(src.replace(needle, "pass"))
+print("patch do -ld64 aplicado")
+PY
     echo "ready (needs: brew install libomp)" ;;
   export)
     : "${CK_KEY_ID:?set CK_KEY_ID}" "${CK_KEY_FILE:?set CK_KEY_FILE}"

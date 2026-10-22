@@ -26,8 +26,15 @@ The first block of `w` is the user's natural tendency to drink in that context. 
 
 ## Python
 
+Needs Python ≥ 3.10 (pymc/bambi don't support the system `python3` on a stock macOS,
+typically 3.9). `run_pipeline.sh setup` uses whatever `python3` resolves to on
+`PATH`, so point that at a newer interpreter (e.g. `brew install python@3.12`) before
+running it, or create the venv yourself and skip straight to the `pip install` line.
+`lightgbm` additionally needs `libomp` (`brew install libomp`) — `setup` already says
+so, but it's easy to miss since the error only shows up later, at `import lightgbm`.
+
     cd python
-    pip install -r requirements.txt
+    pip install -r requirements.lock   # exact pinned versions (M-17); requirements.txt if it's missing
 
     # dry run on synthetic data shaped like the CloudKit tables
     python simulate.py --out data/sim
@@ -135,6 +142,6 @@ Check any change with `check_adaptation.py` on synthetic data and `ope.py` on re
 
 **Label leakage.** `statusInteracao`, `tempoAteAgirMin` and `resultouEmConsumo` are outcomes and are never used as features. `feriado` is always false and `ActivityLevel` is not collected, so neither is used.
 
-**What counts as success.** The outcome is "any intake logged within 10 minutes of the slot". It also credits drinks that would have happened anyway, which is why the uplift objective and the logged skips exist.
+**What counts as success.** The outcome is "any intake logged within 10 minutes of the slot". It also credits drinks that would have happened anyway, which is why the uplift objective and the logged skips exist. The two record types label this the same way but store it under different names and compute it from opposite ends: `NotificationEvent.resultouEmConsumo` (bootstrap phase) is set when a log arrives and is matched back to the most recently sent event in the window; `SlotDecision.intakeInWindow` (bandit phase) is set when a slot's window closes and is checked directly against the logs in it. They agree except when two events' windows overlap (e.g. a snooze slot close to a fixed one): `intakeInWindow` would credit both, `resultouEmConsumo` only the newer one. Rare enough in practice that this is a documented edge case (B-22), not a reason to unify the two columns.
 
 **Reinstalls.** A reinstall or new phone starts from the population prior, because the app does not pull `SlotDecision` history from CloudKit. Pulling the user's own records on first launch and calling `adopt` would restore their personalization.

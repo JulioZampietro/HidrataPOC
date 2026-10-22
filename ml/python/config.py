@@ -1,7 +1,10 @@
 """Shared constants. Anything the iOS app must reproduce lives here or in the
 exported policy_params.json, never hard-coded in two places."""
 
-SLOT_HOURS = [8, 10, 12, 14, 16, 18, 20, 22]   # the app's fixed grid
+# A grade completa considerada pelo pipeline. 22h existe aqui só para ser filtrada
+# por `is_quiet` abaixo; a grade que o app realmente usa
+# (Constants.notificationFixedHours) é ACTIVE_SLOT_HOURS, sem 22h.
+SLOT_HOURS = [8, 10, 12, 14, 16, 18, 20, 22]
 
 # Quiet hours, local time: no reminder may fire in [QUIET_START, QUIET_END).
 # The window wraps midnight, so 22:00 is excluded and 08:00 is allowed.
@@ -24,15 +27,20 @@ RECORD_TYPES = ["UserProfile", "IntakeLog", "NotificationEvent", "SlotDecision"]
 
 # Features of the linear model (population prior + on-device bandit).
 # ORDER MATTERS: it is the order of the vector on the device.
+#
+# `busy`/`event_density` (calendar context) were removed (M-16, AUDITORIA.md): the
+# app never had an EventKit integration, so both were always 0/false — two
+# zero-variance columns standardized and trained for nothing. Reintroducing calendar
+# context means adding it back here AND populating it for real in
+# `AppPolicyContextProvider`, not just restoring the names.
 LINEAR_FEATURES = [
     "hour_sin", "hour_cos", "hour_sin2", "hour_cos2",   # 24h + 12h harmonics: up to two peaks/day
     "weekend",
     "apparent_temp", "humidity",
-    "busy", "event_density",
     "deficit_frac", "log_min_since_last", "no_intake_yet",
     "age", "female",
 ]
-BINARY_FEATURES = {"weekend", "busy", "no_intake_yet", "female"}
+BINARY_FEATURES = {"weekend", "no_intake_yet", "female"}
 
 # Features whose effect may vary per user in the hierarchical model.
 RANDOM_SLOPES = ["hour_sin", "hour_cos", "hour_sin2", "hour_cos2"]          # bootstrap fit (send only)

@@ -59,8 +59,6 @@ enum HydrationPlanner {
                 temperaturaC: weather?.temperaturaC,
                 umidadeRelativa: weather?.umidadeRelativa,
                 sensacaoTermicaC: weather?.sensacaoTermicaC,
-                ocupadoNoMomento: false,
-                densidadeEventosDia: 0,
                 deficitAcumuladoML: Double(effectiveGoalML),
                 metaDiariaML: Double(effectiveGoalML),
                 lastIntake: lastSlot,

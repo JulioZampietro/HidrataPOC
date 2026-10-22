@@ -34,8 +34,9 @@ final class CloudKitSyncService {
     /// A delete that failed (offline, etc.) — retried by `flushPending`. Unlike a
     /// failed push, the local row is already gone by the time this is queued, so it
     /// can't be recovered by re-scanning SwiftData; it has to be tracked separately.
+    /// `recordName` é tudo de que `CKDatabase.deleteRecord(withID:)` precisa — o tipo
+    /// não entra na operação e só era carregado para aparecer num log.
     private struct PendingDeletion: Codable {
-        let recordType: String
         let recordName: String
     }
     private let pendingDeletionsKey = "pendingCloudKitDeletions"
@@ -71,14 +72,23 @@ final class CloudKitSyncService {
 
     // MARK: - Per-type pushes
 
+    /// Pseudonymized on purpose: this record lands in the **public** database, so it
+    /// carries only what the offline model actually consumes (see
+    /// `ml/python/dataset.py::_profile_features` — `bmi`, `age`, `female`, `goal_l`),
+    /// never the raw anthropometrics. Exact weight + height + age + sex together are a
+    /// quasi-identifier; BMI and a 5-year age band keep the model's inputs while
+    /// dropping the combination that singles a participant out. `generoAutoDeclarado`
+    /// (free text) is never pushed at all.
+    ///
+    /// Consequence for restore (`applyProfile`): a fresh install recovers the goal,
+    /// sex, time zone and custom amount, but not exact weight/height/age — those stay
+    /// on-device only. The age band's midpoint is used as an approximation.
     func push(_ profile: UserProfile) async {
         let record = existingOrNewRecord(type: "UserProfile", id: profile.id, systemFields: profile.ckSystemFields)
         record["userID"] = profile.userID
-        record["idade"] = profile.idade
+        record["faixaIdade"] = Self.ageBand(profile.idade)
         record["genero"] = profile.genero
-        record["generoAutoDeclarado"] = profile.generoAutoDeclarado
-        record["pesoKg"] = profile.pesoKg
-        record["alturaCm"] = profile.alturaCm
+        record["bmi"] = Self.bmi(pesoKg: profile.pesoKg, alturaCm: profile.alturaCm)
         record["fusoHorario"] = profile.fusoHorario
         record["metaDiariaML"] = profile.metaDiariaML
         record["customIntakeML"] = profile.customIntakeML
@@ -185,6 +195,11 @@ final class CloudKitSyncService {
             record["dayKey"] = goal.dayKey
             record["baseGoalML"] = goal.baseGoalML
             record["adjustmentML"] = goal.adjustmentML
+            // Saved with `.allKeys` below, so an omitted field would be nulled on the
+            // server — and a restore would bring every row back unlocked, letting a
+            // later forecast rewrite a goal the user may already have met (the exact
+            // thing `DailyGoal.adjustmentLocked` exists to prevent).
+            record["adjustmentLocked"] = goal.adjustmentLocked ? 1 : 0
             record["atualizadoEm"] = goal.atualizadoEm
             return record
         }
@@ -209,6 +224,35 @@ final class CloudKitSyncService {
 
     private func dailyGoalRecordName(_ goal: DailyGoal) -> String {
         "DailyGoal-\(goal.userID)-\(goal.dayKey)"
+    }
+
+    // MARK: - Pseudonymization (public-database fields)
+
+    /// 5-year band, e.g. 32 -> "30-34"; everything from 80 up collapses into "80+", so
+    /// the oldest participants aren't singled out by a narrow band. Non-private so
+    /// `CloudKitPseudonymizationTests` can cover the boundaries.
+    static func ageBand(_ idade: Int) -> String {
+        guard idade > 0 else { return "desconhecida" }
+        guard idade < 80 else { return "80+" }
+        let lower = (idade / 5) * 5
+        return "\(lower)-\(lower + 4)"
+    }
+
+    /// kg/m², one decimal — what the model uses in place of raw weight and height.
+    /// nil when height is missing/zero, so a bad profile pushes no value instead of
+    /// an infinity.
+    static func bmi(pesoKg: Double, alturaCm: Double) -> Double? {
+        let meters = alturaCm / 100
+        guard meters > 0, pesoKg > 0 else { return nil }
+        return ((pesoKg / (meters * meters)) * 10).rounded() / 10
+    }
+
+    /// Midpoint of an `ageBand` string, for the restore path. nil when unparseable.
+    static func ageFromBand(_ band: String) -> Int? {
+        if band == "80+" { return 82 }
+        let parts = band.split(separator: "-").compactMap { Int($0) }
+        guard parts.count == 2 else { return nil }
+        return (parts[0] + parts[1]) / 2
     }
 
     /// Pushed again whenever the scheduler or the policy updates the row (closing the
@@ -254,13 +298,67 @@ final class CloudKitSyncService {
             // first push finished) — nothing to retry.
         } catch {
             logger.error("Failed to delete \(recordType, privacy: .public) \(id, privacy: .public), queuing retry: \(String(describing: error), privacy: .public)")
-            queuePendingDeletion(recordType: recordType, recordName: id.uuidString)
+            queuePendingDeletion(recordName: id.uuidString)
         }
     }
 
-    private func queuePendingDeletion(recordType: String, recordName: String) {
+    /// Erases from the public database every record this user ever pushed — the
+    /// "apagar meus dados" half of the consent promise (see `MyDataView`). Record names
+    /// are rebuilt from the local rows, which is the only place that mapping exists:
+    /// most types use the row's UUID, `DailyGoal` a deterministic per-day name.
+    ///
+    /// Returns false if anything failed, so the caller can tell the user the remote
+    /// half is incomplete instead of silently claiming success. Whatever failed is
+    /// queued for retry by `flushPending` like any other deletion.
+    func deleteAllRemoteRecords(context: ModelContext) async -> Bool {
+        var ids: [CKRecord.ID] = []
+        if let profiles = try? context.fetch(FetchDescriptor<UserProfile>()) {
+            ids += profiles.map { recordID(for: $0.id) }
+        }
+        if let logs = try? context.fetch(FetchDescriptor<IntakeLog>()) {
+            ids += logs.map { recordID(for: $0.id) }
+        }
+        if let events = try? context.fetch(FetchDescriptor<NotificationEvent>()) {
+            ids += events.map { recordID(for: $0.id) }
+        }
+        if let events = try? context.fetch(FetchDescriptor<UIInteractionEvent>()) {
+            ids += events.map { recordID(for: $0.id) }
+        }
+        if let decisions = try? context.fetch(FetchDescriptor<SlotDecision>()) {
+            ids += decisions.map { recordID(for: $0.id) }
+        }
+        if let goals = try? context.fetch(FetchDescriptor<DailyGoal>()) {
+            ids += goals.map { CKRecord.ID(recordName: dailyGoalRecordName($0)) }
+        }
+        guard !ids.isEmpty else { return true }
+
+        var allSucceeded = true
+        for start in stride(from: 0, to: ids.count, by: 300) {
+            let chunk = Array(ids[start..<min(start + 300, ids.count)])
+            do {
+                let (_, deleted) = try await container.publicCloudDatabase.modifyRecords(
+                    saving: [], deleting: chunk, savePolicy: .allKeys, atomically: false
+                )
+                for (id, result) in deleted {
+                    if case .failure(let error) = result {
+                        // Already gone is a success for our purposes.
+                        if (error as? CKError)?.code == .unknownItem { continue }
+                        allSucceeded = false
+                        queuePendingDeletion(recordName: id.recordName)
+                    }
+                }
+            } catch {
+                logger.error("deleteAllRemoteRecords chunk failed: \(String(describing: error), privacy: .public)")
+                allSucceeded = false
+                for id in chunk { queuePendingDeletion(recordName: id.recordName) }
+            }
+        }
+        return allSucceeded
+    }
+
+    private func queuePendingDeletion(recordName: String) {
         var pending = loadPendingDeletions()
-        pending.append(PendingDeletion(recordType: recordType, recordName: recordName))
+        pending.append(PendingDeletion(recordName: recordName))
         savePendingDeletions(pending)
     }
 
@@ -304,33 +402,27 @@ final class CloudKitSyncService {
 
         await flushPendingDeletions()
 
-        if let profiles = try? context.fetch(FetchDescriptor<UserProfile>()) {
-            for profile in profiles where profile.syncStatus != .synced {
-                await push(profile)
-            }
+        // Filtrado no banco, não em Swift: antes isto materializava as seis tabelas
+        // inteiras a cada launch e a cada volta ao primeiro plano (duas vezes no
+        // launch) só para descartar quase tudo em seguida.
+        let synced = SyncStatus.synced.rawValue
+        if let profiles = try? context.fetch(FetchDescriptor<UserProfile>(predicate: #Predicate { $0.syncStatusRaw != synced })) {
+            for profile in profiles { await push(profile) }
         }
-        if let logs = try? context.fetch(FetchDescriptor<IntakeLog>()) {
-            for log in logs where log.syncStatus != .synced {
-                await push(log)
-            }
+        if let logs = try? context.fetch(FetchDescriptor<IntakeLog>(predicate: #Predicate { $0.syncStatusRaw != synced })) {
+            for log in logs { await push(log) }
         }
-        if let events = try? context.fetch(FetchDescriptor<NotificationEvent>()) {
-            for event in events where event.syncStatus != .synced {
-                await push(event)
-            }
+        if let events = try? context.fetch(FetchDescriptor<NotificationEvent>(predicate: #Predicate { $0.syncStatusRaw != synced })) {
+            for event in events { await push(event) }
         }
-        if let goals = try? context.fetch(FetchDescriptor<DailyGoal>()) {
-            await push(goals.filter { $0.syncStatus != .synced })
+        if let goals = try? context.fetch(FetchDescriptor<DailyGoal>(predicate: #Predicate { $0.syncStatusRaw != synced })) {
+            await push(goals)
         }
-        if let interactionEvents = try? context.fetch(FetchDescriptor<UIInteractionEvent>()) {
-            for event in interactionEvents where event.syncStatus != .synced {
-                await push(event)
-            }
+        if let interactionEvents = try? context.fetch(FetchDescriptor<UIInteractionEvent>(predicate: #Predicate { $0.syncStatusRaw != synced })) {
+            for event in interactionEvents { await push(event) }
         }
-        if let decisions = try? context.fetch(FetchDescriptor<SlotDecision>()) {
-            for decision in decisions where decision.syncStatus != .synced {
-                await push(decision)
-            }
+        if let decisions = try? context.fetch(FetchDescriptor<SlotDecision>(predicate: #Predicate { $0.syncStatusRaw != synced })) {
+            for decision in decisions { await push(decision) }
         }
         try? context.save()
     }
@@ -388,8 +480,14 @@ final class CloudKitSyncService {
             } else {
                 logPredicate = NSPredicate(format: "userID == %@", userID)
             }
+            // Conjuntos carregados uma vez: `applyIntakeLog` fazia dois `fetchCount` por
+            // registro, o que num restore completo (um ano de histórico) são milhares de
+            // queries encadeadas na main actor, exatamente enquanto o usuário olha a
+            // tela de restauração.
+            var knownIDs = Set((try? context.fetch(FetchDescriptor<IntakeLog>()))?.map(\.id) ?? [])
+            var knownHealthKitUUIDs = Set((try? context.fetch(FetchDescriptor<IntakeLog>()))?.compactMap(\.healthKitUUID) ?? [])
             for record in try await queryAll("IntakeLog", logPredicate) {
-                applied += applyIntakeLog(record, context: context) ? 1 : 0
+                applied += applyIntakeLog(record, context: context, knownIDs: &knownIDs, knownHealthKitUUIDs: &knownHealthKitUUIDs) ? 1 : 0
             }
 
             for record in try await queryAll("DailyGoal", NSPredicate(format: "userID == %@", userID)) {
@@ -442,9 +540,17 @@ final class CloudKitSyncService {
             profile.syncStatus = .synced
         }
         profile.userID = userID
-        profile.idade = record["idade"] as? Int ?? profile.idade
+        // `idade` is only present on rows pushed by a build before pseudonymization
+        // (see `push(_ profile:)`); newer rows carry a 5-year band, whose midpoint is
+        // the best available approximation. Exact weight/height are no longer pushed at
+        // all, so they keep whatever this device already had (0 on a fresh install —
+        // the goal itself is restored below, so the app stays usable).
+        if let exactAge = record["idade"] as? Int {
+            profile.idade = exactAge
+        } else if let band = record["faixaIdade"] as? String, let approximate = Self.ageFromBand(band) {
+            profile.idade = approximate
+        }
         profile.genero = record["genero"] as? String
-        profile.generoAutoDeclarado = record["generoAutoDeclarado"] as? String
         profile.pesoKg = record["pesoKg"] as? Double ?? profile.pesoKg
         profile.alturaCm = record["alturaCm"] as? Double ?? profile.alturaCm
         profile.fusoHorario = record["fusoHorario"] as? String ?? profile.fusoHorario
@@ -455,15 +561,22 @@ final class CloudKitSyncService {
     }
 
     /// Inserts an intake this device doesn't have yet (logs are immutable once created).
-    private func applyIntakeLog(_ record: CKRecord, context: ModelContext) -> Bool {
+    /// `knownIDs`/`knownHealthKitUUIDs` são os conjuntos do que este aparelho já tem,
+    /// carregados uma vez pelo chamador e atualizados a cada inserção — em vez de duas
+    /// queries por registro (ver o comentário em `pull`).
+    private func applyIntakeLog(
+        _ record: CKRecord,
+        context: ModelContext,
+        knownIDs: inout Set<UUID>,
+        knownHealthKitUUIDs: inout Set<String>
+    ) -> Bool {
         guard let id = UUID(uuidString: record.recordID.recordName),
               let userID = record["userID"] as? String,
               let timestamp = record["timestamp"] as? Date,
               let volumeML = record["volumeML"] as? Int else { return false }
-        if ((try? context.fetchCount(FetchDescriptor<IntakeLog>(predicate: #Predicate { $0.id == id }))) ?? 0) > 0 { return false }
+        if knownIDs.contains(id) { return false }
         let healthKitUUID = record["healthKitUUID"] as? String
-        if let healthKitUUID,
-           ((try? context.fetchCount(FetchDescriptor<IntakeLog>(predicate: #Predicate { $0.healthKitUUID == healthKitUUID }))) ?? 0) > 0 {
+        if let healthKitUUID, knownHealthKitUUIDs.contains(healthKitUUID) {
             return false // already imported from Health on this device
         }
 
@@ -484,6 +597,8 @@ final class CloudKitSyncService {
         log.sensacaoTermicaC = record["sensacaoTermicaC"] as? Double
         log.syncStatus = .synced
         context.insert(log)
+        knownIDs.insert(id)
+        if let healthKitUUID { knownHealthKitUUIDs.insert(healthKitUUID) }
         return true
     }
 
@@ -494,15 +609,20 @@ final class CloudKitSyncService {
               let baseGoalML = record["baseGoalML"] as? Int,
               let remoteUpdated = record["atualizadoEm"] as? Date else { return false }
         let adjustmentML = record["adjustmentML"] as? Int ?? 0
+        // Rows pushed by a build before `adjustmentLocked` was synced have no field at
+        // all; those come back unlocked, which just re-locks on their next write.
+        let remoteLocked = (record["adjustmentLocked"] as? Int).map { $0 != 0 } ?? false
         let existing = try? context.fetch(FetchDescriptor<DailyGoal>(predicate: #Predicate { $0.userID == userID && $0.dayKey == dayKey })).first
         if let existing {
             guard existing.atualizadoEm < remoteUpdated else { return false }
             existing.baseGoalML = baseGoalML
             existing.adjustmentML = adjustmentML
+            // Never un-lock: a settled adjustment stays settled whichever side saw it first.
+            existing.adjustmentLocked = existing.adjustmentLocked || remoteLocked
             existing.atualizadoEm = remoteUpdated
             existing.syncStatus = .synced
         } else {
-            let goal = DailyGoal(userID: userID, dayKey: dayKey, baseGoalML: baseGoalML, adjustmentML: adjustmentML)
+            let goal = DailyGoal(userID: userID, dayKey: dayKey, baseGoalML: baseGoalML, adjustmentML: adjustmentML, adjustmentLocked: remoteLocked)
             goal.atualizadoEm = remoteUpdated
             goal.syncStatus = .synced
             context.insert(goal)
@@ -520,13 +640,49 @@ final class CloudKitSyncService {
     /// same stale `ckSystemFields` and hits `.serverRecordChanged` again.
     private func saveResolvingConflict(_ record: CKRecord) async throws -> CKRecord {
         do {
-            return try await container.publicCloudDatabase.save(record)
+            return try await withCloudKitRetry { try await self.container.publicCloudDatabase.save(record) }
         } catch let error as CKError where error.code == .serverRecordChanged {
             guard let serverRecord = error.serverRecord else { throw error }
             for key in record.changedKeys() {
                 serverRecord[key] = record[key]
             }
-            return try await container.publicCloudDatabase.save(serverRecord)
+            return try await withCloudKitRetry { try await self.container.publicCloudDatabase.save(serverRecord) }
+        }
+    }
+
+    /// Quantas vezes uma operação é repetida quando o CloudKit pede espera.
+    private static let maxCloudKitRetries = 2
+
+    /// Repete a operação quando o CloudKit devolve um erro que ele próprio diz ser
+    /// temporário, respeitando o `retryAfterSeconds` que acompanha a resposta. Sem
+    /// isso, um throttle do servidor marcava tudo como `.failed` e o `flushPending`
+    /// seguinte repetia na hora, realimentando o throttle.
+    private func withCloudKitRetry<T>(_ operation: () async throws -> T) async throws -> T {
+        var attempt = 0
+        while true {
+            do {
+                return try await operation()
+            } catch let error as CKError {
+                guard attempt < Self.maxCloudKitRetries,
+                      let delay = Self.retryDelay(for: error) else { throw error }
+                attempt += 1
+                logger.notice("CloudKit pediu espera de \(delay, privacy: .public)s (tentativa \(attempt, privacy: .public)): \(error.code.rawValue, privacy: .public)")
+                try? await Task.sleep(for: .seconds(delay))
+            }
+        }
+    }
+
+    /// Só os códigos que o CloudKit classifica como "tente de novo"; qualquer outro
+    /// (registro inexistente, permissão, conflito) sobe na hora.
+    private static func retryDelay(for error: CKError) -> Double? {
+        switch error.code {
+        case .serviceUnavailable, .requestRateLimited, .zoneBusy:
+            // O servidor manda quanto esperar; o fallback cobre a resposta sem o campo.
+            return error.retryAfterSeconds ?? 3
+        case .networkUnavailable, .networkFailure:
+            return 2
+        default:
+            return nil
         }
     }
 

@@ -19,8 +19,10 @@ struct WaterHeaderView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.modelContext) private var modelContext
-    @Query private var allLogs: [IntakeLog]
-    @Query private var allDailyGoals: [DailyGoal]
+    // Sem @Query com predicado de propósito — ver o comentário equivalente em
+    // HomeView.swift (causa da regressão do A-2, documentada em CORRECOES.md).
+    @State private var allLogs: [IntakeLog] = []
+    @State private var allDailyGoals: [DailyGoal] = []
     @State private var tempContext: TemperatureAdjustmentContext?
     @State private var showShare = false
     @State private var showMiniGames = false
@@ -151,8 +153,17 @@ struct WaterHeaderView: View {
         }
     }
 
-    private var streak: Int {
-        HydrationMath.currentStreak(allLogs.filter { $0.userID == profile.userID }, goalML: goalResolver.goalML(on:))
+    /// Sequência de dias batendo a meta. Em `@State`, não computada a cada acesso:
+    /// `currentStreak` caminha até 365 dias e o `body` a lê seis vezes (cabeçalho,
+    /// duas sheets, `activeGame`, `runningGame` e o próprio `onChange`) — e o
+    /// `GeometryReader` do aquário refaz o conteúdo a cada frame durante o arrasto
+    /// entre Home e Histórico, o mesmo motivo que levou `TodayIntake` e
+    /// `MonthSummary` a serem calculados uma vez por atualização.
+    @State private var streak = 0
+
+    private func recomputeStreak() {
+        let totals = HydrationMath.totalsByDay(allLogs.filter { $0.userID == profile.userID })
+        streak = HydrationMath.currentStreak(totalsByDay: totals, goalML: goalResolver.goalML(on:))
     }
 
     var body: some View {
@@ -194,6 +205,27 @@ struct WaterHeaderView: View {
         }
         .onChange(of: streak, initial: true) { _, newStreak in
             announceNewlyUnlockedGames(streak: newStreak)
+        }
+        // Entradas da sequência: registros do usuário (incluídos/excluídos, aqui ou em
+        // outra tela) e a meta do dia, que muda quando a previsão do clima chega.
+        .onChange(of: allLogs.count, initial: true) { recomputeStreak() }
+        .onChange(of: effectiveGoalML) { recomputeStreak() }
+        .syncedFetch($allLogs, context: modelContext) {
+            let userID = profile.userID
+            let cutoff = Calendar.current.date(byAdding: .day, value: -366, to: Calendar.current.startOfDay(for: .now)) ?? .distantPast
+            return FetchDescriptor<IntakeLog>(
+                predicate: #Predicate { $0.userID == userID && $0.timestamp >= cutoff },
+                sortBy: [SortDescriptor(\.timestamp)]
+            )
+        }
+        .syncedFetch($allDailyGoals, context: modelContext) {
+            let userID = profile.userID
+            let cutoff = Calendar.current.date(byAdding: .day, value: -366, to: Calendar.current.startOfDay(for: .now)) ?? .distantPast
+            let cutoffKey = DailyGoal.dayKey(for: cutoff)
+            return FetchDescriptor<DailyGoal>(
+                predicate: #Predicate { $0.userID == userID && $0.dayKey >= cutoffKey },
+                sortBy: [SortDescriptor(\.dayKey)]
+            )
         }
     }
 

@@ -61,18 +61,6 @@ static float vnoise(float2 p) {
     return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
 }
 
-// fBm: soma várias "oitavas" de ruído (cada uma com mais detalhe e menos força)
-static float fbm(float2 p) {
-    float value = 0.0;
-    float amp = 0.5;
-    for (int i = 0; i < 4; i++) {
-        value += amp * vnoise(p);
-        p = p * 2.0 + 17.0;
-        amp *= 0.5;
-    }
-    return value;
-}
-
 // Raio da bolha em função do ângulo (a borda "viva")
 static float bubbleRadius(float angle, float time) {
     float wobble = 0.045 * sin(angle * 3.0 + time * 1.3)

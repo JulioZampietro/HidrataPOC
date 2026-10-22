@@ -69,14 +69,43 @@ def hour_features(hour):
             "hour_sin2": np.sin(2 * w), "hour_cos2": np.cos(2 * w)}
 
 
+def _age_from_band(band) -> float:
+    """Midpoint of the app's 5-year band ("30-34" -> 32.0, "80+" -> 82.0)."""
+    if not isinstance(band, str):
+        return np.nan
+    if band == "80+":
+        return 82.0
+    parts = band.split("-")
+    if len(parts) != 2:
+        return np.nan
+    try:
+        return (int(parts[0]) + int(parts[1])) / 2
+    except ValueError:
+        return np.nan
+
+
 def _profile_features(df: pd.DataFrame) -> pd.DataFrame:
+    """`age` and `bmi` come straight from the record when the app pseudonymized them
+    (CloudKitSyncService.push(_ profile:) sends `faixaIdade` + `bmi` instead of exact
+    age, weight and height). Exports taken before that change still carry the raw
+    columns, so both shapes are accepted and the older one wins when present."""
     df = df.copy()
-    df["age"] = df.get("idade")
     gen = df.get("genero")
     df["female"] = np.where(gen == "feminino", 1.0, np.where(gen == "masculino", 0.0, np.nan))
-    h = df.get("alturaCm") / 100.0
-    df["bmi"] = df.get("pesoKg") / (h * h)
     df["goal_l"] = df.get("metaDiariaML") / 1000.0
+
+    if "idade" in df:
+        df["age"] = df["idade"]
+    elif "faixaIdade" in df:
+        df["age"] = df["faixaIdade"].map(_age_from_band)
+    else:
+        df["age"] = np.nan
+
+    if "pesoKg" in df and "alturaCm" in df:
+        h = df["alturaCm"] / 100.0
+        df["bmi"] = df["pesoKg"] / (h * h)
+    elif "bmi" not in df:
+        df["bmi"] = np.nan
     return df
 
 
@@ -96,8 +125,9 @@ def raw_features_from_events(events: pd.DataFrame, profiles: pd.DataFrame) -> pd
 
     df["apparent_temp"] = df["sensacaoTermicaC"].fillna(df["temperaturaC"])
     df["humidity"] = df["umidadeRelativa"]
-    df["busy"] = df["ocupadoNoMomento"].astype(float)
-    df["event_density"] = df["densidadeEventosDia"].astype(float)
+    # `ocupadoNoMomento`/`densidadeEventosDia` stay in the NotificationEvent export
+    # (same decision as B-5 for generoAutoDeclarado) but are no longer turned into
+    # features here — see config.LINEAR_FEATURES.
     df["deficit_frac"] = (df["deficitAcumuladoML"] / df["metaDiariaML"]).clip(-1.0, 1.5)
     mins = df["tempoDesdeUltimoRegistroMin"]
     df["no_intake_yet"] = mins.isna().astype(float)
@@ -105,6 +135,17 @@ def raw_features_from_events(events: pd.DataFrame, profiles: pd.DataFrame) -> pd
     df["variant"] = df["notificationVariant"].fillna("unknown")
 
     df["send"] = 1
+    # `resultouEmConsumo` vs. `intakeInWindow` (B-22, AUDITORIA.md): same definition
+    # of success — "an IntakeLog inside [sentAt/slotFiresAt, +RESPONSE_WINDOW_MIN]" —
+    # computed from opposite ends in Swift. `intakeInWindow`
+    # (PolicyCoordinator.resolveOutcomes) checks every open SlotDecision against that
+    # window directly. `resultouEmConsumo` (IntakeLogService.record) instead runs when
+    # a log arrives and credits the single most recently sent NotificationEvent within
+    # the window — so two NotificationEvents whose windows overlap (fixed hourly slots
+    # don't, but an ad-hoc snooze slot close to one can) would both qualify under
+    # `intakeInWindow`'s rule, while only the newer one gets credited here. Harmless
+    # today (snooze slots are rare and the windows are short), but it is the one case
+    # where the two labels are not strictly the same statistic.
     df["y"] = df["resultouEmConsumo"].astype(int)
     df["decision_time"] = df["sentAt"]
     return _add_user_history(df)

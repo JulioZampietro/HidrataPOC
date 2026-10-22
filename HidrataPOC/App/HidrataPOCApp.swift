@@ -75,12 +75,18 @@ struct HidrataPOCApp: App {
     /// FR-9/FR-10 — only meaningful once onboarding has created a profile (mirrors
     /// the guard in `NotificationScheduler.ensureTodayScheduled`).
     private func syncHealthKitIfAuthorized() async {
-        guard HealthKitService.shared.isAuthorized,
-              let profile = try? PersistenceController.context.fetch(FetchDescriptor<UserProfile>()).first
+        guard let profile = try? PersistenceController.context.fetch(FetchDescriptor<UserProfile>()).first
         else { return }
         let ctx = PersistenceController.context
-        let allLogs = (try? ctx.fetch(FetchDescriptor<IntakeLog>())) ?? []
-        await HealthKitService.shared.backfill(logs: allLogs)
+
+        // Escrever e ler têm permissões separadas no HealthKit. Antes a função toda era
+        // barrada por `isAuthorized` (que só reflete a escrita), então quem liberou ler
+        // mas negou escrever nunca importava nada do Saúde.
+        if HealthKitService.shared.isAuthorized {
+            let targetUserID = profile.userID
+            let userLogs = (try? ctx.fetch(FetchDescriptor<IntakeLog>(predicate: #Predicate { $0.userID == targetUserID }))) ?? []
+            await HealthKitService.shared.backfill(logs: userLogs)
+        }
         await HealthKitService.shared.syncFromHealthKit(userID: profile.userID, context: ctx)
     }
 
