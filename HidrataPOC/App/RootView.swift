@@ -11,6 +11,9 @@ struct RootView: View {
 
     @State private var selectedPage: MainPage? = .home
     @State private var showProfile = false
+    /// Página de onde o minijogo foi aberto, quando não foi a Home (o jogo só ocupa a tela
+    /// toda na Home): a seta de voltar do jogo leva de volta pra ela.
+    @State private var pageBeforeGame: MainPage?
     /// Minijogos: o aquário desenha e a Home controla (ver `MiniGameController`).
     @State private var miniGames = MiniGameController()
 
@@ -115,6 +118,18 @@ struct RootView: View {
             .appScreenBackground()
             .toolbar(.hidden, for: .navigationBar)
             .onChange(of: selectedPage) { Haptic.selection.play() } // arrastar entre Home e Histórico
+            .onChange(of: miniGames.showsGameControls) { _, isPlaying in
+                // Jogo aberto no Histórico: desliza pra Home, onde ele ocupa a tela toda (mesma
+                // transição da ingestão pro jogo), e na saída volta pro Histórico.
+                if isPlaying {
+                    guard selectedPage == .historico else { return }
+                    pageBeforeGame = .historico
+                    withAnimation(.smooth) { selectedPage = .home }
+                } else if let page = pageBeforeGame {
+                    pageBeforeGame = nil
+                    withAnimation(.smooth) { selectedPage = page }
+                }
+            }
             .onChange(of: showProfile) { _, isShowing in
                 if !isShowing { Haptic.dismiss.play() } // voltar do Perfil; abrir já vibra no botão
             }
