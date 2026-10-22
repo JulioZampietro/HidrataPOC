@@ -26,6 +26,8 @@ struct HomeView: View {
     @State private var showSiriTutorial = false
     @State private var showActionButtonTutorial = false
     @State private var showTodayLogs = false
+    @State private var showSaveFailedAlert = false
+    @State private var pendingRetry: (preset: Constants.IntakePreset, cardID: String)?
     @State private var tempContext: TemperatureAdjustmentContext?
     /// Minijogo da meta batida: o aquário (`WaterHeaderView`) desenha, aqui ficam os botões.
     @Environment(MiniGameController.self) private var miniGames
@@ -145,6 +147,18 @@ struct HomeView: View {
                 profile: profile,
                 calendar: .current
             )
+        }
+        // M-2: ModelContext.saveLogging já loga a falha; sem isso, o toque só some da
+        // tela no próximo lançamento do app, sem explicação (ver CORRECOES.md).
+        .alert("Não foi possível registrar", isPresented: $showSaveFailedAlert) {
+            Button("Tentar de novo") {
+                if let pendingRetry {
+                    logIntake(pendingRetry.preset, cardID: pendingRetry.cardID)
+                }
+            }
+            Button("Cancelar", role: .cancel) { pendingRetry = nil }
+        } message: {
+            Text("O registro de água não foi salvo. Verifique o espaço de armazenamento do aparelho e tente de novo.")
         }
         .syncedFetch($allLogs, context: modelContext) {
             let userID = profile.userID
@@ -472,8 +486,13 @@ struct HomeView: View {
             withAnimation(.easeInOut(duration: 0.2)) { highlightedCard = nil }
         }
         Task {
-            await NotificationScheduler.shared.recordManualIntake(preset: preset, userID: profile.userID, context: modelContext)
+            let saved = await NotificationScheduler.shared.recordManualIntake(preset: preset, userID: profile.userID, context: modelContext)
             isLogging = false
+            if !saved {
+                pendingRetry = (preset, cardID)
+                Haptic.warning.play()
+                showSaveFailedAlert = true
+            }
         }
     }
 

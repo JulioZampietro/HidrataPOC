@@ -44,7 +44,7 @@ struct IntakeOriginTests {
         await IntakeLogService.record(
             preset: preset, userID: userID, source: "app", weather: nil,
             context: context, waitForColdStartActivity: false
-        )
+        ).log
     }
 
     @Test func semLembreteRecenteOGoleEhManual() async {

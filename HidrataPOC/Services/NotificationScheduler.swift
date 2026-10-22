@@ -755,14 +755,19 @@ final class NotificationScheduler {
     /// counts as `"notificacao"` (even though the tester used the app, not a
     /// notification action) — this is what lets a future model tell "the notification
     /// caused this drink" apart from "the user would have drunk water anyway."
-    func recordManualIntake(preset: Constants.IntakePreset, userID: String, context: ModelContext) async {
+    /// Returns whether the log actually reached disk, so the Home screen can tell the
+    /// tester when a tap didn't save (see `ModelContextSaving.saveLogging` — without
+    /// this, a failed write was invisible: the UI already shows the in-memory log, but
+    /// it vanishes on next launch with no explanation).
+    @discardableResult
+    func recordManualIntake(preset: Constants.IntakePreset, userID: String, context: ModelContext) async -> Bool {
         // Called from the Home screen's always-visible buttons, i.e. while the app is
         // already running in the foreground — there's no widget-extension cold-start
         // race to ride out here, so skip `endLiveActivity`'s retry wait, and defer the
         // CloudKit sync inside `record` to the background (otherwise every tap pays
         // up to 1s of artificial delay plus a full network round trip on the common
         // case of no Live Activity running).
-        await IntakeLogService.record(
+        let result = await IntakeLogService.record(
             preset: preset,
             userID: userID,
             source: "app",
@@ -779,6 +784,7 @@ final class NotificationScheduler {
         Task {
             await refreshPendingMascotIfNeeded()
         }
+        return result.saved
     }
 
     /// Removes an `IntakeLog` the tester logged by mistake. If it was linked to a
