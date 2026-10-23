@@ -6,7 +6,7 @@ import UIKit
 struct ActionButtonTutorialView: View {
     var body: some View {
         TankSheet {
-            VStack(spacing: 20) {
+            VStack(spacing: 14) {
                 ActionButtonStepsContent(showsMascotLine: false).header(showsSubtitle: false)
                 ActionButtonSetupVideoView()
                     .padding(.horizontal, 90)
@@ -15,16 +15,23 @@ struct ActionButtonTutorialView: View {
                 openSettingsButton
                     .padding(.horizontal, 90)
             }
-            .padding(.bottom, 40)
+            .padding(.bottom, 16)
         }
     }
 
     private var subtitle: some View {
-        Text(ActionButtonStepsContent.subtitle)
-            .font(AppFont.subheadline)
-            .foregroundStyle(Color.appSecondary)
-            .multilineTextAlignment(.center)
-            .fixedSize(horizontal: false, vertical: true)
+        VStack(spacing: 6) {
+            Text(ActionButtonStepsContent.subtitle)
+                .font(AppFont.subheadline)
+                .foregroundStyle(Color.appSecondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+            Text("Acesse Ajustes > Botão de ação > Controle > Escolha um Controle > Pesquise Gole > Adicione uma ação")
+                .font(AppFont.footnoteStrong)
+                .foregroundStyle(Color.appSecondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     private var openSettingsButton: some View {
@@ -56,13 +63,11 @@ struct ActionButtonTutorialView: View {
 
 /// Gravação de tela mostrando o passo a passo no Ajustes, no lugar do texto —
 /// sem os controles nativos do player (barra de progresso, fundo preto): só a
-/// imagem do vídeo, direto sobre o fundo da sheet. Ao terminar, mostra um botão
-/// de replay por cima, como as telas de preview da própria Apple.
+/// imagem do vídeo, direto sobre o fundo da sheet, em loop contínuo.
 struct ActionButtonSetupVideoView: View {
     /// Proporção real da gravação (880×1812) — evita barras pretas de letterbox.
     private static let aspectRatio: CGFloat = 880.0 / 1812.0
 
-    @State private var didFinish = false
     private let player: AVPlayer
 
     init() {
@@ -82,40 +87,15 @@ struct ActionButtonSetupVideoView: View {
 
     var body: some View {
         GeometryReader { geo in
-            ZStack {
-                PlayerLayerView(player: player)
-                    .clipShape(RoundedRectangle(cornerRadius: geo.size.width * Self.cornerRadiusFraction, style: .continuous))
-
-                if didFinish {
-                    replayButton
-                }
-            }
+            PlayerLayerView(player: player)
+                .clipShape(RoundedRectangle(cornerRadius: geo.size.width * Self.cornerRadiusFraction, style: .continuous))
         }
         .aspectRatio(Self.aspectRatio, contentMode: .fit)
         .onAppear { player.play() }
         .onDisappear { player.pause() }
         .onReceive(NotificationCenter.default.publisher(for: .AVPlayerItemDidPlayToEndTime, object: player.currentItem)) { _ in
-            didFinish = true
+            player.seek(to: .zero, toleranceBefore: .zero, toleranceAfter: .zero) { _ in player.play() }
         }
-    }
-
-    private var replayButton: some View {
-        Button(action: replay) {
-            Image(systemName: "arrow.clockwise")
-                .font(.system(size: 22, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(width: 56, height: 56)
-                .background(.black.opacity(0.45), in: Circle())
-        }
-        .accessibilityLabel("Reproduzir de novo")
-        .transition(.opacity)
-    }
-
-    private func replay() {
-        Haptic.tap.play()
-        player.seek(to: .zero)
-        player.play()
-        withAnimation(.easeOut(duration: 0.2)) { didFinish = false }
     }
 }
 
