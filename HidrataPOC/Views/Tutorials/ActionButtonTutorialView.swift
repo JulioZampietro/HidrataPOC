@@ -36,7 +36,7 @@ struct ActionButtonTutorialView: View {
 
     private var openSettingsButton: some View {
         Button(action: openActionButtonSettings) {
-            Text("Abrir Ajustes")
+            Text("Abrir ajustes")
                 .font(AppFont.calloutStrong)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 10)
@@ -95,6 +95,12 @@ struct ActionButtonSetupVideoView: View {
         .onDisappear { player.pause() }
         .onReceive(NotificationCenter.default.publisher(for: .AVPlayerItemDidPlayToEndTime, object: player.currentItem)) { _ in
             player.seek(to: .zero, toleranceBefore: .zero, toleranceAfter: .zero) { _ in player.play() }
+        }
+        // O app backgroundeia ao abrir o Ajustes (botão abaixo); sem app de vídeo em
+        // background, o sistema pausa o player sozinho, e ele não volta a tocar
+        // sozinho quando o usuário retorna — precisa pedir de novo explicitamente.
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+            player.play()
         }
     }
 }

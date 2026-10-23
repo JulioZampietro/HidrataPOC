@@ -53,7 +53,7 @@ struct TankHeader: View {
             // sangrar até o topo real do sheet — então o texto precisa do próprio
             // respiro, calculado (status bar/notch + a altura fixa da toolbar em modo
             // inline, 44pt), pra não ficar embaixo do "X" nativo que mora na toolbar.
-            .padding(.top, currentTopSafeAreaInset + 44 - 6)
+            .padding(.top, currentTopSafeAreaInset)
             .padding(.bottom, 44)
             .background(LinearGradient.waterHeader)
             .clipShape(WaveShape())
@@ -67,7 +67,7 @@ struct TankHeader: View {
         // escapa do padding do header — fica sempre dentro do gradiente, nunca
         // espiando por baixo da onda.
         HStack(alignment: .center, spacing: 12) {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(title)
                     .font(AppFont.displayHero)
                     .foregroundStyle(.white)
