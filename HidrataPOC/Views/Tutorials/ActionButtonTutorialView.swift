@@ -63,16 +63,25 @@ struct ActionButtonSetupVideoView: View {
         }
     }
 
-    var body: some View {
-        ZStack {
-            PlayerLayerView(player: player)
-                .aspectRatio(Self.aspectRatio, contentMode: .fit)
-                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+    /// A gravação em si já é um mockup de iPhone fotorrealista sobre fundo preto —
+    /// as "pontas pretas" são o fundo vazando nos cantos onde o aparelho (que tem
+    /// cantos bem arredondados) não alcança o retângulo do vídeo. Um raio pequeno
+    /// não dava conta disso, então o raio aqui acompanha o tamanho real renderizado
+    /// (~22% da largura) pra cortar fora o fundo preto inteiro, não só "arredondar".
+    private static let cornerRadiusFraction: CGFloat = 0.22
 
-            if didFinish {
-                replayButton
+    var body: some View {
+        GeometryReader { geo in
+            ZStack {
+                PlayerLayerView(player: player)
+                    .clipShape(RoundedRectangle(cornerRadius: geo.size.width * Self.cornerRadiusFraction, style: .continuous))
+
+                if didFinish {
+                    replayButton
+                }
             }
         }
+        .aspectRatio(Self.aspectRatio, contentMode: .fit)
         .onAppear { player.play() }
         .onDisappear { player.pause() }
         .onReceive(NotificationCenter.default.publisher(for: .AVPlayerItemDidPlayToEndTime, object: player.currentItem)) { _ in
