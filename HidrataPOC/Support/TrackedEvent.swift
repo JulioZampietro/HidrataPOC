@@ -21,4 +21,5 @@ enum TrackedSheet: String {
     case shareProgress = "share_progress"
     case myData = "my_data"
     case reminders = "reminders"
+    case soundSettings = "sound_settings"
 }

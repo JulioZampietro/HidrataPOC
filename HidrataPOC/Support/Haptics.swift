@@ -38,6 +38,7 @@ enum Haptic {
     case bubbles(cover: Double, total: Double)
 
     func play() {
+        guard FeedbackSettings.hapticsEnabled else { return }
         HapticPlayer.shared.play(self)
     }
 

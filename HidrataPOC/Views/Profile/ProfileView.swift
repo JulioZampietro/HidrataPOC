@@ -22,6 +22,7 @@ struct ProfileView: View {
     @State private var showSiriTutorial = false
     @State private var showHealthConnect = false
     @State private var showMyData = false
+    @State private var showSoundSettings = false
 
     private var calculatedGoalML: Int {
         UserProfile.suggestedGoalML(gender: Genero(stored: profile.genero)?.gender, idade: profile.idade, pesoKg: profile.pesoKg, alturaCm: profile.alturaCm)
@@ -77,6 +78,7 @@ struct ProfileView: View {
                 liveActivitiesRow
                 siriRow
                 healthRow
+                soundSettingsRow
                 myDataRow
                 #if DEBUG
                 debugNotificationRow
@@ -334,6 +336,38 @@ struct ProfileView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+    }
+
+    // MARK: - Sons e vibração
+
+    private var soundSettingsRow: some View {
+        Button {
+            Haptic.tap.play()
+            showSoundSettings = true
+        } label: {
+            HStack {
+                Text("Sons e vibração")
+                    .font(AppFont.calloutStrong)
+                    .foregroundStyle(.primary)
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(.subheadline, weight: .semibold))
+                    .foregroundStyle(Color.appChevron)
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 16)
+            .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color(UIColor.secondarySystemBackground))
+                .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .sheet(isPresented: $showSoundSettings) {
+            SoundSettingsView()
+                .trackSheetLifecycle(.soundSettings, screen: .profile, userID: profile.userID)
+        }
     }
 
     // MARK: - Meus dados
@@ -669,6 +703,63 @@ private struct GoalExplainerView: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 22)
         .panelBackground()
+    }
+}
+
+// MARK: - Sound Settings Sheet
+
+/// Liga/desliga a vibração e os efeitos sonoros do app inteiro — as chaves são lidas
+/// pelo `Haptic` e pelos sons (ver `FeedbackSettings`).
+private struct SoundSettingsView: View {
+    @AppStorage(FeedbackSettings.hapticsEnabledKey) private var hapticsEnabled = true
+    @AppStorage(FeedbackSettings.soundEffectsEnabledKey) private var soundEffectsEnabled = true
+
+    var body: some View {
+        TankSheet {
+            VStack(spacing: 20) {
+                CurrentMascotTankHeader(
+                    title: "Sons e vibração",
+                    subtitle: "Escolha se o app pode vibrar e tocar sons enquanto você usa."
+                )
+
+                VStack(spacing: 0) {
+                    toggleRow(
+                        "Vibração",
+                        detail: "Toques sentidos nos botões, ao registrar água e nos minijogos.",
+                        isOn: $hapticsEnabled
+                    )
+                    Divider().padding(.leading, 18)
+                    toggleRow(
+                        "Efeitos sonoros",
+                        detail: "Som da água ao registrar um gole e sons dos minijogos.",
+                        isOn: $soundEffectsEnabled
+                    )
+                }
+                .panelBackground()
+                .padding(.horizontal, 20)
+            }
+            .padding(.bottom, 40)
+        }
+        // Só vibra se a vibração ficou ligada — desligá-la não "avisa" vibrando.
+        .onChange(of: hapticsEnabled) { Haptic.selection.play() }
+        .onChange(of: soundEffectsEnabled) { Haptic.selection.play() }
+    }
+
+    private func toggleRow(_ title: String, detail: String, isOn: Binding<Bool>) -> some View {
+        Toggle(isOn: isOn) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(AppFont.calloutStrong)
+                    .foregroundStyle(.primary)
+                Text(detail)
+                    .font(AppFont.footnote)
+                    .foregroundStyle(Color.appSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .tint(Color.appAccent)
+        .padding(.horizontal, 18)
+        .padding(.vertical, 14)
     }
 }
 

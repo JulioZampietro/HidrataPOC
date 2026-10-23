@@ -142,7 +142,8 @@ final class FlappyGameSimulation {
         Haptic.tap.play()
     }
 
-    /// Volta pra tela de espera: gota no meio, sem colunas.
+    /// Volta pra tela de espera: gota no meio e a primeira coluna já na tela, encostada na
+    /// borda direita, com o vão na altura da gota (pra ninguém começar de cara num vão difícil).
     private func reset() {
         needsReset = false
         phase = .ready
@@ -151,7 +152,7 @@ final class FlappyGameSimulation {
         velocity = 0
         idleTime = 0
         gameOverTimer = 0
-        columns.removeAll()
+        columns = [makeColumn(at: Float(size.width) - FlappyGameTuning.columnWidth, gapCenter: dropY)]
         bubbles.removeAll()
         droplets.removeAll()
     }
@@ -238,13 +239,15 @@ final class FlappyGameSimulation {
         }
     }
 
-    private func makeColumn(at x: Float) -> Column {
+    /// Coluna nova em `x`, com o vão sorteado (ou centrado em `gapCenter`, preso nas margens).
+    private func makeColumn(at x: Float, gapCenter: Float? = nil) -> Column {
         let height = Float(size.height)
         let fraction = FlappyGameTuning.gapFraction + (FlappyGameTuning.minGapFraction - FlappyGameTuning.gapFraction) * difficulty
         let gap = max(FlappyGameTuning.minGap, height * fraction)
         let low = FlappyGameTuning.gapTopMargin + gap / 2
         let high = max(low, height - FlappyGameTuning.gapBottomMargin - gap / 2)
-        return Column(x: x, gapCenter: Float.random(in: low...high), gap: gap)
+        let center = gapCenter.map { min(max($0, low), high) } ?? Float.random(in: low...high)
+        return Column(x: x, gapCenter: center, gap: gap)
     }
 
     private func checkCollisions() {

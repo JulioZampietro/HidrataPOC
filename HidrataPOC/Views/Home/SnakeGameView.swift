@@ -20,6 +20,7 @@ struct SnakeGameView: View {
                 let snapshot = simulation.snapshot()
                 let time = context.date.timeIntervalSinceReferenceDate
                 Canvas { ctx, size in
+                    MiniGameBackdrop.draw(time: time, size: size, in: &ctx)
                     Self.draw(snapshot, time: time, size: size, in: &ctx)
                 }
             }
