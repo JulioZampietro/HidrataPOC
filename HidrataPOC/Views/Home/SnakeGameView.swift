@@ -25,6 +25,7 @@ struct SnakeGameView: View {
             }
         }
         .contentShape(Rectangle())
+        .onTapGesture { simulation.begin() }
         .gesture(
             DragGesture(minimumDistance: 8)
                 .onChanged { value in
@@ -155,9 +156,8 @@ struct SnakeGameView: View {
             at: CGPoint(x: size.width / 2, y: 26)
         )
         let message: String? = switch snapshot.phase {
-        case .ready: "Deslize pra começar"
         case .dying: "Splash!"
-        case .playing: nil
+        case .ready, .playing: nil
         }
         if let message {
             textCtx.draw(
@@ -166,6 +166,9 @@ struct SnakeGameView: View {
                     .foregroundStyle(.white),
                 at: CGPoint(x: size.width / 2, y: snapshot.board.midY - snapshot.tile * 2)
             )
+        }
+        if snapshot.phase == .ready {
+            GameStartPrompt.draw(hint: "Deslize pra virar a cobrinha", centerY: snapshot.board.midY - snapshot.tile * 2, size: size, in: &ctx)
         }
     }
 }

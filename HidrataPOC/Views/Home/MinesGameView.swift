@@ -155,10 +155,9 @@ struct MinesGameView: View {
             at: CGPoint(x: size.width / 2, y: 49)
         )
         let message: String? = switch snapshot.phase {
-        case .ready: "Toque pra começar"
         case .won: "Campo limpo!"
         case .dying: "Achou uma pedra!"
-        case .playing: nil
+        case .ready, .playing: nil
         }
         if let message {
             let label = Text(message)
@@ -168,6 +167,9 @@ struct MinesGameView: View {
             let pill = CGRect(x: center.x - 110, y: center.y - 22, width: 220, height: 44)
             ctx.fill(Path(roundedRect: pill, cornerRadius: 22), with: .color(Color(red: 0.05, green: 0.25, blue: 0.6).opacity(0.55)))
             textCtx.draw(label, at: center)
+        }
+        if snapshot.phase == .ready {
+            GameStartPrompt.draw(hint: "Toque abre a casa, segure marca a pedra", centerY: snapshot.board.midY, size: size, in: &ctx)
         }
     }
 }

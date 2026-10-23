@@ -125,6 +125,12 @@ final class SnakeGameSimulation {
         lastFrame = nil
     }
 
+    /// Toque na tela de espera: começa a partida (a cobrinha segue reto até o primeiro deslize).
+    func begin() {
+        guard isRunning, !needsReset, phase == .ready else { return }
+        phase = .playing
+    }
+
     /// Direção escolhida (deslize no aquário); `alternate` é a outra metade de uma
     /// diagonal. Vale a que for curva em relação à última direção (seguir reto já é o padrão, e
     /// dar meia-volta mataria a cobrinha). Na tela de espera, também começa a partida.

@@ -72,6 +72,8 @@ struct JumpGameSnapshot: Sendable {
     let bubbles: [Bubble]
     let score: Int
     let isGameOver: Bool
+    /// Esperando o primeiro toque: a gota está parada em cima da primeira pedra.
+    let isReady: Bool
 }
 
 /// Doodle Jump dentro do aquário: uma gota quica sozinha de pedra em pedra, e o joystick
@@ -102,6 +104,8 @@ final class JumpGameSimulation {
     private(set) var isRunning = false
     /// Pontos da partida atual (altura máxima subida).
     private(set) var score = 0
+    /// Antes do primeiro toque (na água ou no joystick) a gota fica parada na primeira pedra.
+    private(set) var isReady = true
     /// Chamado quando a gota cai — com os pontos da partida que acabou.
     var onGameOver: ((Int) -> Void)?
 
@@ -133,6 +137,7 @@ final class JumpGameSimulation {
         guard !isRunning else { return }
         isRunning = true
         needsReset = true
+        isReady = true
         lastFrame = nil
     }
 
@@ -146,13 +151,20 @@ final class JumpGameSimulation {
         lastFrame = nil
     }
 
+    /// Toque na tela de espera: a gota começa a quicar.
+    func begin() {
+        isReady = false
+    }
+
     /// Inclinação horizontal do joystick (−1…1); 0 ao soltar.
     func setJoystick(_ value: Float) {
+        if value != 0 { begin() }
         joystick = max(-1, min(1, value))
     }
 
     /// Empurrão curto pra um lado, pras ações do VoiceOver no joystick.
     func pulseDirection(_ side: JumpGameSide) {
+        begin()
         pulse[side.rawValue] = 0.25
     }
 
@@ -160,6 +172,7 @@ final class JumpGameSimulation {
     private func reset() {
         let width = Float(size.width), height = Float(size.height)
         needsReset = false
+        isReady = true
         cameraY = 0
         score = 0
         gameOverTimer = 0
@@ -186,6 +199,7 @@ final class JumpGameSimulation {
         let dt = Float(min(date.timeIntervalSince(last), 1.0 / 20.0))
         guard dt > 1e-4 else { return }
         lastFrame = date
+        guard !isReady else { return }
 
         for i in pulse.indices { pulse[i] = max(0, pulse[i] - dt) }
         updateBubbles(dt: dt)
@@ -383,7 +397,8 @@ final class JumpGameSimulation {
                                         radius: CGFloat($0.radius), alpha: CGFloat($0.life / $0.lifetime) * 0.7)
             },
             score: score,
-            isGameOver: gameOverTimer > 0
+            isGameOver: gameOverTimer > 0,
+            isReady: isReady
         )
     }
 }

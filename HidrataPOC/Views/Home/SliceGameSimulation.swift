@@ -182,16 +182,20 @@ final class SliceGameSimulation {
     }
 
     /// Dedo arrastando na água (coordenadas do jogo): corta o que o trecho desde o último ponto
-    /// atravessar. Na tela de espera, o primeiro deslize começa a partida.
+    /// atravessar. Na tela de espera, o primeiro toque começa a partida.
     func swipe(to point: CGPoint) {
         guard isRunning, !needsReset else { return }
         defer { lastTouch = point }
         trail.append(TrailPoint(position: point, age: 0))
+        // Na tela de espera o toque (sem precisar deslizar) já começa a partida.
+        if phase == .ready {
+            phase = .playing
+            waveTimer = SliceGameTuning.firstWaveDelay
+        }
         guard let last = lastTouch, hypot(point.x - last.x, point.y - last.y) >= SliceGameTuning.minSwipeSegment else { return }
         switch phase {
         case .ready:
-            phase = .playing
-            waveTimer = SliceGameTuning.firstWaveDelay
+            break
         case .playing:
             cut(from: SIMD2(Float(last.x), Float(last.y)), to: SIMD2(Float(point.x), Float(point.y)))
         case .gameOver:

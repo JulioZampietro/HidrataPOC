@@ -131,9 +131,13 @@ final class MinesGameSimulation {
     /// Toque numa casa (`point` no espaço do aquário). `longPress` inverte o modo: segurar marca
     /// quando o toque abre, e abre quando o toque marca.
     func tap(at point: CGPoint, longPress: Bool) {
-        guard isRunning, !needsReset, phase == .ready || phase == .playing,
-              let index = cellIndex(at: point) else { return }
-        if phase == .ready { phase = .playing }
+        guard isRunning, !needsReset, phase == .ready || phase == .playing else { return }
+        // O primeiro toque (em qualquer lugar) só tira o aviso de início; a jogada vem no seguinte.
+        if phase == .ready {
+            phase = .playing
+            return
+        }
+        guard let index = cellIndex(at: point) else { return }
         if flagMode != longPress {
             toggleFlag(index)
         } else {

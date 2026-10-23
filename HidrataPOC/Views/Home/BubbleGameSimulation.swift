@@ -5,7 +5,9 @@ import SwiftUI
 enum BubbleGameTuning {
     // Grade de pedrinhas (colmeia: linhas alternadas deslocadas meia pedrinha)
     static let colorCount = 4
-    static let minMatch = 4                      // a pedrinha atirada + pelo menos outras 3 da mesma cor
+    /// Pedrinhas da mesma cor juntas (contando a atirada) pra estourar, por fase: limpar a grade
+    /// inteira passa pra próxima; a última fase se repete. Perder volta pra primeira.
+    static let minMatchByLevel = [3, 4, 5]
     static let targetDiameter: Float = 34        // pt — o diâmetro real se ajusta pra fechar colunas inteiras
     static let minColumns = 8
     static let maxColumns = 12
@@ -27,13 +29,14 @@ enum BubbleGameTuning {
     static let touchAimGuideLength: Float = 600  // pt de linha de mira enquanto o dedo mira
 
     // Ritmo
-    static let missesBeforeNewRow = 5            // tiros sem estourar nada até descer uma linha nova
+    static let missesBeforeNewRow = 7            // tiros sem estourar nada até descer uma linha nova
     static let rowSlideSpeed: Float = 7          // 1/s — quão rápido a linha nova desliza pra baixo
     static let pointsPerPop = 10
     static let pointsPerDrop = 20                // pedrinhas que ficaram soltas e caíram valem mais
     static let clearBonus = 500
     static let gameOverPause: Float = 1.6        // s mostrando "fim de jogo" antes de recomeçar
     static let popWaterPush: Float = 5           // agito na superfície a cada estouro
+    static let confettiCount = 150               // pedacinhos de confete ao limpar a última fase
 
     /// Cores das pedrinhas (índice = `colorIndex`). Sem azul, que some na água.
     static let colors: [Color] = [
@@ -48,6 +51,17 @@ enum BubbleGameTuning {
 /// Para que lado o canhão está girando com os botões.
 enum BubbleGameSide: Int, CaseIterable {
     case left, right
+}
+
+/// Pedacinho de confete da comemoração da última fase.
+struct Confetto: Sendable {
+    let position: CGPoint
+    let size: CGSize
+    let angle: CGFloat
+    /// 0…1: achata o pedacinho enquanto ele gira de lado.
+    let flip: CGFloat
+    let colorIndex: Int
+    let alpha: CGFloat
 }
 
 /// Foto imutável da simulação num frame — o `Canvas` desenha a partir dela.
@@ -81,14 +95,22 @@ struct BubbleGameSnapshot: Sendable {
     let dangerLevel: CGFloat        // 0…1: quão perto a pedrinha mais baixa está da linha de perigo
     let shotsUntilNewRow: Int
     let score: Int
+    /// Fase atual, a partir de 1, e quantas pedrinhas juntas estouram nela.
+    let level: Int
+    let minMatch: Int
+    /// Esperando o primeiro toque da fase: a tela mostra "Fase N" e a mira fica parada.
+    let isReady: Bool
+    /// Limpou a última fase: mostra o "Parabéns!" e o confete até o toque que recomeça.
+    let isCelebrating: Bool
+    let confetti: [Confetto]
     let isGameOver: Bool
 }
 
 /// Bubble Shooter dentro do aquário, com pedrinhas coloridas no lugar das bolhas: elas ficam
 /// presas no topo e um canhão no fundo atira uma por vez. Pra mirar, o dedo arrasta no aquário
 /// (o canhão aponta pro dedo) e, ao soltar, atira; os botões da Home também giram e atiram. A
-/// pedrinha atirada quica nas paredes e gruda na primeira que encostar; juntando `minMatch` da
-/// mesma cor, elas estouram, e as que ficarem soltas do teto caem. A cada `missesBeforeNewRow`
+/// pedrinha atirada quica nas paredes e gruda na primeira que encostar; juntando `minMatch` (3, 4 e 5 pedrinhas
+/// nas fases 1, 2 e 3) da mesma cor, elas estouram, e as que ficarem soltas do teto caem. A cada `missesBeforeNewRow`
 /// tiros sem estourar nada desce uma linha nova; se alguma passar da linha de perigo é fim de
 /// jogo, e outra partida começa logo depois. Física própria em Swift, no mesmo molde de
 /// `JumpGameSimulation`.
@@ -123,6 +145,18 @@ final class BubbleGameSimulation {
         var life: Float
         let lifetime: Float
         let isPopping: Bool
+    }
+
+    private struct Confetti {
+        var position: SIMD2<Float>
+        var velocity: SIMD2<Float>
+        var angle: Float
+        var spin: Float
+        var flipPhase: Float
+        let size: SIMD2<Float>
+        let colorIndex: Int
+        var life: Float
+        let lifetime: Float
     }
 
     private struct Spark {
@@ -164,10 +198,20 @@ final class BubbleGameSimulation {
     private var shot: Shot?
     private var fireCooldown: Float = 0
     private var misses = 0
+    /// Fase atual a partir de 0 (índice de `BubbleGameTuning.minMatchByLevel`).
+    private var levelIndex = 0
+    private var minMatch: Int { BubbleGameTuning.minMatchByLevel[levelIndex] }
+    /// Antes do primeiro toque de cada fase: mostra "Fase N" e o toque que sai dela não atira.
+    private var isReady = true
+    /// O toque que está no aquário começou na tela de espera e só serve pra sair dela.
+    private var ignoresTouch = false
+    /// Última fase limpa: "Parabéns!" fica na tela até o toque que recomeça pela fase 1.
+    private var isVictory = false
 
     // Efeitos
     private var loose: [Loose] = []
     private var sparks: [Spark] = []
+    private var confetti: [Confetti] = []
 
     private var gameOverTimer: Float = 0
     private var needsReset = true
@@ -191,6 +235,8 @@ final class BubbleGameSimulation {
         grid.removeAll()
         loose.removeAll()
         sparks.removeAll()
+        confetti.removeAll()
+        isVictory = false
         shot = nil
         held = [Bool](repeating: false, count: BubbleGameSide.allCases.count)
         isTouchAiming = false
@@ -201,12 +247,14 @@ final class BubbleGameSimulation {
     // MARK: Controles
 
     func setAim(_ side: BubbleGameSide, held isHeld: Bool) {
+        if isHeld { beginIfReady() }
         held[side.rawValue] = isHeld
         if !held.contains(true) { holdTime = 0 }
     }
 
     /// Gira um pouquinho, pra quem aciona o botão sem segurar (VoiceOver, toque rápido).
     func pulseAim(_ side: BubbleGameSide) {
+        beginIfReady()
         aim += (side == .left ? -1 : 1) * BubbleGameTuning.aimPulseStep
         aim = clampedAim(aim)
     }
@@ -215,6 +263,11 @@ final class BubbleGameSimulation {
     /// Com o dedo abaixo do canhão, a mira fica no limite do lado em que ele está.
     func touchAim(at location: CGPoint) {
         guard isRunning, !needsReset else { return }
+        if isReady {
+            beginIfReady()
+            ignoresTouch = true
+        }
+        guard !ignoresTouch else { return }
         if !isTouchAiming { Haptic.selection.play() }
         isTouchAiming = true
         let dx = Float(location.x) - shooter.x
@@ -224,6 +277,10 @@ final class BubbleGameSimulation {
 
     /// Dedo solto: atira na última direção mirada. Soltar abaixo do canhão cancela o tiro.
     func touchRelease(at location: CGPoint) {
+        if ignoresTouch {
+            ignoresTouch = false
+            return
+        }
         guard isTouchAiming else { return }
         touchAim(at: location)
         isTouchAiming = false
@@ -233,10 +290,23 @@ final class BubbleGameSimulation {
     /// Atira a pedrinha do canhão, se não houver outra no ar.
     func fire() {
         guard isRunning, !needsReset, shot == nil, fireCooldown <= 0, gameOverTimer <= 0 else { return }
+        // O primeiro toque da fase só tira o "Fase N" da tela.
+        if isReady {
+            beginIfReady()
+            return
+        }
         shot = Shot(position: shooter, direction: SIMD2(sin(aim), -cos(aim)), stone: loaded)
         loaded = next
         next = randomStone()
         fireCooldown = BubbleGameTuning.fireCooldown
+        Haptic.tap.play()
+    }
+
+    /// Tira o "Fase N" (ou o "Parabéns!") da tela e libera o jogo.
+    private func beginIfReady() {
+        guard isReady else { return }
+        isReady = false
+        isVictory = false
         Haptic.tap.play()
     }
 
@@ -264,6 +334,11 @@ final class BubbleGameSimulation {
 
         score = 0
         misses = 0
+        levelIndex = 0
+        isReady = true
+        ignoresTouch = false
+        isVictory = false
+        confetti.removeAll()
         rowParity = 0
         aim = 0
         shot = nil
@@ -313,6 +388,7 @@ final class BubbleGameSimulation {
         if slide < 0.3 { slide = 0 }
         updateLoose(dt: dt)
         updateSparks(dt: dt)
+        updateConfetti(dt: dt)
 
         if gameOverTimer > 0 {
             gameOverTimer -= dt
@@ -325,6 +401,7 @@ final class BubbleGameSimulation {
     }
 
     private func updateAim(dt: Float) {
+        guard !isReady else { holdTime = 0; return }
         var direction: Float = 0
         if held[BubbleGameSide.left.rawValue] { direction -= 1 }
         if held[BubbleGameSide.right.rawValue] { direction += 1 }
@@ -392,7 +469,7 @@ final class BubbleGameSimulation {
 
         let colorIndex = shot.stone.colorIndex
         let group = connected(from: cell) { grid[$0]?.colorIndex == colorIndex }
-        if group.count >= BubbleGameTuning.minMatch {
+        if group.count >= minMatch {
             for member in group {
                 if let stone = grid.removeValue(forKey: member) { pop(at: center(of: member), stone: stone) }
             }
@@ -414,7 +491,16 @@ final class BubbleGameSimulation {
         if grid.isEmpty {
             score += BubbleGameTuning.clearBonus
             misses = 0
+            let finishedLastLevel = levelIndex == BubbleGameTuning.minMatchByLevel.count - 1
+            levelIndex = finishedLastLevel ? 0 : levelIndex + 1
+            isReady = true
+            isTouchAiming = false
             fillInitialRows()
+            if finishedLastLevel {
+                isVictory = true
+                celebrateVictory()
+                water.disturb(atU: 0.5, strength: BubbleGameTuning.popWaterPush * 3)
+            }
             Haptic.celebrate.play()
         }
         refreshCannonColors()
@@ -551,6 +637,45 @@ final class BubbleGameSimulation {
         loose.removeAll { $0.life <= 0 || $0.position.y > floor }
     }
 
+    /// Última fase limpa: confete sai dos dois cantos de baixo e cai do alto da tela.
+    private func celebrateVictory() {
+        let width = Float(size.width), height = Float(size.height)
+        for i in 0..<BubbleGameTuning.confettiCount {
+            let fromCorner = i % 3 != 0
+            let position: SIMD2<Float>
+            let velocity: SIMD2<Float>
+            if fromCorner {
+                let left = i % 2 == 0
+                position = SIMD2(left ? 0 : width, height * 0.85)
+                velocity = SIMD2((left ? 1 : -1) * Float.random(in: 120...420), -Float.random(in: 450...950))
+            } else {
+                position = SIMD2(Float.random(in: 0...width), -Float.random(in: 10...height * 0.3))
+                velocity = SIMD2(Float.random(in: -60...60), Float.random(in: 40...200))
+            }
+            let lifetime = Float.random(in: 2.6...4)
+            confetti.append(Confetti(
+                position: position, velocity: velocity,
+                angle: Float.random(in: 0...(2 * .pi)), spin: Float.random(in: -8...8),
+                flipPhase: Float.random(in: 0...(2 * .pi)),
+                size: SIMD2(Float.random(in: 6...10), Float.random(in: 10...16)),
+                colorIndex: Int.random(in: 0..<BubbleGameTuning.colors.count),
+                life: lifetime, lifetime: lifetime
+            ))
+        }
+    }
+
+    private func updateConfetti(dt: Float) {
+        for i in confetti.indices {
+            confetti[i].life -= dt
+            confetti[i].velocity.y += 520 * dt
+            confetti[i].velocity *= exp(-0.9 * dt) // o ar segura o confete, que cai balançando
+            confetti[i].position += confetti[i].velocity * dt
+            confetti[i].angle += confetti[i].spin * dt
+            confetti[i].flipPhase += 6 * dt
+        }
+        confetti.removeAll { $0.life <= 0 }
+    }
+
     private func updateSparks(dt: Float) {
         for i in sparks.indices {
             sparks[i].life -= dt
@@ -566,7 +691,7 @@ final class BubbleGameSimulation {
     /// Pontos da linha de mira: sai do canhão, quica nas paredes e para na primeira pedrinha
     /// (ou no teto).
     private func aimGuide() -> [CGPoint] {
-        guard shot == nil, gameOverTimer <= 0 else { return [] }
+        guard shot == nil, gameOverTimer <= 0, !isReady else { return [] }
         var position = shooter
         var direction = SIMD2(sin(aim), -cos(aim))
         var travelled: Float = 0
@@ -627,6 +752,16 @@ final class BubbleGameSimulation {
             dangerLevel: CGFloat(dangerLevel),
             shotsUntilNewRow: BubbleGameTuning.missesBeforeNewRow - misses,
             score: score,
+            level: levelIndex + 1,
+            minMatch: minMatch,
+            isReady: isReady,
+            isCelebrating: isVictory,
+            confetti: confetti.map {
+                Confetto(position: point($0.position, slides: false),
+                         size: CGSize(width: CGFloat($0.size.x), height: CGFloat($0.size.y)),
+                         angle: CGFloat($0.angle), flip: CGFloat(abs(cos($0.flipPhase))),
+                         colorIndex: $0.colorIndex, alpha: CGFloat(min(1, $0.life / 0.8)))
+            },
             isGameOver: gameOverTimer > 0
         )
     }

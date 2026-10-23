@@ -94,6 +94,8 @@ struct RingGameSnapshot: Sendable {
     let jetHeight: CGFloat
     let burstOrigin: CGPoint
     let isCelebrating: Bool
+    /// Esperando o primeiro toque: as argolas ainda não caíram.
+    let isReady: Bool
 }
 
 /// Brinquedo de argolas na água: dois botões abrem jatos que empurram as argolas
@@ -124,6 +126,8 @@ final class RingGameSimulation {
     }
 
     private(set) var isRunning = false
+    /// Antes do primeiro toque (na água ou num botão) nada se mexe: as argolas só começam a cair depois.
+    private(set) var isReady = true
     /// Chamado quando todas as argolas estão enfiadas (uma rodada completa).
     var onRoundComplete: (() -> Void)?
 
@@ -143,6 +147,7 @@ final class RingGameSimulation {
     func start() {
         guard !isRunning else { return }
         isRunning = true
+        isReady = true
         lastFrame = nil
         celebration = 0
         bubbles.removeAll()
@@ -160,7 +165,13 @@ final class RingGameSimulation {
         lastFrame = nil
     }
 
+    /// Toque na tela de espera: as argolas começam a cair.
+    func begin() {
+        isReady = false
+    }
+
     func setJet(_ side: RingGameSide, open: Bool) {
+        if open { begin() }
         // A rajada central é um estouro único ao apertar; segurar não faz mais nada.
         if side == .center {
             if open { triggerBurst() }
@@ -173,6 +184,7 @@ final class RingGameSimulation {
 
     /// Jato curto, para quem aciona o botão sem poder segurá-lo (VoiceOver, Switch Control).
     func pulseJet(_ side: RingGameSide) {
+        begin()
         if side == .center { triggerBurst(); return }
         jetPulse[side.rawValue] = RingGameTuning.jetPulseDuration
     }
@@ -227,6 +239,7 @@ final class RingGameSimulation {
         let dt = Float(min(date.timeIntervalSince(last), 1.0 / 20.0))
         guard dt > 1e-4 else { return }
         lastFrame = date
+        guard !isReady else { return }
 
         for index in Self.jetIndices { jetPulse[index] = max(0, jetPulse[index] - dt) }
         burstFlash = max(0, burstFlash - dt)
@@ -558,7 +571,8 @@ final class RingGameSimulation {
             jetsOpen: Self.jetIndices.map { RingGameSide(rawValue: $0) == .center ? burstFlash > 0 : isJetOpen($0) },
             jetHeight: CGFloat(RingGameTuning.jetReach) * size.height,
             burstOrigin: CGPoint(x: CGFloat(burstOrigin.x), y: CGFloat(burstOrigin.y)),
-            isCelebrating: celebration > 0
+            isCelebrating: celebration > 0,
+            isReady: isReady
         )
     }
 
