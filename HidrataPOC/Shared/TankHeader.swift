@@ -28,6 +28,8 @@ struct TankHeader: View {
     /// (usado nas sheets standalone; o onboarding de primeiro uso continua com a fala).
     var mascotLine: String? = nil
     var mascotName: String = "mascote2"
+    /// Meta do dia batida: no lugar do mascote entra o rim comemorando (`KidneyCheerView`).
+    var celebrates = false
     /// `false` devolve só texto + mascote, sem gradiente/onda/respiro de safe area —
     /// pra quem desenha o fundo por conta própria (o onboarding mantém um único
     /// fundo fixo atrás das páginas, pra o azul não "emendar" no meio do arrasto).
@@ -82,11 +84,17 @@ struct TankHeader: View {
                     // apontando pra ele (não pro título à esquerda).
                     MascotSpeechBubble(text: mascotLine, tailEdge: .trailing)
                 }
-                Image(mascotName)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 64, height: 64)
-                    .shadow(color: .black.opacity(0.18), radius: 6, x: 0, y: 3)
+                if celebrates {
+                    KidneyCheerView(layout: .single)
+                        .frame(width: 64, height: 64)
+                        .shadow(color: .black.opacity(0.18), radius: 6, x: 0, y: 3)
+                } else {
+                    Image(mascotName)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 64, height: 64)
+                        .shadow(color: .black.opacity(0.18), radius: 6, x: 0, y: 3)
+                }
             }
         }
     }
@@ -111,17 +119,22 @@ struct CurrentMascotTankHeader: View {
     // HealthConnectView...), o mesmo cenário de risco de ProfileView.
     @State private var allLogs: [IntakeLog] = []
 
-    private var mascotName: String {
-        guard let profile = profiles.first, profile.metaDiariaML > 0 else { return "mascote5" }
+    /// Progresso de hoje (0…1); nil sem perfil.
+    private var progress: Double? {
+        guard let profile = profiles.first, profile.metaDiariaML > 0 else { return nil }
         let todayLogs = allLogs.filter { $0.userID == profile.userID && Calendar.current.isDateInToday($0.timestamp) }
         let consumed = HydrationMath.totalML(todayLogs, on: .now)
-        let progress = min(1, Double(consumed) / Double(profile.metaDiariaML))
+        return min(1, Double(consumed) / Double(profile.metaDiariaML))
+    }
+
+    private var mascotName: String {
+        guard let progress else { return "mascote5" }
         return AppTheme.mascotImageName(for: progress) ?? "mascote1"
     }
 
     var body: some View {
         TankHeader(title: title, subtitle: subtitle, mascotLine: mascotLine, mascotName: mascotName,
-                   showsBackground: showsBackground)
+                   celebrates: (progress ?? 0) >= 1, showsBackground: showsBackground)
             .syncedFetch($allLogs, context: modelContext) {
                 let dayStart = Calendar.current.startOfDay(for: .now)
                 return FetchDescriptor<IntakeLog>(

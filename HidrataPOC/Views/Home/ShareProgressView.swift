@@ -90,9 +90,19 @@ struct ShareProgressCard: View {
         snapshot.streakDias == 1 ? "1 dia seguido" : "\(snapshot.streakDias) dias seguidos"
     }
 
-    private var mascotName: String {
-        // Na meta batida o mascote some do app, mas no cartão ele comemora.
-        AppTheme.mascotImageName(for: snapshot.progress) ?? "mascote1"
+    /// O mascote do momento ou, com a meta batida, o rim comemorando (parado no alto do pulo:
+    /// o cartão vira imagem pelo `ImageRenderer`).
+    @ViewBuilder
+    private func mascot(height: CGFloat) -> some View {
+        if let name = AppTheme.mascotImageName(for: snapshot.progress) {
+            Image(name)
+                .resizable()
+                .scaledToFit()
+                .frame(height: height)
+        } else {
+            KidneyCheerView(layout: .single, isAnimated: false)
+                .frame(width: height * 0.75, height: height)
+        }
     }
 
     var body: some View {
@@ -132,10 +142,7 @@ struct ShareProgressCard: View {
 
             Spacer(minLength: 0)
 
-            Image(mascotName)
-                .resizable()
-                .scaledToFit()
-                .frame(height: 170)
+            mascot(height: 170)
 
             Spacer(minLength: 0)
 
