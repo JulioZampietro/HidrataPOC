@@ -30,6 +30,7 @@ struct RunnerGameView: View {
             }
         }
         .contentShape(Rectangle())
+        .onTapGesture { simulation.begin() }
         .gesture(
             DragGesture(minimumDistance: 8)
                 .onChanged { value in
@@ -229,9 +230,8 @@ struct RunnerGameView: View {
             at: CGPoint(x: size.width / 2, y: 26)
         )
         let message: String? = switch snapshot.phase {
-        case .ready: "Deslize pra começar"
         case .dying: "Splash!"
-        case .playing: nil
+        case .ready, .playing: nil
         }
         if let message {
             textCtx.draw(
@@ -240,6 +240,9 @@ struct RunnerGameView: View {
                     .foregroundStyle(.white),
                 at: CGPoint(x: size.width / 2, y: size.height * 0.42)
             )
+        }
+        if snapshot.phase == .ready {
+            GameStartPrompt.draw(hint: "Deslize pra desviar, pular ou abaixar", centerY: size.height * 0.42, size: size, in: &ctx)
         }
     }
 }

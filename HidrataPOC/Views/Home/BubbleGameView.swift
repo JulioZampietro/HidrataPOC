@@ -65,6 +65,8 @@ struct BubbleGameView: View {
                 .foregroundStyle(ink.opacity(0.8)),
             at: CGPoint(x: scoreX, y: snapshot.shooter.y + 15)
         )
+        drawConfetti(snapshot, in: &ctx)
+        if snapshot.isReady && !snapshot.isGameOver { drawReadyText(snapshot, size: size, in: &ctx) }
         if snapshot.isGameOver {
             textCtx.draw(
                 Text("Splash!")
@@ -72,6 +74,32 @@ struct BubbleGameView: View {
                     .foregroundStyle(ink),
                 at: CGPoint(x: size.width / 2, y: size.height / 2)
             )
+        }
+    }
+
+    /// Aviso de início: "Fase N" antes de cada fase e "Parabéns!" depois de limpar a última.
+    private static func drawReadyText(_ snapshot: BubbleGameSnapshot, size: CGSize, in ctx: inout GraphicsContext) {
+        if snapshot.isCelebrating {
+            GameStartPrompt.draw(title: "Parabéns!", action: "Toque pra recomeçar", hint: "Você limpou as 3 fases!",
+                                 centerY: size.height * 0.62, size: size, in: &ctx)
+        } else {
+            GameStartPrompt.draw(title: "Fase \(snapshot.level)",
+                                 hint: "Junte \(snapshot.minMatch) ou mais da mesma cor",
+                                 centerY: size.height * 0.62, size: size, in: &ctx)
+        }
+    }
+
+    /// Confete da comemoração da última fase: retângulos coloridos que giram e achatam.
+    private static func drawConfetti(_ snapshot: BubbleGameSnapshot, in ctx: inout GraphicsContext) {
+        for piece in snapshot.confetti {
+            var pieceCtx = ctx
+            pieceCtx.opacity = piece.alpha
+            pieceCtx.translateBy(x: piece.position.x, y: piece.position.y)
+            pieceCtx.rotate(by: .radians(piece.angle))
+            let height = piece.size.height * max(0.15, piece.flip)
+            let rect = CGRect(x: -piece.size.width / 2, y: -height / 2, width: piece.size.width, height: height)
+            pieceCtx.fill(Path(roundedRect: rect, cornerRadius: 1.5),
+                          with: .color(BubbleGameTuning.colors[piece.colorIndex % BubbleGameTuning.colors.count]))
         }
     }
 

@@ -220,6 +220,12 @@ final class MazeGameSimulation {
         lastFrame = nil
     }
 
+    /// Toque na tela de espera: começa a partida (o rim espera o primeiro comando de direção).
+    func begin() {
+        guard isRunning, !needsReset, phase == .ready else { return }
+        phase = .playing
+    }
+
     /// Direção escolhida (deslize no aquário ou joystick); `alternate` é a outra metade de uma
     /// diagonal. Na tela de espera, também começa a partida. Dar meia-volta (na direção
     /// principal) vale na hora; virar pra um lado espera o rim chegar no meio de uma casa.

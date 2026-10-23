@@ -22,12 +22,17 @@ struct RingGameView: View {
                 // Avança a simulação uma vez por frame (mesmo padrão de `WaterFillView`).
                 let _ = simulation.advance(to: context.date, size: geo.size, down: water.down, water: water)
                 let snapshot = simulation.snapshot()
-                Canvas { ctx, _ in
+                Canvas { ctx, size in
                     Self.draw(snapshot, in: &ctx)
+                    if snapshot.isReady {
+                        GameStartPrompt.draw(hint: "Use os jatos pra enfiar as argolas nos pinos",
+                                             centerY: size.height * 0.4, size: size, in: &ctx)
+                    }
                 }
             }
         }
-        .allowsHitTesting(false)
+        .contentShape(Rectangle())
+        .onTapGesture { simulation.begin() }
         .accessibilityHidden(true)
     }
 

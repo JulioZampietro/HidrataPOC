@@ -156,9 +156,8 @@ struct SliceGameView: View {
             )
         }
         let message: String? = switch snapshot.phase {
-        case .ready: "Deslize pra cortar as pedras"
         case .gameOver: "Fim de jogo"
-        case .playing: nil
+        case .ready, .playing: nil
         }
         if let message {
             textCtx.draw(
@@ -167,6 +166,9 @@ struct SliceGameView: View {
                     .foregroundStyle(.white),
                 at: CGPoint(x: size.width / 2, y: size.height * 0.45)
             )
+        }
+        if snapshot.phase == .ready {
+            GameStartPrompt.draw(hint: "Deslize pra cortar as pedras, não o rim", centerY: size.height * 0.45, size: size, in: &ctx)
         }
     }
 }

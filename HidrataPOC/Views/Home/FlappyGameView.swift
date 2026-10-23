@@ -49,12 +49,7 @@ struct FlappyGameView: View {
         }
         switch snapshot.phase {
         case .ready:
-            textCtx.draw(
-                Text("Toque pra nadar")
-                    .font(.custom("Nunito", size: 24).weight(.black))
-                    .foregroundStyle(.white),
-                at: CGPoint(x: size.width / 2, y: size.height * 0.3)
-            )
+            GameStartPrompt.draw(hint: "Cada toque faz a gota nadar pra cima", centerY: size.height * 0.3, size: size, in: &ctx)
         case .gameOver:
             textCtx.draw(
                 Text("Splash!")

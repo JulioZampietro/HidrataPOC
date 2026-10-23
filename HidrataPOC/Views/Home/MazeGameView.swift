@@ -25,6 +25,7 @@ struct MazeGameView: View {
             }
         }
         .contentShape(Rectangle())
+        .onTapGesture { simulation.begin() }
         .gesture(
             DragGesture(minimumDistance: 8)
                 .onChanged { value in
@@ -193,10 +194,9 @@ struct MazeGameView: View {
         }
 
         let message: String? = switch snapshot.phase {
-        case .ready: snapshot.level > 1 ? "Fase \(snapshot.level)! Deslize pra começar" : "Deslize pra começar"
         case .levelClear: "Fase limpa!"
         case .gameOver: "Fim de jogo"
-        case .playing, .dying: nil
+        case .ready, .playing, .dying: nil
         }
         if let message {
             textCtx.draw(
@@ -205,6 +205,10 @@ struct MazeGameView: View {
                     .foregroundStyle(.white),
                 at: CGPoint(x: size.width / 2, y: size.height * 0.62)
             )
+        }
+        if snapshot.phase == .ready {
+            GameStartPrompt.draw(title: "Fase \(snapshot.level)", hint: "Deslize pra guiar o rim e comer as gotas",
+                                 centerY: size.height * 0.62, size: size, in: &ctx)
         }
     }
 }

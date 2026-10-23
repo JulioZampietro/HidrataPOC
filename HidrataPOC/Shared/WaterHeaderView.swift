@@ -370,7 +370,8 @@ struct WaterHeaderView: View {
             }
             .animation(.spring(response: 0.5, dampingFraction: 0.7), value: goalReached)
             // Minijogo: no conteúdo do recipiente, então passa pela mesma refração da água.
-            // Os botões ficam na Home; só as Bolhas Coloridas (mirar e atirar), a Gota Voadora
+            // Os botões ficam na Home; todos os jogos recebem um toque na água pra sair do aviso
+            // de início (`GameStartPrompt`), e só as Bolhas Coloridas (mirar e atirar), a Gota Voadora
             // (nadar), o Rim Comilão e a Cobrinha (deslizar pra virar), o Quebra-Pedras, o
             // Campo Minado (tocar nas casas) e a Gota Surfista (deslizar pra desviar)
             // (cortar) recebem toque aqui.
@@ -399,7 +400,7 @@ struct WaterHeaderView: View {
                         EmptyView()
                     }
                 }
-                .allowsHitTesting([.bubbles, .flappy, .maze, .slice, .snake, .mines, .runner].contains(runningGame))
+                .allowsHitTesting([.rings, .jump, .bubbles, .flappy, .maze, .slice, .snake, .mines, .runner].contains(runningGame))
                 .transition(.opacity)
             }
         .background {

@@ -175,6 +175,12 @@ final class RunnerGameSimulation {
         lastFrame = nil
     }
 
+    /// Toque na tela de espera: começa a partida.
+    func begin() {
+        guard isRunning, !needsReset, phase == .ready else { return }
+        phase = .playing
+    }
+
     /// Deslize no aquário (um por arrasto, ver `RunnerGameView`): pros lados troca uma pista, pra
     /// cima pula, pra baixo abaixa (no ar, desce rápido e já chega abaixada). Na tela de espera,
     /// também começa a partida.
