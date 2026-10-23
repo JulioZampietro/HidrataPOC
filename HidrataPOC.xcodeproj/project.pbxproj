@@ -16,6 +16,7 @@
 		15A0FC549FFA47EEA262A4FA /* NotificationVariantSelectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 949353F3A50444289F1B24C6 /* NotificationVariantSelectionTests.swift */; };
 		167F52D89A8D0855F585B65D /* NotificationDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71707F70B58A641E997517DB /* NotificationDelegate.swift */; };
 		1968D6749D2815CB458BE807 /* Sounds/gulun.caf in Resources */ = {isa = PBXBuildFile; fileRef = E4D909FF7D95651568F63C58 /* Sounds/gulun.caf */; };
+		B1DE39CEFF6B49958ABB7A9D /* action-button-setup.mov in Resources */ = {isa = PBXBuildFile; fileRef = 6C60DA0D31C44F9FB4DB8AFD /* action-button-setup.mov */; };
 		1B94AE46986CCE914AAF2327 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = DB825039445C1E23D630B41F /* Assets.xcassets */; };
 		1C683163E637960E88058478 /* UserProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89E03889516701BE00C6A8E4 /* UserProfile.swift */; };
 		1C85BCBB6E64AAC5CC36A3FF /* WaterFillView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B25B4016D397F16E2119D1FF /* WaterFillView.swift */; };
@@ -301,6 +302,7 @@
 		E0CB3E3BA72A80075634FCBB /* HidrataPOC.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = HidrataPOC.entitlements; sourceTree = "<group>"; };
 		E25C2DCFF2A32A6FFCA18FE5 /* HydrationKit.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = HydrationKit.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		E2CE5627BDF23AE7101D454A /* ActionButtonTutorialView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionButtonTutorialView.swift; sourceTree = "<group>"; };
+		6C60DA0D31C44F9FB4DB8AFD /* action-button-setup.mov */ = {isa = PBXFileReference; lastKnownFileType = video.quicktime; path = "action-button-setup.mov"; sourceTree = "<group>"; };
 		E2D3A02B4F45DACAE8A960EE /* Baloo2-ExtraBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Baloo2-ExtraBold.ttf"; sourceTree = "<group>"; };
 		E4D909FF7D95651568F63C58 /* Sounds/gulun.caf */ = {isa = PBXFileReference; lastKnownFileType = "audio.x-caf"; path = Sounds/gulun.caf; sourceTree = "<group>"; };
 		EE11223344556677889900EE /* Nunito.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Nunito.ttf; sourceTree = "<group>"; };
@@ -612,6 +614,7 @@
 			isa = PBXGroup;
 			children = (
 				E2CE5627BDF23AE7101D454A /* ActionButtonTutorialView.swift */,
+				6C60DA0D31C44F9FB4DB8AFD /* action-button-setup.mov */,
 				6CBDEB26A3C91B6C2C231FD8 /* SiriTutorialView.swift */,
 			);
 			path = Tutorials;
@@ -776,6 +779,7 @@
 				9D483DB1963534FD713AC013 /* Baloo2-ExtraBold.ttf in Resources */,
 				GG11223344556677889900GG /* Nunito.ttf in Resources */,
 				1968D6749D2815CB458BE807 /* Sounds/gulun.caf in Resources */,
+				B1DE39CEFF6B49958ABB7A9D /* action-button-setup.mov in Resources */,
 				A241932E4E9A4774830FCF8C /* policy_params.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

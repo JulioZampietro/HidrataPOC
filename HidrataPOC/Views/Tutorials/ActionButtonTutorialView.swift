@@ -1,3 +1,4 @@
+import AVFoundation
 import SwiftUI
 import UIKit
 
@@ -6,7 +7,9 @@ struct ActionButtonTutorialView: View {
     var body: some View {
         TankSheet {
             VStack(spacing: 20) {
-                ActionButtonStepsContent(showsMascotLine: false)
+                ActionButtonStepsContent(showsMascotLine: false).header()
+                ActionButtonSetupVideoView()
+                    .padding(.horizontal, 20)
                 openSettingsButton
                     .padding(.horizontal, 20)
             }
@@ -38,6 +41,97 @@ struct ActionButtonTutorialView: View {
         }
         guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
         UIApplication.shared.open(url)
+    }
+}
+
+/// Gravação de tela mostrando o passo a passo no Ajustes, no lugar do texto —
+/// sem os controles nativos do player (barra de progresso, fundo preto): só a
+/// imagem do vídeo, direto sobre o fundo da sheet. Ao terminar, mostra um botão
+/// de replay por cima, como as telas de preview da própria Apple.
+struct ActionButtonSetupVideoView: View {
+    /// Proporção real da gravação (880×1812) — evita barras pretas de letterbox.
+    private static let aspectRatio: CGFloat = 880.0 / 1812.0
+
+    @State private var didFinish = false
+    private let player: AVPlayer
+
+    init() {
+        if let url = Bundle.main.url(forResource: "action-button-setup", withExtension: "mov") {
+            player = AVPlayer(url: url)
+        } else {
+            player = AVPlayer()
+        }
+    }
+
+    var body: some View {
+        ZStack {
+            PlayerLayerView(player: player)
+                .aspectRatio(Self.aspectRatio, contentMode: .fit)
+                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+
+            if didFinish {
+                replayButton
+            }
+        }
+        .onAppear { player.play() }
+        .onDisappear { player.pause() }
+        .onReceive(NotificationCenter.default.publisher(for: .AVPlayerItemDidPlayToEndTime, object: player.currentItem)) { _ in
+            didFinish = true
+        }
+    }
+
+    private var replayButton: some View {
+        Button(action: replay) {
+            Image(systemName: "arrow.clockwise")
+                .font(.system(size: 22, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 56, height: 56)
+                .background(.black.opacity(0.45), in: Circle())
+        }
+        .accessibilityLabel("Reproduzir de novo")
+        .transition(.opacity)
+    }
+
+    private func replay() {
+        Haptic.tap.play()
+        player.seek(to: .zero)
+        player.play()
+        withAnimation(.easeOut(duration: 0.2)) { didFinish = false }
+    }
+}
+
+/// Casca fina sobre `AVPlayerLayer`, sem nenhum controle nativo — o `VideoPlayer`
+/// do SwiftUI/AVKit sempre desenha um fundo preto e a barra de play/pause, o que
+/// aqui pareceria um player encaixado na sheet em vez de parte dela.
+private struct PlayerLayerView: UIViewRepresentable {
+    let player: AVPlayer
+
+    func makeUIView(context: Context) -> PlayerContainerView {
+        let view = PlayerContainerView()
+        view.playerLayer.player = player
+        view.playerLayer.videoGravity = .resizeAspect
+        return view
+    }
+
+    func updateUIView(_ uiView: PlayerContainerView, context: Context) {
+        uiView.playerLayer.player = player
+    }
+
+    final class PlayerContainerView: UIView {
+        let playerLayer = AVPlayerLayer()
+
+        override init(frame: CGRect) {
+            super.init(frame: frame)
+            backgroundColor = .clear
+            layer.addSublayer(playerLayer)
+        }
+
+        required init?(coder: NSCoder) { fatalError("init(coder:) not used") }
+
+        override func layoutSubviews() {
+            super.layoutSubviews()
+            playerLayer.frame = bounds
+        }
     }
 }
 
