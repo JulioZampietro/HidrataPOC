@@ -1,4 +1,5 @@
 import AppIntents
+import AVFoundation
 import SwiftData
 import SwiftUI
 import UserNotifications
@@ -14,6 +15,9 @@ struct HidrataPOCApp: App {
     init() {
         applyNunitoGlobally()
         applySystemFontToNavigationBars()
+        // Os sons do app (água, minijogos) tocam por cima da música de outros apps em vez
+        // de pausá-la; `.ambient` também respeita a chave de silencioso, como o padrão.
+        try? AVAudioSession.sharedInstance().setCategory(.ambient)
         UNUserNotificationCenter.current().delegate = notificationDelegate
         NotificationScheduler.shared.registerCategories()
         BackgroundRefreshService.register()

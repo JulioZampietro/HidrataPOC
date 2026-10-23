@@ -84,6 +84,13 @@ struct CustomIntakeEditorView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
+                // Título branco, como o "X": os dois ficam em cima do gradiente do header.
+                ToolbarItem(placement: .principal) {
+                    Text(title)
+                        .font(.system(.headline))
+                        .foregroundStyle(.white)
+                        .accessibilityAddTraits(.isHeader)
+                }
                 ToolbarItem(placement: .cancellationAction) {
                     Button {
                         Haptic.dismiss.play()

@@ -248,7 +248,7 @@ final class MazeGameSimulation {
         desired = direction
         desiredAlternate = alternate
         if phase == .ready { phase = .playing }
-        if let current = player.dir, direction == current.opposite { player.dir = direction }
+        if let current = player.dir, direction == current.opposite { reverse(&player) }
     }
 
     /// Partida nova: vidas cheias e labirinto cheio de gotas.
@@ -354,7 +354,7 @@ final class MazeGameSimulation {
             for i in rocks.indices {
                 if case .chasing = rocks[i].state {
                     rocks[i].state = .scared
-                    rocks[i].mover.dir = rocks[i].mover.dir?.opposite
+                    reverse(&rocks[i].mover)
                 }
             }
             pendingWaterPush = true
@@ -537,15 +537,27 @@ final class MazeGameSimulation {
         }
     }
 
-    /// O próximo centro de casa à frente na direção (um centro está em `n + 0,5`).
+    /// O próximo centro de casa à frente na direção (um centro está em `n + 0,5`); parado em cima
+    /// de um centro, é o da casa seguinte. Sem folga de propósito: com uma folga, quem parava a
+    /// um fio antes de um centro pulava ele, sem passar pelo `choose`, e entrava na parede.
     private func nextCenter(from pos: SIMD2<Float>, toward dir: MazeDirection) -> SIMD2<Float> {
         func ahead(_ p: Float, _ sign: Int) -> Float {
-            sign > 0 ? (p - 0.5 + 1e-4).rounded(.down) + 1.5 : (p - 0.5 - 1e-4).rounded(.up) - 0.5
+            sign > 0 ? (p - 0.5).rounded(.down) + 1.5 : (p - 0.5).rounded(.up) - 0.5
         }
         var target = pos
         if dir.delta.x != 0 { target.x = ahead(pos.x, dir.delta.x) }
         if dir.delta.y != 0 { target.y = ahead(pos.y, dir.delta.y) }
         return target
+    }
+
+    /// Meia-volta. Entre dois centros vale sempre (volta pra casa de onde veio, que é aberta);
+    /// bem em cima de um centro, a direção acabou de ser escolhida ali e a de trás pode ser
+    /// parede, então só vira se ela estiver aberta.
+    private func reverse(_ mover: inout Mover) {
+        guard let back = mover.dir?.opposite else { return }
+        let here = cell(at: mover.pos)
+        if simd_distance(mover.pos, center(of: here)) < 1e-3, !isOpen(here, back) { return }
+        mover.dir = back
     }
 
     /// Túnel: passou da borda esquerda, aparece na direita (e vice-versa).

@@ -21,7 +21,7 @@ struct ProfileView: View {
     @State private var showLiveActivities = false
     @State private var showSiriTutorial = false
     @State private var showHealthConnect = false
-    @State private var showMyData = false
+    @State private var showSoundSettings = false
 
     private var calculatedGoalML: Int {
         UserProfile.suggestedGoalML(gender: Genero(stored: profile.genero)?.gender, idade: profile.idade, pesoKg: profile.pesoKg, alturaCm: profile.alturaCm)
@@ -77,7 +77,7 @@ struct ProfileView: View {
                 liveActivitiesRow
                 siriRow
                 healthRow
-                myDataRow
+                soundSettingsRow
                 #if DEBUG
                 debugNotificationRow
                 debugRandomCopyRow
@@ -169,7 +169,7 @@ struct ProfileView: View {
                             .foregroundStyle(.white.opacity(0.85))
                         if todaysAdjustmentML > 0 {
                             Text("+ \(todaysAdjustmentML) mL")
-                                .font(AppFont.footnoteStrong)
+                                .font(AppFont.subheadlineHeavy)
                                 .foregroundStyle(Color.appGoldHighlight)
                         }
                     }
@@ -182,6 +182,11 @@ struct ProfileView: View {
                         .resizable()
                         .scaledToFit()
                         .frame(width: 72, height: 72)
+                } else {
+                    // Meta batida: não tem mais pedra pra mostrar, então entra o rim comemorando.
+                    KidneyCheerView(layout: .single)
+                        .frame(width: 72, height: 72)
+                        .accessibilityHidden(true)
                 }
             }
 
@@ -336,17 +341,15 @@ struct ProfileView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: - Meus dados
+    // MARK: - Sons e vibração
 
-    /// Ver, exportar e apagar o que foi coletado — o que o `ConsentView` promete.
-    private var myDataRow: some View {
+    private var soundSettingsRow: some View {
         Button {
             Haptic.tap.play()
-            InteractionTracker.log("my_data_row_tap", screen: .profile, userID: profile.userID, context: modelContext)
-            showMyData = true
+            showSoundSettings = true
         } label: {
             HStack {
-                Text("Meus dados")
+                Text("Sons e vibração")
                     .font(AppFont.calloutStrong)
                     .foregroundStyle(.primary)
 
@@ -364,9 +367,9 @@ struct ProfileView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .sheet(isPresented: $showMyData) {
-            MyDataView(profile: profile)
-                .trackSheetLifecycle(.myData, screen: .profile, userID: profile.userID)
+        .sheet(isPresented: $showSoundSettings) {
+            SoundSettingsView()
+                .trackSheetLifecycle(.soundSettings, screen: .profile, userID: profile.userID)
         }
     }
 
@@ -669,6 +672,63 @@ private struct GoalExplainerView: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 22)
         .panelBackground()
+    }
+}
+
+// MARK: - Sound Settings Sheet
+
+/// Liga/desliga a vibração e os efeitos sonoros do app inteiro — as chaves são lidas
+/// pelo `Haptic` e pelos sons (ver `FeedbackSettings`).
+private struct SoundSettingsView: View {
+    @AppStorage(FeedbackSettings.hapticsEnabledKey) private var hapticsEnabled = true
+    @AppStorage(FeedbackSettings.soundEffectsEnabledKey) private var soundEffectsEnabled = true
+
+    var body: some View {
+        TankSheet {
+            VStack(spacing: 20) {
+                CurrentMascotTankHeader(
+                    title: "Sons e vibração",
+                    subtitle: "Escolha se o app pode vibrar e tocar sons enquanto você usa."
+                )
+
+                VStack(spacing: 0) {
+                    toggleRow(
+                        "Vibração",
+                        detail: "Toques sentidos nos botões, ao registrar água e nos minijogos.",
+                        isOn: $hapticsEnabled
+                    )
+                    Divider().padding(.leading, 18)
+                    toggleRow(
+                        "Efeitos sonoros",
+                        detail: "Som da água ao registrar um gole e sons dos minijogos.",
+                        isOn: $soundEffectsEnabled
+                    )
+                }
+                .panelBackground()
+                .padding(.horizontal, 20)
+            }
+            .padding(.bottom, 40)
+        }
+        // Só vibra se a vibração ficou ligada — desligá-la não "avisa" vibrando.
+        .onChange(of: hapticsEnabled) { Haptic.selection.play() }
+        .onChange(of: soundEffectsEnabled) { Haptic.selection.play() }
+    }
+
+    private func toggleRow(_ title: String, detail: String, isOn: Binding<Bool>) -> some View {
+        Toggle(isOn: isOn) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(AppFont.calloutStrong)
+                    .foregroundStyle(.primary)
+                Text(detail)
+                    .font(AppFont.footnote)
+                    .foregroundStyle(Color.appSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .tint(Color.appAccent)
+        .padding(.horizontal, 18)
+        .padding(.vertical, 14)
     }
 }
 

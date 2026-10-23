@@ -90,11 +90,44 @@ struct MazeGameView: View {
             Gradient(colors: [wallColor.mix(with: .white, by: 0.15), wallColor.mix(with: .black, by: 0.1)]),
             startPoint: .zero, endPoint: CGPoint(x: 0, y: 600)
         ))
+        drawWallTexture(path, snapshot.walls, tile: tile, in: &ctx)
 
         // Porta da casinha das pedras.
         let door = snapshot.door
         let bar = CGRect(x: door.minX, y: door.midY - tile * 0.08, width: door.width, height: tile * 0.16)
         ctx.fill(Path(roundedRect: bar, cornerRadius: tile * 0.08), with: .color(Color(red: 1.0, green: 0.72, blue: 0.78)))
+    }
+
+    /// Textura leve de pedra por cima das paredes: pintinhas claras e escuras sorteadas pela
+    /// posição de cada casa (então ficam sempre nos mesmos lugares) e um brilho fino na borda.
+    private static func drawWallTexture(_ path: Path, _ walls: [CGRect], tile: CGFloat, in context: inout GraphicsContext) {
+        var ctx = context
+        ctx.clip(to: path)
+        var dark = Path()
+        var light = Path()
+        for rect in walls {
+            let key = CellKey(rect: rect, tile: tile)
+            var seed = UInt64(truncatingIfNeeded: (key.x &* 73_856_093) ^ (key.y &* 19_349_663))
+            for n in 0..<3 {
+                seed = seed &* 6_364_136_223_846_793_005 &+ 1_442_695_040_888_963_407
+                let fx = CGFloat((seed >> 33) % 1000) / 1000
+                let fy = CGFloat((seed >> 13) % 1000) / 1000
+                let r = tile * (0.05 + 0.03 * CGFloat((seed >> 50) % 3))
+                let dot = CGRect(x: rect.minX + fx * tile - r, y: rect.minY + fy * tile - r, width: r * 2, height: r * 2)
+                if n == 0 { light.addEllipse(in: dot) } else { dark.addEllipse(in: dot) }
+            }
+        }
+        ctx.fill(dark, with: .color(.black.opacity(0.12)))
+        ctx.fill(light, with: .color(.white.opacity(0.16)))
+        // Chanfro: faixa clara na borda de cima e escura na de baixo, recortando a parede com
+        // ela mesma deslocada. Um traço no contorno riscaria a emenda de cada bloco por dentro.
+        let bounds = path.boundingRect.insetBy(dx: -4, dy: -4)
+        var top = ctx
+        top.clip(to: path.offsetBy(dx: 0, dy: 2), options: .inverse)
+        top.fill(Path(bounds), with: .color(.white.opacity(0.22)))
+        var bottom = ctx
+        bottom.clip(to: path.offsetBy(dx: 0, dy: -2), options: .inverse)
+        bottom.fill(Path(bounds), with: .color(.black.opacity(0.10)))
     }
 
     /// Posição de uma parede em casas, pra achar os vizinhos sem guardar o labirinto na foto.

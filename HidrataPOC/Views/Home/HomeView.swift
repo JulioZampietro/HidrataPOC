@@ -580,6 +580,7 @@ struct HomeView: View {
     }
 
     private func playWaterSound() {
+        guard FeedbackSettings.soundEffectsEnabled else { return }
         Task.detached(priority: .userInitiated) {
             guard let asset = NSDataAsset(name: "agua"),
                   let player = try? AVAudioPlayer(data: asset.data, fileTypeHint: AVFileType.mp3.rawValue) else { return }

@@ -25,6 +25,7 @@ struct RunnerGameView: View {
                 let time = context.date.timeIntervalSinceReferenceDate
                 let track = colorScheme == .dark ? TrackStyle.dark : TrackStyle.light
                 Canvas { ctx, size in
+                    MiniGameBackdrop.draw(time: time, size: size, in: &ctx)
                     Self.draw(snapshot, track: track, time: time, size: size, in: &ctx)
                 }
             }

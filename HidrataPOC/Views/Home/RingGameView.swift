@@ -22,7 +22,9 @@ struct RingGameView: View {
                 // Avança a simulação uma vez por frame (mesmo padrão de `WaterFillView`).
                 let _ = simulation.advance(to: context.date, size: geo.size, down: water.down, water: water)
                 let snapshot = simulation.snapshot()
+                let time = context.date.timeIntervalSinceReferenceDate
                 Canvas { ctx, size in
+                    MiniGameBackdrop.draw(time: time, size: size, in: &ctx)
                     Self.draw(snapshot, in: &ctx)
                     GameConfetti.draw(snapshot.confetti, colors: Self.ringColors, in: &ctx)
                     if snapshot.isReady {

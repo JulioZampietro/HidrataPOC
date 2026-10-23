@@ -1,25 +1,54 @@
 import SwiftUI
 
-/// Os dois rins nos cantos de baixo do recipiente, pulando e comemorando — aparecem
-/// quando o usuário bate a meta do dia (ver `HomeView.topSection`).
+/// Rins pulando e comemorando quando o usuário bate a meta do dia: os dois nos cantos de baixo
+/// do recipiente (ver `HomeView.topSection`) ou um só, no lugar do mascote no cartão da meta
+/// das Configurações.
 struct KidneyCheerView: View {
+    enum Layout {
+        /// Os dois rins nos cantos de baixo, virados pro centro.
+        case pair
+        /// Um rim só, no meio e esticado pra caber na moldura.
+        case single
+    }
+
+    var layout: Layout = .pair
+    /// `false` congela o rim no alto do pulo, de braços pra cima — pra imagens geradas com
+    /// `ImageRenderer` (o cartão de compartilhar), que pegariam um quadro qualquer da animação.
+    var isAnimated = true
+
     /// Com "Reduzir Movimento", os rins aparecem parados em vez de pular sem fim.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 30, paused: reduceMotion)) { timeline in
-            let t = timeline.date.timeIntervalSinceReferenceDate
+        TimelineView(.animation(minimumInterval: 1 / 30, paused: reduceMotion || !isAnimated)) { timeline in
+            // 0,15 do ciclo é o alto do pulo (ver `bounce`).
+            let t = isAnimated ? timeline.date.timeIntervalSinceReferenceDate : 0.15 / 0.9
             Canvas { context, size in
-                for (x, mirrored, phase) in [(size.width * 0.11, false, 0.0), (size.width * 0.89, true, 0.45)] {
-                    // Pulinho: sobe rápido, cai devagar, e fica parado um tempinho.
-                    let cycle = (t * 0.9 + phase).truncatingRemainder(dividingBy: 1)
-                    let hop = cycle < 0.35 ? sin(cycle / 0.35 * .pi) : 0
-                    let squash = cycle > 0.35 && cycle < 0.45 ? 0.08 * sin((cycle - 0.35) / 0.1 * .pi) : 0
-                    drawKidney(in: &context, at: CGPoint(x: x, y: size.height - 26 - CGFloat(hop) * 10),
-                               mirrored: mirrored, squash: squash, armsUp: hop > 0.3)
+                switch layout {
+                case .pair:
+                    for (x, mirrored, phase) in [(size.width * 0.11, false, 0.0), (size.width * 0.89, true, 0.45)] {
+                        let (hop, squash) = Self.bounce(t, phase: phase)
+                        drawKidney(in: &context, at: CGPoint(x: x, y: size.height - 26 - CGFloat(hop) * 10),
+                                   mirrored: mirrored, squash: squash, armsUp: hop > 0.3)
+                    }
+                case .single:
+                    // Rim com os braços pra cima ocupa ~44×60 pt (contando o pulo); escala pra caber.
+                    let scale = min(size.width / 44, size.height / 60)
+                    let (hop, squash) = Self.bounce(t, phase: 0)
+                    drawKidney(in: &context, at: CGPoint(x: size.width / 2, y: size.height - 20 * scale - CGFloat(hop) * 10 * scale),
+                               mirrored: false, squash: squash, armsUp: hop > 0.3, scale: scale)
                 }
             }
         }
+    }
+
+    /// Pulinho: sobe rápido, cai devagar, e fica parado um tempinho. Devolve a altura (0…1) e
+    /// o quanto achata ao tocar o chão.
+    private static func bounce(_ t: Double, phase: Double) -> (hop: Double, squash: Double) {
+        let cycle = (t * 0.9 + phase).truncatingRemainder(dividingBy: 1)
+        let hop = cycle < 0.35 ? sin(cycle / 0.35 * .pi) : 0
+        let squash = cycle > 0.35 && cycle < 0.45 ? 0.08 * sin((cycle - 0.35) / 0.1 * .pi) : 0
+        return (hop, squash)
     }
 
     /// Contorno do rim em feijão, com a reentrância à direita (x positivo), centrado na origem e
@@ -35,10 +64,10 @@ struct KidneyCheerView: View {
         return bean
     }()
 
-    private func drawKidney(in context: inout GraphicsContext, at center: CGPoint, mirrored: Bool, squash: Double, armsUp: Bool) {
+    private func drawKidney(in context: inout GraphicsContext, at center: CGPoint, mirrored: Bool, squash: Double, armsUp: Bool, scale: CGFloat = 1) {
         var ctx = context
         ctx.translateBy(x: center.x, y: center.y)
-        ctx.scaleBy(x: (mirrored ? -1 : 1) * CGFloat(1 + squash), y: CGFloat(1 - squash))
+        ctx.scaleBy(x: (mirrored ? -1 : 1) * CGFloat(1 + squash) * scale, y: CGFloat(1 - squash) * scale)
 
         let skin = Color(red: 0.90, green: 0.45, blue: 0.47)
         let outline = Color(red: 0.62, green: 0.24, blue: 0.27)

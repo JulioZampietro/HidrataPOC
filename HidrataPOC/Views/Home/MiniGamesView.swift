@@ -152,7 +152,8 @@ enum MiniGameSound: String {
     private static var players: [MiniGameSound: AVAudioPlayer] = [:]
 
     func play() {
-        guard let player = Self.players[self] ?? load() else { return }
+        guard FeedbackSettings.soundEffectsEnabled,
+              let player = Self.players[self] ?? load() else { return }
         player.currentTime = 0
         player.play()
     }
@@ -160,6 +161,8 @@ enum MiniGameSound: String {
     private func load() -> AVAudioPlayer? {
         guard let asset = NSDataAsset(name: rawValue),
               let player = try? AVAudioPlayer(data: asset.data, fileTypeHint: AVFileType.m4a.rawValue) else { return nil }
+        // Metade do volume original — os sons dos jogos estavam altos demais.
+        player.volume = 0.5
         player.prepareToPlay()
         Self.players[self] = player
         return player

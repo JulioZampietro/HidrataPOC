@@ -491,6 +491,7 @@ struct WaterHeaderView: View {
                     // subárvore, incluindo o `withAnimation` do toque em `pokeMascot()`
                     // — sem essa linha, o "cutucão" ficava instantâneo (travado).
                     .animation(.interpolatingSpring(stiffness: 350, damping: 10), value: isPoking)
+                    .modifier(MascotFloating())
                     .offset(mascotDragOffset)
                     .animation(.interactiveSpring(response: 0.28, dampingFraction: 0.55), value: mascotDragOffset)
                     // Área de toque maior que o desenho: o `scaleEffect` acima encolhe
@@ -832,5 +833,42 @@ struct WaterHeaderView: View {
         let sign: CGFloat = deltaY >= 0 ? 1 : -1
         let strength = Float(magnitude * sign) * WaterTuning.dragPushGain
         waterMotion.disturb(atU: 0.5, strength: strength)
+    }
+}
+
+/// Mascote boiando na água: sobe e desce poucos pontos e balança de leve, com os dois
+/// movimentos em ritmos diferentes pra não parecer um pêndulo. O `keyframeAnimator` roda por
+/// conta própria, então não é zerado pelo `.transaction` do ZStack do mascote. Parado com
+/// "Reduzir movimento" ligado.
+private struct MascotFloating: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private struct Pose {
+        var lift: CGFloat = 0
+        var tilt: Double = 0
+    }
+
+    func body(content: Content) -> some View {
+        if reduceMotion {
+            content
+        } else {
+            content.keyframeAnimator(initialValue: Pose(), repeating: true) { view, pose in
+                view
+                    .offset(y: pose.lift)
+                    .rotationEffect(.degrees(pose.tilt))
+            } keyframes: { _ in
+                KeyframeTrack(\.lift) {
+                    CubicKeyframe(-4, duration: 1.6)
+                    CubicKeyframe(3, duration: 1.8)
+                    CubicKeyframe(0, duration: 1.0)
+                }
+                // As duas trilhas fecham o ciclo (4,4 s) de volta no 0, senão a repetição dá um tranco.
+                KeyframeTrack(\.tilt) {
+                    CubicKeyframe(1.5, duration: 1.1)
+                    CubicKeyframe(-1.5, duration: 2.2)
+                    CubicKeyframe(0, duration: 1.1)
+                }
+            }
+        }
     }
 }

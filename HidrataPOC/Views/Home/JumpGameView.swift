@@ -12,7 +12,9 @@ struct JumpGameView: View {
                 // Avança a simulação uma vez por frame (mesmo padrão de `RingGameView`).
                 let _ = simulation.advance(to: context.date, size: geo.size, down: water.down, water: water)
                 let snapshot = simulation.snapshot()
+                let time = context.date.timeIntervalSinceReferenceDate
                 Canvas { ctx, size in
+                    MiniGameBackdrop.draw(time: time, size: size, in: &ctx)
                     Self.draw(snapshot, size: size, in: &ctx)
                 }
             }

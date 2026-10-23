@@ -35,6 +35,9 @@ enum AppStateReset {
         "minigame.jump.best",
         "minigame.bubbles.best",
         "minigame.flappy.best",
+        // Sons e vibração (FeedbackSettings)
+        "settings.hapticsEnabled",
+        "settings.soundEffectsEnabled",
     ]
 
     /// Chaves no App Group (compartilhadas com a extensão do widget).
