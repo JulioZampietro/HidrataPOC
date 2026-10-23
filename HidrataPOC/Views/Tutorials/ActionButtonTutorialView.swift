@@ -7,14 +7,24 @@ struct ActionButtonTutorialView: View {
     var body: some View {
         TankSheet {
             VStack(spacing: 20) {
-                ActionButtonStepsContent(showsMascotLine: false).header()
+                ActionButtonStepsContent(showsMascotLine: false).header(showsSubtitle: false)
                 ActionButtonSetupVideoView()
+                    .padding(.horizontal, 90)
+                subtitle
                     .padding(.horizontal, 20)
                 openSettingsButton
-                    .padding(.horizontal, 20)
+                    .padding(.horizontal, 90)
             }
             .padding(.bottom, 40)
         }
+    }
+
+    private var subtitle: some View {
+        Text(ActionButtonStepsContent.subtitle)
+            .font(AppFont.subheadline)
+            .foregroundStyle(Color.appSecondary)
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     private var openSettingsButton: some View {
@@ -68,7 +78,7 @@ struct ActionButtonSetupVideoView: View {
     /// cantos bem arredondados) não alcança o retângulo do vídeo. Um raio pequeno
     /// não dava conta disso, então o raio aqui acompanha o tamanho real renderizado
     /// (~22% da largura) pra cortar fora o fundo preto inteiro, não só "arredondar".
-    private static let cornerRadiusFraction: CGFloat = 0.22
+    private static let cornerRadiusFraction: CGFloat = 0.20
 
     var body: some View {
         GeometryReader { geo in
@@ -159,12 +169,17 @@ struct ActionButtonStepsContent: View {
         }
     }
 
+    /// Mesma string usada no header; exposta pra sheets que preferem mostrá-la fora
+    /// dele (ver `ActionButtonTutorialView`), em vez de duplicar o texto.
+    static let subtitle = "Registre água com um toque lateral — sem desbloquear o iPhone."
+
     /// Separados pra o onboarding poder desenhar o fundo azul fixo e paginar só
-    /// texto/mascote e cards por cima dele.
-    func header(showsBackground: Bool = true) -> some View {
+    /// texto/mascote e cards por cima dele. `showsSubtitle: false` tira a linha de
+    /// descrição do header, pra quem vai mostrá-la em outro lugar da tela.
+    func header(showsBackground: Bool = true, showsSubtitle: Bool = true) -> some View {
         CurrentMascotTankHeader(
             title: "Botão de Ação",
-            subtitle: "Registre água com um toque lateral — sem desbloquear o iPhone.",
+            subtitle: showsSubtitle ? Self.subtitle : nil,
             mascotLine: showsMascotLine ? "Um toque e já era? Isso não é justo." : nil,
             showsBackground: showsBackground
         )

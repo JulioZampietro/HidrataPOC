@@ -23,7 +23,9 @@ private var currentTopSafeAreaInset: CGFloat {
 /// mais uma tela de "como configurar".
 struct TankHeader: View {
     let title: String
-    let subtitle: String
+    /// `nil` esconde a linha de subtítulo — usado por telas que preferem mostrar
+    /// essa descrição fora do header, mais abaixo no corpo da sheet.
+    var subtitle: String? = nil
     /// Fala do mascote no balão — `nil` esconde o balão e mostra só o mascote
     /// (usado nas sheets standalone; o onboarding de primeiro uso continua com a fala).
     var mascotLine: String? = nil
@@ -69,10 +71,12 @@ struct TankHeader: View {
                 Text(title)
                     .font(AppFont.displayHero)
                     .foregroundStyle(.white)
-                Text(subtitle)
-                    .font(AppFont.subheadline)
-                    .foregroundStyle(.white.opacity(0.88))
-                    .fixedSize(horizontal: false, vertical: true)
+                if let subtitle {
+                    Text(subtitle)
+                        .font(AppFont.subheadline)
+                        .foregroundStyle(.white.opacity(0.88))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -99,7 +103,7 @@ struct TankHeader: View {
 /// receber o perfil por parâmetro.
 struct CurrentMascotTankHeader: View {
     let title: String
-    let subtitle: String
+    var subtitle: String? = nil
     var mascotLine: String? = nil
     var showsBackground: Bool = true
 
