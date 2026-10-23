@@ -35,7 +35,6 @@ enum MazeGameTuning {
     static let rockSpeed: Float = 4.3
     static let scaredSpeed: Float = 2.8
     static let eatenSpeed: Float = 9
-    static let levelSpeedUp: Float = 0.06        // +6% pras pedras a cada fase
 
     static let powerDuration: Float = 6          // s com as pedras com medo depois de uma gotona…
     static let powerWarning: Float = 2           // …piscando nos últimos segundos
@@ -46,7 +45,7 @@ enum MazeGameTuning {
     static let lives = 3
 
     static let deathPause: Float = 1.4           // s da animação do rim sendo pego
-    static let levelClearPause: Float = 1.5      // s comemorando a fase limpa
+    static let victoryTapLock: Float = 1.0       // s de confete antes de um toque poder recomeçar
     static let gameOverPause: Float = 1.8        // s mostrando "fim de jogo" antes de recomeçar
 
     static let pelletPoints = 10
@@ -81,7 +80,7 @@ enum MazeDirection: Int, CaseIterable, Sendable {
 
 /// Foto imutável da simulação num frame — o `Canvas` desenha a partir dela.
 struct MazeGameSnapshot: Sendable {
-    enum Phase: Sendable { case ready, playing, dying, levelClear, gameOver }
+    enum Phase: Sendable { case ready, playing, dying, victory, gameOver }
 
     enum RockLook: Sendable { case normal, scared, flashing, eaten }
 
@@ -104,15 +103,15 @@ struct MazeGameSnapshot: Sendable {
     let rocks: [Rock]
     let score: Int
     let lives: Int
-    let level: Int
+    let confetti: [Confetto]
     let phase: Phase
-    let phaseProgress: CGFloat  // 0…1 dentro de `dying`, `levelClear` e `gameOver`
+    let phaseProgress: CGFloat  // 0…1 dentro de `dying` e `gameOver`
 }
 
 /// Pac-Man dentro do aquário: o rim percorre o labirinto comendo as gotinhas d'água, e quatro
 /// pedras (o mascote) o perseguem. Comer uma gotona deixa as pedras com medo por um tempo, e aí
-/// é o rim que pode comê-las. Limpar todas as gotas passa de fase (pedras mais rápidas); ser pego
-/// custa uma vida, e sem vidas é fim de jogo. A partida começa com o primeiro deslize/botão.
+/// é o rim que pode comê-las. Limpar todas as gotas termina o jogo com confete e "Parabéns!" (um toque
+/// recomeça); ser pego custa uma vida, e sem vidas é fim de jogo. A partida começa com o primeiro deslize/botão.
 /// Tudo anda em casas do labirinto (`pos` em casas, centro da casa em `n + 0,5`); o tamanho em pt
 /// só entra no desenho, então o aquário pode esticar sem bagunçar a partida.
 @MainActor
@@ -171,7 +170,7 @@ final class MazeGameSimulation {
     private var powerTimer: Float = 0
     private var rockCombo = 0
     private var lives = MazeGameTuning.lives
-    private var level = 1
+    private var confetti = ConfettiShower()
     private var needsReset = true
     private var lastFrame: Date?
     private var size: CGSize = .zero
@@ -216,13 +215,24 @@ final class MazeGameSimulation {
     func stop() {
         isRunning = false
         rocks.removeAll()
+        confetti.clear()
         score = 0
         lastFrame = nil
     }
 
     /// Toque na tela de espera: começa a partida (o rim espera o primeiro comando de direção).
     func begin() {
-        guard isRunning, !needsReset, phase == .ready else { return }
+        guard isRunning, !needsReset else { return }
+        if phase == .victory { restartAfterVictory() }
+        guard phase == .ready else { return }
+        phase = .playing
+    }
+
+    /// Toque depois do "Parabéns!": partida nova (só vale depois de uns instantes de confete, pra
+    /// um toque do fim da partida não pular a comemoração).
+    private func restartAfterVictory() {
+        guard phaseTimer >= MazeGameTuning.victoryTapLock else { return }
+        reset()
         phase = .playing
     }
 
@@ -231,18 +241,22 @@ final class MazeGameSimulation {
     /// principal) vale na hora; virar pra um lado espera o rim chegar no meio de uma casa.
     func setDirection(_ direction: MazeDirection, alternate: MazeDirection? = nil) {
         guard isRunning, !needsReset else { return }
+        if phase == .victory {
+            restartAfterVictory()
+            return
+        }
         desired = direction
         desiredAlternate = alternate
         if phase == .ready { phase = .playing }
         if let current = player.dir, direction == current.opposite { player.dir = direction }
     }
 
-    /// Partida nova: vidas cheias, fase 1, labirinto cheio de gotas.
+    /// Partida nova: vidas cheias e labirinto cheio de gotas.
     private func reset() {
         needsReset = false
         score = 0
         lives = MazeGameTuning.lives
-        level = 1
+        confetti.clear()
         pellets = initialPellets
         powers = initialPowers
         resetPositions()
@@ -274,6 +288,7 @@ final class MazeGameSimulation {
         let dt = Float(min(date.timeIntervalSince(last), 1.0 / 20.0))
         guard dt > 1e-4 else { return }
         lastFrame = date
+        confetti.update(dt: dt)
 
         if pendingWaterPush {
             pendingWaterPush = false
@@ -285,7 +300,9 @@ final class MazeGameSimulation {
             return
         case .playing:
             updatePlaying(dt: dt)
-        case .dying, .levelClear, .gameOver:
+        case .victory:
+            phaseTimer += dt
+        case .dying, .gameOver:
             phaseTimer += dt
             guard phaseTimer >= phaseDuration else { return }
             finishPause()
@@ -344,13 +361,13 @@ final class MazeGameSimulation {
             Haptic.primary.play()
         }
         if pellets.isEmpty, powers.isEmpty {
-            beginPause(.levelClear, duration: MazeGameTuning.levelClearPause)
-            Haptic.celebrate.play()
+            phase = .victory
+            phaseTimer = 0
+            confetti.burst(in: size, colorCount: PebbleGameTuning.colors.count)
         }
     }
 
     private func updateRock(_ i: Int, dt: Float) {
-        let speedUp = 1 + MazeGameTuning.levelSpeedUp * Float(level - 1)
         switch rocks[i].state {
         case .waiting(let remaining):
             if remaining - dt <= 0 {
@@ -362,7 +379,7 @@ final class MazeGameSimulation {
             }
         case .chasing:
             let target = chaseTarget(for: i)
-            move(&rocks[i].mover, distance: MazeGameTuning.rockSpeed * speedUp * dt) { cell, dir in
+            move(&rocks[i].mover, distance: MazeGameTuning.rockSpeed * dt) { cell, dir in
                 self.rockChoice(at: cell, coming: dir, toward: target)
             }
         case .scared:
@@ -473,7 +490,7 @@ final class MazeGameSimulation {
         phaseDuration = duration
     }
 
-    /// Fim de uma pausa: perdeu a vida, limpou a fase ou o "fim de jogo" já foi mostrado.
+    /// Fim de uma pausa: perdeu a vida ou o "fim de jogo" já foi mostrado.
     private func finishPause() {
         switch phase {
         case .dying:
@@ -484,14 +501,9 @@ final class MazeGameSimulation {
             } else {
                 resetPositions()
             }
-        case .levelClear:
-            level += 1
-            pellets = initialPellets
-            powers = initialPowers
-            resetPositions()
         case .gameOver:
             reset()
-        case .ready, .playing:
+        case .ready, .playing, .victory:
             break
         }
     }
@@ -597,7 +609,7 @@ final class MazeGameSimulation {
             }
             return MazeGameSnapshot.Rock(position: point(rock.mover.pos), index: rock.index, look: look)
         }
-        let isPaused = phase == .dying || phase == .levelClear || phase == .gameOver
+        let isPaused = phase == .dying || phase == .gameOver
         return MazeGameSnapshot(
             tile: CGFloat(tile),
             walls: wallRects,
@@ -611,7 +623,7 @@ final class MazeGameSimulation {
             rocks: rocks,
             score: score,
             lives: lives,
-            level: level,
+            confetti: confetti.snapshot(),
             phase: phase,
             phaseProgress: isPaused ? CGFloat(min(1, phaseTimer / phaseDuration)) : 0
         )

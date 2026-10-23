@@ -8,7 +8,7 @@ import SwiftUI
 /// minijogos e perfil, junto da sequência de dias.
 ///
 /// Só o mascote, os botões, a faixa de baixo (onde se brinca com as pedrinhas) e o jogo das
-/// Bolhas Coloridas (mira com o dedo) recebem toques: o resto deixa o arrasto passar para as
+/// Pedras Coloridas (mira com o dedo) recebem toques: o resto deixa o arrasto passar para as
 /// páginas atrás, então dá para trocar de página arrastando sobre a água também.
 struct WaterHeaderView: View {
     let profile: UserProfile
@@ -371,7 +371,7 @@ struct WaterHeaderView: View {
             .animation(.spring(response: 0.5, dampingFraction: 0.7), value: goalReached)
             // Minijogo: no conteúdo do recipiente, então passa pela mesma refração da água.
             // Os botões ficam na Home; todos os jogos recebem um toque na água pra sair do aviso
-            // de início (`GameStartPrompt`), e só as Bolhas Coloridas (mirar e atirar), a Gota Voadora
+            // de início (`GameStartPrompt`), e só as Pedras Coloridas (mirar e atirar), a Gota Voadora
             // (nadar), o Rim Comilão e a Cobrinha (deslizar pra virar), o Quebra-Pedras, o
             // Campo Minado (tocar nas casas) e a Gota Surfista (deslizar pra desviar)
             // (cortar) recebem toque aqui.
@@ -382,8 +382,8 @@ struct WaterHeaderView: View {
                         RingGameView(simulation: miniGames.ringGame, water: waterMotion)
                     case .jump:
                         JumpGameView(simulation: miniGames.jumpGame, water: waterMotion)
-                    case .bubbles:
-                        BubbleGameView(simulation: miniGames.bubbleGame, water: waterMotion)
+                    case .pebbles:
+                        PebbleGameView(simulation: miniGames.pebbleGame, water: waterMotion)
                     case .flappy:
                         FlappyGameView(simulation: miniGames.flappyGame, water: waterMotion)
                     case .maze:
@@ -400,7 +400,7 @@ struct WaterHeaderView: View {
                         EmptyView()
                     }
                 }
-                .allowsHitTesting([.rings, .jump, .bubbles, .flappy, .maze, .slice, .snake, .mines, .runner].contains(runningGame))
+                .allowsHitTesting([.rings, .jump, .pebbles, .flappy, .maze, .slice, .snake, .mines, .runner].contains(runningGame))
                 .transition(.opacity)
             }
         .background {
@@ -666,7 +666,7 @@ struct WaterHeaderView: View {
     private func handleMiniGame(from oldGame: MiniGame?, to newGame: MiniGame?, isLiveTransition: Bool) {
         if newGame != .rings { miniGames.ringGame.stop() }
         if newGame != .jump { miniGames.jumpGame.stop() }
-        if newGame != .bubbles { miniGames.bubbleGame.stop() }
+        if newGame != .pebbles { miniGames.pebbleGame.stop() }
         if newGame != .flappy { miniGames.flappyGame.stop() }
         if newGame != .maze { miniGames.mazeGame.stop() }
         if newGame != .slice { miniGames.sliceGame.stop() }
@@ -680,7 +680,6 @@ struct WaterHeaderView: View {
         }
         waterMotion.clearStones()
         miniGames.ringGame.onRoundComplete = {
-            Haptic.success.play()
             InteractionTracker.log("ring_game_round_complete", screen: screen, userID: profile.userID, context: modelContext)
         }
         miniGames.jumpGame.onGameOver = { score in
@@ -689,10 +688,10 @@ struct WaterHeaderView: View {
             UserDefaults.standard.set(max(best, score), forKey: MiniGame.jumpBestStorageKey)
             InteractionTracker.log("jump_game_over", screen: screen, userID: profile.userID, context: modelContext)
         }
-        miniGames.bubbleGame.onGameOver = { score in
-            let best = UserDefaults.standard.integer(forKey: MiniGame.bubblesBestStorageKey)
+        miniGames.pebbleGame.onGameOver = { score in
+            let best = UserDefaults.standard.integer(forKey: MiniGame.pebblesBestStorageKey)
             (score > best ? Haptic.success : Haptic.warning).play()
-            UserDefaults.standard.set(max(best, score), forKey: MiniGame.bubblesBestStorageKey)
+            UserDefaults.standard.set(max(best, score), forKey: MiniGame.pebblesBestStorageKey)
             InteractionTracker.log("bubbles_game_over", screen: screen, userID: profile.userID, context: modelContext)
         }
         miniGames.flappyGame.onGameOver = { score in
@@ -739,7 +738,7 @@ struct WaterHeaderView: View {
             switch newGame {
             case .rings: miniGames.ringGame.start()
             case .jump: miniGames.jumpGame.start()
-            case .bubbles: miniGames.bubbleGame.start()
+            case .pebbles: miniGames.pebbleGame.start()
             case .flappy: miniGames.flappyGame.start()
             case .maze: miniGames.mazeGame.start()
             case .slice: miniGames.sliceGame.start()

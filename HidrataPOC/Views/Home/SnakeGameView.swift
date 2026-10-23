@@ -88,9 +88,9 @@ struct SnakeGameView: View {
         ctx.stroke(shape, with: .color(.white.opacity(0.55)), lineWidth: 2)
     }
 
-    /// Cor viva da pedrinha (as mesmas das Bolhas Coloridas), puxada um pouco pro tom de pedra.
+    /// Cor viva da pedrinha (as mesmas das Pedras Coloridas), puxada um pouco pro tom de pedra.
     private static func tint(_ stone: SnakeGameSnapshot.Stone) -> Color {
-        BubbleGameTuning.colors[stone.colorIndex % BubbleGameTuning.colors.count].mix(with: PebbleDrawing.stoneBrown, by: 0.12)
+        PebbleGameTuning.colors[stone.colorIndex % PebbleGameTuning.colors.count].mix(with: PebbleDrawing.stoneBrown, by: 0.12)
     }
 
     /// Pedrinha colorida pra comer, pulsando; depois de comida ela entra no corpo com essa cara.

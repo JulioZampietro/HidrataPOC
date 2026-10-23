@@ -31,8 +31,8 @@ enum SliceGameTuning {
     static let gameOverPause: Float = 1.8        // s mostrando "fim de jogo" antes de recomeçar
     static let sliceWaterPush: Float = 3         // agito na superfície a cada pedra cortada
 
-    /// Cores das pedrinhas, as mesmas das Bolhas Coloridas.
-    static let colors: [Color] = BubbleGameTuning.colors
+    /// Cores das pedrinhas, as mesmas das Pedras Coloridas.
+    static let colors: [Color] = PebbleGameTuning.colors
 }
 
 /// Foto imutável da simulação num frame — o `Canvas` desenha a partir dela.

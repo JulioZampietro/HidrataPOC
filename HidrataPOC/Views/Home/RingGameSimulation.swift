@@ -57,7 +57,7 @@ enum RingGameTuning {
     static let stopperRadius: Float = 6          // pt — esfera na base do pino
 
     // Rodada completa
-    static let celebrationDuration: Float = 1.8  // s com tudo enfiado antes de soltar as argolas de novo
+    static let celebrationDelay: Float = 2.0     // s com tudo enfiado (a última argola assenta) antes do confete e do aviso de recomeçar
     static let releaseKick: Float = 90           // pt/s para os lados ao soltar (nunca pra cima)
 }
 
@@ -93,7 +93,9 @@ struct RingGameSnapshot: Sendable {
     let jetsOpen: [Bool]
     let jetHeight: CGFloat
     let burstOrigin: CGPoint
+    /// Todas as argolas enfiadas: confete e "Parabéns!" até o próximo toque.
     let isCelebrating: Bool
+    let confetti: [Confetto]
     /// Esperando o primeiro toque: as argolas ainda não caíram.
     let isReady: Bool
 }
@@ -136,6 +138,9 @@ final class RingGameSimulation {
     private var jetHeld = [Bool](repeating: false, count: RingGameSide.allCases.count)
     private var jetPulse = [Float](repeating: 0, count: RingGameSide.allCases.count)
     private var celebration: Float = 0
+    /// Todas as argolas enfiadas: o jogo espera um toque para soltá-las e recomeçar.
+    private var isVictory = false
+    private var confetti = ConfettiShower()
     private var burstFlash: Float = 0
     private var burstCooldown: Float = 0
     private var lastFrame: Date?
@@ -150,6 +155,8 @@ final class RingGameSimulation {
         isReady = true
         lastFrame = nil
         celebration = 0
+        isVictory = false
+        confetti.clear()
         bubbles.removeAll()
         rings = (0..<RingGameTuning.ringCount).map { index in
             Ring(position: SIMD2(0, -60), spawnDelay: Float(index) * RingGameTuning.ringSpawnInterval + 0.05, colorIndex: index)
@@ -160,13 +167,23 @@ final class RingGameSimulation {
         isRunning = false
         rings.removeAll()
         bubbles.removeAll()
+        confetti.clear()
+        isVictory = false
+        celebration = 0
         jetHeld = [Bool](repeating: false, count: RingGameSide.allCases.count)
         jetPulse = [Float](repeating: 0, count: RingGameSide.allCases.count)
         lastFrame = nil
     }
 
-    /// Toque na tela de espera: as argolas começam a cair.
+    /// Toque na tela de espera: as argolas começam a cair. Depois da vitória, solta as argolas do
+    /// pino para uma nova rodada (e só vale quando o aviso de recomeçar já está na tela).
     func begin() {
+        if isVictory {
+            guard isReady else { return }
+            isVictory = false
+            confetti.clear()
+            releaseRings()
+        }
         isReady = false
     }
 
@@ -239,6 +256,7 @@ final class RingGameSimulation {
         let dt = Float(min(date.timeIntervalSince(last), 1.0 / 20.0))
         guard dt > 1e-4 else { return }
         lastFrame = date
+        confetti.update(dt: dt)
         guard !isReady else { return }
 
         for index in Self.jetIndices { jetPulse[index] = max(0, jetPulse[index] - dt) }
@@ -494,17 +512,24 @@ final class RingGameSimulation {
     }
 
     private func updateRound(dt: Float) {
-        if celebration > 0 {
-            celebration -= dt
-            if celebration <= 0 { releaseRings() }
+        if isVictory {
+            // Deixa a última argola assentar; depois solta o confete, congela e mostra o aviso de recomeçar.
+            if celebration > 0 {
+                celebration -= dt
+                if celebration <= 0 {
+                    confetti.burst(in: size, colorCount: RingGameTuning.ringCount)
+                    isReady = true
+                }
+            }
             return
         }
         guard !rings.isEmpty, rings.allSatisfy({ $0.hook != nil }) else { return }
-        celebration = RingGameTuning.celebrationDuration
+        isVictory = true
+        celebration = RingGameTuning.celebrationDelay
         onRoundComplete?()
     }
 
-    /// Fim da comemoração: as argolas se soltam do pino e caem, pra uma nova rodada.
+    /// Toque depois da comemoração: as argolas se soltam do pino e caem, pra uma nova rodada.
     private func releaseRings() {
         for i in rings.indices {
             rings[i].hook = nil
@@ -571,7 +596,8 @@ final class RingGameSimulation {
             jetsOpen: Self.jetIndices.map { RingGameSide(rawValue: $0) == .center ? burstFlash > 0 : isJetOpen($0) },
             jetHeight: CGFloat(RingGameTuning.jetReach) * size.height,
             burstOrigin: CGPoint(x: CGFloat(burstOrigin.x), y: CGFloat(burstOrigin.y)),
-            isCelebrating: celebration > 0,
+            isCelebrating: isVictory,
+            confetti: confetti.snapshot(),
             isReady: isReady
         )
     }

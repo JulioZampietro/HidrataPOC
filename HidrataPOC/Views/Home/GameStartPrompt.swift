@@ -14,17 +14,25 @@ enum GameStartPrompt {
     private static let shadow = Color(UIColor { $0.userInterfaceStyle == .dark
         ? UIColor(red: 0.05, green: 0.25, blue: 0.6, alpha: 0.45)
         : UIColor.white.withAlphaComponent(0.8) })
+    /// Fundo do cartão opcional (`backdrop`): claro no modo claro, azul escuro no escuro, sempre
+    /// com contraste pro `ink`.
+    private static let card = Color(UIColor { $0.userInterfaceStyle == .dark
+        ? UIColor(red: 0.05, green: 0.2, blue: 0.5, alpha: 0.88)
+        : UIColor.white.withAlphaComponent(0.9) })
     private static let sideMargin: CGFloat = 24
+    private static let cardPadding = CGSize(width: 22, height: 14)
     private static let unbounded = CGSize(width: CGFloat.infinity, height: CGFloat.infinity)
 
     /// `centerY` é o centro do aviso, em pontos do `Canvas`: cada jogo escolhe um trecho livre
     /// do próprio tabuleiro. `action` troca o "Toque pra começar" (ex.: recomeçar depois da vitória).
+    /// `backdrop` põe um cartão atrás do texto, pros jogos em que o aviso cai sobre o tabuleiro.
     static func draw(
         title: String? = nil,
         action: String = "Toque pra começar",
         hint: String,
         centerY: CGFloat,
         size: CGSize,
+        backdrop: Bool = false,
         in ctx: inout GraphicsContext
     ) {
         let maxWidth = size.width - sideMargin * 2
@@ -42,6 +50,14 @@ enum GameStartPrompt {
 
         let spacing: CGFloat = 4
         let blockHeight = lines.reduce(0) { $0 + $1.size.height } + spacing * CGFloat(lines.count - 1)
+        if backdrop {
+            let blockWidth = lines.map(\.size.width).max() ?? 0
+            let rect = CGRect(x: (size.width - blockWidth) / 2 - cardPadding.width, y: centerY - blockHeight / 2 - cardPadding.height,
+                              width: blockWidth + cardPadding.width * 2, height: blockHeight + cardPadding.height * 2)
+            var cardCtx = ctx
+            cardCtx.addFilter(.shadow(color: .black.opacity(0.12), radius: 8, y: 2))
+            cardCtx.fill(Path(roundedRect: rect, cornerRadius: 22), with: .color(card))
+        }
 
         var textCtx = ctx
         textCtx.addFilter(.shadow(color: shadow, radius: 3, y: 1))

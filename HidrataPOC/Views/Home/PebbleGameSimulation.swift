@@ -1,8 +1,8 @@
 import simd
 import SwiftUI
 
-/// Valores do jogo das Bolhas Coloridas para ajustar à mão (mesma ideia de `JumpGameTuning`).
-enum BubbleGameTuning {
+/// Valores do jogo das Pedras Coloridas para ajustar à mão (mesma ideia de `JumpGameTuning`).
+enum PebbleGameTuning {
     // Grade de pedrinhas (colmeia: linhas alternadas deslocadas meia pedrinha)
     static let colorCount = 4
     /// Pedrinhas da mesma cor juntas (contando a atirada) pra estourar, por fase: limpar a grade
@@ -36,7 +36,6 @@ enum BubbleGameTuning {
     static let clearBonus = 500
     static let gameOverPause: Float = 1.6        // s mostrando "fim de jogo" antes de recomeçar
     static let popWaterPush: Float = 5           // agito na superfície a cada estouro
-    static let confettiCount = 150               // pedacinhos de confete ao limpar a última fase
 
     /// Cores das pedrinhas (índice = `colorIndex`). Sem azul, que some na água.
     static let colors: [Color] = [
@@ -49,24 +48,13 @@ enum BubbleGameTuning {
 }
 
 /// Para que lado o canhão está girando com os botões.
-enum BubbleGameSide: Int, CaseIterable {
+enum PebbleGameSide: Int, CaseIterable {
     case left, right
 }
 
-/// Pedacinho de confete da comemoração da última fase.
-struct Confetto: Sendable {
-    let position: CGPoint
-    let size: CGSize
-    let angle: CGFloat
-    /// 0…1: achata o pedacinho enquanto ele gira de lado.
-    let flip: CGFloat
-    let colorIndex: Int
-    let alpha: CGFloat
-}
-
 /// Foto imutável da simulação num frame — o `Canvas` desenha a partir dela.
-struct BubbleGameSnapshot: Sendable {
-    struct Bubble: Sendable {
+struct PebbleGameSnapshot: Sendable {
+    struct Pebble: Sendable {
         let position: CGPoint
         let colorIndex: Int
         /// Semente do formato da pedrinha: fica a mesma a vida toda, então ela não muda de cara.
@@ -82,15 +70,15 @@ struct BubbleGameSnapshot: Sendable {
     }
 
     let radius: CGFloat
-    let bubbles: [Bubble]           // grade + estourando + caindo
-    let shot: Bubble?
+    let pebbles: [Pebble]           // grade + estourando + caindo
+    let shot: Pebble?
     let sparks: [Spark]
     let shooter: CGPoint
     let aimAngle: CGFloat           // rad a partir da vertical, negativo = esquerda
     let aimGuide: [CGPoint]
     let isTouchAiming: Bool
-    let loaded: Bubble
-    let next: Bubble
+    let loaded: Pebble
+    let next: Pebble
     let dangerY: CGFloat
     let dangerLevel: CGFloat        // 0…1: quão perto a pedrinha mais baixa está da linha de perigo
     let shotsUntilNewRow: Int
@@ -115,7 +103,7 @@ struct BubbleGameSnapshot: Sendable {
 /// jogo, e outra partida começa logo depois. Física própria em Swift, no mesmo molde de
 /// `JumpGameSimulation`.
 @MainActor
-final class BubbleGameSimulation {
+final class PebbleGameSimulation {
     private struct Cell: Hashable {
         var row: Int
         var col: Int
@@ -126,7 +114,7 @@ final class BubbleGameSimulation {
         let seed: Int
 
         static func random(colors: [Int]? = nil) -> Stone {
-            Stone(colorIndex: colors?.randomElement() ?? Int.random(in: 0..<BubbleGameTuning.colorCount),
+            Stone(colorIndex: colors?.randomElement() ?? Int.random(in: 0..<PebbleGameTuning.colorCount),
                   seed: Int.random(in: 0..<1_000_000))
         }
     }
@@ -145,18 +133,6 @@ final class BubbleGameSimulation {
         var life: Float
         let lifetime: Float
         let isPopping: Bool
-    }
-
-    private struct Confetti {
-        var position: SIMD2<Float>
-        var velocity: SIMD2<Float>
-        var angle: Float
-        var spin: Float
-        var flipPhase: Float
-        let size: SIMD2<Float>
-        let colorIndex: Int
-        var life: Float
-        let lifetime: Float
     }
 
     private struct Spark {
@@ -189,7 +165,7 @@ final class BubbleGameSimulation {
 
     // Canhão
     private var aim: Float = 0
-    private var held = [Bool](repeating: false, count: BubbleGameSide.allCases.count)
+    private var held = [Bool](repeating: false, count: PebbleGameSide.allCases.count)
     private var holdTime: Float = 0
     /// O dedo está no aquário mirando (a linha de mira fica mais comprida).
     private var isTouchAiming = false
@@ -198,9 +174,9 @@ final class BubbleGameSimulation {
     private var shot: Shot?
     private var fireCooldown: Float = 0
     private var misses = 0
-    /// Fase atual a partir de 0 (índice de `BubbleGameTuning.minMatchByLevel`).
+    /// Fase atual a partir de 0 (índice de `PebbleGameTuning.minMatchByLevel`).
     private var levelIndex = 0
-    private var minMatch: Int { BubbleGameTuning.minMatchByLevel[levelIndex] }
+    private var minMatch: Int { PebbleGameTuning.minMatchByLevel[levelIndex] }
     /// Antes do primeiro toque de cada fase: mostra "Fase N" e o toque que sai dela não atira.
     private var isReady = true
     /// O toque que está no aquário começou na tela de espera e só serve pra sair dela.
@@ -211,7 +187,7 @@ final class BubbleGameSimulation {
     // Efeitos
     private var loose: [Loose] = []
     private var sparks: [Spark] = []
-    private var confetti: [Confetti] = []
+    private var confetti = ConfettiShower()
 
     private var gameOverTimer: Float = 0
     private var needsReset = true
@@ -235,10 +211,10 @@ final class BubbleGameSimulation {
         grid.removeAll()
         loose.removeAll()
         sparks.removeAll()
-        confetti.removeAll()
+        confetti.clear()
         isVictory = false
         shot = nil
-        held = [Bool](repeating: false, count: BubbleGameSide.allCases.count)
+        held = [Bool](repeating: false, count: PebbleGameSide.allCases.count)
         isTouchAiming = false
         score = 0
         lastFrame = nil
@@ -246,16 +222,16 @@ final class BubbleGameSimulation {
 
     // MARK: Controles
 
-    func setAim(_ side: BubbleGameSide, held isHeld: Bool) {
+    func setAim(_ side: PebbleGameSide, held isHeld: Bool) {
         if isHeld { beginIfReady() }
         held[side.rawValue] = isHeld
         if !held.contains(true) { holdTime = 0 }
     }
 
     /// Gira um pouquinho, pra quem aciona o botão sem segurar (VoiceOver, toque rápido).
-    func pulseAim(_ side: BubbleGameSide) {
+    func pulseAim(_ side: PebbleGameSide) {
         beginIfReady()
-        aim += (side == .left ? -1 : 1) * BubbleGameTuning.aimPulseStep
+        aim += (side == .left ? -1 : 1) * PebbleGameTuning.aimPulseStep
         aim = clampedAim(aim)
     }
 
@@ -298,7 +274,7 @@ final class BubbleGameSimulation {
         shot = Shot(position: shooter, direction: SIMD2(sin(aim), -cos(aim)), stone: loaded)
         loaded = next
         next = randomStone()
-        fireCooldown = BubbleGameTuning.fireCooldown
+        fireCooldown = PebbleGameTuning.fireCooldown
         Haptic.tap.play()
     }
 
@@ -315,17 +291,17 @@ final class BubbleGameSimulation {
         needsReset = false
         layoutSize = size
         let width = Float(size.width), height = Float(size.height)
-        shooter = SIMD2(width / 2, height - BubbleGameTuning.shooterBottomInset)
+        shooter = SIMD2(width / 2, height - PebbleGameTuning.shooterBottomInset)
 
         // Colunas inteiras com o diâmetro mais perto do desejado; se o aquário for baixo, as
         // pedrinhas encolhem até caberem `minRowsToDanger` linhas acima da linha de perigo.
-        var d = width / Float(max(BubbleGameTuning.minColumns, min(BubbleGameTuning.maxColumns,
-                                                                   Int((width / BubbleGameTuning.targetDiameter).rounded()))))
-        let room = shooter.y - BubbleGameTuning.gridTop
+        var d = width / Float(max(PebbleGameTuning.minColumns, min(PebbleGameTuning.maxColumns,
+                                                                   Int((width / PebbleGameTuning.targetDiameter).rounded()))))
+        let room = shooter.y - PebbleGameTuning.gridTop
         // room = 0,5 d (topo até o centro da 1ª linha) + (linhas − 1) × 0,866 d + 1,5 d (até o canhão)
-        let fitting = room / (2 + (BubbleGameTuning.minRowsToDanger - 1) * 0.866)
+        let fitting = room / (2 + (PebbleGameTuning.minRowsToDanger - 1) * 0.866)
         d = min(d, fitting)
-        columns = min(BubbleGameTuning.maxColumns, Int(width / d))
+        columns = min(PebbleGameTuning.maxColumns, Int(width / d))
         diameter = d
         rowHeight = d * 0.866
         gridLeft = (width - Float(columns) * d) / 2
@@ -338,7 +314,7 @@ final class BubbleGameSimulation {
         isReady = true
         ignoresTouch = false
         isVictory = false
-        confetti.removeAll()
+        confetti.clear()
         rowParity = 0
         aim = 0
         shot = nil
@@ -354,13 +330,13 @@ final class BubbleGameSimulation {
     /// Recoloca o canhão e a linha de perigo pra altura nova, mantendo a grade e o tamanho das pedrinhas.
     private func relayoutVertically() {
         layoutSize = size
-        shooter.y = Float(size.height) - BubbleGameTuning.shooterBottomInset
+        shooter.y = Float(size.height) - PebbleGameTuning.shooterBottomInset
         dangerY = shooter.y - diameter * 1.5
     }
 
     private func fillInitialRows() {
         grid.removeAll()
-        let rows = BubbleGameTuning.initialRows
+        let rows = PebbleGameTuning.initialRows
         for row in 0..<rows {
             for col in 0..<columnCount(row: row) {
                 grid[Cell(row: row, col: col)] = .random()
@@ -384,11 +360,11 @@ final class BubbleGameSimulation {
         lastFrame = date
 
         fireCooldown = max(0, fireCooldown - dt)
-        slide *= exp(-BubbleGameTuning.rowSlideSpeed * dt)
+        slide *= exp(-PebbleGameTuning.rowSlideSpeed * dt)
         if slide < 0.3 { slide = 0 }
         updateLoose(dt: dt)
         updateSparks(dt: dt)
-        updateConfetti(dt: dt)
+        confetti.update(dt: dt)
 
         if gameOverTimer > 0 {
             gameOverTimer -= dt
@@ -403,23 +379,23 @@ final class BubbleGameSimulation {
     private func updateAim(dt: Float) {
         guard !isReady else { holdTime = 0; return }
         var direction: Float = 0
-        if held[BubbleGameSide.left.rawValue] { direction -= 1 }
-        if held[BubbleGameSide.right.rawValue] { direction += 1 }
+        if held[PebbleGameSide.left.rawValue] { direction -= 1 }
+        if held[PebbleGameSide.right.rawValue] { direction += 1 }
         guard direction != 0 else { holdTime = 0; return }
         holdTime += dt
-        let speed = min(BubbleGameTuning.aimSpeedMax, BubbleGameTuning.aimSpeedMin + BubbleGameTuning.aimAcceleration * holdTime)
+        let speed = min(PebbleGameTuning.aimSpeedMax, PebbleGameTuning.aimSpeedMin + PebbleGameTuning.aimAcceleration * holdTime)
         aim = clampedAim(aim + direction * speed * dt)
     }
 
     private func clampedAim(_ value: Float) -> Float {
-        max(-BubbleGameTuning.aimLimit, min(BubbleGameTuning.aimLimit, value))
+        max(-PebbleGameTuning.aimLimit, min(PebbleGameTuning.aimLimit, value))
     }
 
     /// Anda com a pedrinha atirada em passos curtos (pra não atravessar outra), quicando nas
     /// paredes, até encostar no teto ou numa pedrinha da grade.
     private func updateShot(dt: Float, water: WaterMotion) {
         guard var current = shot else { return }
-        var remaining = BubbleGameTuning.shotSpeed * dt
+        var remaining = PebbleGameTuning.shotSpeed * dt
         while remaining > 0 {
             let step = min(remaining, radius * 0.5)
             remaining -= step
@@ -446,7 +422,7 @@ final class BubbleGameSimulation {
     }
 
     private func collidingCell(at point: SIMD2<Float>) -> Cell? {
-        let reach = diameter * BubbleGameTuning.hitFraction
+        let reach = diameter * PebbleGameTuning.hitFraction
         var best: (cell: Cell, distance: Float)?
         for cell in grid.keys {
             let distance = simd_distance(center(of: cell), point)
@@ -474,24 +450,24 @@ final class BubbleGameSimulation {
                 if let stone = grid.removeValue(forKey: member) { pop(at: center(of: member), stone: stone) }
             }
             let dropped = dropFloatingStones()
-            score += group.count * BubbleGameTuning.pointsPerPop + dropped * BubbleGameTuning.pointsPerDrop
+            score += group.count * PebbleGameTuning.pointsPerPop + dropped * PebbleGameTuning.pointsPerDrop
             water.disturb(atU: center(of: cell).x / Float(size.width),
-                          strength: BubbleGameTuning.popWaterPush * (dropped > 0 ? 2 : 1))
+                          strength: PebbleGameTuning.popWaterPush * (dropped > 0 ? 2 : 1))
             (dropped > 0 ? Haptic.success : Haptic.primary).play()
         } else {
             Haptic.ripple.play()
             misses += 1
-            if misses >= BubbleGameTuning.missesBeforeNewRow {
+            if misses >= PebbleGameTuning.missesBeforeNewRow {
                 misses = 0
                 insertRow()
-                water.disturb(atU: 0.5, strength: BubbleGameTuning.popWaterPush)
+                water.disturb(atU: 0.5, strength: PebbleGameTuning.popWaterPush)
             }
         }
 
         if grid.isEmpty {
-            score += BubbleGameTuning.clearBonus
+            score += PebbleGameTuning.clearBonus
             misses = 0
-            let finishedLastLevel = levelIndex == BubbleGameTuning.minMatchByLevel.count - 1
+            let finishedLastLevel = levelIndex == PebbleGameTuning.minMatchByLevel.count - 1
             levelIndex = finishedLastLevel ? 0 : levelIndex + 1
             isReady = true
             isTouchAiming = false
@@ -499,9 +475,10 @@ final class BubbleGameSimulation {
             if finishedLastLevel {
                 isVictory = true
                 celebrateVictory()
-                water.disturb(atU: 0.5, strength: BubbleGameTuning.popWaterPush * 3)
+                water.disturb(atU: 0.5, strength: PebbleGameTuning.popWaterPush * 3)
+            } else {
+                Haptic.celebrate.play() // o confete da última fase já vibra junto
             }
-            Haptic.celebrate.play()
         }
         refreshCannonColors()
 
@@ -558,7 +535,7 @@ final class BubbleGameSimulation {
         grid.removeAll()
         shot = nil
         isTouchAiming = false
-        gameOverTimer = BubbleGameTuning.gameOverPause
+        gameOverTimer = PebbleGameTuning.gameOverPause
         onGameOver?(score)
     }
 
@@ -577,7 +554,7 @@ final class BubbleGameSimulation {
 
     // MARK: Geometria da grade
 
-    private var gridTopY: Float { BubbleGameTuning.gridTop }
+    private var gridTopY: Float { PebbleGameTuning.gridTop }
 
     private func isShifted(row: Int) -> Bool { (row + rowParity) % 2 == 1 }
 
@@ -639,41 +616,7 @@ final class BubbleGameSimulation {
 
     /// Última fase limpa: confete sai dos dois cantos de baixo e cai do alto da tela.
     private func celebrateVictory() {
-        let width = Float(size.width), height = Float(size.height)
-        for i in 0..<BubbleGameTuning.confettiCount {
-            let fromCorner = i % 3 != 0
-            let position: SIMD2<Float>
-            let velocity: SIMD2<Float>
-            if fromCorner {
-                let left = i % 2 == 0
-                position = SIMD2(left ? 0 : width, height * 0.85)
-                velocity = SIMD2((left ? 1 : -1) * Float.random(in: 120...420), -Float.random(in: 450...950))
-            } else {
-                position = SIMD2(Float.random(in: 0...width), -Float.random(in: 10...height * 0.3))
-                velocity = SIMD2(Float.random(in: -60...60), Float.random(in: 40...200))
-            }
-            let lifetime = Float.random(in: 2.6...4)
-            confetti.append(Confetti(
-                position: position, velocity: velocity,
-                angle: Float.random(in: 0...(2 * .pi)), spin: Float.random(in: -8...8),
-                flipPhase: Float.random(in: 0...(2 * .pi)),
-                size: SIMD2(Float.random(in: 6...10), Float.random(in: 10...16)),
-                colorIndex: Int.random(in: 0..<BubbleGameTuning.colors.count),
-                life: lifetime, lifetime: lifetime
-            ))
-        }
-    }
-
-    private func updateConfetti(dt: Float) {
-        for i in confetti.indices {
-            confetti[i].life -= dt
-            confetti[i].velocity.y += 520 * dt
-            confetti[i].velocity *= exp(-0.9 * dt) // o ar segura o confete, que cai balançando
-            confetti[i].position += confetti[i].velocity * dt
-            confetti[i].angle += confetti[i].spin * dt
-            confetti[i].flipPhase += 6 * dt
-        }
-        confetti.removeAll { $0.life <= 0 }
+        confetti.burst(in: size, colorCount: PebbleGameTuning.colors.count)
     }
 
     private func updateSparks(dt: Float) {
@@ -697,7 +640,7 @@ final class BubbleGameSimulation {
         var travelled: Float = 0
         var points: [CGPoint] = []
         let spacing: Float = 14
-        let length = isTouchAiming ? BubbleGameTuning.touchAimGuideLength : BubbleGameTuning.aimGuideLength
+        let length = isTouchAiming ? PebbleGameTuning.touchAimGuideLength : PebbleGameTuning.aimGuideLength
         var sinceLast: Float = radius * 1.4 - spacing // o primeiro ponto fica fora do canhão
         while travelled < length {
             let step: Float = 4
@@ -716,52 +659,47 @@ final class BubbleGameSimulation {
 
     // MARK: Foto pra desenhar
 
-    func snapshot() -> BubbleGameSnapshot {
+    func snapshot() -> PebbleGameSnapshot {
         let offset = CGFloat(slide)
         func point(_ p: SIMD2<Float>, slides: Bool = true) -> CGPoint {
             CGPoint(x: CGFloat(p.x), y: CGFloat(p.y) - (slides ? offset : 0))
         }
-        func bubble(_ stone: Stone, at p: CGPoint, scale: CGFloat = 1, alpha: CGFloat = 1) -> BubbleGameSnapshot.Bubble {
-            BubbleGameSnapshot.Bubble(position: p, colorIndex: stone.colorIndex, seed: stone.seed, scale: scale, alpha: alpha)
+        func pebble(_ stone: Stone, at p: CGPoint, scale: CGFloat = 1, alpha: CGFloat = 1) -> PebbleGameSnapshot.Pebble {
+            PebbleGameSnapshot.Pebble(position: p, colorIndex: stone.colorIndex, seed: stone.seed, scale: scale, alpha: alpha)
         }
-        var bubbles = grid.map { bubble($0.value, at: point(center(of: $0.key))) }
+        var pebbles = grid.map { pebble($0.value, at: point(center(of: $0.key))) }
         for item in loose {
             let progress = CGFloat(1 - item.life / item.lifetime)
-            bubbles.append(item.isPopping
-                ? bubble(item.stone, at: point(item.position, slides: false), scale: 1 + 0.5 * progress, alpha: 1 - progress)
-                : bubble(item.stone, at: point(item.position, slides: false), alpha: min(1, CGFloat(item.life / item.lifetime) * 2)))
+            pebbles.append(item.isPopping
+                ? pebble(item.stone, at: point(item.position, slides: false), scale: 1 + 0.5 * progress, alpha: 1 - progress)
+                : pebble(item.stone, at: point(item.position, slides: false), alpha: min(1, CGFloat(item.life / item.lifetime) * 2)))
         }
         let lowest = grid.keys.map { center(of: $0).y }.max() ?? gridTopY
         let dangerLevel = max(0, min(1, 1 - (dangerY - lowest) / (rowHeight * 3)))
         let cannon = point(shooter, slides: false)
-        return BubbleGameSnapshot(
+        return PebbleGameSnapshot(
             radius: CGFloat(radius),
-            bubbles: bubbles,
-            shot: shot.map { bubble($0.stone, at: point($0.position, slides: false)) },
+            pebbles: pebbles,
+            shot: shot.map { pebble($0.stone, at: point($0.position, slides: false)) },
             sparks: sparks.map {
-                BubbleGameSnapshot.Spark(position: point($0.position, slides: false), radius: CGFloat($0.radius),
+                PebbleGameSnapshot.Spark(position: point($0.position, slides: false), radius: CGFloat($0.radius),
                                          alpha: CGFloat($0.life / $0.lifetime) * 0.8)
             },
             shooter: cannon,
             aimAngle: CGFloat(aim),
             aimGuide: aimGuide(),
             isTouchAiming: isTouchAiming,
-            loaded: bubble(loaded, at: cannon),
-            next: bubble(next, at: CGPoint(x: cannon.x + CGFloat(radius) * 2.6, y: cannon.y + CGFloat(radius) * 0.3), scale: 0.6),
+            loaded: pebble(loaded, at: cannon),
+            next: pebble(next, at: CGPoint(x: cannon.x + CGFloat(radius) * 2.6, y: cannon.y + CGFloat(radius) * 0.3), scale: 0.6),
             dangerY: CGFloat(dangerY),
             dangerLevel: CGFloat(dangerLevel),
-            shotsUntilNewRow: BubbleGameTuning.missesBeforeNewRow - misses,
+            shotsUntilNewRow: PebbleGameTuning.missesBeforeNewRow - misses,
             score: score,
             level: levelIndex + 1,
             minMatch: minMatch,
             isReady: isReady,
             isCelebrating: isVictory,
-            confetti: confetti.map {
-                Confetto(position: point($0.position, slides: false),
-                         size: CGSize(width: CGFloat($0.size.x), height: CGFloat($0.size.y)),
-                         angle: CGFloat($0.angle), flip: CGFloat(abs(cos($0.flipPhase))),
-                         colorIndex: $0.colorIndex, alpha: CGFloat(min(1, $0.life / 0.8)))
-            },
+            confetti: confetti.snapshot(),
             isGameOver: gameOverTimer > 0
         )
     }

@@ -24,9 +24,16 @@ struct RingGameView: View {
                 let snapshot = simulation.snapshot()
                 Canvas { ctx, size in
                     Self.draw(snapshot, in: &ctx)
+                    GameConfetti.draw(snapshot.confetti, colors: Self.ringColors, in: &ctx)
                     if snapshot.isReady {
-                        GameStartPrompt.draw(hint: "Use os jatos pra enfiar as argolas nos pinos",
-                                             centerY: size.height * 0.4, size: size, in: &ctx)
+                        if snapshot.isCelebrating {
+                            GameStartPrompt.draw(title: "Parabéns!", action: "Toque pra recomeçar",
+                                                 hint: "Você completou todas as argolas",
+                                                 centerY: size.height * 0.4, size: size, in: &ctx)
+                        } else {
+                            GameStartPrompt.draw(hint: "Use os jatos pra encaixar as argolas nos pinos",
+                                                 centerY: size.height * 0.4, size: size, in: &ctx)
+                        }
                     }
                 }
             }
@@ -42,16 +49,20 @@ struct RingGameView: View {
         drawJets(snapshot, in: &ctx)
         for post in snapshot.posts { drawPost(post, in: &ctx) }
 
-        // Livres primeiro (na frente dos pinos); depois, as enfiadas por cima do pino,
-        // de cima pra baixo, com o pino passando por dentro do furo.
+        // Livres primeiro (na frente dos pinos); depois, as enfiadas com o pino passando por
+        // dentro do furo: todas as metades de trás, o pino por cima delas e só então as
+        // metades da frente (senão o pino redesenhado cobre a frente das argolas de cima).
         for ring in snapshot.rings where !ring.isHooked { drawRing(ring, part: .whole, in: &ctx) }
-        for ring in snapshot.rings.filter(\.isHooked).sorted(by: { $0.slot > $1.slot }) {
-            drawRing(ring, part: .back, in: &ctx)
-            if let post = snapshot.posts.min(by: { abs($0.midX - ring.position.x) < abs($1.midX - ring.position.x) }) {
-                drawPost(post, in: &ctx)
+        let hooked = snapshot.rings.filter(\.isHooked).sorted(by: { $0.slot > $1.slot })
+        for ring in hooked { drawRing(ring, part: .back, in: &ctx) }
+        var hookedPosts = Set<Int>()
+        for ring in hooked {
+            if let index = snapshot.posts.indices.min(by: { abs(snapshot.posts[$0].midX - ring.position.x) < abs(snapshot.posts[$1].midX - ring.position.x) }) {
+                hookedPosts.insert(index)
             }
-            drawRing(ring, part: .front, in: &ctx)
         }
+        for index in hookedPosts.sorted() { drawPost(snapshot.posts[index], in: &ctx) }
+        for ring in hooked { drawRing(ring, part: .front, in: &ctx) }
 
         for bubble in snapshot.bubbles {
             let rect = CGRect(x: bubble.position.x - bubble.radius, y: bubble.position.y - bubble.radius,

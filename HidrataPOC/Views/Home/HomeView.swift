@@ -53,7 +53,7 @@ struct HomeView: View {
     /// Minijogo da meta batida: o aquário (`WaterHeaderView`) desenha, aqui ficam os botões.
     @Environment(MiniGameController.self) private var miniGames
     @State private var pressedJets = [Bool](repeating: false, count: RingGameSide.allCases.count)
-    @State private var pressedAimSides = [Bool](repeating: false, count: BubbleGameSide.allCases.count)
+    @State private var pressedAimSides = [Bool](repeating: false, count: PebbleGameSide.allCases.count)
     @State private var isFirePressed = false
     @AppStorage(MiniGame.jumpBestStorageKey) private var jumpBestScore = 0
     @AppStorage(MiniGame.flappyBestStorageKey) private var flappyBestScore = 0
@@ -294,7 +294,7 @@ struct HomeView: View {
                 jetButton(.left).matchedGeometryEffect(id: "gole", in: controlsNamespace)
                 jetButton(.center).matchedGeometryEffect(id: "bottle", in: controlsNamespace)
                 jetButton(.right).matchedGeometryEffect(id: "glass", in: controlsNamespace)
-            case .bubbles:
+            case .pebbles:
                 aimButton(.left).matchedGeometryEffect(id: "gole", in: controlsNamespace)
                 fireButton.matchedGeometryEffect(id: "bottle", in: controlsNamespace)
                 aimButton(.right).matchedGeometryEffect(id: "glass", in: controlsNamespace)
@@ -354,7 +354,7 @@ struct HomeView: View {
         )
     }
 
-    private func aimButton(_ side: BubbleGameSide) -> some View {
+    private func aimButton(_ side: PebbleGameSide) -> some View {
         GameHoldButton(
             symbol: side == .left ? "arrow.counterclockwise.circle.fill" : "arrow.clockwise.circle.fill",
             accessibilityLabel: side == .left ? "Mirar pra esquerda" : "Mirar pra direita",
@@ -363,10 +363,10 @@ struct HomeView: View {
             onPressChange: { isPressed in
                 guard pressedAimSides[side.rawValue] != isPressed else { return }
                 pressedAimSides[side.rawValue] = isPressed
-                miniGames.bubbleGame.setAim(side, held: isPressed)
+                miniGames.pebbleGame.setAim(side, held: isPressed)
                 if isPressed { Haptic.selection.play() }
             },
-            onAccessibilityPulse: { miniGames.bubbleGame.pulseAim(side) }
+            onAccessibilityPulse: { miniGames.pebbleGame.pulseAim(side) }
         )
     }
 
@@ -458,9 +458,9 @@ struct HomeView: View {
             onPressChange: { isPressed in
                 guard isFirePressed != isPressed else { return }
                 isFirePressed = isPressed
-                if isPressed { miniGames.bubbleGame.fire() }
+                if isPressed { miniGames.pebbleGame.fire() }
             },
-            onAccessibilityPulse: { miniGames.bubbleGame.fire() }
+            onAccessibilityPulse: { miniGames.pebbleGame.fire() }
         )
     }
 
@@ -469,11 +469,11 @@ struct HomeView: View {
         pressedJets = [Bool](repeating: false, count: RingGameSide.allCases.count)
         for side in RingGameSide.allCases { miniGames.ringGame.setJet(side, open: false) }
         miniGames.jumpGame.setJoystick(0)
-        pressedAimSides = [Bool](repeating: false, count: BubbleGameSide.allCases.count)
+        pressedAimSides = [Bool](repeating: false, count: PebbleGameSide.allCases.count)
         isFirePressed = false
         pressedFlapSides = [false, false]
         joystickDirections = nil
-        for side in BubbleGameSide.allCases { miniGames.bubbleGame.setAim(side, held: false) }
+        for side in PebbleGameSide.allCases { miniGames.pebbleGame.setAim(side, held: false) }
     }
 
     private func intakeGrid(cardHeight: CGFloat) -> some View {

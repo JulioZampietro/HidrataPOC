@@ -1,12 +1,12 @@
 import SwiftUI
 
-/// Desenha o jogo das Bolhas Coloridas (`BubbleGameSimulation`) dentro do recipiente de água,
+/// Desenha o jogo das Pedras Coloridas (`PebbleGameSimulation`) dentro do recipiente de água,
 /// no mesmo lugar dos outros minijogos (`JumpGameView`) — então passa pela refração do shader.
 /// Diferente dos outros jogos, recebe toque: arrastar no aquário mira e soltar atira.
-struct BubbleGameView: View {
-    let simulation: BubbleGameSimulation
+struct PebbleGameView: View {
+    let simulation: PebbleGameSimulation
     let water: WaterMotion
-    @AppStorage(MiniGame.bubblesBestStorageKey) private var best = 0
+    @AppStorage(MiniGame.pebblesBestStorageKey) private var best = 0
 
     var body: some View {
         TimelineView(.animation) { context in
@@ -30,7 +30,7 @@ struct BubbleGameView: View {
 
     // MARK: - Desenho
 
-    private static func draw(_ snapshot: BubbleGameSnapshot, best: Int, size: CGSize, in ctx: inout GraphicsContext) {
+    private static func draw(_ snapshot: PebbleGameSnapshot, best: Int, size: CGSize, in ctx: inout GraphicsContext) {
         drawDangerLine(snapshot, size: size, in: &ctx)
         for (index, point) in snapshot.aimGuide.enumerated() {
             let fade = 1 - CGFloat(index) / CGFloat(max(snapshot.aimGuide.count, 1))
@@ -40,7 +40,7 @@ struct BubbleGameView: View {
             ctx.fill(dot, with: .color(ink.opacity(strength * fade)))
             ctx.stroke(dot, with: .color(.white.opacity(0.8 * fade)), lineWidth: 1)
         }
-        for bubble in snapshot.bubbles { drawStone(bubble, radius: snapshot.radius, in: &ctx) }
+        for pebble in snapshot.pebbles { drawStone(pebble, radius: snapshot.radius, in: &ctx) }
         for spark in snapshot.sparks {
             let rect = CGRect(x: spark.position.x - spark.radius, y: spark.position.y - spark.radius,
                               width: spark.radius * 2, height: spark.radius * 2)
@@ -65,7 +65,7 @@ struct BubbleGameView: View {
                 .foregroundStyle(ink.opacity(0.8)),
             at: CGPoint(x: scoreX, y: snapshot.shooter.y + 15)
         )
-        drawConfetti(snapshot, in: &ctx)
+        GameConfetti.draw(snapshot.confetti, colors: PebbleGameTuning.colors, in: &ctx)
         if snapshot.isReady && !snapshot.isGameOver { drawReadyText(snapshot, size: size, in: &ctx) }
         if snapshot.isGameOver {
             textCtx.draw(
@@ -78,7 +78,7 @@ struct BubbleGameView: View {
     }
 
     /// Aviso de início: "Fase N" antes de cada fase e "Parabéns!" depois de limpar a última.
-    private static func drawReadyText(_ snapshot: BubbleGameSnapshot, size: CGSize, in ctx: inout GraphicsContext) {
+    private static func drawReadyText(_ snapshot: PebbleGameSnapshot, size: CGSize, in ctx: inout GraphicsContext) {
         if snapshot.isCelebrating {
             GameStartPrompt.draw(title: "Parabéns!", action: "Toque pra recomeçar", hint: "Você limpou as 3 fases!",
                                  centerY: size.height * 0.62, size: size, in: &ctx)
@@ -86,20 +86,6 @@ struct BubbleGameView: View {
             GameStartPrompt.draw(title: "Fase \(snapshot.level)",
                                  hint: "Junte \(snapshot.minMatch) ou mais da mesma cor",
                                  centerY: size.height * 0.62, size: size, in: &ctx)
-        }
-    }
-
-    /// Confete da comemoração da última fase: retângulos coloridos que giram e achatam.
-    private static func drawConfetti(_ snapshot: BubbleGameSnapshot, in ctx: inout GraphicsContext) {
-        for piece in snapshot.confetti {
-            var pieceCtx = ctx
-            pieceCtx.opacity = piece.alpha
-            pieceCtx.translateBy(x: piece.position.x, y: piece.position.y)
-            pieceCtx.rotate(by: .radians(piece.angle))
-            let height = piece.size.height * max(0.15, piece.flip)
-            let rect = CGRect(x: -piece.size.width / 2, y: -height / 2, width: piece.size.width, height: height)
-            pieceCtx.fill(Path(roundedRect: rect, cornerRadius: 1.5),
-                          with: .color(BubbleGameTuning.colors[piece.colorIndex % BubbleGameTuning.colors.count]))
         }
     }
 
@@ -113,7 +99,7 @@ struct BubbleGameView: View {
         : UIColor.white.withAlphaComponent(0.6) })
 
     /// Linha tracejada que as pedrinhas não podem passar; fica vermelha conforme elas chegam perto.
-    private static func drawDangerLine(_ snapshot: BubbleGameSnapshot, size: CGSize, in ctx: inout GraphicsContext) {
+    private static func drawDangerLine(_ snapshot: PebbleGameSnapshot, size: CGSize, in ctx: inout GraphicsContext) {
         var line = Path()
         let y = snapshot.dangerY + snapshot.radius
         line.move(to: CGPoint(x: 16, y: y))
@@ -124,11 +110,11 @@ struct BubbleGameView: View {
     }
 
     private static func color(_ index: Int) -> Color {
-        BubbleGameTuning.colors[index % BubbleGameTuning.colors.count]
+        PebbleGameTuning.colors[index % PebbleGameTuning.colors.count]
     }
 
     /// Pedrinha colorida no estilo das pedrinhas do rim (ver `PebbleDrawing`).
-    private static func drawStone(_ stone: BubbleGameSnapshot.Bubble, radius: CGFloat, in context: inout GraphicsContext) {
+    private static func drawStone(_ stone: PebbleGameSnapshot.Pebble, radius: CGFloat, in context: inout GraphicsContext) {
         var ctx = context
         ctx.opacity = stone.alpha
         let r = radius * stone.scale * 0.98
@@ -139,7 +125,7 @@ struct BubbleGameView: View {
 
     /// Canhão: um bocal que gira com a mira, a pedrinha carregada no meio e a próxima ao lado,
     /// com bolinhas embaixo contando os tiros que faltam até descer uma linha nova.
-    private static func drawCannon(_ snapshot: BubbleGameSnapshot, in context: inout GraphicsContext) {
+    private static func drawCannon(_ snapshot: PebbleGameSnapshot, in context: inout GraphicsContext) {
         let r = snapshot.radius
         let c = snapshot.shooter
 
@@ -158,7 +144,7 @@ struct BubbleGameView: View {
             drawStone(snapshot.next, radius: r, in: &context)
         }
 
-        let count = BubbleGameTuning.missesBeforeNewRow
+        let count = PebbleGameTuning.missesBeforeNewRow
         let dot: CGFloat = 3
         let spacing: CGFloat = 9
         for i in 0..<count {

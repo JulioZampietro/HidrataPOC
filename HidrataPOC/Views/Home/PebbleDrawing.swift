@@ -3,7 +3,7 @@ import SwiftUI
 /// Pedrinha facetada no estilo das pedrinhas do rim (e dos cacos do mascote), desenhada num
 /// `Canvas`: contorno irregular, uma face de cima clara puxada pra luz e faces laterais em volta,
 /// cada uma mais clara ou mais escura conforme está virada pra luz, com borda escura e um brilho
-/// pequeno. Usada nas Bolhas Coloridas (pedrinhas redondas) e nas plataformas da Gota Saltitante
+/// pequeno. Usada nas Pedras Coloridas (pedrinhas redondas) e nas plataformas da Gota Saltitante
 /// (lajes achatadas). A semente fixa o formato, então a mesma pedra não muda de cara entre frames.
 enum PebbleDrawing {
     /// Marrom das pedrinhas do rim: misturado às cores vivas pra puxá-las pro tom de pedra.

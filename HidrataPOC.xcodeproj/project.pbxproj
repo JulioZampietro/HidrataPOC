@@ -78,8 +78,8 @@
 		C05E71C5A1B2C3D4E5F60001 /* MiniGamesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C05E71C5A1B2C3D4E5F60002 /* MiniGamesView.swift */; };
 		1A0B0C0D0E0F101112130003 /* JumpGameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0B0C0D0E0F101112130004 /* JumpGameView.swift */; };
 		1A0B0C0D0E0F101112130001 /* JumpGameSimulation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0B0C0D0E0F101112130002 /* JumpGameSimulation.swift */; };
-		1A0B0C0D0E0F101112140001 /* BubbleGameSimulation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0B0C0D0E0F101112140002 /* BubbleGameSimulation.swift */; };
-		1A0B0C0D0E0F101112140003 /* BubbleGameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0B0C0D0E0F101112140004 /* BubbleGameView.swift */; };
+		1A0B0C0D0E0F101112140001 /* PebbleGameSimulation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0B0C0D0E0F101112140002 /* PebbleGameSimulation.swift */; };
+		1A0B0C0D0E0F101112140003 /* PebbleGameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0B0C0D0E0F101112140004 /* PebbleGameView.swift */; };
 		1A0B0C0D0E0F101112150001 /* PebbleDrawing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0B0C0D0E0F101112150002 /* PebbleDrawing.swift */; };
 		1A0B0C0D0E0F101112160001 /* FlappyGameSimulation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0B0C0D0E0F101112160002 /* FlappyGameSimulation.swift */; };
 		1A0B0C0D0E0F101112160003 /* FlappyGameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0B0C0D0E0F101112160004 /* FlappyGameView.swift */; };
@@ -93,6 +93,7 @@
 		1A0B0C0D0E0F1011121A0001 /* MinesGameSimulation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0B0C0D0E0F1011121A0002 /* MinesGameSimulation.swift */; };
 		1A0B0C0D0E0F1011121B0003 /* RunnerGameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0B0C0D0E0F1011121B0004 /* RunnerGameView.swift */; };
 		1A0B0C0D0E0F1011121C0003 /* GameStartPrompt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0B0C0D0E0F1011121C0004 /* GameStartPrompt.swift */; };
+		1A0B0C0D0E0F1011121D0001 /* GameConfetti.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0B0C0D0E0F1011121D0002 /* GameConfetti.swift */; };
 		1A0B0C0D0E0F1011121B0001 /* RunnerGameSimulation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0B0C0D0E0F1011121B0002 /* RunnerGameSimulation.swift */; };
 		C390E2FE5A235D47F6B6B6B0 /* HydrationAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39B01B3E715DF9C6090B73F0 /* HydrationAttributes.swift */; };
 		C4D59AF23B75095AE1776740 /* PersistenceController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18681BFBE503481336FBEBD8 /* PersistenceController.swift */; };
@@ -269,8 +270,8 @@
 		C05E71C5A1B2C3D4E5F60002 /* MiniGamesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniGamesView.swift; sourceTree = "<group>"; };
 		1A0B0C0D0E0F101112130004 /* JumpGameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JumpGameView.swift; sourceTree = "<group>"; };
 		1A0B0C0D0E0F101112130002 /* JumpGameSimulation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JumpGameSimulation.swift; sourceTree = "<group>"; };
-		1A0B0C0D0E0F101112140002 /* BubbleGameSimulation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BubbleGameSimulation.swift; sourceTree = "<group>"; };
-		1A0B0C0D0E0F101112140004 /* BubbleGameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BubbleGameView.swift; sourceTree = "<group>"; };
+		1A0B0C0D0E0F101112140002 /* PebbleGameSimulation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PebbleGameSimulation.swift; sourceTree = "<group>"; };
+		1A0B0C0D0E0F101112140004 /* PebbleGameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PebbleGameView.swift; sourceTree = "<group>"; };
 		1A0B0C0D0E0F101112150002 /* PebbleDrawing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PebbleDrawing.swift; sourceTree = "<group>"; };
 		1A0B0C0D0E0F101112160002 /* FlappyGameSimulation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlappyGameSimulation.swift; sourceTree = "<group>"; };
 		1A0B0C0D0E0F101112160004 /* FlappyGameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlappyGameView.swift; sourceTree = "<group>"; };
@@ -284,6 +285,7 @@
 		1A0B0C0D0E0F1011121A0002 /* MinesGameSimulation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MinesGameSimulation.swift; sourceTree = "<group>"; };
 		1A0B0C0D0E0F1011121B0004 /* RunnerGameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerGameView.swift; sourceTree = "<group>"; };
 		1A0B0C0D0E0F1011121C0004 /* GameStartPrompt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameStartPrompt.swift; sourceTree = "<group>"; };
+		1A0B0C0D0E0F1011121D0002 /* GameConfetti.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameConfetti.swift; sourceTree = "<group>"; };
 		1A0B0C0D0E0F1011121B0002 /* RunnerGameSimulation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerGameSimulation.swift; sourceTree = "<group>"; };
 		C3BCAACF78A9164EF7C57D86 /* WeatherContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherContext.swift; sourceTree = "<group>"; };
 		C7A5DA61EDA45323AB04B6E6 /* HydrationWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HydrationWidgetBundle.swift; sourceTree = "<group>"; };
@@ -476,7 +478,7 @@
 				C05E71C5A1B2C3D4E5F60002 /* MiniGamesView.swift */,
 				1A0B0C0D0E0F101112130004 /* JumpGameView.swift */,
 				1A0B0C0D0E0F101112130002 /* JumpGameSimulation.swift */,
-				1A0B0C0D0E0F101112140004 /* BubbleGameView.swift */,
+				1A0B0C0D0E0F101112140004 /* PebbleGameView.swift */,
 				1A0B0C0D0E0F101112150002 /* PebbleDrawing.swift */,
 				1A0B0C0D0E0F101112160004 /* FlappyGameView.swift */,
 				1A0B0C0D0E0F101112170004 /* MazeGameView.swift */,
@@ -487,11 +489,12 @@
 				1A0B0C0D0E0F1011121A0002 /* MinesGameSimulation.swift */,
 				1A0B0C0D0E0F1011121B0004 /* RunnerGameView.swift */,
 				1A0B0C0D0E0F1011121C0004 /* GameStartPrompt.swift */,
+				1A0B0C0D0E0F1011121D0002 /* GameConfetti.swift */,
 				1A0B0C0D0E0F1011121B0002 /* RunnerGameSimulation.swift */,
 				1A0B0C0D0E0F101112180002 /* SliceGameSimulation.swift */,
 				1A0B0C0D0E0F101112170002 /* MazeGameSimulation.swift */,
 				1A0B0C0D0E0F101112160002 /* FlappyGameSimulation.swift */,
-				1A0B0C0D0E0F101112140002 /* BubbleGameSimulation.swift */,
+				1A0B0C0D0E0F101112140002 /* PebbleGameSimulation.swift */,
 				A9EDD10460D867692F1B0943 /* HomeView.swift */,
 				5A1C0DE25A1C0DE25A1C0DE2 /* ShareProgressView.swift */,
 			);
@@ -839,7 +842,7 @@
 				C05E71C5A1B2C3D4E5F60001 /* MiniGamesView.swift in Sources */,
 				1A0B0C0D0E0F101112130003 /* JumpGameView.swift in Sources */,
 				1A0B0C0D0E0F101112130001 /* JumpGameSimulation.swift in Sources */,
-				1A0B0C0D0E0F101112140003 /* BubbleGameView.swift in Sources */,
+				1A0B0C0D0E0F101112140003 /* PebbleGameView.swift in Sources */,
 				1A0B0C0D0E0F101112150001 /* PebbleDrawing.swift in Sources */,
 				1A0B0C0D0E0F101112160003 /* FlappyGameView.swift in Sources */,
 				1A0B0C0D0E0F101112170003 /* MazeGameView.swift in Sources */,
@@ -850,11 +853,12 @@
 				1A0B0C0D0E0F1011121A0001 /* MinesGameSimulation.swift in Sources */,
 				1A0B0C0D0E0F1011121B0003 /* RunnerGameView.swift in Sources */,
 				1A0B0C0D0E0F1011121C0003 /* GameStartPrompt.swift in Sources */,
+				1A0B0C0D0E0F1011121D0001 /* GameConfetti.swift in Sources */,
 				1A0B0C0D0E0F1011121B0001 /* RunnerGameSimulation.swift in Sources */,
 				1A0B0C0D0E0F101112180001 /* SliceGameSimulation.swift in Sources */,
 				1A0B0C0D0E0F101112170001 /* MazeGameSimulation.swift in Sources */,
 				1A0B0C0D0E0F101112160001 /* FlappyGameSimulation.swift in Sources */,
-				1A0B0C0D0E0F101112140001 /* BubbleGameSimulation.swift in Sources */,
+				1A0B0C0D0E0F101112140001 /* PebbleGameSimulation.swift in Sources */,
 				A0DEC0A1B2C3D4E5F6000001 /* KidneyCheerView.swift in Sources */,
 				A0DEC0A1B2C3D4E5F6000202 /* RingGameControls.swift in Sources */,
 				A0DEC0A1B2C3D4E5F6000201 /* RingGameView.swift in Sources */,

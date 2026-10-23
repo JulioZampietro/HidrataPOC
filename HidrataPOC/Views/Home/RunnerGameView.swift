@@ -63,12 +63,12 @@ struct RunnerGameView: View {
         static let dark = TrackStyle(ink: .white, roadFar: 0.04, roadNear: 0.24, edge: 0.6, dash: 0.5)
     }
 
-    /// Cor de cada tipo de obstáculo (as das Bolhas Coloridas, puxadas um pouco pro tom de pedra).
+    /// Cor de cada tipo de obstáculo (as das Pedras Coloridas, puxadas um pouco pro tom de pedra).
     private static func tint(_ kind: RunnerGameSnapshot.Kind) -> Color {
         let color = switch kind {
-        case .rock: BubbleGameTuning.colors[1]   // amarela: pula
-        case .arch: BubbleGameTuning.colors[3]   // roxa: abaixa
-        case .pile: BubbleGameTuning.colors[0]   // vermelha: desvia
+        case .rock: PebbleGameTuning.colors[1]   // amarela: pula
+        case .arch: PebbleGameTuning.colors[3]   // roxa: abaixa
+        case .pile: PebbleGameTuning.colors[0]   // vermelha: desvia
         }
         return color.mix(with: PebbleDrawing.stoneBrown, by: 0.12)
     }

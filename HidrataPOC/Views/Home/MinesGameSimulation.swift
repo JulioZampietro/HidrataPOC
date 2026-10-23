@@ -8,13 +8,11 @@ enum MinesGameTuning {
     static let topMargin: Float = 64             // pt — abaixo dos botões do cabeçalho e do placar
     static let bottomMargin: Float = 14          // pt
 
-    static let startMineRatio: Float = 0.13      // fração das casas com pedra no primeiro campo…
-    static let mineRatioPerLevel: Float = 0.02   // …quanto sobe a cada campo limpo…
-    static let maxMineRatio: Float = 0.24        // …e o máximo
-    static let clearBonus = 10                   // pontos por limpar um campo inteiro
+    static let mineRatio: Float = 0.13           // fração das casas com pedra
+    static let clearBonus = 10                   // pontos por limpar o campo inteiro
 
     static let longPress: Double = 0.35          // s segurando a casa pra marcar em vez de abrir
-    static let wonPause: Float = 1.4             // s comemorando antes do próximo campo
+    static let wonTapLock: Float = 1.0           // s de confete antes de um toque poder recomeçar
     static let deathPause: Float = 2.2           // s mostrando as pedras antes de recomeçar
     static let revealWaterPush: Float = 1.2      // agito na superfície ao abrir casas
     static let explodeWaterPush: Float = 5       // agito ao achar uma pedra
@@ -53,14 +51,15 @@ struct MinesGameSnapshot: Sendable {
     let score: Int
     let stonesLeft: Int
     let phase: Phase
-    let phaseProgress: CGFloat  // 0…1 dentro de `won` e `dying`
+    let confetti: [Confetto]
+    let phaseProgress: CGFloat  // 0…1 dentro de `dying`
 }
 
 /// Campo minado dentro do aquário: as minas são pedras escondidas embaixo das casas. Tocar abre
 /// a casa (a primeira nunca tem pedra) e mostra quantas pedras há em volta; segurar, ou tocar com
 /// o modo de marcar ligado (`flagMode`, o botão na Home), põe uma bandeira. Abrir uma pedra
-/// acaba a partida; abrir todas as casas sem pedra limpa o campo, soma um bônus e começa outro,
-/// com mais pedras.
+/// acaba a partida; abrir todas as casas sem pedra limpa o campo, soma um bônus e termina o jogo
+/// com confete e "Parabéns!" (um toque recomeça).
 @MainActor
 final class MinesGameSimulation {
     private struct Particle {
@@ -90,8 +89,7 @@ final class MinesGameSimulation {
     private var exploded: Int?
     /// As pedras só são sorteadas no primeiro toque, longe dele.
     private var stonesPlaced = false
-    /// Campos limpos nesta partida (cada um tem mais pedras).
-    private var level = 0
+    private var confetti = ConfettiShower()
     private var particles: [Particle] = []
     private var pendingWaterPush: (u: Float, strength: Float)?
     private var needsReset = true
@@ -107,9 +105,7 @@ final class MinesGameSimulation {
     private var cellCount: Int { MinesGameTuning.columns * rows }
 
     private var stoneCount: Int {
-        let ratio = min(MinesGameTuning.maxMineRatio,
-                        MinesGameTuning.startMineRatio + Float(level) * MinesGameTuning.mineRatioPerLevel)
-        return max(1, Int((ratio * Float(cellCount)).rounded()))
+        max(1, Int((MinesGameTuning.mineRatio * Float(cellCount)).rounded()))
     }
 
     // MARK: Ciclo de vida
@@ -124,6 +120,7 @@ final class MinesGameSimulation {
     func stop() {
         isRunning = false
         particles.removeAll()
+        confetti.clear()
         score = 0
         lastFrame = nil
     }
@@ -131,7 +128,15 @@ final class MinesGameSimulation {
     /// Toque numa casa (`point` no espaço do aquário). `longPress` inverte o modo: segurar marca
     /// quando o toque abre, e abre quando o toque marca.
     func tap(at point: CGPoint, longPress: Bool) {
-        guard isRunning, !needsReset, phase == .ready || phase == .playing else { return }
+        guard isRunning, !needsReset else { return }
+        // Depois do "Parabéns!", um toque (passado o tempo do confete) começa um campo novo.
+        if phase == .won {
+            guard phaseTimer >= MinesGameTuning.wonTapLock else { return }
+            reset()
+            phase = .playing
+            return
+        }
+        guard phase == .ready || phase == .playing else { return }
         // O primeiro toque (em qualquer lugar) só tira o aviso de início; a jogada vem no seguinte.
         if phase == .ready {
             phase = .playing
@@ -157,7 +162,7 @@ final class MinesGameSimulation {
         origin = SIMD2((width - tile * Float(MinesGameTuning.columns)) / 2,
                        MinesGameTuning.topMargin + (available - tile * Float(rows)) / 2)
         score = 0
-        level = 0
+        confetti.clear()
         newBoard()
         phase = .ready
     }
@@ -186,6 +191,7 @@ final class MinesGameSimulation {
         let dt = Float(min(date.timeIntervalSince(last), 1.0 / 20.0))
         guard dt > 1e-4 else { return }
         lastFrame = date
+        confetti.update(dt: dt)
 
         if let push = pendingWaterPush {
             pendingWaterPush = nil
@@ -198,11 +204,6 @@ final class MinesGameSimulation {
             return
         case .won:
             phaseTimer += dt
-            if phaseTimer >= MinesGameTuning.wonPause {
-                level += 1
-                newBoard()
-                phase = .playing
-            }
         case .dying:
             phaseTimer += dt
             if phaseTimer >= MinesGameTuning.deathPause { reset() }
@@ -246,7 +247,7 @@ final class MinesGameSimulation {
             phaseTimer = 0
             flagged = stones
             for cell in stones { spawnParticles(at: center(of: cell), count: 4, stone: true) }
-            Haptic.success.play()
+            confetti.burst(in: size, colorCount: PebbleGameTuning.colors.count)
         } else {
             Haptic.tap.play()
         }
@@ -345,7 +346,6 @@ final class MinesGameSimulation {
             if flagged.contains(i) { return .flagged }
             return .hidden
         }
-        let phaseLength = phase == .won ? MinesGameTuning.wonPause : MinesGameTuning.deathPause
         return MinesGameSnapshot(
             tile: CGFloat(tile),
             board: CGRect(x: CGFloat(origin.x), y: CGFloat(origin.y),
@@ -360,7 +360,8 @@ final class MinesGameSimulation {
             score: score,
             stonesLeft: max(0, stoneCount - flagged.count),
             phase: phase,
-            phaseProgress: phase == .won || phase == .dying ? CGFloat(min(1, phaseTimer / phaseLength)) : 0
+            confetti: confetti.snapshot(),
+            phaseProgress: phase == .dying ? CGFloat(min(1, phaseTimer / MinesGameTuning.deathPause)) : 0
         )
     }
 }

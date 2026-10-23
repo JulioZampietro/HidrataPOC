@@ -32,7 +32,7 @@ struct SnakeGameSnapshot: Sendable {
         let seed: Int
 
         static func random() -> Stone {
-            Stone(colorIndex: Int.random(in: 0..<BubbleGameTuning.colors.count), seed: Int.random(in: 0..<1_000_000))
+            Stone(colorIndex: Int.random(in: 0..<PebbleGameTuning.colors.count), seed: Int.random(in: 0..<1_000_000))
         }
     }
 
@@ -40,7 +40,7 @@ struct SnakeGameSnapshot: Sendable {
     let board: CGRect
     /// Centros dos gomos, da cabeça pro rabo, já deslizando entre uma casa e a próxima.
     let segments: [CGPoint]
-    /// Cor (índice em `BubbleGameTuning.colors`) e semente do formato de cada gomo, alinhados com
+    /// Cor (índice em `PebbleGameTuning.colors`) e semente do formato de cada gomo, alinhados com
     /// `segments`; o primeiro é a cabeça, que tem cor própria.
     let segmentStones: [Stone]
     let heading: MazeDirection

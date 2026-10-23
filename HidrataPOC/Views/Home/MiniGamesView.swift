@@ -14,7 +14,7 @@ enum MiniGame: String, CaseIterable, Identifiable {
     case noGame
     case rings
     case jump
-    case bubbles
+    case pebbles
     case flappy
     case maze
     case slice
@@ -29,7 +29,7 @@ enum MiniGame: String, CaseIterable, Identifiable {
         case .noGame: "Sem jogo"
         case .rings: "Argolas"
         case .jump: "Gota Saltitante"
-        case .bubbles: "Bolhas Coloridas"
+        case .pebbles: "Pedras Coloridas"
         case .flappy: "Gota Voadora"
         case .maze: "Rim Comilão"
         case .slice: "Quebra-Pedras"
@@ -44,7 +44,7 @@ enum MiniGame: String, CaseIterable, Identifiable {
         case .noGame: "Só a água e as pedrinhas, sem minijogo"
         case .rings: "Use os jatos d'água pra encaixar as argolas nos pinos"
         case .jump: "Pule de pedra em pedra e suba o mais alto que der"
-        case .bubbles: "Mire e junte 4 bolhas da mesma cor pra estourar"
+        case .pebbles: "Mire e junte pedras da mesma cor para estourar"
         case .flappy: "Toque pra nadar e passe entre as pilhas de pedras"
         case .maze: "Coma as gotas do labirinto e fuja das pedras"
         case .slice: "Corte as pedras e não corte o rim"
@@ -59,7 +59,7 @@ enum MiniGame: String, CaseIterable, Identifiable {
         case .noGame: "nosign"
         case .rings: "circle.circle"
         case .jump: "arrow.up.to.line"
-        case .bubbles: "circle.hexagongrid.fill"
+        case .pebbles: "circle.hexagongrid.fill"
         case .flappy: "bird.fill"
         case .maze: "square.grid.3x3.topleft.filled"
         case .slice: "scissors"
@@ -75,7 +75,7 @@ enum MiniGame: String, CaseIterable, Identifiable {
     var requiredStreak: Int {
         switch self {
         case .noGame: 0
-        case .rings, .jump, .bubbles, .flappy, .maze, .slice, .snake, .mines, .runner: 1
+        case .rings, .jump, .pebbles, .flappy, .maze, .slice, .snake, .mines, .runner: 1
         }
     }
 
@@ -89,7 +89,7 @@ enum MiniGame: String, CaseIterable, Identifiable {
         case .noGame: Color(red: 0.55, green: 0.60, blue: 0.68)
         case .rings: Color(red: 0.93, green: 0.26, blue: 0.28)
         case .jump: Color(red: 0.25, green: 0.78, blue: 0.42)
-        case .bubbles: Color(red: 0.66, green: 0.42, blue: 0.95)
+        case .pebbles: Color(red: 0.66, green: 0.42, blue: 0.95)
         case .flappy: Color(red: 0.98, green: 0.56, blue: 0.20)
         case .maze: Color(red: 0.90, green: 0.45, blue: 0.47)
         case .slice: Color(red: 0.32, green: 0.70, blue: 0.36)
@@ -106,8 +106,8 @@ enum MiniGame: String, CaseIterable, Identifiable {
     static let announcedStorageKey = "minigame.announced"
     /// Chave do `@AppStorage` com o recorde da Gota Saltitante.
     static let jumpBestStorageKey = "minigame.jump.best"
-    /// Chave do `@AppStorage` com o recorde das Bolhas Coloridas.
-    static let bubblesBestStorageKey = "minigame.bubbles.best"
+    /// Chave do `@AppStorage` com o recorde das Pedras Coloridas.
+    static let pebblesBestStorageKey = "minigame.pebbles.best"
     /// Chave do `@AppStorage` com o recorde da Gota Voadora.
     static let flappyBestStorageKey = "minigame.flappy.best"
     /// Chave do `@AppStorage` com o recorde do Rim Comilão.
@@ -174,7 +174,7 @@ enum MiniGameSound: String {
 final class MiniGameController {
     @ObservationIgnored let ringGame = RingGameSimulation()
     @ObservationIgnored let jumpGame = JumpGameSimulation()
-    @ObservationIgnored let bubbleGame = BubbleGameSimulation()
+    @ObservationIgnored let pebbleGame = PebbleGameSimulation()
     @ObservationIgnored let flappyGame = FlappyGameSimulation()
     @ObservationIgnored let mazeGame = MazeGameSimulation()
     @ObservationIgnored let sliceGame = SliceGameSimulation()
@@ -344,13 +344,13 @@ private struct MiniGameItemButton: View {
 
 /// Ícone do jogo na aba de minijogos, na cor do `foregroundStyle` (como um SF Symbol), com o
 /// gradiente cobrindo o quadro todo do ícone. Cada jogo tem um desenho com a cena dele; só o
-/// "Sem jogo" e as Bolhas Coloridas usam o `systemImage`.
+/// "Sem jogo" e as Pedras Coloridas usam o `systemImage`.
 private struct MiniGameIcon: View {
     let game: MiniGame
 
     var body: some View {
         switch game {
-        case .noGame, .bubbles:
+        case .noGame, .pebbles:
             Image(systemName: game.systemImage)
                 .font(.system(size: 36, weight: .semibold))
         default:
@@ -381,7 +381,7 @@ private struct MiniGameIcon: View {
         case .snake: drawSnake(in: &ctx)
         case .mines: drawMines(in: &ctx)
         case .runner: drawRunner(in: &ctx)
-        case .noGame, .bubbles: break
+        case .noGame, .pebbles: break
         }
     }
 

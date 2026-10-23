@@ -54,6 +54,7 @@ struct MazeGameView: View {
         for rock in snapshot.rocks { drawRock(rock, tile: tile, time: time, in: &ctx) }
         drawPlayer(snapshot, in: &ctx)
         drawHUD(snapshot, size: size, in: &ctx)
+        GameConfetti.draw(snapshot.confetti, colors: PebbleGameTuning.colors, in: &ctx)
     }
 
     private static let wallColor = Color(red: 0.55, green: 0.47, blue: 0.40)
@@ -194,9 +195,8 @@ struct MazeGameView: View {
         }
 
         let message: String? = switch snapshot.phase {
-        case .levelClear: "Fase limpa!"
         case .gameOver: "Fim de jogo"
-        case .ready, .playing, .dying: nil
+        case .ready, .playing, .dying, .victory: nil
         }
         if let message {
             textCtx.draw(
@@ -207,8 +207,11 @@ struct MazeGameView: View {
             )
         }
         if snapshot.phase == .ready {
-            GameStartPrompt.draw(title: "Fase \(snapshot.level)", hint: "Deslize pra guiar o rim e comer as gotas",
-                                 centerY: size.height * 0.62, size: size, in: &ctx)
+            GameStartPrompt.draw(hint: "Deslize pra guiar o rim e comer as gotas",
+                                 centerY: size.height * 0.52, size: size, backdrop: true, in: &ctx)
+        } else if snapshot.phase == .victory {
+            GameStartPrompt.draw(title: "Parabéns!", action: "Toque pra recomeçar", hint: "Você comeu todas as gotas!",
+                                 centerY: size.height * 0.52, size: size, backdrop: true, in: &ctx)
         }
     }
 }
