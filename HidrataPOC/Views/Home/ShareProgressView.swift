@@ -114,11 +114,11 @@ struct ShareProgressCard: View {
             .frame(width: Self.size.width, height: Self.size.height)
             .background {
                 if layout == .cartao {
-                    LinearGradient(
-                        colors: [Color(red: 0.36, green: 0.68, blue: 1.0), Color.appAccent, Color(red: 0.05, green: 0.27, blue: 0.66)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
+                    // O mesmo gradiente de marca dos banners das sheets (`TankHeader`).
+                    // Preso no claro: a imagem exportada não pode mudar com o modo do
+                    // aparelho, e a prévia tem de bater com ela.
+                    LinearGradient.waterHeader
+                        .environment(\.colorScheme, .light)
                 }
             }
     }
@@ -429,6 +429,7 @@ struct ShareProgressView: View {
     let snapshot: ShareProgressSnapshot
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     @State private var layout: ShareCardLayout = .cartao
     @State private var ink: ShareCardInk = .branca
     @State private var customInk: Color = Color.appAccent
@@ -479,6 +480,15 @@ struct ShareProgressView: View {
     var body: some View {
         let image = renderedImage
         NavigationStack {
+            VStack(spacing: 0) {
+            // Mesmo banner das outras sheets de marca (`TankSheet`), com o mascote do
+            // dia que está indo no cartão. Sem subtítulo, para sobrar altura à prévia.
+            TankHeader(
+                title: "Compartilhar",
+                mascotName: AppTheme.mascotImageName(for: snapshot.progress) ?? "mascote1",
+                celebrates: snapshot.progress >= 1
+            )
+
             GeometryReader { container in
             VStack(spacing: 16) {
                 // Arrasta para o lado (ou toca nas bolinhas) para trocar o layout.
@@ -515,6 +525,7 @@ struct ShareProgressView: View {
                     } label: {
                         Label(saveState == .saved ? "Salva" : "Salvar", systemImage: saveState == .saved ? "checkmark" : "square.and.arrow.down")
                             .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
                     }
                     .buttonStyle(.bordered)
                     .disabled(image == nil || saveState == .saving)
@@ -526,12 +537,12 @@ struct ShareProgressView: View {
                         ) {
                             Label("Compartilhar", systemImage: "square.and.arrow.up")
                                 .frame(maxWidth: .infinity)
+                                .padding(.vertical, 10)
                         }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(.gradientProminent)
                         .simultaneousGesture(TapGesture().onEnded { Haptic.primary.play() })
                     }
                 }
-                .controlSize(.large)
                 .font(AppFont.calloutStrong)
                 .padding(.horizontal, 20)
                 .padding(.bottom, 8)
@@ -539,13 +550,25 @@ struct ShareProgressView: View {
             .padding(.top, 8)
             .animation(.easeInOut(duration: 0.3), value: isPickingColor)
             } // GeometryReader
-            .navigationTitle("Compartilhar")
+            } // VStack
+            // Como no `TankSheet`: o banner sangra até o topo do sheet, por trás da
+            // barra de navegação transparente.
+            .ignoresSafeArea(edges: .top)
+            .appScreenBackground()
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Fechar", systemImage: "xmark") { Haptic.dismiss.play(); dismiss() }
+                    // Branco no claro para não sumir no canto escuro do gradiente (ver
+                    // o comentário equivalente no `TankSheet`).
+                    if colorScheme == .light {
+                        Button("Fechar", systemImage: "xmark") { Haptic.dismiss.play(); dismiss() }
+                            .foregroundStyle(.white)
+                    } else {
+                        Button("Fechar", systemImage: "xmark") { Haptic.dismiss.play(); dismiss() }
+                    }
                 }
             }
+            .toolbarBackground(.hidden, for: .navigationBar)
             .task {
                 guard renderedImage == nil else { return }
                 renderedImage = Self.render(snapshot: snapshot, layout: layout, ink: inkColor)
@@ -591,7 +614,10 @@ struct ShareProgressView: View {
                 .frame(width: geo.size.width, height: geo.size.height)
                 .shadow(color: .black.opacity(0.15), radius: 12, x: 0, y: 6)
         }
+        // Folga em volta para a sombra: o `TabView` corta o que passa da página, e
+        // sem isso a sombra virava um retângulo de bordas retas atrás do cartão.
         .padding(.horizontal, 20)
+        .padding(.vertical, 20)
         .accessibilityLabel(layout.label)
     }
 
