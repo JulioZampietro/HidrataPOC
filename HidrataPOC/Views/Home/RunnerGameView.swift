@@ -3,7 +3,7 @@ import SwiftUI
 /// Desenha a Gota Surfista (`RunnerGameSimulation`) dentro do recipiente de água, no mesmo lugar
 /// dos outros minijogos — então passa pela refração do shader. Recebe toque: deslizar no aquário
 /// troca de pista, pula ou abaixa (é o único controle; a Home só mostra a dica). Cada tipo de
-/// obstáculo tem uma cor, pra reconhecer de longe o que fazer: amarela = pula, roxa = abaixa,
+/// obstáculo tem uma cor, pra reconhecer de longe o que fazer: cinza = pula, roxa = abaixa,
 /// vermelha = desvia.
 struct RunnerGameView: View {
     let simulation: RunnerGameSimulation
@@ -49,6 +49,7 @@ struct RunnerGameView: View {
 
     // MARK: - Desenho
 
+    private static let powerGreen = Color(red: 0.30, green: 0.86, blue: 0.45)
     private static let splashColor = Color(red: 0.78, green: 0.93, blue: 1.0)
 
     /// Cores da pista. No claro, branco some no fundo claro do app (e na água rasa), então a
@@ -64,10 +65,10 @@ struct RunnerGameView: View {
         static let dark = TrackStyle(ink: .white, roadFar: 0.04, roadNear: 0.24, edge: 0.6, dash: 0.5)
     }
 
-    /// Cor de cada tipo de obstáculo (as das Pedras Coloridas, puxadas um pouco pro tom de pedra).
+    /// Cor de cada tipo de obstáculo (as das Pedras Coloridas, menos a pedra, que é cinza; puxadas um pouco pro tom de pedra).
     private static func tint(_ kind: RunnerGameSnapshot.Kind) -> Color {
         let color = switch kind {
-        case .rock: PebbleGameTuning.colors[1]   // amarela: pula
+        case .rock: Color(red: 0.56, green: 0.58, blue: 0.62)   // cinza: pula (o amarelo parecia ouro, uma recompensa)
         case .arch: PebbleGameTuning.colors[3]   // roxa: abaixa
         case .pile: PebbleGameTuning.colors[0]   // vermelha: desvia
         }
@@ -103,8 +104,17 @@ struct RunnerGameView: View {
             var splashCtx = ctx
             splashCtx.opacity = particle.alpha
             let r = particle.radius
-            splashCtx.fill(Path(ellipseIn: CGRect(x: particle.position.x - r, y: particle.position.y - r, width: r * 2, height: r * 2)),
-                           with: .color(splashColor))
+            let rect = CGRect(x: particle.position.x - r, y: particle.position.y - r, width: r * 2, height: r * 2)
+            if particle.isDroplet {
+                // Gotinha da gota que estourou: no mesmo azul da gota, com borda branca (como no Quebra-Pedras).
+                splashCtx.fill(Path(ellipseIn: rect), with: .linearGradient(
+                    Gradient(colors: [Color(red: 0.62, green: 0.88, blue: 1.0), Color(red: 0.16, green: 0.52, blue: 0.95)]),
+                    startPoint: CGPoint(x: rect.midX, y: rect.minY), endPoint: CGPoint(x: rect.midX, y: rect.maxY)
+                ))
+                splashCtx.stroke(Path(ellipseIn: rect), with: .color(.white.opacity(0.8)), lineWidth: 0.8)
+            } else {
+                splashCtx.fill(Path(ellipseIn: rect), with: .color(splashColor))
+            }
         }
         drawHUD(snapshot, size: size, in: &ctx)
     }
@@ -186,7 +196,17 @@ struct RunnerGameView: View {
         let center = projection.point(lane: drop.lane, height: drop.height + bob, z: drop.z)
         var dropCtx = ctx
         dropCtx.translateBy(x: center.x, y: center.y)
-        DropDrawing.draw(radius: 0.17 * m, facing: 0, eyes: false, in: &dropCtx)
+        guard drop.isPower else {
+            DropDrawing.draw(radius: 0.17 * m, facing: 0, eyes: false, in: &dropCtx)
+            return
+        }
+        // Gota especial: verde, quase o dobro do tamanho, com um halo que pulsa.
+        let r = 0.31 * m
+        let halo = r * (2.3 + 0.35 * CGFloat(sin(time * 6)))
+        dropCtx.fill(Path(ellipseIn: CGRect(x: -halo, y: -r - halo, width: halo * 2, height: halo * 2)),
+                     with: .radialGradient(Gradient(colors: [powerGreen.opacity(0.55), powerGreen.opacity(0)]),
+                                           center: CGPoint(x: 0, y: -r), startRadius: 0, endRadius: halo))
+        DropDrawing.draw(radius: r, facing: 0, eyes: false, tint: (Color(red: 0.74, green: 0.98, blue: 0.62), Color(red: 0.10, green: 0.68, blue: 0.34)), in: &dropCtx)
     }
 
     /// A gota em pé na prancha: sombra no chão (some conforme sobe), prancha inclinando pro lado
@@ -195,7 +215,8 @@ struct RunnerGameView: View {
         let projection = snapshot.projection
         let m = projection.meter
         let lane = snapshot.playerLane, height = snapshot.playerHeight
-        if snapshot.phase == .dying, Int(snapshot.phaseProgress * 14).isMultiple(of: 2) { ctx.opacity *= 0.35 }
+        // A gota estourou em gotinhas (`particles`): não desenha mais ela nem a prancha.
+        if snapshot.phase == .dying { return }
 
         let ground = projection.point(lane: lane, z: 0)
         var shadowCtx = ctx
@@ -230,6 +251,13 @@ struct RunnerGameView: View {
                 .foregroundStyle(.white),
             at: CGPoint(x: size.width / 2, y: 26)
         )
+        // Chuva de gotinhas: barra verde que esvazia junto com o tempo que resta.
+        if snapshot.powerProgress > 0, snapshot.phase == .playing {
+            let track = CGRect(x: size.width / 2 - 36, y: 46, width: 72, height: 6)
+            ctx.fill(Path(roundedRect: track, cornerRadius: 3), with: .color(.white.opacity(0.35)))
+            ctx.fill(Path(roundedRect: CGRect(x: track.minX, y: track.minY, width: track.width * snapshot.powerProgress, height: track.height), cornerRadius: 3),
+                     with: .color(powerGreen))
+        }
         let message: String? = switch snapshot.phase {
         case .dying: "Splash!"
         case .ready, .playing: nil
@@ -240,6 +268,14 @@ struct RunnerGameView: View {
                     .font(.custom("Nunito", size: 22).weight(.black))
                     .foregroundStyle(.white),
                 at: CGPoint(x: size.width / 2, y: size.height * 0.42)
+            )
+        }
+        if snapshot.canRetry {
+            textCtx.draw(
+                Text("Tentar novamente")
+                    .font(.custom("Nunito", size: 20).weight(.black))
+                    .foregroundStyle(.white),
+                at: CGPoint(x: size.width / 2, y: size.height * 0.42 + 36)
             )
         }
         if snapshot.phase == .ready {

@@ -23,7 +23,7 @@ enum FlappyGameTuning {
     static let maxScrollSpeed: Float = 220       // …e no máximo
     static let difficultyScore = 40              // pontos até o vão e a velocidade chegarem ao limite
 
-    static let gameOverPause: Float = 1.3        // s mostrando "fim de jogo" antes de voltar ao início
+    static let gameOverPause: Float = 0.8        // s de "Splash!" antes de um toque poder tentar de novo (pra o toque da batida não pular)
     static let flapWaterPush: Float = 3          // agito na superfície a cada braçada
     static let burstWaterPush: Float = 8         // agito na superfície quando a gota explode
     static let burstDroplets = 18                // gotinhas que voam quando ela bate
@@ -56,6 +56,8 @@ struct FlappyGameSnapshot: Sendable {
     let droplets: [Bubble]
     let score: Int
     let phase: Phase
+    /// No `gameOver`, já passou o tempo do "Splash!": um toque recomeça.
+    let canRetry: Bool
 }
 
 /// Flappy Bird dentro do aquário: a gota fica parada na horizontal enquanto colunas de pedras
@@ -124,12 +126,15 @@ final class FlappyGameSimulation {
         lastFrame = nil
     }
 
-    /// Braçada pra cima. Na tela de espera, também começa a partida.
+    /// Braçada pra cima. Na tela de espera, também começa a partida; depois do "Splash!", um toque
+    /// (passado o tempo da batida) recomeça direto, já nadando, sem passar pela tela de espera.
     func flap() {
         guard isRunning, !needsReset, flapCooldown <= 0 else { return }
         switch phase {
         case .gameOver:
-            return
+            guard gameOverTimer <= 0 else { return }
+            reset()
+            phase = .playing
         case .ready:
             phase = .playing
         case .playing:
@@ -194,9 +199,8 @@ final class FlappyGameSimulation {
             updateColumns(dt: dt)
             checkCollisions()
         case .gameOver:
-            // A gota já explodiu: só as gotinhas voam enquanto o "fim de jogo" aparece.
-            gameOverTimer -= dt
-            if gameOverTimer <= 0 { reset() }
+            // A gota já explodiu: só as gotinhas voam, e o "Splash!" fica até o próximo toque.
+            gameOverTimer = max(0, gameOverTimer - dt)
         }
     }
 
@@ -343,7 +347,8 @@ final class FlappyGameSimulation {
             bubbles: bubbles.map { bubble($0, alpha: 0.7) },
             droplets: droplets.map { bubble($0, alpha: 1) },
             score: score,
-            phase: phase
+            phase: phase,
+            canRetry: phase == .gameOver && gameOverTimer <= 0
         )
     }
 }

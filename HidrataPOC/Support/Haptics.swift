@@ -32,6 +32,9 @@ enum Haptic {
     case poke
     /// Mascote arrastado ou água se mexendo: tique muito leve, para não cansar.
     case ripple
+    /// Gota que estoura em gotinhas (batida nos minijogos): pancada seca e vários toques leves,
+    /// cada vez mais fracos, como as gotinhas caindo.
+    case burst
     /// Bolhas subindo na troca de estágio do mascote: um ronco que vai enchendo até `cover`
     /// (segundos, quando a cortina de bolhas tampa tudo e o mascote troca), estoura nesse
     /// instante e vai se apagando até `total` (segundos, quando a última bolha some).
@@ -103,6 +106,15 @@ private final class HapticPlayer {
                 .impact(light, 0.6, after: 0.1),
                 .impact(rigid, 0.9, after: 0.12),
                 .notification(.success, after: 0.12)
+            ])
+        case .burst:
+            run([
+                .impact(rigid, 1.0, after: 0),
+                .impact(medium, 0.7, after: 0.07),
+                .impact(light, 0.55, after: 0.06),
+                .impact(soft, 0.45, after: 0.08),
+                .impact(soft, 0.3, after: 0.07),
+                .impact(soft, 0.18, after: 0.09)
             ])
         case .poke: impact(soft)
         case .ripple: impact(soft, 0.35)

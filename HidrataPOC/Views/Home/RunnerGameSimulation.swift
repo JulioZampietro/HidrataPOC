@@ -8,8 +8,8 @@ enum RunnerGameTuning {
     static let maxSpeed: Float = 27              // …o mais rápido que fica…
     static let acceleration: Float = 0.22        // …e quanto ganha por segundo
     static let laneChangeSpeed: Float = 9        // pistas por segundo ao trocar de pista
-    static let jumpVelocity: Float = 7.5         // m/s pra cima no pulo
-    static let gravity: Float = 22               // m/s²
+    static let jumpVelocity: Float = 10.5        // m/s pra cima no pulo (altura = v² / 2g ≈ 1,8 m, no ar por ≈ 0,7 s)
+    static let gravity: Float = 30               // m/s²
     static let slideDuration: Float = 0.65       // s abaixada
 
     static let spawnDistance: Float = 70         // m à frente onde nascem os obstáculos
@@ -20,9 +20,25 @@ enum RunnerGameTuning {
     static let metersPerPoint: Float = 4         // m percorridos por ponto
     static let rockClearHeight: Float = 0.7      // altura (m) que passa por cima da pedra
 
-    static let deathPause: Float = 1.6           // s da batida antes de recomeçar
+    // Dificuldade: a cada `pointsPerLevel` pontos o jogo fica um pouco mais difícil, até `maxLevel`
+    static let pointsPerLevel = 500
+    static let maxLevel = 6
+    static let levelMaxSpeed: Float = 2          // m/s a mais no teto de velocidade, por nível
+    static let levelRowGapShrink: Float = 0.06   // fração a menos de espaço entre fileiras, por nível (mínimo 65%)
+    static let levelDoubleRowChance: Float = 0.08 // chance a mais de uma fileira bloquear duas pistas, por nível (de 50% até 90%)
+    static let levelDropChanceDrop: Float = 0.05 // chance a menos de nascerem gotinhas, por nível (de 65% até 35%)
+
+    static let deathPause: Float = 1.6           // s da animação da batida (depois o "Splash!" espera um toque)
+    static let burstDroplets = 24                // gotinhas que voam quando a gota bate
+    static let retryLock: Float = 0.8            // s de "Splash!" antes de um toque poder tentar de novo (pra o toque da batida não pular)
     static let crashWaterPush: Float = 5         // agito na superfície ao bater
     static let dropWaterPush: Float = 0.8        // agito ao pegar uma gotinha
+
+    // Gota especial (verde, maior e rara): chuva de gotinhas nas três pistas por um tempo
+    static let powerChance: Float = 0.03         // chance de nascer numa fileira nova (só uma por vez, e não durante a chuva)
+    static let powerDuration: Float = 10         // s de chuva de gotinhas depois de pegar
+    static let powerBonusDrops = 5               // gotinhas de pontos a mais ao pegar (× `dropScore`)
+    static let powerWaterPush: Float = 3         // agito ao pegar
 }
 
 /// Câmera da Gota Surfista: atrás e acima da gota, olhando pra frente. `z` é a distância à
@@ -79,12 +95,16 @@ struct RunnerGameSnapshot: Sendable {
         let lane: CGFloat
         let height: CGFloat
         let z: CGFloat
+        /// A gota especial (verde, maior): dá a chuva de gotinhas.
+        let isPower: Bool
     }
 
     struct Particle: Sendable {
         let position: CGPoint
         let radius: CGFloat
         let alpha: CGFloat
+        /// Gotinha da gota que estourou (azul, com brilho); senão, respingo.
+        let isDroplet: Bool
     }
 
     let projection: RunnerProjection
@@ -100,8 +120,12 @@ struct RunnerGameSnapshot: Sendable {
     let drops: [Drop]
     let particles: [Particle]
     let score: Int
+    /// 1…0: tempo que resta da chuva de gotinhas (0 = sem chuva).
+    let powerProgress: CGFloat
     let phase: Phase
     let phaseProgress: CGFloat  // 0…1 dentro de `dying`
+    /// Em `dying`, já passou o tempo do "fim de jogo": um toque recomeça.
+    let canRetry: Bool
 }
 
 /// Corrida sem fim dentro do aquário: a gota surfa numa prancha por três pistas que vêm em
@@ -122,6 +146,7 @@ final class RunnerGameSimulation {
         let lane: Int
         let height: Float
         var z: Float
+        var isPower = false
     }
 
     private struct Particle {
@@ -130,6 +155,7 @@ final class RunnerGameSimulation {
         let radius: Float
         var life: Float
         let lifetime: Float
+        var isDroplet = false
     }
 
     private(set) var isRunning = false
@@ -149,6 +175,8 @@ final class RunnerGameSimulation {
     private var slideTimer: Float = 0
     private var obstacles: [Obstacle] = []
     private var drops: [Drop] = []
+    /// Segundos que faltam da chuva de gotinhas da gota especial.
+    private var powerTimer: Float = 0
     /// Metros até a próxima fileira de obstáculos.
     private var untilNextRow: Float = 0
     private var particles: [Particle] = []
@@ -177,7 +205,17 @@ final class RunnerGameSimulation {
 
     /// Toque na tela de espera: começa a partida.
     func begin() {
-        guard isRunning, !needsReset, phase == .ready else { return }
+        guard isRunning, !needsReset else { return }
+        if phase == .dying { retry() }
+        guard phase == .ready else { return }
+        phase = .playing
+    }
+
+    /// Depois do "fim de jogo": partida nova (passado o tempo da batida), já correndo, sem passar
+    /// pela tela de espera.
+    private func retry() {
+        guard phaseTimer >= RunnerGameTuning.retryLock else { return }
+        reset()
         phase = .playing
     }
 
@@ -185,7 +223,11 @@ final class RunnerGameSimulation {
     /// cima pula, pra baixo abaixa (no ar, desce rápido e já chega abaixada). Na tela de espera,
     /// também começa a partida.
     func swipe(_ direction: MazeDirection) {
-        guard isRunning, !needsReset, phase != .dying else { return }
+        guard isRunning, !needsReset else { return }
+        if phase == .dying {
+            retry()
+            return
+        }
         if phase == .ready { phase = .playing }
         switch direction {
         case .left, .right:
@@ -213,6 +255,7 @@ final class RunnerGameSimulation {
         speed = RunnerGameTuning.startSpeed
         travelled = 0
         dropsCollected = 0
+        powerTimer = 0
         score = 0
         targetLane = 0
         laneX = 0
@@ -255,13 +298,16 @@ final class RunnerGameSimulation {
         case .playing:
             step(dt: dt)
         case .dying:
-            phaseTimer += dt
-            if phaseTimer >= RunnerGameTuning.deathPause { reset() }
+            phaseTimer += dt // o "fim de jogo" fica até o próximo toque
         }
     }
 
+    /// Nível de dificuldade: sobe a cada `pointsPerLevel` pontos.
+    private var level: Int { min(RunnerGameTuning.maxLevel, score / RunnerGameTuning.pointsPerLevel) }
+
     private func step(dt: Float) {
-        speed = min(RunnerGameTuning.maxSpeed, speed + RunnerGameTuning.acceleration * dt)
+        let topSpeed = RunnerGameTuning.maxSpeed + RunnerGameTuning.levelMaxSpeed * Float(level)
+        speed = min(topSpeed, speed + RunnerGameTuning.acceleration * dt)
         let distance = speed * dt
         travelled += distance
 
@@ -274,6 +320,7 @@ final class RunnerGameSimulation {
             if height == 0 { verticalSpeed = 0 }
         }
         slideTimer = max(0, slideTimer - dt)
+        powerTimer = max(0, powerTimer - dt)
 
         for i in obstacles.indices { obstacles[i].z -= distance }
         for i in drops.indices { drops[i].z -= distance }
@@ -283,7 +330,8 @@ final class RunnerGameSimulation {
         untilNextRow -= distance
         if untilNextRow <= 0 {
             spawnRow(at: RunnerGameTuning.spawnDistance)
-            untilNextRow = Float.random(in: RunnerGameTuning.rowGap) * (speed / RunnerGameTuning.startSpeed).squareRoot()
+            let tighter = max(0.65, 1 - RunnerGameTuning.levelRowGapShrink * Float(level))
+            untilNextRow = Float.random(in: RunnerGameTuning.rowGap) * (speed / RunnerGameTuning.startSpeed).squareRoot() * tighter
         }
 
         collectDrops()
@@ -297,13 +345,28 @@ final class RunnerGameSimulation {
     /// Uma fileira nova `z` metros à frente: obstáculos em uma ou duas pistas (sempre sobra uma
     /// livre) e, às vezes, uma fileira de gotinhas — numa pista livre, ou em arco por cima de uma pedra.
     private func spawnRow(at z: Float) {
-        let blocked = Array([-1, 0, 1].shuffled().prefix(Bool.random() ? 1 : 2))
+        let doubleChance = min(0.9, 0.5 + RunnerGameTuning.levelDoubleRowChance * Float(level))
+        let blocked = Array([-1, 0, 1].shuffled().prefix(Float.random(in: 0..<1) < doubleChance ? 2 : 1))
         for lane in blocked {
             let roll = Float.random(in: 0..<1)
             let kind: RunnerGameSnapshot.Kind = roll < 0.4 ? .pile : (roll < 0.75 ? .rock : .arch)
             obstacles.append(Obstacle(kind: kind, lane: lane, z: z, seed: Int.random(in: 0..<1_000_000)))
         }
-        guard Float.random(in: 0..<1) < 0.65 else { return }
+        // Durante a chuva de gotinhas, toda fileira nova leva gotinhas nas três pistas.
+        if powerTimer > 0 {
+            addRainDrops(at: z)
+            return
+        }
+        // Rara: a gota especial no lugar das gotinhas comuns (só nas fileiras que nascem no fundo da
+        // pista, não nas do começo, e uma por vez), numa pista livre.
+        if z >= RunnerGameTuning.spawnDistance, !drops.contains(where: \.isPower),
+           Float.random(in: 0..<1) < RunnerGameTuning.powerChance,
+           let free = [-1, 0, 1].filter({ !blocked.contains($0) }).randomElement() {
+            drops.append(Drop(lane: free, height: 0.6, z: z, isPower: true))
+            return
+        }
+        let dropChance = max(0.35, 0.65 - RunnerGameTuning.levelDropChanceDrop * Float(level))
+        guard Float.random(in: 0..<1) < dropChance else { return }
         if let rock = obstacles.last(where: { $0.z == z && $0.kind == .rock }), Bool.random() {
             for (offset, lift) in [(-1, 0.9), (0, 1.5), (1, 0.9)] as [(Float, Float)] {
                 drops.append(Drop(lane: rock.lane, height: lift, z: z + offset * RunnerGameTuning.dropSpacing))
@@ -313,6 +376,38 @@ final class RunnerGameSimulation {
                 drops.append(Drop(lane: free, height: 0.35, z: z - 6 + Float(k) * RunnerGameTuning.dropSpacing))
             }
         }
+    }
+
+    /// Gotinhas em cada uma das três pistas da fileira em `z`: em linha reta nas livres, em arco por
+    /// cima de uma pedra, rente ao chão por baixo de uma laje (a gota abaixada pega); a pilha alta
+    /// não leva nenhuma. Pula a pista que já tem gotinhas por perto.
+    private func addRainDrops(at z: Float) {
+        let row = obstacles.filter { $0.z == z }
+        for lane in -1...1 {
+            if drops.contains(where: { $0.lane == lane && !$0.isPower && abs($0.z - z) < 8 }) { continue }
+            switch row.first(where: { $0.lane == lane })?.kind {
+            case .pile:
+                continue
+            case .rock:
+                for (offset, lift) in [(-1, 0.9), (0, 1.5), (1, 0.9)] as [(Float, Float)] {
+                    drops.append(Drop(lane: lane, height: lift, z: z + offset * RunnerGameTuning.dropSpacing))
+                }
+            case .arch:
+                for k in 0..<3 {
+                    drops.append(Drop(lane: lane, height: 0.35, z: z - 3 + Float(k) * RunnerGameTuning.dropSpacing))
+                }
+            case nil:
+                for k in 0..<5 {
+                    drops.append(Drop(lane: lane, height: 0.35, z: z - 6 + Float(k) * RunnerGameTuning.dropSpacing))
+                }
+            }
+        }
+    }
+
+    /// Pegou a gota especial: a chuva começa e as fileiras que já estão na pista também ganham gotinhas.
+    private func startRain() {
+        powerTimer = RunnerGameTuning.powerDuration
+        for z in Set(obstacles.map(\.z)) where z > 6 { addRainDrops(at: z) }
     }
 
     private func isHitting(_ obstacle: Obstacle) -> Bool {
@@ -327,28 +422,58 @@ final class RunnerGameSimulation {
 
     private func collectDrops() {
         let projection = projection
+        var gotPower = false
         drops.removeAll { drop in
             guard abs(drop.z) < 0.8, abs(Float(drop.lane) - laneX) < 0.5, abs(drop.height - (height + 0.35)) < 0.9 else { return false }
-            dropsCollected += 1
             let p = projection.point(lane: CGFloat(drop.lane), height: CGFloat(drop.height), z: 0)
+            if drop.isPower {
+                gotPower = true
+                dropsCollected += RunnerGameTuning.powerBonusDrops
+                spawnParticles(at: SIMD2(Float(p.x), Float(p.y)), count: 16, speed: 60...200)
+                pendingWaterPush = (Float(p.x / max(1, size.width)), RunnerGameTuning.powerWaterPush)
+                Haptic.success.play()
+                return true
+            }
+            dropsCollected += 1
             spawnParticles(at: SIMD2(Float(p.x), Float(p.y)), count: 5, speed: 40...110)
             pendingWaterPush = (Float(p.x / max(1, size.width)), RunnerGameTuning.dropWaterPush)
             Haptic.ripple.play()
             return true
         }
+        if gotPower { startRain() }
     }
 
     private func crash(into obstacle: Obstacle) {
         phase = .dying
         phaseTimer = 0
         let p = projection.point(lane: CGFloat(laneX), height: CGFloat(height) + 0.5, z: 0)
-        spawnParticles(at: SIMD2(Float(p.x), Float(p.y)), count: 18, speed: 60...220)
+        spawnBurst(at: SIMD2(Float(p.x), Float(p.y)))
         pendingWaterPush = (Float(p.x / max(1, size.width)), RunnerGameTuning.crashWaterPush)
-        Haptic.warning.play()
+        Haptic.burst.play()
         onGameOver?(score)
     }
 
     // MARK: Efeitos
+
+    /// A gota estoura: gotinhas voam pra todo lado (mais pra cima) e caem, como no Quebra-Pedras
+    /// quando o rim é cortado.
+    private func spawnBurst(at point: SIMD2<Float>) {
+        let count = RunnerGameTuning.burstDroplets
+        for i in 0..<count {
+            let angle = Float(i) / Float(count) * 2 * .pi + Float.random(in: -0.2...0.2)
+            let speed = Float.random(in: 120...320)
+            let lifetime = Float.random(in: 0.6...1.1)
+            particles.append(Particle(
+                position: point,
+                velocity: SIMD2(cos(angle) * speed, sin(angle) * speed - 120),
+                radius: Float.random(in: 2.5...5),
+                life: lifetime,
+                lifetime: lifetime,
+                isDroplet: true
+            ))
+        }
+        if particles.count > 220 { particles.removeFirst(particles.count - 220) }
+    }
 
     private func spawnParticles(at point: SIMD2<Float>, count: Int, speed: ClosedRange<Float>) {
         for _ in 0..<count {
@@ -389,14 +514,17 @@ final class RunnerGameSimulation {
             playerFacing: abs(toTarget) > 0.05 ? (toTarget > 0 ? 1 : -1) : 0,
             crouch: CGFloat(crouchAmount),
             obstacles: obstacles.map { RunnerGameSnapshot.Obstacle(kind: $0.kind, lane: CGFloat($0.lane), z: CGFloat($0.z), seed: $0.seed) },
-            drops: drops.map { RunnerGameSnapshot.Drop(lane: CGFloat($0.lane), height: CGFloat($0.height), z: CGFloat($0.z)) },
+            drops: drops.map { RunnerGameSnapshot.Drop(lane: CGFloat($0.lane), height: CGFloat($0.height), z: CGFloat($0.z), isPower: $0.isPower) },
             particles: particles.map {
                 RunnerGameSnapshot.Particle(position: CGPoint(x: CGFloat($0.position.x), y: CGFloat($0.position.y)),
-                                            radius: CGFloat($0.radius), alpha: CGFloat($0.life / $0.lifetime))
+                                            radius: CGFloat($0.radius), alpha: CGFloat($0.life / $0.lifetime),
+                                            isDroplet: $0.isDroplet)
             },
             score: score,
+            powerProgress: CGFloat(powerTimer / RunnerGameTuning.powerDuration),
             phase: phase,
-            phaseProgress: phase == .dying ? CGFloat(min(1, phaseTimer / RunnerGameTuning.deathPause)) : 0
+            phaseProgress: phase == .dying ? CGFloat(min(1, phaseTimer / RunnerGameTuning.deathPause)) : 0,
+            canRetry: phase == .dying && phaseTimer >= RunnerGameTuning.retryLock
         )
     }
 }

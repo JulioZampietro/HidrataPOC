@@ -28,7 +28,7 @@ enum SliceGameTuning {
     static let comboMinimum = 3                  // pedras num deslize pra valer combo
     static let strikes = 3                       // pedras que podem cair sem corte
 
-    static let gameOverPause: Float = 1.8        // s mostrando "fim de jogo" antes de recomeçar
+    static let gameOverPause: Float = 0.8        // s de "fim de jogo" antes de um toque poder tentar de novo (pra o deslize da batida não pular)
     static let sliceWaterPush: Float = 3         // agito na superfície a cada pedra cortada
 
     /// Cores das pedrinhas, as mesmas das Pedras Coloridas.
@@ -81,6 +81,8 @@ struct SliceGameSnapshot: Sendable {
     let score: Int
     let strikes: Int
     let phase: Phase
+    /// No `gameOver`, já passou o tempo do "fim de jogo": um novo toque recomeça.
+    let canRetry: Bool
 }
 
 /// Fruit Ninja dentro do aquário: pedrinhas do rim pulam do fundo e o dedo, deslizando pela água,
@@ -186,6 +188,15 @@ final class SliceGameSimulation {
     func swipe(to point: CGPoint) {
         guard isRunning, !needsReset else { return }
         defer { lastTouch = point }
+        // Depois do "fim de jogo", um toque NOVO (não o deslize que bateu no rim) recomeça já jogando.
+        if phase == .gameOver {
+            if lastTouch == nil, gameOverTimer <= 0 {
+                reset()
+                phase = .playing
+                waveTimer = SliceGameTuning.firstWaveDelay
+            }
+            return
+        }
         trail.append(TrailPoint(position: point, age: 0))
         // Na tela de espera o toque (sem precisar deslizar) já começa a partida.
         if phase == .ready {
@@ -250,8 +261,7 @@ final class SliceGameSimulation {
             if comboCount > 0, clock - comboClock > SliceGameTuning.comboWindow { finishCombo() }
         case .gameOver:
             updateThings(dt: dt)
-            gameOverTimer -= dt
-            if gameOverTimer <= 0 { reset() }
+            gameOverTimer = max(0, gameOverTimer - dt) // o "fim de jogo" fica até o próximo toque
         }
     }
 
@@ -449,7 +459,8 @@ final class SliceGameSimulation {
             popups: popups.map { SliceGameSnapshot.Popup(text: $0.text, position: point($0.position), alpha: CGFloat($0.life)) },
             score: score,
             strikes: strikes,
-            phase: phase
+            phase: phase,
+            canRetry: phase == .gameOver && gameOverTimer <= 0
         )
     }
 }

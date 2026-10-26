@@ -117,8 +117,10 @@ struct JumpGameView: View {
 /// chama posiciona, gira e achata com as transformações do `context`.
 enum DropDrawing {
     /// `facing`: −1 olhando pra esquerda, 1 pra direita. Sem `eyes`, é só a gota (as gotinhas
-    /// que o rim come no Rim Comilão).
-    static func draw(radius r: CGFloat, facing: CGFloat, eyes: Bool = true, in ctx: inout GraphicsContext) {
+    /// que o rim come no Rim Comilão). `tint`: cores de cima e de baixo do degradê (azul por padrão).
+    static func draw(radius r: CGFloat, facing: CGFloat, eyes: Bool = true,
+                     tint: (top: Color, bottom: Color) = (Color(red: 0.62, green: 0.88, blue: 1.0), Color(red: 0.16, green: 0.52, blue: 0.95)),
+                     in ctx: inout GraphicsContext) {
         // Gota: círculo embaixo, ponta em cima.
         var drop = Path()
         drop.move(to: CGPoint(x: 0, y: -r * 2.1))
@@ -128,7 +130,7 @@ enum DropDrawing {
         drop.closeSubpath()
 
         ctx.fill(drop, with: .linearGradient(
-            Gradient(colors: [Color(red: 0.62, green: 0.88, blue: 1.0), Color(red: 0.16, green: 0.52, blue: 0.95)]),
+            Gradient(colors: [tint.top, tint.bottom]),
             startPoint: CGPoint(x: 0, y: -r * 2), endPoint: CGPoint(x: 0, y: r)
         ))
         ctx.stroke(drop, with: .color(.white.opacity(0.9)), lineWidth: 1.5)

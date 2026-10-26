@@ -342,6 +342,18 @@ struct WaterHeaderView: View {
         UnevenRoundedRectangle(topLeadingRadius: 32, bottomLeadingRadius: 32, bottomTrailingRadius: 32, topTrailingRadius: 32, style: .continuous)
     }
 
+    /// Jogos em que o desenho do jogo cortaria os rins do canto: eles ficam por cima.
+    private var kidneysInFrontOfGame: Bool { runningGame == .flappy || runningGame == .snake || runningGame == .runner }
+
+    /// Os rins comemorando nos cantos de baixo quando a meta do dia é batida.
+    private var cheeringKidneys: some View {
+        KidneyCheerView()
+            .frame(height: 80)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+            .transition(.move(edge: .bottom).combined(with: .opacity))
+    }
+
     private func topSection(height: CGFloat, width: CGFloat) -> some View {
         // Recipiente: enche de água conforme o progresso do dia. O cabeçalho fica fora do
         // conteúdo da água: a refração achata o conteúdo numa imagem e o vidro dos botões
@@ -359,14 +371,10 @@ struct WaterHeaderView: View {
             .frame(height: height, alignment: .bottom)
             // Meta do dia batida: os rins aparecem nos cantos de baixo comemorando.
             // Ficam, como o resto, dentro da água.
+            // Na Gota Voadora, na Cobrinha e na Gota Surfista eles vão pra frente (torres, campo, pista): é o
+            // overlay depois do jogo.
             .overlay(alignment: .bottom) {
-                if goalReached {
-                    KidneyCheerView()
-                        .frame(height: 80)
-                        .allowsHitTesting(false)
-                        .accessibilityHidden(true)
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
+                if goalReached, !kidneysInFrontOfGame { cheeringKidneys }
             }
             .animation(.spring(response: 0.5, dampingFraction: 0.7), value: goalReached)
             // Minijogo: no conteúdo do recipiente, então passa pela mesma refração da água.
@@ -402,6 +410,9 @@ struct WaterHeaderView: View {
                 }
                 .allowsHitTesting([.rings, .jump, .pebbles, .flappy, .maze, .slice, .snake, .mines, .runner].contains(runningGame))
                 .transition(.opacity)
+            }
+            .overlay(alignment: .bottom) {
+                if goalReached, kidneysInFrontOfGame { cheeringKidneys }
             }
         .background {
             containerShape

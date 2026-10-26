@@ -69,11 +69,21 @@ struct SnakeGameView: View {
         drawHUD(snapshot, size: size, in: &ctx)
     }
 
-    /// Campo: fundo levemente claro com quadriculado suave e borda, pra ver até onde dá pra ir.
+    /// Cores do campo. No escuro o branco translúcido já aparece bem; no claro ele some na água
+    /// clara, então o campo usa o azul do jogo (o `Canvas` resolve a cor dinâmica pelo ambiente).
+    private static func boardColor(dark: UIColor, light: UIColor) -> Color {
+        Color(UIColor { $0.userInterfaceStyle == .dark ? dark : light })
+    }
+    private static let boardBlue = UIColor(red: 0.07, green: 0.30, blue: 0.72, alpha: 1)
+    private static let boardFill = boardColor(dark: UIColor.white.withAlphaComponent(0.14), light: boardBlue.withAlphaComponent(0.08))
+    private static let boardChecker = boardColor(dark: UIColor.white.withAlphaComponent(0.08), light: boardBlue.withAlphaComponent(0.07))
+    private static let boardBorder = boardColor(dark: UIColor.white.withAlphaComponent(0.55), light: boardBlue.withAlphaComponent(0.4))
+
+    /// Campo: fundo levemente destacado com quadriculado suave e borda, pra ver até onde dá pra ir.
     private static func drawBoard(_ snapshot: SnakeGameSnapshot, in ctx: inout GraphicsContext) {
         let board = snapshot.board
         let shape = Path(roundedRect: board, cornerRadius: snapshot.tile * 0.4)
-        ctx.fill(shape, with: .color(.white.opacity(0.14)))
+        ctx.fill(shape, with: .color(boardFill))
         var checker = Path()
         let columns = Int((board.width / snapshot.tile).rounded())
         let rows = Int((board.height / snapshot.tile).rounded())
@@ -85,8 +95,8 @@ struct SnakeGameView: View {
         }
         var clipped = ctx
         clipped.clip(to: shape)
-        clipped.fill(checker, with: .color(.white.opacity(0.08)))
-        ctx.stroke(shape, with: .color(.white.opacity(0.55)), lineWidth: 2)
+        clipped.fill(checker, with: .color(boardChecker))
+        ctx.stroke(shape, with: .color(boardBorder), lineWidth: 2)
     }
 
     /// Cor viva da pedrinha (as mesmas das Pedras Coloridas), puxada um pouco pro tom de pedra.
@@ -157,7 +167,7 @@ struct SnakeGameView: View {
             at: CGPoint(x: size.width / 2, y: 26)
         )
         let message: String? = switch snapshot.phase {
-        case .dying: "Splash!"
+        case .dying: "Fim de jogo"
         case .ready, .playing: nil
         }
         if let message {
@@ -166,6 +176,14 @@ struct SnakeGameView: View {
                     .font(.custom("Nunito", size: 22).weight(.black))
                     .foregroundStyle(.white),
                 at: CGPoint(x: size.width / 2, y: snapshot.board.midY - snapshot.tile * 2)
+            )
+        }
+        if snapshot.canRetry {
+            textCtx.draw(
+                Text("Tentar novamente")
+                    .font(.custom("Nunito", size: 20).weight(.black))
+                    .foregroundStyle(.white),
+                at: CGPoint(x: size.width / 2, y: snapshot.board.midY - snapshot.tile * 2 + 36)
             )
         }
         if snapshot.phase == .ready {

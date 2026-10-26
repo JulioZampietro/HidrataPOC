@@ -6,6 +6,8 @@ enum SnakeGameTuning {
     static let columns = 15                      // casas na largura; as fileiras saem da altura do aquário
     static let topMargin: Float = 58             // pt — abaixo dos botões do cabeçalho do aquário
     static let bottomMargin: Float = 14          // pt
+    static let sideMargin: Float = 3             // pt — folga dos lados, pra borda do campo aparecer inteira
+    static let kidneyRows: Float = 1             // fileiras de folga embaixo do campo, pros rins comemorando (que pulam por cima dele)
     static let startLength = 4
 
     static let stepInterval: Float = 0.17        // s por casa no começo…
@@ -13,7 +15,8 @@ enum SnakeGameTuning {
     static let speedUpPerDrop: Float = 0.004     // s a menos por casa a cada pedrinha comida
     static let maxQueuedTurns = 2                // viradas guardadas pra próximas casas (toques rápidos)
 
-    static let deathPause: Float = 1.5           // s da cobrinha estourando antes de recomeçar
+    static let deathPause: Float = 1.5           // s da cobrinha desmanchando (o resto do tempo o "Splash!" espera um toque)
+    static let retryLock: Float = 0.8            // s de "Splash!" antes de um toque poder tentar de novo (pra o toque da batida não pular)
     static let eatWaterPush: Float = 3           // agito na superfície a cada pedrinha comida
 }
 
@@ -50,6 +53,8 @@ struct SnakeGameSnapshot: Sendable {
     let score: Int
     let phase: Phase
     let phaseProgress: CGFloat  // 0…1 dentro de `dying`
+    /// Em `dying`, já passou o tempo do "Splash!": um toque recomeça.
+    let canRetry: Bool
 }
 
 /// Jogo da cobrinha dentro do aquário: uma fileira de pedrinhas coloridas (a da frente com olhos)
@@ -127,7 +132,17 @@ final class SnakeGameSimulation {
 
     /// Toque na tela de espera: começa a partida (a cobrinha segue reto até o primeiro deslize).
     func begin() {
-        guard isRunning, !needsReset, phase == .ready else { return }
+        guard isRunning, !needsReset else { return }
+        if phase == .dying { retry() }
+        guard phase == .ready else { return }
+        phase = .playing
+    }
+
+    /// Depois do "Splash!": partida nova (passado o tempo da batida), já andando, sem passar pela
+    /// tela de espera.
+    private func retry() {
+        guard phaseTimer >= SnakeGameTuning.retryLock else { return }
+        reset()
         phase = .playing
     }
 
@@ -135,7 +150,11 @@ final class SnakeGameSimulation {
     /// diagonal. Vale a que for curva em relação à última direção (seguir reto já é o padrão, e
     /// dar meia-volta mataria a cobrinha). Na tela de espera, também começa a partida.
     func setDirection(_ direction: MazeDirection, alternate: MazeDirection? = nil) {
-        guard isRunning, !needsReset, phase != .dying else { return }
+        guard isRunning, !needsReset else { return }
+        if phase == .dying {
+            retry()
+            return
+        }
         if phase == .ready { phase = .playing }
         let last = queuedTurns.last ?? heading
         let turn = [direction, alternate].compactMap { $0 }.first { $0 != last && $0 != last.opposite }
@@ -148,10 +167,13 @@ final class SnakeGameSimulation {
         needsReset = false
         layoutSize = size
         let width = Float(size.width), height = Float(size.height)
+        // Quantas fileiras cabem sai da casa sem a folga lateral (a mesma conta de antes dela), pra
+        // a folga só afinar um pouco as casas e nunca fazer o campo crescer pra cima dos rins.
+        let fullTile = width / Float(SnakeGameTuning.columns)
         let available = height - SnakeGameTuning.topMargin - SnakeGameTuning.bottomMargin
-        tile = max(1, width / Float(SnakeGameTuning.columns))
-        rows = max(6, Int(available / tile))
-        tile = min(tile, available / Float(rows))
+            - SnakeGameTuning.kidneyRows * fullTile
+        rows = max(6, Int(available / fullTile))
+        tile = min((width - 2 * SnakeGameTuning.sideMargin) / Float(SnakeGameTuning.columns), available / Float(rows))
         origin = SIMD2((width - tile * Float(SnakeGameTuning.columns)) / 2,
                        SnakeGameTuning.topMargin + (available - tile * Float(rows)) / 2)
 
@@ -198,8 +220,7 @@ final class SnakeGameSimulation {
                 step()
             }
         case .dying:
-            phaseTimer += dt
-            if phaseTimer >= SnakeGameTuning.deathPause { reset() }
+            phaseTimer += dt // o "Splash!" fica até o próximo toque
         }
     }
 
@@ -311,7 +332,8 @@ final class SnakeGameSimulation {
             },
             score: score,
             phase: phase,
-            phaseProgress: phase == .dying ? CGFloat(min(1, phaseTimer / SnakeGameTuning.deathPause)) : 0
+            phaseProgress: phase == .dying ? CGFloat(min(1, phaseTimer / SnakeGameTuning.deathPause)) : 0,
+            canRetry: phase == .dying && phaseTimer >= SnakeGameTuning.retryLock
         )
     }
 }

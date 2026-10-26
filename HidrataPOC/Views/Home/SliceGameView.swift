@@ -169,6 +169,14 @@ struct SliceGameView: View {
                 at: CGPoint(x: size.width / 2, y: size.height * 0.45)
             )
         }
+        if snapshot.canRetry {
+            textCtx.draw(
+                Text("Tentar novamente")
+                    .font(.custom("Nunito", size: 20).weight(.black))
+                    .foregroundStyle(.white),
+                at: CGPoint(x: size.width / 2, y: size.height * 0.45 + 36)
+            )
+        }
         if snapshot.phase == .ready {
             GameStartPrompt.draw(hint: "Deslize pra cortar as pedras, não o rim", centerY: size.height * 0.45, size: size, in: &ctx)
         }
