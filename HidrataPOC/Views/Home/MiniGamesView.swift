@@ -8,19 +8,23 @@ import SwiftUI
 /// entra sozinho quando a meta do dia é batida, e com pelo menos `minimumStreakToPlay` dias
 /// de streak dá pra jogar a qualquer hora tocando nele na aba.
 ///
-/// Pra criar um jogo novo: adicione o `case` aqui (com título, ícone e streak necessária)
-/// e trate o `case` na Home (`HomeView`), onde o jogo é desenhado e controlado.
+/// Pra criar um jogo novo: adicione o `case` aqui (com título e ícone), na posição da fila de
+/// desbloqueio em que ele deve entrar, e trate o `case` na Home (`HomeView`), onde o jogo é
+/// desenhado e controlado.
 enum MiniGame: String, CaseIterable, Identifiable {
     case noGame
-    case rings
-    case jump
-    case pebbles
-    case flappy
-    case maze
-    case slice
-    case snake
-    case mines
-    case runner
+    // A ordem dos jogos abaixo é a ordem de desbloqueio (e dos cartões na aba): um jogo novo por
+    // dia de streak, alternando os mais simples com os mais divertidos pra sempre ter um motivo
+    // de voltar amanhã. As Argolas abrem a fila.
+    case rings      // 1 dia
+    case maze       // 2 dias
+    case jump       // 3 dias
+    case pebbles    // 4 dias
+    case snake      // 5 dias
+    case flappy     // 6 dias
+    case mines      // 7 dias
+    case runner     // 8 dias
+    case slice      // 9 dias
 
     var id: String { rawValue }
 
@@ -69,14 +73,11 @@ enum MiniGame: String, CaseIterable, Identifiable {
         }
     }
 
-    /// Dias de streak necessários pra desbloquear o jogo. Por enquanto todos liberam com 1 dia;
-    /// a escada planejada era argolas 1, Gota Saltitante 3, Bolhas 5, Gota Voadora 7, Rim Comilão 10
-    /// (o Quebra-Pedras, a Cobrinha, o Campo Minado e a Gota Surfista ainda não têm degrau).
+    /// Dias de streak necessários pra desbloquear o jogo: a posição dele na fila (a ordem dos
+    /// `case`), então libera um por dia. O `.noGame` está sempre liberado.
     var requiredStreak: Int {
-        switch self {
-        case .noGame: 0
-        case .rings, .jump, .pebbles, .flappy, .maze, .slice, .snake, .mines, .runner: 1
-        }
+        guard isPlayable else { return 0 }
+        return (Self.allCases.filter(\.isPlayable).firstIndex(of: self) ?? 0) + 1
     }
 
     /// `false` só pro `.noGame`, que é a opção de não jogar nada.
@@ -126,10 +127,7 @@ enum MiniGame: String, CaseIterable, Identifiable {
 
     /// Jogos de verdade (sem o `.noGame`) já liberados pela streak, na ordem de desbloqueio.
     static func unlocked(streak: Int) -> [MiniGame] {
-        // Empate na streak (todos com 1 dia, por enquanto): vale a ordem do `enum`.
-        let order = Dictionary(uniqueKeysWithValues: allCases.enumerated().map { ($1, $0) })
-        return allCases.filter { $0.isPlayable && $0.isUnlocked(streak: streak) }
-            .sorted { ($0.requiredStreak, order[$0] ?? 0) < ($1.requiredStreak, order[$1] ?? 0) }
+        allCases.filter { $0.isPlayable && $0.isUnlocked(streak: streak) }
     }
 
     /// Opção escolhida pra quando bater a meta: a do usuário, se ainda estiver liberada;
