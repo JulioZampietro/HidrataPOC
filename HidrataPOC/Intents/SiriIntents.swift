@@ -117,7 +117,9 @@ struct LogCustomIntent: AppIntent {
             userID: profile.userID,
             source: "siri",
             weather: nil,
-            context: context
+            context: context,
+            // Mesmo motivo de `logIntakes`: a Siri não pode esperar o CloudKit.
+            deferCloudSync: true
         )
         let total = await totalConsumedToday()
         return (ml, total)
@@ -190,15 +192,20 @@ struct HidrataPOCShortcuts: AppShortcutsProvider {
 
 /// "Bebi 5 copos" fazia cinco chamadas completas a `IntakeLogService.record` — cada uma
 /// com fetch, save, um push ao CloudKit aguardado inline e até 1s do retry de
-/// `endLiveActivity`. São cinco round trips de rede dentro de um intent da Siri, que
-/// tem orçamento curto. Agora só o último registro paga o encerramento da Live
-/// Activity, e o sync vai para o fim, de uma vez.
+/// `endLiveActivity`. Agora só o último registro paga o encerramento da Live Activity.
+///
+/// O CloudKit fica fora do caminho da resposta: a Siri tem um orçamento de poucos
+/// segundos e desiste com "algo deu errado" se o intent não volta a tempo. O push
+/// aguardado inline não tinha limite (o timeout do CloudKit é de até 60s numa rede
+/// ruim), e o `flushPending` que vinha depois reenviava a fila inteira de pendências
+/// de todas as tabelas, um registro por vez. O registro já está salvo no aparelho
+/// quando `record` volta; o push segue em segundo plano e, se o processo for suspenso
+/// antes, o log fica `.pending` e o `flushPending` da próxima abertura do app o envia.
 @MainActor
 private func logIntakes(count: Int, preset: Constants.IntakePreset) async {
     let context = PersistenceController.context
     guard let profile = try? context.fetch(FetchDescriptor<UserProfile>()).first, count > 0 else { return }
     for index in 0..<count {
-        let isLast = index == count - 1
         await IntakeLogService.record(
             preset: preset,
             userID: profile.userID,
@@ -207,14 +214,10 @@ private func logIntakes(count: Int, preset: Constants.IntakePreset) async {
             context: context,
             // Só a última chamada espera a corrida de inicialização do ActivityKit: as
             // anteriores já teriam encerrado a atividade, se houvesse uma.
-            waitForColdStartActivity: isLast,
-            // O processo da Siri pode ser suspenso quando o handler retorna, então o
-            // push não pode ser adiado para depois — mas pode ser feito uma vez, no fim.
-            deferCloudSync: !isLast
+            waitForColdStartActivity: index == count - 1,
+            deferCloudSync: true
         )
     }
-    // Os pushes adiados acima: feitos aqui, ainda dentro do intent, em uma passada.
-    await CloudKitSyncService.shared.flushPending(context: context)
 }
 
 @MainActor

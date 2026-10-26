@@ -86,8 +86,10 @@ enum IntakeLogService {
         // CloudKit sync is best-effort (NR-1) and can take a few seconds on a slow
         // connection. A long-lived caller (the app itself, logging from the Home
         // screen) can defer it to the background so the tap isn't stuck waiting on
-        // the network; a short-lived one (widget/Siri intents, whose process can be
-        // suspended the instant their handler returns) must await it inline.
+        // the network; a short-lived one (widget intents, whose process can be
+        // suspended the instant their handler returns) awaits it inline. The Siri
+        // intents defer it anyway: Siri gives up after a few seconds, and a log left
+        // `.pending` by a suspension is picked up by the next `flushPending`.
         if deferCloudSync {
             Task { @MainActor in
                 await CloudKitSyncService.shared.push(log)
