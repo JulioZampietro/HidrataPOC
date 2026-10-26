@@ -68,6 +68,7 @@ struct TankHeader: View {
         // dois ficam alinhados ao centro um do outro de verdade, e o mascote nunca
         // escapa do padding do header — fica sempre dentro do gradiente, nunca
         // espiando por baixo da onda.
+        
         HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
