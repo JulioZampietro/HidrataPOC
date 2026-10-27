@@ -52,6 +52,14 @@ struct JumpGameView: View {
                     .foregroundStyle(.white),
                 at: CGPoint(x: size.width / 2, y: size.height / 2)
             )
+            if snapshot.canRetry {
+                textCtx.draw(
+                    Text("Tentar novamente")
+                        .font(.custom("Nunito", size: 20).weight(.black))
+                        .foregroundStyle(.white),
+                    at: CGPoint(x: size.width / 2, y: size.height / 2 + 36)
+                )
+            }
         }
         if snapshot.isReady {
             GameStartPrompt.draw(hint: "Use o joystick pra guiar a gota", centerY: size.height * 0.4, size: size, in: &ctx)

@@ -34,7 +34,7 @@ enum PebbleGameTuning {
     static let pointsPerPop = 10
     static let pointsPerDrop = 20                // pedrinhas que ficaram soltas e caíram valem mais
     static let clearBonus = 500
-    static let gameOverPause: Float = 1.6        // s mostrando "fim de jogo" antes de recomeçar
+    static let gameOverPause: Float = 0.8        // s de "Fim de jogo" antes de um toque poder tentar de novo (pra o toque da perda não pular)
     static let popWaterPush: Float = 5           // agito na superfície a cada estouro
 
     /// Cores das pedrinhas (índice = `colorIndex`). Sem azul, que some na água.
@@ -183,6 +183,8 @@ final class PebbleGameSimulation {
     private var isReady = true
     /// O toque que está no aquário começou na tela de espera e só serve pra sair dela.
     private var ignoresTouch = false
+    /// Tem um dedo na água agora (do primeiro `touchAim` até o `touchRelease`).
+    private var touchActive = false
     /// Última fase limpa: "Parabéns!" fica na tela até o toque que recomeça pela fase 1.
     private var isVictory = false
 
@@ -192,6 +194,8 @@ final class PebbleGameSimulation {
     private var confetti = ConfettiShower()
 
     private var gameOverTimer: Float = 0
+    /// Perdeu: o "Fim de jogo" fica até o próximo toque (`gameOverTimer` é só a trava antes dele valer).
+    private var isGameOver = false
     private var needsReset = true
     private var lastFrame: Date?
     private var size: CGSize = .zero
@@ -215,6 +219,8 @@ final class PebbleGameSimulation {
         sparks.removeAll()
         confetti.clear()
         isVictory = false
+        isGameOver = false
+        touchActive = false
         shot = nil
         held = [Bool](repeating: false, count: PebbleGameSide.allCases.count)
         isTouchAiming = false
@@ -225,6 +231,7 @@ final class PebbleGameSimulation {
     // MARK: Controles
 
     func setAim(_ side: PebbleGameSide, held isHeld: Bool) {
+        if isHeld, isGameOver { restart() }
         if isHeld { beginIfReady() }
         held[side.rawValue] = isHeld
         if !held.contains(true) { holdTime = 0 }
@@ -232,6 +239,7 @@ final class PebbleGameSimulation {
 
     /// Gira um pouquinho, pra quem aciona o botão sem segurar (VoiceOver, toque rápido).
     func pulseAim(_ side: PebbleGameSide) {
+        if isGameOver { restart() }
         beginIfReady()
         aim += (side == .left ? -1 : 1) * PebbleGameTuning.aimPulseStep
         aim = clampedAim(aim)
@@ -241,6 +249,17 @@ final class PebbleGameSimulation {
     /// Com o dedo abaixo do canhão, a mira fica no limite do lado em que ele está.
     func touchAim(at location: CGPoint) {
         guard isRunning, !needsReset else { return }
+        let isNewTouch = !touchActive
+        touchActive = true
+        // Depois do "Fim de jogo", só um toque NOVO (passada a trava) tenta de novo; o dedo que
+        // já estava na água quando perdeu fica ignorado até soltar.
+        if isGameOver {
+            if isNewTouch {
+                restart()
+                ignoresTouch = true
+            }
+            return
+        }
         if isReady {
             beginIfReady()
             ignoresTouch = true
@@ -255,6 +274,7 @@ final class PebbleGameSimulation {
 
     /// Dedo solto: atira na última direção mirada. Soltar abaixo do canhão cancela o tiro.
     func touchRelease(at location: CGPoint) {
+        touchActive = false
         if ignoresTouch {
             ignoresTouch = false
             return
@@ -267,7 +287,11 @@ final class PebbleGameSimulation {
 
     /// Atira a pedrinha do canhão, se não houver outra no ar.
     func fire() {
-        guard isRunning, !needsReset, shot == nil, fireCooldown <= 0, gameOverTimer <= 0 else { return }
+        if isGameOver {
+            restart()
+            return
+        }
+        guard isRunning, !needsReset, shot == nil, fireCooldown <= 0 else { return }
         // O primeiro toque da fase só tira o "Fase N" da tela.
         if isReady {
             beginIfReady()
@@ -280,10 +304,21 @@ final class PebbleGameSimulation {
         Haptic.tap.play()
     }
 
+    /// Toque depois do "Fim de jogo" (passada a trava): partida nova, já jogando, sem passar pelo
+    /// aviso "Fase 1".
+    private func restart() {
+        guard isGameOver, gameOverTimer <= 0 else { return }
+        reset()
+        isReady = false
+    }
+
     /// Tira o "Fase N" (ou o "Parabéns!") da tela e libera o jogo.
     private func beginIfReady() {
         guard isReady else { return }
         isReady = false
+        // Recomeçar depois do "Parabéns!" é partida nova: a pontuação da vitória (já gravada no
+        // recorde) não pode continuar valendo, senão a próxima partida começa com ela e o recorde infla.
+        if isVictory { score = 0 }
         isVictory = false
         Haptic.tap.play()
     }
@@ -321,6 +356,7 @@ final class PebbleGameSimulation {
         aim = 0
         shot = nil
         isTouchAiming = false
+        isGameOver = false
         gameOverTimer = 0
         loose.removeAll()
         sparks.removeAll()
@@ -368,9 +404,8 @@ final class PebbleGameSimulation {
         updateSparks(dt: dt)
         confetti.update(dt: dt)
 
-        if gameOverTimer > 0 {
-            gameOverTimer -= dt
-            if gameOverTimer <= 0 { reset() }
+        if isGameOver {
+            gameOverTimer = max(0, gameOverTimer - dt)
             return
         }
 
@@ -538,7 +573,10 @@ final class PebbleGameSimulation {
         grid.removeAll()
         shot = nil
         isTouchAiming = false
+        isGameOver = true
         gameOverTimer = PebbleGameTuning.gameOverPause
+        // O dedo que estava na água quando perdeu não conta como toque novo.
+        ignoresTouch = touchActive
         onGameOver?(score)
     }
 
@@ -637,7 +675,7 @@ final class PebbleGameSimulation {
     /// Pontos da linha de mira: sai do canhão, quica nas paredes e para na primeira pedrinha
     /// (ou no teto).
     private func aimGuide() -> [CGPoint] {
-        guard shot == nil, gameOverTimer <= 0, !isReady else { return [] }
+        guard shot == nil, !isGameOver, !isReady else { return [] }
         var position = shooter
         var direction = SIMD2(sin(aim), -cos(aim))
         var travelled: Float = 0
@@ -703,7 +741,7 @@ final class PebbleGameSimulation {
             isReady: isReady,
             isCelebrating: isVictory,
             confetti: confetti.snapshot(),
-            isGameOver: gameOverTimer > 0
+            isGameOver: isGameOver
         )
     }
 }

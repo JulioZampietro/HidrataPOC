@@ -36,7 +36,7 @@ enum JumpGameTuning {
     static let cameraFollow: Float = 6           // 1/s — quão rápido a câmera sobe até essa folha
     static let cameraTopLine: Float = 0.3        // fração da altura: a gota nunca passa disso pra cima (ex.: na bolha-mola)
     static let pointsPerPt: Float = 0.1          // pontos por pt subido
-    static let gameOverPause: Float = 1.3        // s mostrando "fim de jogo" antes de recomeçar
+    static let gameOverPause: Float = 0.8        // s de "Splash!" antes de um toque poder tentar de novo (pra o toque da queda não pular)
     static let bounceWaterPush: Float = 6        // agito na superfície a cada quique
 }
 
@@ -72,6 +72,8 @@ struct JumpGameSnapshot: Sendable {
     let bubbles: [Bubble]
     let score: Int
     let isGameOver: Bool
+    /// No fim de jogo, já passou o tempo do "Splash!": um toque recomeça.
+    let canRetry: Bool
     /// Esperando o primeiro toque: a gota está parada em cima da primeira pedra.
     let isReady: Bool
 }
@@ -127,6 +129,8 @@ final class JumpGameSimulation {
     private var landedLeafY: Float = 0
     private var highestLeafY: Float = 0
     private var gameOverTimer: Float = 0
+    /// Caiu: o "Splash!" fica até o próximo toque (`gameOverTimer` é só a trava antes dele valer).
+    private var isGameOver = false
     private var needsReset = true
     private var lastFrame: Date?
     private var size: CGSize = .zero
@@ -143,6 +147,7 @@ final class JumpGameSimulation {
 
     func stop() {
         isRunning = false
+        isGameOver = false
         leaves.removeAll()
         bubbles.removeAll()
         joystick = 0
@@ -153,12 +158,25 @@ final class JumpGameSimulation {
 
     /// Toque na tela de espera: a gota começa a quicar.
     func begin() {
+        if isGameOver {
+            restart()
+            return
+        }
+        isReady = false
+    }
+
+    /// Toque depois do "Splash!" (passado o tempo da queda): partida nova, já quicando, sem passar
+    /// pela tela de espera.
+    private func restart() {
+        guard gameOverTimer <= 0 else { return }
+        reset()
         isReady = false
     }
 
     /// Inclinação horizontal do joystick (−1…1); 0 ao soltar.
     func setJoystick(_ value: Float) {
-        if value != 0 { begin() }
+        // Depois do "Splash!" só um toque NOVO no joystick recomeça (não o dedo que já estava nele).
+        if value != 0, !isGameOver || joystick == 0 { begin() }
         joystick = max(-1, min(1, value))
     }
 
@@ -173,6 +191,7 @@ final class JumpGameSimulation {
         let width = Float(size.width), height = Float(size.height)
         needsReset = false
         isReady = true
+        isGameOver = false
         cameraY = 0
         score = 0
         gameOverTimer = 0
@@ -205,9 +224,8 @@ final class JumpGameSimulation {
         updateBubbles(dt: dt)
         updateLeaves(dt: dt)
 
-        if gameOverTimer > 0 {
-            gameOverTimer -= dt
-            if gameOverTimer <= 0 { reset() }
+        if isGameOver {
+            gameOverTimer = max(0, gameOverTimer - dt)
             return
         }
 
@@ -217,6 +235,7 @@ final class JumpGameSimulation {
 
         // Caiu abaixo do fundo: fim de jogo.
         if drop.y - cameraY > Float(size.height) + JumpGameTuning.dropRadius * 2 {
+            isGameOver = true
             gameOverTimer = JumpGameTuning.gameOverPause
             onGameOver?(score)
         }
@@ -397,7 +416,8 @@ final class JumpGameSimulation {
                                         radius: CGFloat($0.radius), alpha: CGFloat($0.life / $0.lifetime) * 0.7)
             },
             score: score,
-            isGameOver: gameOverTimer > 0,
+            isGameOver: isGameOver,
+            canRetry: isGameOver && gameOverTimer <= 0,
             isReady: isReady
         )
     }

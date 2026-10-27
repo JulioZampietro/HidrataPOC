@@ -70,12 +70,9 @@ struct PebbleGameView: View {
         GameConfetti.draw(snapshot.confetti, colors: PebbleGameTuning.colors, in: &ctx)
         if snapshot.isReady && !snapshot.isGameOver { drawReadyText(snapshot, size: size, in: &ctx) }
         if snapshot.isGameOver {
-            textCtx.draw(
-                Text("Splash!")
-                    .font(.custom("Nunito", size: 28).weight(.black))
-                    .foregroundStyle(ink),
-                at: CGPoint(x: size.width / 2, y: size.height / 2)
-            )
+            GameStartPrompt.draw(title: "Fim de jogo", action: "Tentar novamente",
+                                 hint: "\(snapshot.score) \(snapshot.score == 1 ? "ponto" : "pontos")",
+                                 centerY: size.height * 0.45, size: size, in: &ctx)
         }
     }
 

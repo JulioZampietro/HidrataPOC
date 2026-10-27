@@ -155,32 +155,12 @@ struct MinesGameView: View {
                 .foregroundStyle(.white.opacity(0.9)),
             at: CGPoint(x: size.width / 2, y: 49)
         )
-        let message: String? = switch snapshot.phase {
-        case .dying: "Achou uma pedra!"
-        case .ready, .playing, .won: nil
-        }
-        if let message {
-            // O cartão acompanha o tamanho do texto (que cresce com o Dynamic Type) e, se ainda
-            // assim passar da largura do jogo, encolhe tudo junto.
-            let label = ctx.resolve(Text(message)
-                .font(.custom("Nunito", size: 22).weight(.black))
-                .foregroundStyle(.white))
-            let textSize = label.measure(in: CGSize(width: CGFloat.infinity, height: CGFloat.infinity))
-            let pillSize = CGSize(width: max(220, textSize.width + 40), height: max(44, textSize.height + 16))
-            let fit = min(1, (size.width - 24) / pillSize.width)
-            let center = CGPoint(x: size.width / 2, y: snapshot.board.midY)
-            var pillCtx = ctx
-            pillCtx.translateBy(x: center.x, y: center.y)
-            pillCtx.scaleBy(x: fit, y: fit)
-            let pill = CGRect(x: -pillSize.width / 2, y: -pillSize.height / 2, width: pillSize.width, height: pillSize.height)
-            pillCtx.fill(Path(roundedRect: pill, cornerRadius: pillSize.height / 2),
-                         with: .color(Color(red: 0.05, green: 0.25, blue: 0.6).opacity(0.55)))
-            var labelCtx = pillCtx
-            labelCtx.addFilter(.shadow(color: Color(red: 0.05, green: 0.25, blue: 0.6).opacity(0.45), radius: 3, y: 1))
-            labelCtx.draw(label, at: .zero, anchor: .center)
-        }
         if snapshot.phase == .ready {
             GameStartPrompt.draw(hint: "Toque abre a casa, segure marca a pedra", centerY: snapshot.board.midY, size: size, in: &ctx)
+        } else if snapshot.phase == .dying {
+            GameStartPrompt.draw(title: "Fim de jogo", action: "Tentar novamente",
+                                 hint: "\(snapshot.score) \(snapshot.score == 1 ? "ponto" : "pontos")",
+                                 centerY: snapshot.board.midY, size: size, backdrop: true, compact: true, in: &ctx)
         } else if snapshot.phase == .won {
             GameStartPrompt.draw(title: "Parabéns!", action: "Toque pra recomeçar", hint: "Você limpou o campo!",
                                  centerY: snapshot.board.midY, size: size, backdrop: true, in: &ctx)

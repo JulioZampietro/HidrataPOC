@@ -16,7 +16,8 @@ enum MinesGameTuning {
 
     static let longPress: Double = 0.35          // s segurando a casa pra marcar em vez de abrir
     static let wonTapLock: Float = 1.0           // s de confete antes de um toque poder recomeçar
-    static let deathPause: Float = 2.2           // s mostrando as pedras antes de recomeçar
+    static let deathPause: Float = 2.2           // s da animação das pedras aparecendo (depois o "Fim de jogo" espera um toque)
+    static let retryLock: Float = 0.8            // s de "Fim de jogo" antes de um toque poder tentar de novo (pra o toque da pedra não pular)
     static let revealWaterPush: Float = 1.2      // agito na superfície ao abrir casas
     static let explodeWaterPush: Float = 5       // agito ao achar uma pedra
 }
@@ -134,9 +135,11 @@ final class MinesGameSimulation {
     /// quando o toque abre, e abre quando o toque marca.
     func tap(at point: CGPoint, longPress: Bool) {
         guard isRunning, !needsReset else { return }
-        // Depois do "Parabéns!", um toque (passado o tempo do confete) começa um campo novo.
-        if phase == .won {
-            guard phaseTimer >= MinesGameTuning.wonTapLock else { return }
+        // Depois do "Parabéns!" ou do "Fim de jogo", um toque (passado o tempo do aviso) começa um
+        // campo novo, já jogando.
+        if phase == .won || phase == .dying {
+            let lock = phase == .won ? MinesGameTuning.wonTapLock : MinesGameTuning.retryLock
+            guard phaseTimer >= lock else { return }
             reset()
             phase = .playing
             return
@@ -209,11 +212,8 @@ final class MinesGameSimulation {
         switch phase {
         case .ready, .playing:
             return
-        case .won:
-            phaseTimer += dt
-        case .dying:
-            phaseTimer += dt
-            if phaseTimer >= MinesGameTuning.deathPause { reset() }
+        case .won, .dying:
+            phaseTimer += dt // o aviso fica até o próximo toque
         }
     }
 
