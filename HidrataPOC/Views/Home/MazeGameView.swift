@@ -53,6 +53,14 @@ struct MazeGameView: View {
 
         for rock in snapshot.rocks { drawRock(rock, tile: tile, time: time, in: &ctx) }
         drawPlayer(snapshot, in: &ctx)
+        for particle in snapshot.particles {
+            var pieceCtx = ctx
+            pieceCtx.opacity = particle.alpha
+            let r = particle.radius
+            let rect = CGRect(x: particle.position.x - r, y: particle.position.y - r, width: r * 2, height: r * 2)
+            pieceCtx.fill(Path(ellipseIn: rect), with: .color(Color(red: 0.92, green: 0.48, blue: 0.50)))
+            pieceCtx.stroke(Path(ellipseIn: rect), with: .color(kidneyOutline), lineWidth: 0.6)
+        }
         drawHUD(snapshot, size: size, in: &ctx)
         GameConfetti.draw(snapshot.confetti, colors: PebbleGameTuning.colors, in: &ctx)
     }
@@ -179,13 +187,12 @@ struct MazeGameView: View {
     private static let kidneyInk = Color(red: 0.32, green: 0.12, blue: 0.14)
 
     /// O rim (o mesmo feijão dos rins do aquário, `KidneyCheerView.beanPath`), olhando pra onde
-    /// anda e mastigando com a boca na reentrância. Pego por uma pedra, encolhe e some.
+    /// anda e mastigando com a boca na reentrância. Pego por uma pedra, estoura em pedacinhos.
     private static func drawPlayer(_ snapshot: MazeGameSnapshot, in context: inout GraphicsContext) {
         var ctx = context
-        var scale = snapshot.tile * 0.92 / 36
-        if snapshot.phase == .dying { scale *= max(0, 1 - snapshot.phaseProgress) }
-        if snapshot.phase == .gameOver { return }
-        guard scale > 0.01 else { return }
+        let scale = snapshot.tile * 0.92 / 36
+        // Pego por uma pedra, o rim estoura (`particles`): não desenha mais ele.
+        if snapshot.phase == .dying || snapshot.phase == .gameOver { return }
         ctx.translateBy(x: snapshot.player.x, y: snapshot.player.y)
         ctx.scaleBy(x: scale * snapshot.playerFacing, y: scale)
 
@@ -227,21 +234,13 @@ struct MazeGameView: View {
             lifeCtx.stroke(KidneyCheerView.beanPath, with: .color(kidneyOutline), lineWidth: 3)
         }
 
-        let message: String? = switch snapshot.phase {
-        case .gameOver: "Fim de jogo"
-        case .ready, .playing, .dying, .victory: nil
-        }
-        if let message {
-            textCtx.draw(
-                Text(message)
-                    .font(.custom("Nunito", size: 20).weight(.black))
-                    .foregroundStyle(.white),
-                at: CGPoint(x: size.width / 2, y: size.height * 0.62)
-            )
-        }
         if snapshot.phase == .ready {
             GameStartPrompt.draw(hint: "Deslize pra guiar o rim e comer as gotas",
                                  centerY: size.height * 0.52, size: size, backdrop: true, in: &ctx)
+        } else if snapshot.phase == .gameOver {
+            GameStartPrompt.draw(title: "Fim de jogo", action: "Tentar novamente",
+                                 hint: "\(snapshot.score) \(snapshot.score == 1 ? "ponto" : "pontos")",
+                                 centerY: size.height * 0.52, size: size, backdrop: true, compact: true, in: &ctx)
         } else if snapshot.phase == .victory {
             GameStartPrompt.draw(title: "Parabéns!", action: "Toque pra recomeçar", hint: "Você comeu todas as gotas!",
                                  centerY: size.height * 0.52, size: size, backdrop: true, in: &ctx)

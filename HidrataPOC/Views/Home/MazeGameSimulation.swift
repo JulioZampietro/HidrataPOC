@@ -46,7 +46,7 @@ enum MazeGameTuning {
 
     static let deathPause: Float = 1.4           // s da animação do rim sendo pego
     static let victoryTapLock: Float = 1.0       // s de confete antes de um toque poder recomeçar
-    static let gameOverPause: Float = 1.8        // s mostrando "fim de jogo" antes de recomeçar
+    static let retryLock: Float = 0.8            // s de "Fim de jogo" antes de um toque poder tentar de novo (pra o toque da batida não pular)
 
     static let pelletPoints = 10
     static let powerPoints = 50
@@ -84,6 +84,12 @@ struct MazeGameSnapshot: Sendable {
 
     enum RockLook: Sendable { case normal, scared, flashing, eaten }
 
+    struct Particle: Sendable {
+        let position: CGPoint
+        let radius: CGFloat
+        let alpha: CGFloat
+    }
+
     struct Rock: Sendable {
         let position: CGPoint
         let index: Int          // qual das quatro pedras (escolhe a imagem do mascote)
@@ -103,6 +109,8 @@ struct MazeGameSnapshot: Sendable {
     let rocks: [Rock]
     let score: Int
     let lives: Int
+    /// Pedacinhos do rim quando uma pedra o pega.
+    let particles: [Particle]
     let confetti: [Confetto]
     let phase: Phase
     let phaseProgress: CGFloat  // 0…1 dentro de `dying` e `gameOver`
@@ -131,6 +139,15 @@ final class MazeGameSimulation {
         case chasing
         case scared
         case eaten              // voltando pra casinha
+    }
+
+    /// Pedacinho do rim que estoura, em pontos da tela (como no Quebra-Pedras).
+    private struct Particle {
+        var position: SIMD2<Float>
+        var velocity: SIMD2<Float>
+        let radius: Float
+        var life: Float
+        let lifetime: Float
     }
 
     private struct Rock {
@@ -173,6 +190,7 @@ final class MazeGameSimulation {
     private var rockCombo = 0
     private var lives = MazeGameTuning.lives
     private var confetti = ConfettiShower()
+    private var particles: [Particle] = []
     private var needsReset = true
     private var lastFrame: Date?
     private var size: CGSize = .zero
@@ -218,6 +236,7 @@ final class MazeGameSimulation {
         isRunning = false
         rocks.removeAll()
         confetti.clear()
+        particles.removeAll()
         score = 0
         lastFrame = nil
     }
@@ -225,15 +244,16 @@ final class MazeGameSimulation {
     /// Toque na tela de espera: começa a partida (o rim espera o primeiro comando de direção).
     func begin() {
         guard isRunning, !needsReset else { return }
-        if phase == .victory { restartAfterVictory() }
+        if phase == .victory || phase == .gameOver { restart() }
         guard phase == .ready else { return }
         phase = .playing
     }
 
-    /// Toque depois do "Parabéns!": partida nova (só vale depois de uns instantes de confete, pra
-    /// um toque do fim da partida não pular a comemoração).
-    private func restartAfterVictory() {
-        guard phaseTimer >= MazeGameTuning.victoryTapLock else { return }
+    /// Toque depois do "Parabéns!" ou do "Fim de jogo": partida nova, já jogando (só vale depois de
+    /// uns instantes, pra um toque do fim da partida não pular o aviso).
+    private func restart() {
+        let lock = phase == .victory ? MazeGameTuning.victoryTapLock : MazeGameTuning.retryLock
+        guard phaseTimer >= lock else { return }
         reset()
         phase = .playing
     }
@@ -243,8 +263,8 @@ final class MazeGameSimulation {
     /// principal) vale na hora; virar pra um lado espera o rim chegar no meio de uma casa.
     func setDirection(_ direction: MazeDirection, alternate: MazeDirection? = nil) {
         guard isRunning, !needsReset else { return }
-        if phase == .victory {
-            restartAfterVictory()
+        if phase == .victory || phase == .gameOver {
+            restart()
             return
         }
         desired = direction
@@ -265,8 +285,10 @@ final class MazeGameSimulation {
     }
 
     /// Rim no começo e pedras de volta na casinha, saindo uma de cada vez; espera o próximo toque.
-    private func resetPositions() {
-        phase = .ready
+    /// `startPlaying`: depois de perder uma vida o jogo segue direto (sem o aviso "Toque pra começar",
+    /// que parecia fim de jogo); só a partida nova espera o primeiro toque.
+    private func resetPositions(startPlaying: Bool = false) {
+        phase = startPlaying ? .playing : .ready
         player = Mover(pos: center(of: playerStart), dir: nil)
         desired = nil
         desiredAlternate = nil
@@ -291,6 +313,7 @@ final class MazeGameSimulation {
         guard dt > 1e-4 else { return }
         lastFrame = date
         confetti.update(dt: dt)
+        updateParticles(dt: dt)
 
         if pendingWaterPush {
             pendingWaterPush = false
@@ -302,9 +325,9 @@ final class MazeGameSimulation {
             return
         case .playing:
             updatePlaying(dt: dt)
-        case .victory:
-            phaseTimer += dt
-        case .dying, .gameOver:
+        case .victory, .gameOver:
+            phaseTimer += dt // o aviso fica até o próximo toque
+        case .dying:
             phaseTimer += dt
             guard phaseTimer >= phaseDuration else { return }
             finishPause()
@@ -479,12 +502,39 @@ final class MazeGameSimulation {
                 pendingWaterPush = true
                 Haptic.success.play()
             } else {
-                Haptic.warning.play()
+                Haptic.burst.play()
+                spawnKidneyBurst(at: point(player.pos))
                 beginPause(.dying, duration: MazeGameTuning.deathPause)
                 MiniGameSound.lifeLost.play()
                 return
             }
         }
+    }
+
+    /// O rim estoura em pedacinhos rosa que voam pra todo lado e caem (igual ao rim cortado no
+    /// Quebra-Pedras).
+    private func spawnKidneyBurst(at point: CGPoint) {
+        for _ in 0..<24 {
+            let angle = Float.random(in: 0...(2 * .pi))
+            let lifetime = Float.random(in: 0.4...0.9)
+            particles.append(Particle(
+                position: SIMD2(Float(point.x), Float(point.y)),
+                velocity: SIMD2(cos(angle), sin(angle)) * Float.random(in: 60...300) + SIMD2(0, -60),
+                radius: Float.random(in: 2...3.5),
+                life: lifetime,
+                lifetime: lifetime
+            ))
+        }
+    }
+
+    private func updateParticles(dt: Float) {
+        for i in particles.indices {
+            particles[i].life -= dt
+            particles[i].velocity *= exp(-1.5 * dt)
+            particles[i].velocity.y += 500 * dt
+            particles[i].position += particles[i].velocity * dt
+        }
+        particles.removeAll { $0.life <= 0 }
     }
 
     private func beginPause(_ pause: MazeGameSnapshot.Phase, duration: Float) {
@@ -493,20 +543,18 @@ final class MazeGameSimulation {
         phaseDuration = duration
     }
 
-    /// Fim de uma pausa: perdeu a vida ou o "fim de jogo" já foi mostrado.
+    /// Fim da animação do rim estourando: perdeu uma vida (e segue jogando) ou foi a última (fim de jogo).
     private func finishPause() {
         switch phase {
         case .dying:
             lives -= 1
             if lives <= 0 {
-                beginPause(.gameOver, duration: MazeGameTuning.gameOverPause)
+                beginPause(.gameOver, duration: MazeGameTuning.retryLock)
                 onGameOver?(score)
             } else {
-                resetPositions()
+                resetPositions(startPlaying: true)
             }
-        case .gameOver:
-            reset()
-        case .ready, .playing, .victory:
+        case .ready, .playing, .victory, .gameOver:
             break
         }
     }
@@ -638,6 +686,10 @@ final class MazeGameSimulation {
             rocks: rocks,
             score: score,
             lives: lives,
+            particles: particles.map {
+                MazeGameSnapshot.Particle(position: CGPoint(x: CGFloat($0.position.x), y: CGFloat($0.position.y)),
+                                          radius: CGFloat($0.radius), alpha: CGFloat($0.life / $0.lifetime))
+            },
             confetti: confetti.snapshot(),
             phase: phase,
             phaseProgress: isPaused ? CGFloat(min(1, phaseTimer / phaseDuration)) : 0

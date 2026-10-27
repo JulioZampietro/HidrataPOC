@@ -26,6 +26,7 @@ enum GameStartPrompt {
     /// `centerY` é o centro do aviso, em pontos do `Canvas`: cada jogo escolhe um trecho livre
     /// do próprio tabuleiro. `action` troca o "Toque pra começar" (ex.: recomeçar depois da vitória).
     /// `backdrop` põe um cartão atrás do texto, pros jogos em que o aviso cai sobre o tabuleiro.
+    /// `compact` usa fontes menores, pros avisos de fim de jogo.
     static func draw(
         title: String? = nil,
         action: String = "Toque pra começar",
@@ -33,6 +34,7 @@ enum GameStartPrompt {
         centerY: CGFloat,
         size: CGSize,
         backdrop: Bool = false,
+        compact: Bool = false,
         in ctx: inout GraphicsContext
     ) {
         let maxWidth = size.width - sideMargin * 2
@@ -44,9 +46,9 @@ enum GameStartPrompt {
                 lines.append((resolved, resolved.measure(in: unbounded)))
             }
         }
-        if let title { add(title, fontSize: 30, weight: .black, opacity: 1) }
-        add(action, fontSize: 22, weight: .black, opacity: 1)
-        add(hint, fontSize: 14, weight: .bold, opacity: 0.9)
+        if let title { add(title, fontSize: compact ? 23 : 30, weight: .black, opacity: 1) }
+        add(action, fontSize: compact ? 17 : 22, weight: .black, opacity: 1)
+        add(hint, fontSize: compact ? 13 : 14, weight: .bold, opacity: 0.9)
 
         let spacing: CGFloat = 4
         let blockHeight = lines.reduce(0) { $0 + $1.size.height } + spacing * CGFloat(lines.count - 1)
