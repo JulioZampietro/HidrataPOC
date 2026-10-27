@@ -343,7 +343,7 @@ struct WaterHeaderView: View {
     }
 
     /// Jogos em que o desenho do jogo cortaria os rins do canto: eles ficam por cima.
-    private var kidneysInFrontOfGame: Bool { runningGame == .flappy || runningGame == .snake || runningGame == .runner }
+    private var kidneysInFrontOfGame: Bool { runningGame == .flappy || runningGame == .snake || runningGame == .runner || runningGame == .mines }
 
     /// Os rins comemorando nos cantos de baixo quando a meta do dia é batida.
     private var cheeringKidneys: some View {
@@ -371,7 +371,7 @@ struct WaterHeaderView: View {
             .frame(height: height, alignment: .bottom)
             // Meta do dia batida: os rins aparecem nos cantos de baixo comemorando.
             // Ficam, como o resto, dentro da água.
-            // Na Gota Voadora, na Cobrinha e na Gota Surfista eles vão pra frente (torres, campo, pista): é o
+            // Na Gota Voadora, na Cobrinha, na Gota Surfista e no Campo Minado eles vão pra frente (torres, campo, pista, casas): é o
             // overlay depois do jogo.
             .overlay(alignment: .bottom) {
                 if goalReached, !kidneysInFrontOfGame { cheeringKidneys }
@@ -736,6 +736,15 @@ struct WaterHeaderView: View {
             UserDefaults.standard.set(max(best, score), forKey: MiniGame.minesBestStorageKey)
             InteractionTracker.log("mines_game_over", screen: screen, userID: profile.userID, context: modelContext)
         }
+        // Vitória ("Parabéns!"): não passa por `onGameOver` (que vibra de aviso), mas o recorde também vale.
+        func saveBestOnVictory(_ score: Int, key: String, event: String) {
+            let best = UserDefaults.standard.integer(forKey: key)
+            UserDefaults.standard.set(max(best, score), forKey: key)
+            InteractionTracker.log(event, screen: screen, userID: profile.userID, context: modelContext)
+        }
+        miniGames.pebbleGame.onVictory = { saveBestOnVictory($0, key: MiniGame.pebblesBestStorageKey, event: "pebbles_game_won") }
+        miniGames.mazeGame.onVictory = { saveBestOnVictory($0, key: MiniGame.mazeBestStorageKey, event: "maze_game_won") }
+        miniGames.minesGame.onVictory = { saveBestOnVictory($0, key: MiniGame.minesBestStorageKey, event: "mines_game_won") }
         miniGames.runnerGame.onGameOver = { score in
             let best = UserDefaults.standard.integer(forKey: MiniGame.runnerBestStorageKey)
             (score > best ? Haptic.success : Haptic.warning).play()

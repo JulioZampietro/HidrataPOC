@@ -414,6 +414,19 @@ private struct ColorPickerPresenter: UIViewControllerRepresentable {
     }
 }
 
+/// Botão secundário em cápsula, com a mesma altura do `GradientProminentButtonStyle`: o
+/// `.bordered` do sistema soma folga própria e ficava mais alto que o botão de compartilhar ao lado.
+private struct SoftCapsuleButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(Color.appAccentText)
+            .background(Capsule().fill(Color.appAccent.opacity(0.15)))
+            .opacity(isEnabled ? (configuration.isPressed ? 0.7 : 1) : 0.45)
+    }
+}
+
 /// PNG pronto para o `ShareLink` — mantém a transparência do estilo "adesivo".
 private struct SharePNG: Transferable {
     let data: Data
@@ -527,7 +540,7 @@ struct ShareProgressView: View {
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 10)
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(SoftCapsuleButtonStyle())
                     .disabled(image == nil || saveState == .saving)
 
                     if let image, let data = image.pngData() {
@@ -539,7 +552,8 @@ struct ShareProgressView: View {
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 10)
                         }
-                        .buttonStyle(.gradientProminent)
+                        // Cantos totalmente arredondados, iguais aos do botão Salvar (o raio passa de metade da altura e vira cápsula).
+                        .buttonStyle(GradientProminentButtonStyle(cornerRadius: 100))
                         .simultaneousGesture(TapGesture().onEnded { Haptic.primary.play() })
                     }
                 }

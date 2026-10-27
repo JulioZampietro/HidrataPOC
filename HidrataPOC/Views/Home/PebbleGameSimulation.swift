@@ -148,6 +148,8 @@ final class PebbleGameSimulation {
     private(set) var score = 0
     /// Chamado quando as pedrinhas passam da linha de perigo — com os pontos da partida que acabou.
     var onGameOver: ((Int) -> Void)?
+    /// Chamado quando o jogo termina com o "Parabéns!" — com os pontos da partida (o recorde também vale).
+    var onVictory: ((Int) -> Void)?
 
     // Grade
     private var grid: [Cell: Stone] = [:]
@@ -475,6 +477,7 @@ final class PebbleGameSimulation {
             if finishedLastLevel {
                 isVictory = true
                 celebrateVictory()
+                onVictory?(score)
                 water.disturb(atU: 0.5, strength: PebbleGameTuning.popWaterPush * 3)
             } else {
                 Haptic.celebrate.play() // o confete da última fase já vibra junto

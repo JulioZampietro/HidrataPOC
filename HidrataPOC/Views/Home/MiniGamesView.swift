@@ -108,7 +108,8 @@ enum MiniGame: String, CaseIterable, Identifiable {
     /// Chave do `@AppStorage` com o recorde da Gota Saltitante.
     static let jumpBestStorageKey = "minigame.jump.best"
     /// Chave do `@AppStorage` com o recorde das Pedras Coloridas.
-    static let pebblesBestStorageKey = "minigame.pebbles.best"
+    /// (O valor ainda diz "bubbles": é o nome de antes de o jogo virar Pedras Coloridas, e trocar apagaria os recordes já salvos.)
+    static let pebblesBestStorageKey = "minigame.bubbles.best"
     /// Chave do `@AppStorage` com o recorde da Gota Voadora.
     static let flappyBestStorageKey = "minigame.flappy.best"
     /// Chave do `@AppStorage` com o recorde do Rim Comilão.

@@ -4,9 +4,12 @@ import SwiftUI
 /// Valores do Campo Minado para ajustar à mão (mesma ideia de `JumpGameTuning`).
 enum MinesGameTuning {
     static let columns = 8                       // casas na largura; as fileiras saem da altura do aquário
-    static let maxRows = 11
-    static let topMargin: Float = 64             // pt — abaixo dos botões do cabeçalho e do placar
+    static let maxRows = 12
+    static let topMargin: Float = 60             // pt — abaixo dos botões do cabeçalho e do placar
     static let bottomMargin: Float = 14          // pt
+    static let boardDrop: Float = 8              // pt — desce o tabuleiro um pouco, sem mudar o tamanho das casas
+    static let sideMargin: Float = 3             // pt — folga dos lados, pra borda aparecer inteira (igual à Cobrinha)
+    static let kidneyRows: Float = 1             // fileiras de folga embaixo do tabuleiro, pros rins comemorando
 
     static let mineRatio: Float = 0.13           // fração das casas com pedra
     static let clearBonus = 10                   // pontos por limpar o campo inteiro
@@ -78,6 +81,8 @@ final class MinesGameSimulation {
     var flagMode = false
     /// Chamado quando uma pedra é aberta — com os pontos da partida que acabou.
     var onGameOver: ((Int) -> Void)?
+    /// Chamado quando o jogo termina com o "Parabéns!" — com os pontos da partida (o recorde também vale).
+    var onVictory: ((Int) -> Void)?
 
     private var phase: MinesGameSnapshot.Phase = .ready
     private var phaseTimer: Float = 0
@@ -155,12 +160,14 @@ final class MinesGameSimulation {
         needsReset = false
         layoutSize = size
         let width = Float(size.width), height = Float(size.height)
-        let available = height - MinesGameTuning.topMargin - MinesGameTuning.bottomMargin
-        tile = max(1, width / Float(MinesGameTuning.columns))
-        rows = min(MinesGameTuning.maxRows, max(5, Int(available / tile)))
-        tile = min(tile, available / Float(rows))
+        // As fileiras que cabem saem da casa sem a folga lateral; a folga só afina as casas, e o
+        // tabuleiro termina acima dos rins comemorando.
+        let fullTile = width / Float(MinesGameTuning.columns)
+        let available = height - MinesGameTuning.topMargin - MinesGameTuning.bottomMargin - MinesGameTuning.kidneyRows * fullTile
+        rows = min(MinesGameTuning.maxRows, max(5, Int(available / fullTile) + 1)) // + 1: uma fileira a mais, com as casas um pouco menores pra caber
+        tile = max(1, min((width - 2 * MinesGameTuning.sideMargin) / Float(MinesGameTuning.columns), available / Float(rows)))
         origin = SIMD2((width - tile * Float(MinesGameTuning.columns)) / 2,
-                       MinesGameTuning.topMargin + (available - tile * Float(rows)) / 2)
+                       MinesGameTuning.topMargin + (available - tile * Float(rows)) / 2 + MinesGameTuning.boardDrop)
         score = 0
         confetti.clear()
         newBoard()
@@ -248,6 +255,7 @@ final class MinesGameSimulation {
             flagged = stones
             for cell in stones { spawnParticles(at: center(of: cell), count: 4, stone: true) }
             confetti.burst(in: size, colorCount: PebbleGameTuning.colors.count)
+            onVictory?(score)
         } else {
             Haptic.tap.play()
         }

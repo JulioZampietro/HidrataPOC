@@ -335,11 +335,11 @@ final class RunnerGameSimulation {
         }
 
         collectDrops()
+        // Antes da batida: a pontuação do recorde inclui o que foi andado e pego neste mesmo quadro.
+        score = Int(travelled / RunnerGameTuning.metersPerPoint) + dropsCollected * RunnerGameTuning.dropScore
         if let hit = obstacles.first(where: isHitting) {
             crash(into: hit)
-            return
         }
-        score = Int(travelled / RunnerGameTuning.metersPerPoint) + dropsCollected * RunnerGameTuning.dropScore
     }
 
     /// Uma fileira nova `z` metros à frente: obstáculos em uma ou duas pistas (sempre sobra uma

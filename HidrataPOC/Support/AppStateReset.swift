@@ -32,9 +32,14 @@ enum AppStateReset {
         // Minijogos (MiniGame)
         "minigame.selected",
         "minigame.announced",
-        "minigame.jump.best",
-        "minigame.bubbles.best",
-        "minigame.flappy.best",
+        MiniGame.jumpBestStorageKey,
+        MiniGame.pebblesBestStorageKey,
+        MiniGame.flappyBestStorageKey,
+        MiniGame.mazeBestStorageKey,
+        MiniGame.sliceBestStorageKey,
+        MiniGame.snakeBestStorageKey,
+        MiniGame.minesBestStorageKey,
+        MiniGame.runnerBestStorageKey,
         // Sons e vibração (FeedbackSettings)
         "settings.hapticsEnabled",
         "settings.soundEffectsEnabled",

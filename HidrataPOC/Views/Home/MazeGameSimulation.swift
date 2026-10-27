@@ -144,6 +144,8 @@ final class MazeGameSimulation {
     private(set) var score = 0
     /// Chamado quando acabam as vidas — com os pontos da partida que acabou.
     var onGameOver: ((Int) -> Void)?
+    /// Chamado quando o jogo termina com o "Parabéns!" — com os pontos da partida (o recorde também vale).
+    var onVictory: ((Int) -> Void)?
 
     private let columns: Int
     private let rows: Int
@@ -364,6 +366,7 @@ final class MazeGameSimulation {
             phase = .victory
             phaseTimer = 0
             confetti.burst(in: size, colorCount: PebbleGameTuning.colors.count)
+            onVictory?(score)
         }
     }
 
