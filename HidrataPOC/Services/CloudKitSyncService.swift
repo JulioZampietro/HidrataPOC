@@ -389,6 +389,71 @@ final class CloudKitSyncService {
         UserDefaults.standard.set(data, forKey: pendingDeletionsKey)
     }
 
+    // MARK: - Ambiente do CloudKit (Development × Production)
+
+    /// Builds do Xcode (assinados com perfil de desenvolvimento) falam com o ambiente
+    /// Development do container; os do TestFlight/App Store, com o Production. São
+    /// dois bancos separados, sem nada em comum.
+    enum Environment: String {
+        case development, production
+
+        static var current: Environment {
+            #if targetEnvironment(simulator)
+            return .development
+            #else
+            // Só builds de desenvolvimento/ad hoc carregam o `embedded.mobileprovision`;
+            // os assinados pela App Store (TestFlight incluso) não têm o arquivo.
+            return Bundle.main.path(forResource: "embedded", ofType: "mobileprovision") == nil ? .production : .development
+            #endif
+        }
+    }
+
+    private let syncedEnvironmentKey = "cloudKitSyncedEnvironment"
+
+    /// Instalar um build do TestFlight por cima de um do Xcode (ou o contrário) mantém
+    /// os dados locais, mas troca o banco do outro lado. Antes, o que já estava
+    /// `.synced` no ambiente anterior nunca subia para o novo, e cada ambiente ficava
+    /// só com o pedaço do histórico registrado enquanto aquele build estava instalado
+    /// — ao reinstalar, nenhum dos dois restaurava tudo e a sequência se perdia.
+    ///
+    /// Na troca (e na primeira vez que isto roda, quando não se sabe de onde os dados
+    /// vieram), tudo volta para `.pending` e é reenviado ao ambiente atual. Os system
+    /// fields guardados são de registros do outro banco e saem junto, e o próximo pull
+    /// é completo, para trazer o que só existe deste lado. Num install novo não há
+    /// nada local, e o custo é zero.
+    private func adoptCurrentEnvironmentIfNeeded(context: ModelContext) {
+        let current = Environment.current.rawValue
+        guard UserDefaults.standard.string(forKey: syncedEnvironmentKey) != current else { return }
+
+        for profile in (try? context.fetch(FetchDescriptor<UserProfile>())) ?? [] {
+            profile.syncStatus = .pending
+            profile.ckSystemFields = nil
+        }
+        for log in (try? context.fetch(FetchDescriptor<IntakeLog>())) ?? [] {
+            log.syncStatus = .pending
+        }
+        for event in (try? context.fetch(FetchDescriptor<NotificationEvent>())) ?? [] {
+            event.syncStatus = .pending
+            event.ckSystemFields = nil
+        }
+        for goal in (try? context.fetch(FetchDescriptor<DailyGoal>())) ?? [] {
+            goal.syncStatus = .pending
+        }
+        for event in (try? context.fetch(FetchDescriptor<UIInteractionEvent>())) ?? [] {
+            event.syncStatus = .pending
+            event.ckSystemFields = nil
+        }
+        for decision in (try? context.fetch(FetchDescriptor<SlotDecision>())) ?? [] {
+            decision.syncStatus = .pending
+            decision.ckSystemFields = nil
+        }
+        guard context.saveLogging("troca de ambiente do CloudKit") else { return }
+
+        UserDefaults.standard.removeObject(forKey: lastPullKey)
+        UserDefaults.standard.set(current, forKey: syncedEnvironmentKey)
+        logger.notice("Ambiente do CloudKit agora é \(current, privacy: .public): dados locais marcados para reenvio")
+    }
+
     /// Retries every local record still `.pending`/`.failed`, and any deletion that
     /// failed to reach CloudKit. Call on launch and whenever the scene becomes active
     /// — cheap no-op when everything is already synced.
@@ -399,6 +464,7 @@ final class CloudKitSyncService {
             logger.notice("flushPending skipped — currentUserID() failed: \(String(describing: error), privacy: .public)")
             return
         }
+        adoptCurrentEnvironmentIfNeeded(context: context)
 
         await flushPendingDeletions()
 
@@ -463,6 +529,7 @@ final class CloudKitSyncService {
             logger.notice("syncFromCloud skipped — no iCloud account available")
             return
         }
+        adoptCurrentEnvironmentIfNeeded(context: context)
         let startedAt = Date.now
         let lastPull = UserDefaults.standard.object(forKey: lastPullKey) as? Date
         var applied = 0
