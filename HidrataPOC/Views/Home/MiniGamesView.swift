@@ -76,8 +76,8 @@ enum MiniGame: String, CaseIterable, Identifiable {
     /// Dias de streak necessários pra desbloquear o jogo: a posição dele na fila (a ordem dos
     /// `case`), então libera um por dia. O `.noGame` está sempre liberado.
     var requiredStreak: Int {
-        guard isPlayable else { return 0 }
-        return (Self.allCases.filter(\.isPlayable).firstIndex(of: self) ?? 0) + 1
+        // TESTE (TestFlight): todos liberam com 1 dia de streak, pra testarem todos os minijogos.
+        return isPlayable ? 1 : 0
     }
 
     /// `false` só pro `.noGame`, que é a opção de não jogar nada.
