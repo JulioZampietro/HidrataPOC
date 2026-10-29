@@ -84,6 +84,7 @@ final class CloudKitSyncService {
     /// sex, time zone and custom amount, but not exact weight/height/age — those stay
     /// on-device only. The age band's midpoint is used as an approximation.
     func push(_ profile: UserProfile) async {
+        guard !isBlocked("UserProfile") else { return }
         let record = existingOrNewRecord(type: "UserProfile", id: profile.id, systemFields: profile.ckSystemFields)
         record["userID"] = profile.userID
         record["faixaIdade"] = Self.ageBand(profile.idade)
@@ -96,22 +97,18 @@ final class CloudKitSyncService {
         record["atualizadoEm"] = profile.atualizadoEm
 
         do {
-            let saved = try await saveResolvingConflict(record)
+            let saved = try await saveRecord(record)
             profile.ckSystemFields = archivedSystemFields(saved)
             profile.syncStatus = .synced
-        } catch let error as CKError where error.code == .serverRecordChanged && error.serverRecord != nil {
-            // Another device (same iCloud account) updated this record since our last
-            // save — adopt the server's change tag and let the next flush overwrite it.
-            profile.ckSystemFields = error.serverRecord.map(archivedSystemFields)
-            profile.syncStatus = .failed
         } catch {
+            noteFailure(of: "UserProfile", error)
             logger.error("Failed to push UserProfile \(profile.id, privacy: .public): \(String(describing: error), privacy: .public)")
             profile.syncStatus = .failed
         }
     }
 
     func push(_ log: IntakeLog) async {
-        guard log.syncStatus != .synced else { return }
+        guard log.syncStatus != .synced, !isBlocked("IntakeLog") else { return }
         let record = CKRecord(recordType: "IntakeLog", recordID: recordID(for: log.id))
         record["userID"] = log.userID
         record["timestamp"] = log.timestamp
@@ -126,19 +123,19 @@ final class CloudKitSyncService {
         record["healthKitUUID"] = log.healthKitUUID
 
         do {
-            _ = try await container.publicCloudDatabase.save(record)
-            log.syncStatus = .synced
-        } catch let error as CKError where error.code == .serverRecordChanged {
-            // O registro já existe no servidor com este ID — outro push chegou antes.
-            // Para IntakeLog (imutável após criação), isso equivale a "sincronizado".
+            // `.allKeys`: o registro é imutável, então um push repetido (outro push chegou
+            // antes) só regrava os mesmos valores — idempotente, sem `CONFLICT` no servidor.
+            _ = try await saveRecord(record, policy: .allKeys)
             log.syncStatus = .synced
         } catch {
+            noteFailure(of: "IntakeLog", error)
             logger.error("Failed to push IntakeLog \(log.id, privacy: .public): \(String(describing: error), privacy: .public)")
             log.syncStatus = .failed
         }
     }
 
     func push(_ event: NotificationEvent) async {
+        guard !isBlocked("NotificationEvent") else { return }
         let record = existingOrNewRecord(type: "NotificationEvent", id: event.id, systemFields: event.ckSystemFields)
         record["userID"] = event.userID
         record["sentAt"] = event.sentAt
@@ -158,16 +155,18 @@ final class CloudKitSyncService {
         record["notificationVariant"] = event.notificationVariant
 
         do {
-            let saved = try await saveResolvingConflict(record)
+            let saved = try await saveRecord(record)
             event.ckSystemFields = archivedSystemFields(saved)
             event.syncStatus = .synced
         } catch {
+            noteFailure(of: "NotificationEvent", error)
             logger.error("Failed to push NotificationEvent \(event.id, privacy: .public): \(String(describing: error), privacy: .public)")
             event.syncStatus = .failed
         }
     }
 
     func push(_ event: UIInteractionEvent) async {
+        guard !isBlocked("UIInteractionEvent") else { return }
         let record = existingOrNewRecord(type: "UIInteractionEvent", id: event.id, systemFields: event.ckSystemFields)
         record["userID"] = event.userID
         record["timestamp"] = event.timestamp
@@ -176,10 +175,11 @@ final class CloudKitSyncService {
         record["metadataJSON"] = event.metadataJSON
 
         do {
-            let saved = try await saveResolvingConflict(record)
+            let saved = try await saveRecord(record)
             event.ckSystemFields = archivedSystemFields(saved)
             event.syncStatus = .synced
         } catch {
+            noteFailure(of: "UIInteractionEvent", error)
             logger.error("Failed to push UIInteractionEvent \(event.id, privacy: .public): \(String(describing: error), privacy: .public)")
             event.syncStatus = .failed
         }
@@ -188,7 +188,7 @@ final class CloudKitSyncService {
     /// Upserts by a deterministic record name (one row per user per day), saved with
     /// `.allKeys` — last writer wins, and the Creator role allows the overwrite.
     func push(_ goals: [DailyGoal]) async {
-        guard !goals.isEmpty else { return }
+        guard !goals.isEmpty, !isBlocked("DailyGoal") else { return }
         let records = goals.map { goal -> CKRecord in
             let record = CKRecord(recordType: "DailyGoal", recordID: CKRecord.ID(recordName: dailyGoalRecordName(goal)))
             record["userID"] = goal.userID
@@ -211,10 +211,14 @@ final class CloudKitSyncService {
                     saving: chunk, deleting: [], savePolicy: .allKeys, atomically: false
                 )
                 for (id, result) in results {
-                    if case .success = result { saved.insert(id.recordName) }
+                    switch result {
+                    case .success: saved.insert(id.recordName)
+                    case .failure(let error): noteFailure(of: "DailyGoal", error)
+                    }
                 }
             }
         } catch {
+            noteFailure(of: "DailyGoal", error)
             logger.error("Failed to push DailyGoals: \(String(describing: error), privacy: .public)")
         }
         for goal in goals {
@@ -258,6 +262,7 @@ final class CloudKitSyncService {
     /// Pushed again whenever the scheduler or the policy updates the row (closing the
     /// slot, resolving its outcome), so it carries its system fields like the others.
     func push(_ decision: SlotDecision) async {
+        guard !isBlocked("SlotDecision") else { return }
         let record = existingOrNewRecord(type: "SlotDecision", id: decision.id, systemFields: decision.ckSystemFields)
         record["id"] = decision.id.uuidString
         record["userID"] = decision.userID
@@ -275,10 +280,11 @@ final class CloudKitSyncService {
         record["resolvedAt"] = decision.resolvedAt
 
         do {
-            let saved = try await container.publicCloudDatabase.save(record)
+            let saved = try await saveRecord(record)
             decision.ckSystemFields = archivedSystemFields(saved)
             decision.syncStatus = .synced
         } catch {
+            noteFailure(of: "SlotDecision", error)
             logger.error("Failed to push SlotDecision \(decision.id, privacy: .public): \(String(describing: error), privacy: .public)")
             decision.syncStatus = .failed
         }
@@ -699,22 +705,47 @@ final class CloudKitSyncService {
 
     // MARK: - Helpers
 
-    /// Saves `record`; if the server already holds a newer copy, re-applies this push's
-    /// fields onto that copy and saves once more. Without this, a row whose earlier save
-    /// landed but whose response was lost (or that raced another push of the same row,
-    /// e.g. `captureContext` and `resolveInteraction` for one `NotificationEvent`) would
-    /// stay `.failed` for good: every `flushPending` retry rebuilds the record from the
-    /// same stale `ckSystemFields` and hits `.serverRecordChanged` again.
-    private func saveResolvingConflict(_ record: CKRecord) async throws -> CKRecord {
-        do {
-            return try await withCloudKitRetry { try await self.container.publicCloudDatabase.save(record) }
-        } catch let error as CKError where error.code == .serverRecordChanged {
-            guard let serverRecord = error.serverRecord else { throw error }
-            for key in record.changedKeys() {
-                serverRecord[key] = record[key]
-            }
-            return try await withCloudKitRetry { try await self.container.publicCloudDatabase.save(serverRecord) }
+    /// Saves one record with `.changedKeys` (last writer wins, per field) instead of
+    /// `CKDatabase.save`, which uses `.ifServerRecordUnchanged` and answers `CONFLICT`
+    /// whenever two pushes of the same row (e.g. `captureContext` and
+    /// `resolveInteraction` for one `NotificationEvent`) carry the same stale change tag.
+    /// Each conflict was resolved by a second round-trip, but still counted as an error
+    /// on the server. Same end state as the old save-then-merge, one request instead of two.
+    private func saveRecord(_ record: CKRecord, policy: CKModifyRecordsOperation.RecordSavePolicy = .changedKeys) async throws -> CKRecord {
+        try await withCloudKitRetry {
+            let (results, _) = try await self.container.publicCloudDatabase.modifyRecords(
+                saving: [record], deleting: [], savePolicy: policy, atomically: false
+            )
+            guard let result = results[record.recordID] else { throw CKError(.internalError) }
+            return try result.get()
         }
+    }
+
+    // MARK: - Falhas permanentes
+
+    /// Tipos de registro que o servidor rejeitou de forma que repetir não resolve (tipo
+    /// ou campo ausente no schema de Production, permissão), por versão do build. Sem
+    /// isto, o `flushPending` reenviava tudo a cada launch e a cada volta ao primeiro
+    /// plano, e cada tentativa virava mais um `BAD_REQUEST` no servidor. Tenta de novo
+    /// quando o build muda (que é quando um schema ou um fix pode ter chegado).
+    private let blockedTypesKey = "cloudKitBlockedRecordTypes"
+
+    private var buildVersion: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0"
+    }
+
+    private func isBlocked(_ recordType: String) -> Bool {
+        let blocked = UserDefaults.standard.dictionary(forKey: blockedTypesKey) as? [String: String]
+        return blocked?[recordType] == buildVersion
+    }
+
+    private func noteFailure(of recordType: String, _ error: Error) {
+        guard let code = (error as? CKError)?.code,
+              [.invalidArguments, .serverRejectedRequest, .permissionFailure].contains(code) else { return }
+        var blocked = (UserDefaults.standard.dictionary(forKey: blockedTypesKey) as? [String: String]) ?? [:]
+        blocked[recordType] = buildVersion
+        UserDefaults.standard.set(blocked, forKey: blockedTypesKey)
+        logger.error("CloudKit rejeitou \(recordType, privacy: .public) (\(code.rawValue, privacy: .public)); sem novas tentativas até o próximo build — confira o schema de Production")
     }
 
     /// Quantas vezes uma operação é repetida quando o CloudKit pede espera.
