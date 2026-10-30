@@ -107,8 +107,11 @@ final class CloudKitSyncService {
         }
     }
 
+    /// Registros importados do app Saúde nunca são enviados — ver `IntakeLog.healthKitSource`.
     func push(_ log: IntakeLog) async {
-        guard log.syncStatus != .synced, !isBlocked("IntakeLog") else { return }
+        guard log.syncStatus != .synced,
+              log.source != IntakeLog.healthKitSource,
+              !isBlocked("IntakeLog") else { return }
         let record = CKRecord(recordType: "IntakeLog", recordID: recordID(for: log.id))
         record["userID"] = log.userID
         record["timestamp"] = log.timestamp
@@ -336,6 +339,29 @@ final class CloudKitSyncService {
         if let goals = try? context.fetch(FetchDescriptor<DailyGoal>()) {
             ids += goals.map { CKRecord.ID(recordName: dailyGoalRecordName($0)) }
         }
+        return await deleteRemote(ids, label: "deleteAllRemoteRecords")
+    }
+
+    /// Builds anteriores enviavam ao banco público os registros importados do app Saúde.
+    /// Apaga do CloudKit os que este aparelho sabe que subiram (`.synced`) e os tira
+    /// desse estado, então roda uma vez só por registro — falhas ficam na fila de
+    /// `flushPendingDeletions`, como qualquer outra exclusão.
+    private func purgeHealthKitLogsFromCloud(context: ModelContext) async {
+        let healthKit = IntakeLog.healthKitSource
+        let synced = SyncStatus.synced.rawValue
+        guard let logs = try? context.fetch(FetchDescriptor<IntakeLog>(
+            predicate: #Predicate { $0.source == healthKit && $0.syncStatusRaw == synced }
+        )), !logs.isEmpty else { return }
+
+        _ = await deleteRemote(logs.map { recordID(for: $0.id) }, label: "purgeHealthKitLogsFromCloud")
+        for log in logs { log.syncStatus = .pending }
+        _ = context.saveLogging("remoção dos registros do Saúde do CloudKit")
+        logger.notice("Removidos do CloudKit \(logs.count) registro(s) importados do Saúde")
+    }
+
+    /// Apaga em lotes, ignorando o que já não existe. Retorna false se algo falhou — o
+    /// que falhou fica na fila de `flushPendingDeletions`.
+    private func deleteRemote(_ ids: [CKRecord.ID], label: String) async -> Bool {
         guard !ids.isEmpty else { return true }
 
         var allSucceeded = true
@@ -354,7 +380,7 @@ final class CloudKitSyncService {
                     }
                 }
             } catch {
-                logger.error("deleteAllRemoteRecords chunk failed: \(String(describing: error), privacy: .public)")
+                logger.error("\(label, privacy: .public) chunk failed: \(String(describing: error), privacy: .public)")
                 allSucceeded = false
                 for id in chunk { queuePendingDeletion(recordName: id.recordName) }
             }
@@ -435,7 +461,9 @@ final class CloudKitSyncService {
             profile.syncStatus = .pending
             profile.ckSystemFields = nil
         }
-        for log in (try? context.fetch(FetchDescriptor<IntakeLog>())) ?? [] {
+        // Os do Saúde não são reenviados, e mantê-los `.synced` deixa o
+        // `purgeHealthKitLogsFromCloud` achar os que builds antigas subiram.
+        for log in (try? context.fetch(FetchDescriptor<IntakeLog>())) ?? [] where log.source != IntakeLog.healthKitSource {
             log.syncStatus = .pending
         }
         for event in (try? context.fetch(FetchDescriptor<NotificationEvent>())) ?? [] {
@@ -472,16 +500,18 @@ final class CloudKitSyncService {
         }
         adoptCurrentEnvironmentIfNeeded(context: context)
 
+        await purgeHealthKitLogsFromCloud(context: context)
         await flushPendingDeletions()
 
         // Filtrado no banco, não em Swift: antes isto materializava as seis tabelas
         // inteiras a cada launch e a cada volta ao primeiro plano (duas vezes no
         // launch) só para descartar quase tudo em seguida.
         let synced = SyncStatus.synced.rawValue
+        let healthKit = IntakeLog.healthKitSource
         if let profiles = try? context.fetch(FetchDescriptor<UserProfile>(predicate: #Predicate { $0.syncStatusRaw != synced })) {
             for profile in profiles { await push(profile) }
         }
-        if let logs = try? context.fetch(FetchDescriptor<IntakeLog>(predicate: #Predicate { $0.syncStatusRaw != synced })) {
+        if let logs = try? context.fetch(FetchDescriptor<IntakeLog>(predicate: #Predicate { $0.syncStatusRaw != synced && $0.source != healthKit })) {
             for log in logs { await push(log) }
         }
         if let events = try? context.fetch(FetchDescriptor<NotificationEvent>(predicate: #Predicate { $0.syncStatusRaw != synced })) {
@@ -648,6 +678,9 @@ final class CloudKitSyncService {
               let timestamp = record["timestamp"] as? Date,
               let volumeML = record["volumeML"] as? Int else { return false }
         if knownIDs.contains(id) { return false }
+        // Sobra de builds antigas, que ainda não passou pelo `purgeHealthKitLogsFromCloud`:
+        // o import do Saúde traz esse registro direto da fonte.
+        if record["source"] as? String == IntakeLog.healthKitSource { return false }
         let healthKitUUID = record["healthKitUUID"] as? String
         if let healthKitUUID, knownHealthKitUUIDs.contains(healthKitUUID) {
             return false // already imported from Health on this device

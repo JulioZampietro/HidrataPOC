@@ -196,7 +196,7 @@ final class HealthKitService {
     /// não tem nada a fazer.
     func backfill(logs: [IntakeLog]) async {
         guard isAuthorized else { return }
-        let candidates = logs.filter { $0.source != "healthkit" }
+        let candidates = logs.filter { $0.source != IntakeLog.healthKitSource }
         guard !candidates.isEmpty else { return }
 
         let alreadyThere = await existingExternalUUIDs(among: candidates.map(\.id))
@@ -298,7 +298,7 @@ final class HealthKitService {
                 volumeML: volumeML,
                 tipoEntrada: "healthkit",
                 origem: .manual,
-                source: "healthkit",
+                source: IntakeLog.healthKitSource,
                 healthKitUUID: hkUUID
             )
             context.insert(log)

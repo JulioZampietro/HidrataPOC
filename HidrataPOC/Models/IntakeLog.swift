@@ -16,8 +16,14 @@ final class IntakeLog {
     /// actions), "siri" (Siri/Shortcuts phrase), "liveActivity" (Lock Screen /
     /// Dynamic Island quick-log buttons), or "actionButton" (Control Center /
     /// hardware Action Button controls). Orthogonal to `origem`, which instead says
-    /// whether a notification prompted the drink.
+    /// whether a notification prompted the drink. Registros importados do app Saúde
+    /// usam `IntakeLog.healthKitSource` e nunca saem do aparelho.
     var source: String = "app"
+
+    /// `source` dos registros lidos do app Saúde (feitos por outros apps). Ficam só no
+    /// SwiftData local — nunca vão para o CloudKit, como prometido no `ConsentView` e na
+    /// política de privacidade — e são relidos do Saúde a cada volta ao primeiro plano.
+    static let healthKitSource = "healthkit"
 
     /// UUID da amostra no HealthKit correspondente a este registro — usado para
     /// deduplicar importações do Health e para deletar a amostra ao apagar o log.
