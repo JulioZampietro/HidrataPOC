@@ -111,7 +111,7 @@ struct MyDataView: View {
                 .buttonStyle(.gradientProminent)
             }
 
-            Text("Um arquivo JSON com seu perfil, cada registro de consumo, cada lembrete e as decisões de horário.")
+            Text("Um arquivo JSON com seu perfil, cada registro de consumo, cada lembrete, as metas diárias, as decisões de horário e suas interações com o app.")
                 .font(AppFont.caption)
                 .foregroundStyle(Color.appSecondary)
         }
@@ -179,7 +179,7 @@ struct MyDataView: View {
             }
             Button("Cancelar", role: .cancel) { Haptic.dismiss.play() }
         } message: {
-            Text("Seu perfil, seu histórico de consumo e todos os registros de pesquisa serão removidos deste aparelho, do iCloud e do app Saúde. Não dá para desfazer.")
+            Text("Seu perfil, seu histórico de consumo e todos os registros de pesquisa serão removidos deste aparelho e do iCloud, junto com a água que o Gole escreveu no app Saúde. Não dá para desfazer.")
         }
     }
 

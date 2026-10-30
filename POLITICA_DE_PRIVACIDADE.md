@@ -24,7 +24,7 @@ Esta política explica quais dados o Gole coleta, por que coleta, para onde eles
 
 | Dado | Para que serve |
 |---|---|
-| Sexo, idade, peso e altura | Calcular uma meta diária de hidratação sugerida |
+| Sexo, idade, peso e altura (digitados por você ou, se você pedir, preenchidos a partir do app Saúde) | Calcular uma meta diária de hidratação sugerida |
 | Meta diária de hidratação | Acompanhar seu progresso e planejar os lembretes |
 | Volume do botão de registro personalizado | Exibir o atalho de registro com o volume que você escolheu |
 | Fuso horário | Agendar lembretes no horário local correto |
@@ -35,7 +35,7 @@ Esta política explica quais dados o Gole coleta, por que coleta, para onde eles
 |---|---|
 | Cada registro de consumo de água (volume, data, hora e se foi manual, por notificação, widget ou Siri) | Montar seu histórico e calcular o progresso do dia |
 | Metas diárias e ajustes feitos pelo app (por exemplo, em dias mais quentes) | Mostrar a meta efetiva de cada dia |
-| Notificações enviadas: horário, dia da semana, se era fim de semana ou feriado, variação de texto usada e como você interagiu (abriu, registrou, ignorou) e quanto tempo levou | Aprender os melhores horários e formatos de lembrete para você |
+| Notificações enviadas: horário, dia da semana, se era fim de semana ou feriado, variação de texto usada, como você interagiu (abriu, registrou, ignorou) e quanto tempo levou, além do contexto do momento (quanto faltava para a meta e há quanto tempo foi o último registro) | Aprender os melhores horários e formatos de lembrete para você |
 | Decisões de horário do algoritmo de lembretes (se o lembrete foi enviado ou não, probabilidade usada, versão do algoritmo e o contexto da decisão) | Avaliar e melhorar o algoritmo de lembretes |
 | Telas abertas e botões tocados dentro do app | Entender como o app é usado e melhorar a experiência |
 | Recordes dos minijogos e preferências de som e vibração | Funcionamento do app; ficam apenas no seu aparelho |
@@ -50,12 +50,17 @@ Quando você permite o acesso à localização, o Gole usa sua posição **somen
 
 ### 1.4 App Saúde (HealthKit), opcional
 
-Se você conectar o app Saúde, o Gole pede permissão para **ler e escrever somente registros de água**. Nenhum outro tipo de dado de saúde é acessado.
+A integração com o app Saúde é opcional e tem duas partes:
+
+**Registros de água.** Ao conectar o Saúde, o Gole pede permissão para ler e escrever registros de água.
 
 - **Escrita:** cada gole registrado no Gole é salvo também no app Saúde, para centralizar seu histórico.
-- **Leitura:** registros de água feitos por outros apps aparecem no seu histórico do Gole.
-- Os dados do app Saúde não são usados para publicidade, não são vendidos e não são compartilhados com terceiros. **Nenhum dado lido do app Saúde é enviado à base de dados de pesquisa do Gole.**
-- Você pode revogar o acesso a qualquer momento em **Ajustes → Saúde → Acesso a Dados e Dispositivos → Gole**.
+- **Leitura:** registros de água feitos por outros apps (por exemplo, Apple Watch ou apps de dieta) são lidos sempre que você abre o Gole e aparecem no seu histórico.
+- **Os registros de água lidos do Saúde ficam somente no seu aparelho e nunca são enviados à base de dados do Gole no iCloud.** Eles entram, porém, nas contas do seu progresso. Por isso, totais calculados a partir deles, como quanto faltava para a meta e há quanto tempo foi o último registro no momento de cada lembrete, vão junto dos dados das notificações (seção 2.2).
+
+**Dados do perfil.** No formulário de perfil, o botão **Preencher com o Saúde** pede permissão para ler seu **sexo, data de nascimento, peso e altura**, só quando você toca nele. Esses valores apenas preenchem o formulário. Ao salvar, eles são tratados como se você os tivesse digitado (seções 1.1 e 2.2): os valores exatos ficam no aparelho e só o sexo, o IMC e a faixa de idade vão para o iCloud.
+
+Os dados do app Saúde não são usados para publicidade, não são vendidos e não são compartilhados com terceiros. Você pode revogar o acesso a qualquer momento no app Saúde, tocando na sua foto de perfil e depois em **Apps → Gole**.
 
 ### 1.5 Fotos (somente gravação)
 
@@ -81,10 +86,10 @@ Os dados enviados são **pseudonimizados**:
 
 - São associados a um **identificador anônimo da sua conta iCloud**, fornecido pela Apple. Esse identificador não revela seu nome, e-mail, telefone nem seu Apple ID para a equipe do Gole.
 - Do seu perfil, **não enviamos peso, altura e idade exatos.** Enviamos apenas o **IMC** (calculado a partir do peso e da altura) e uma **faixa de idade de 5 anos** (por exemplo, "25–29"), além do sexo, da meta diária, do volume do botão personalizado e do fuso horário. Peso, altura e idade exatos ficam somente no seu aparelho.
-- Também são enviados: registros de consumo de água feitos no Gole, metas diárias, dados das notificações e sua interação com elas, decisões do algoritmo de lembretes e eventos de uso do app (telas e botões), sempre com os valores de clima do momento, quando disponíveis.
-- **A localização nunca é enviada.**
+- Também são enviados: registros de consumo de água feitos no Gole, metas diárias, dados das notificações e sua interação com elas (incluindo o contexto descrito na seção 1.2), decisões do algoritmo de lembretes e eventos de uso do app (telas e botões), sempre com os valores de clima do momento, quando disponíveis.
+- **Não são enviados:** a localização, os registros de água lidos do app Saúde e o peso, a altura e a idade exatos.
 
-A base é configurada para que outros usuários do app não consigam ler os seus registros. Se você não tiver uma conta iCloud ativa, o app gera um identificador aleatório local e os dados continuam pseudonimizados da mesma forma.
+A base é configurada para que outros usuários do app não consigam ler os seus registros. Se você não tiver uma conta iCloud ativa, nada é enviado enquanto isso: os dados ficam no aparelho e só são enviados, da mesma forma pseudonimizada, quando houver uma conta disponível.
 
 ### 2.3 Serviços da Apple
 
@@ -127,7 +132,7 @@ Poderemos divulgar dados somente se isso for exigido por lei ou por ordem judici
 Pela LGPD, você tem direito de confirmar a existência de tratamento, acessar, corrigir, apagar e portar seus dados, além de revogar o consentimento. No Gole, você exerce a maior parte desses direitos sozinho, direto no app:
 
 - **Ver e acessar:** em **Perfil → Meus dados** você vê um resumo de tudo o que foi coletado.
-- **Exportar (portabilidade):** em **Perfil → Meus dados → Exportar meus dados** você gera um arquivo JSON com seu perfil, cada registro de consumo, cada lembrete, suas interações e as decisões de horário.
+- **Exportar (portabilidade):** em **Perfil → Meus dados → Exportar meus dados** você gera um arquivo JSON com seu perfil, cada registro de consumo, cada lembrete, as metas diárias, as decisões de horário e suas interações com o app.
 - **Corrigir:** edite seu perfil e apague registros de consumo individuais no Histórico a qualquer momento.
 - **Apagar:** em **Perfil → Meus dados → Apagar todos os meus dados** o Gole remove tudo **do seu aparelho, da base de dados no iCloud e as amostras de água que o próprio Gole escreveu no app Saúde**. Se você estiver sem conexão, a remoção no iCloud é tentada de novo automaticamente.
 - **Revogar permissões:** localização, notificações, app Saúde e Fotos podem ser desativados a qualquer momento nos Ajustes do iPhone.

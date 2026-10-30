@@ -1154,7 +1154,7 @@
 				INFOPLIST_FILE = HidrataPOC/Support/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Gole;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "Lemos seus registros de água do app Saúde para sincronizá-los com seu histórico de hidratação.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Lemos seus registros de água do app Saúde para mostrá-los no seu histórico e, quando você pede, seu sexo, data de nascimento, peso e altura para preencher seu perfil.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Salvamos cada gole registrado aqui diretamente no app Saúde, para que seu histórico fique centralizado.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Usamos sua localização para consultar a temperatura e umidade no momento dos lembretes de hidratação.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Salvamos a imagem do seu progresso do dia na sua galeria.";
@@ -1271,7 +1271,7 @@
 				INFOPLIST_FILE = HidrataPOC/Support/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Gole;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "Lemos seus registros de água do app Saúde para sincronizá-los com seu histórico de hidratação.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Lemos seus registros de água do app Saúde para mostrá-los no seu histórico e, quando você pede, seu sexo, data de nascimento, peso e altura para preencher seu perfil.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Salvamos cada gole registrado aqui diretamente no app Saúde, para que seu histórico fique centralizado.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Usamos sua localização para consultar a temperatura e umidade no momento dos lembretes de hidratação.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Salvamos a imagem do seu progresso do dia na sua galeria.";
