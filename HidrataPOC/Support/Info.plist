@@ -25,7 +25,7 @@
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>NSHealthShareUsageDescription</key>
-	<string>Lemos seus registros de água do app Saúde para sincronizá-los com seu histórico de hidratação.</string>
+	<string>Lemos seus registros de água do app Saúde para mostrá-los no seu histórico e, quando você pede, seu sexo, data de nascimento, peso e altura para preencher seu perfil.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>Salvamos cada gole registrado aqui diretamente no app Saúde, para que seu histórico fique centralizado.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>

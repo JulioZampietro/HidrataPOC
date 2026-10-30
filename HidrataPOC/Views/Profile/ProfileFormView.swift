@@ -278,7 +278,7 @@ struct ProfileFormView: View {
                 } else {
                     Image(systemName: "heart.fill").foregroundStyle(.pink)
                 }
-                Text("Sincronizar com Saúde")
+                Text("Preencher com o Saúde")
                     .font(AppFont.subheadlineStrong)
                     .foregroundStyle(Color.appAccentTextOnWhite)
             }

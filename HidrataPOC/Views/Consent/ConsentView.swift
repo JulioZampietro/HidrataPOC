@@ -54,9 +54,9 @@ struct ConsentView: View {
             cardHeader("O que é coletado")
             Divider().padding(.horizontal, 18)
             dataRow(icon: "heart.text.square", text: "Dados de saúde: seu sexo, sua idade, seu peso, sua altura e sua meta diária de hidratação.", isLast: false)
-            dataRow(icon: "drop", text: "Cada registro de consumo de água, com data e hora, manual ou por notificação.", isLast: false)
-            dataRow(icon: "bell.badge", text: "Horário e sua interação com cada notificação enviada.", isLast: false)
-            dataRow(icon: "cloud.sun", text: "Temperatura e umidade do seu local nesses momentos. Sua localização é usada apenas para consultar o clima e nunca é enviada nem armazenada.", isLast: false)
+            dataRow(icon: "drop", text: "Cada registro de consumo de água feito no Gole, com data e hora, seja pelo app, por notificação, widget ou Siri.", isLast: false)
+            dataRow(icon: "bell.badge", text: "Horário de cada notificação, como você interagiu com ela e o contexto do momento, como quanto falta pra meta e há quanto tempo foi o último gole.", isLast: false)
+            dataRow(icon: "cloud.sun", text: "Temperatura e umidade do seu local nesses momentos. Sua localização vai só para a Apple, para consultar o clima, e nunca é armazenada nem enviada ao Gole.", isLast: false)
             dataRow(icon: "hand.tap", text: "Quais telas e botões você abre dentro do app.", isLast: true)
         }
         .panelBackground()
@@ -67,6 +67,7 @@ struct ConsentView: View {
             cardHeader("Para onde vai")
             Divider().padding(.horizontal, 18)
             dataRow(icon: "icloud", text: "Para uma base de dados no iCloud, à qual a equipe do Gole tem acesso para aprimorar o app e os lembretes.", isLast: false)
+            dataRow(icon: "figure", text: "Do seu perfil, vão só o sexo, a meta, o IMC e uma faixa de idade de 5 anos. Peso, altura e idade exatos ficam neste aparelho.", isLast: false)
             dataRow(icon: "person.badge.shield.checkmark", text: "Associados a um identificador anônimo da sua conta iCloud, nunca ao seu nome, e-mail ou telefone.", isLast: true)
         }
         .panelBackground()
@@ -74,9 +75,12 @@ struct ConsentView: View {
 
     private var healthKitNote: some View {
         Text("""
-        Se você conectar o app Saúde (opcional), ele passa a ler e escrever \
-        somente seus registros de água. Nada do app Saúde é enviado para a base \
-        de pesquisa.
+        Se você conectar o app Saúde (opcional), o Gole lê e escreve seus \
+        registros de água. Os registros lidos do Saúde ficam só neste aparelho e \
+        não vão para o iCloud, mas entram nas contas do seu progresso, como quanto \
+        falta pra meta. No perfil, você também pode preencher sexo, idade, peso e \
+        altura a partir do Saúde; esses dados seguem as mesmas regras de quando \
+        você os digita.
         """)
         .font(AppFont.footnote)
         .foregroundStyle(Color.appSecondary)
