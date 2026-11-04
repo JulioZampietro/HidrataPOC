@@ -114,6 +114,8 @@
 		E4BDAB3AAF9B03FE1FFF4506 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4EEB6ACF929F31511C0BB13 /* RootView.swift */; };
 		E99D10C4C6CAA04B92BBBBF7 /* WeatherContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3BCAACF78A9164EF7C57D86 /* WeatherContext.swift */; };
 		EB788AF77AB02B3393EC1CC6 /* HydrationWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7A5DA61EDA45323AB04B6E6 /* HydrationWidgetBundle.swift */; };
+		A1B2C3D4E5F6A7B8C9D0E1F3 /* LockScreenProgressWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A7B8C9D0E1F2 /* LockScreenProgressWidget.swift */; };
+		A1B2C3D4E5F6A7B8C9D0E1F4 /* KidneyCheerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0DEC0A1B2C3D4E5F6000002 /* KidneyCheerView.swift */; };
 		EBC0EBC796903DC0ED04F719 /* ActionButtonTutorialView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2CE5627BDF23AE7101D454A /* ActionButtonTutorialView.swift */; };
 		ED310A2AD7021F64EFBB3C64 /* HydrationMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F84FE05B740FBD73D4C2851 /* HydrationMath.swift */; };
 		8E5D6DFD9B3C8FF619ABA82D /* HydrationPlanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C99514CDA594E3EE16A0EE4 /* HydrationPlanner.swift */; };
@@ -292,6 +294,7 @@
 		1A0B0C0D0E0F1011121B0002 /* RunnerGameSimulation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerGameSimulation.swift; sourceTree = "<group>"; };
 		C3BCAACF78A9164EF7C57D86 /* WeatherContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherContext.swift; sourceTree = "<group>"; };
 		C7A5DA61EDA45323AB04B6E6 /* HydrationWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HydrationWidgetBundle.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6A7B8C9D0E1F2 /* LockScreenProgressWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LockScreenProgressWidget.swift; sourceTree = "<group>"; };
 		CD611C7BACD349B4B8CBC129 /* WaterIntakeCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaterIntakeCalculator.swift; sourceTree = "<group>"; };
 		D1076794D01AED95AA12B4A0 /* SiriIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiriIntents.swift; sourceTree = "<group>"; };
 		D1E20512978CBB3411673F86 /* HidrataPOCApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HidrataPOCApp.swift; sourceTree = "<group>"; };
@@ -613,6 +616,7 @@
 				77D39C48CF3E7F2C6FADD5F4 /* HydrationLiveActivity.swift */,
 				2D00F1695397E9C0BF034BAC /* HydrationWidget.entitlements */,
 				C7A5DA61EDA45323AB04B6E6 /* HydrationWidgetBundle.swift */,
+				A1B2C3D4E5F6A7B8C9D0E1F2 /* LockScreenProgressWidget.swift */,
 				2503669AFFB90410A6F12B75 /* Info.plist */,
 				DE421AF8596C6FF6DD295ED6 /* LogIntakeIntent.swift */,
 				27DADD46B8ED63F7B4C704B4 /* LogIntakeControlIntent.swift */,
@@ -942,6 +946,8 @@
 				73C759A59FD446198468D604 /* HydrationControlWidgets.swift in Sources */,
 				5CA9B1161DAD92BD19B3E346 /* HydrationLiveActivity.swift in Sources */,
 				EB788AF77AB02B3393EC1CC6 /* HydrationWidgetBundle.swift in Sources */,
+				A1B2C3D4E5F6A7B8C9D0E1F3 /* LockScreenProgressWidget.swift in Sources */,
+				A1B2C3D4E5F6A7B8C9D0E1F4 /* KidneyCheerView.swift in Sources */,
 				AC52395F9A5B66242F66926D /* IntakeLog.swift in Sources */,
 				6B9F8313D8B9172C4DF3C1D0 /* IntakeLogService.swift in Sources */,
 				E5202CE03DBA75052C081A6C /* SyncedFetch.swift in Sources */,
