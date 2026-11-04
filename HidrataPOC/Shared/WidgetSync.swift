@@ -8,6 +8,8 @@ import WidgetKit
 /// widget falls back to the profile's base goal until it has one.
 enum WidgetSync {
     static let waterTankKind = "WaterTankWidget"
+    static let lockScreenProgressKind = "LockScreenProgressWidget"
+    static let lockScreenWaterLevelKind = "LockScreenWaterLevelWidget"
 
     private static let effectiveGoalKey = "widget.effectiveGoalML"
     private static let effectiveGoalDayKey = "widget.effectiveGoalDay"
@@ -35,7 +37,11 @@ enum WidgetSync {
         return goal > 0 ? goal : nil
     }
 
+    /// Recarrega todo widget que mostra o progresso de hoje: o tanque da tela de início
+    /// e os dois círculos da tela de bloqueio (mesmos dados, mesmo provider).
     static func reloadWaterTank() {
         WidgetCenter.shared.reloadTimelines(ofKind: waterTankKind)
+        WidgetCenter.shared.reloadTimelines(ofKind: lockScreenProgressKind)
+        WidgetCenter.shared.reloadTimelines(ofKind: lockScreenWaterLevelKind)
     }
 }

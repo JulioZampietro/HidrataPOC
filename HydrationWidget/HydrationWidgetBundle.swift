@@ -5,6 +5,8 @@ import WidgetKit
 struct HydrationWidgetBundle: WidgetBundle {
     var body: some Widget {
         WaterTankWidget()
+        LockScreenProgressWidget()
+        LockScreenWaterLevelWidget()
         HydrationLiveActivity()
         GlassControl()
         BottleControl()
