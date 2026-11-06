@@ -84,6 +84,7 @@ struct ProfileView: View {
                 debugWeatherCard
                 #endif
                 personalDataSection
+                weatherDataFootnote
             }
             .padding(.horizontal, 20)
             .padding(.top, 16)
@@ -537,6 +538,22 @@ struct ProfileView: View {
         }
     }
 
+    /// Letras miúdas exigidas pela Apple perto de onde o app usa dado climático
+    /// (guideline 5.2.5): link para a página oficial de atribuição do WeatherKit.
+    private var weatherDataFootnote: some View {
+        let fullText = "Saiba mais sobre dados climáticos"
+        var attributed = AttributedString(fullText)
+        if let range = attributed.range(of: "dados climáticos") {
+            attributed[range].underlineStyle = .single
+            attributed[range].link = URL(string: "https://support.apple.com/en-gb/105038")
+        }
+        return Text(attributed)
+            .font(AppFont.caption)
+            .foregroundStyle(Color.appSecondary)
+            .frame(maxWidth: .infinity, alignment: .center)
+            .padding(.top, 8)
+    }
+
     private func dataRow(label: String, value: String, isLast: Bool) -> some View {
         VStack(spacing: 0) {
             HStack {
@@ -646,8 +663,16 @@ private struct GoalExplainerView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .padding(.horizontal, 20)
+
+                if adjustmentML > 0 {
+                    Spacer(minLength: 20)
+
+                    WeatherAttributionView()
+                        .padding(.horizontal, 20)
+                }
             }
             .padding(.bottom, 40)
+            .containerRelativeFrame(.vertical, alignment: .top)
         }
     }
 
