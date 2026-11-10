@@ -644,36 +644,44 @@ private struct GoalExplainerView: View {
 
     var body: some View {
         TankSheet {
-            VStack(spacing: 20) {
-                CurrentMascotTankHeader(
-                    title: "Sua meta diária",
-                    subtitle: isManual ? "Definida por você manualmente." : "Calculada com base no seu perfil."
-                )
-
-                VStack(spacing: 16) {
-                    goalStat
-
-                    Text(
-                        isManual
-                            ? "Esta meta foi definida por você manualmente. Se editar seus dados pessoais (peso, altura, idade ou sexo), ela será recalculada automaticamente."
-                            : "A quantidade ideal de água depende do seu peso, altura, idade, gênero e temperatura no dia. Você pode ajustar seus dados no perfil para recalcular a meta."
-                    )
-                    .font(AppFont.subheadline)
-                    .foregroundStyle(Color.appSecondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .padding(.horizontal, 20)
-
-                if adjustmentML > 0 {
-                    Spacer(minLength: 20)
-
-                    WeatherAttributionView()
-                        .padding(.horizontal, 20)
-                }
+            if !isManual {
+                sheetContent
+                    .containerRelativeFrame(.vertical, alignment: .top)
+            } else {
+                sheetContent
             }
-            .padding(.bottom, 40)
-            .containerRelativeFrame(.vertical, alignment: .top)
         }
+    }
+
+    private var sheetContent: some View {
+        VStack(spacing: 20) {
+            CurrentMascotTankHeader(
+                title: "Sua meta diária",
+                subtitle: isManual ? "Definida por você manualmente." : "Calculada com base no seu perfil."
+            )
+
+            VStack(spacing: 16) {
+                goalStat
+
+                Text(
+                    isManual
+                        ? "Esta meta foi definida por você manualmente. Se editar seus dados pessoais (peso, altura, idade ou sexo), ela será recalculada automaticamente."
+                        : "A quantidade ideal de água depende do seu peso, altura, idade, gênero e temperatura no dia. Você pode ajustar seus dados no perfil para recalcular a meta."
+                )
+                .font(AppFont.subheadline)
+                .foregroundStyle(Color.appSecondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(.horizontal, 20)
+
+            if !isManual {
+                Spacer(minLength: 20)
+
+                WeatherAttributionView()
+                    .padding(.horizontal, 20)
+            }
+        }
+        .padding(.bottom, 40)
     }
 
     private var goalStat: some View {

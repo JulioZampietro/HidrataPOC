@@ -8,12 +8,17 @@ import UIKit
 /// pra baixo da toolbar por uma distância que se adapta ao aparelho, em vez de um
 /// número fixo que erraria em telas com/sem notch ou Dynamic Island.
 private var currentTopSafeAreaInset: CGFloat {
-    UIApplication.shared.connectedScenes
+    let deviceInset = UIApplication.shared.connectedScenes
         .compactMap { $0 as? UIWindowScene }
         .first?
         .windows
         .first { $0.isKeyWindow }?
         .safeAreaInsets.top ?? 47
+    // A notch/Dynamic Island do iPhone (44–59pt) por si só já cobre quase toda a
+    // altura da toolbar inline (44pt), então o erro passava despercebido. A status
+    // bar do iPad é bem mais baixa (~24pt) e sem esse complemento o título ficava
+    // por baixo do "X" nativo da toolbar.
+    return deviceInset + 44
 }
 
 /// Cabeçalho de marca para telas de ensino/configuração (tutoriais do Botão de Ação
