@@ -170,3 +170,80 @@ struct NotificationSlotDecisionTests {
         #expect(NotificationScheduler.decideSlotAction(slot: skipped(hour: 10), now: date(hour: 10, minute: 1), delivered: []) == .skipped)
     }
 }
+
+/// Regra dos slots dinâmicos: abaixo de 60% do que seria o ideal até agora, no máximo 2
+/// por dia, com 4h de intervalo, só das 10h às 22h e nunca com lembrete sem resposta.
+struct DynamicSlotRuleTests {
+    private let calendar: Calendar = {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "America/Sao_Paulo")!
+        return cal
+    }()
+
+    private func date(day: Int = 15, hour: Int, minute: Int = 0, second: Int = 0) -> Date {
+        calendar.date(from: DateComponents(year: 2026, month: 9, day: day, hour: hour, minute: minute, second: second))!
+    }
+
+    /// Ideal de 900 mL no momento: 60% disso é 540 mL.
+    private func fires(
+        at now: Date, consumed: Int, ideal: Double = 900,
+        earlier: [Date] = [], unanswered: Bool = false, imminent: Bool = false
+    ) -> Bool {
+        NotificationScheduler.shouldFireDynamicSlot(
+            now: now, consumedML: consumed, idealML: ideal, earlierDynamicSlots: earlier,
+            hasUnanswered: unanswered, hasQueuedSlotImminent: imminent, calendar: calendar
+        )
+    }
+
+    /// A mesma linha do gráfico: 0 uma hora antes do primeiro ponto, retas entre os
+    /// pontos, e plana no último valor.
+    @Test func idealFollowsTheChartLine() {
+        let plan = [(8, 300), (10, 700), (12, 2100)].map { HydrationPlanPoint(hour: $0.0, idealCumulativeML: $0.1) }
+        func ideal(_ h: Double) -> Double { HydrationPlanner.idealML(atHour: h, plan: plan) }
+        #expect(ideal(6) == 0)
+        #expect(ideal(7) == 0)
+        #expect(ideal(7.5) == 150)
+        #expect(ideal(9) == 500)
+        #expect(ideal(11) == 1400)
+        #expect(ideal(12) == 2100)
+        #expect(ideal(20) == 2100)
+        #expect(HydrationPlanner.idealML(atHour: 12, plan: []) == 0)
+    }
+
+    @Test func firesOnlyBelowSixtyPercentOfIdeal() {
+        #expect(fires(at: date(hour: 14), consumed: 539))
+        #expect(!fires(at: date(hour: 14), consumed: 540))
+        #expect(!fires(at: date(hour: 14), consumed: 1500))
+    }
+
+    @Test func neverBefore10OrAtOrAfter22() {
+        #expect(!fires(at: date(hour: 9, minute: 59), consumed: 0))
+        #expect(fires(at: date(hour: 10), consumed: 0))
+        #expect(!fires(at: date(hour: 21, minute: 59, second: 55), consumed: 0)) // o slot cairia às 22h00
+        #expect(fires(at: date(hour: 21, minute: 59), consumed: 0))
+        #expect(!fires(at: date(hour: 22), consumed: 0))
+        #expect(!fires(at: date(hour: 23, minute: 30), consumed: 0))
+    }
+
+    @Test func atMostTwoPerDay() {
+        #expect(fires(at: date(hour: 19), consumed: 0, earlier: [date(hour: 11)]))
+        #expect(!fires(at: date(hour: 20, minute: 30), consumed: 0, earlier: [date(hour: 11), date(hour: 15)]))
+        // Os de ontem não contam.
+        #expect(fires(at: date(hour: 12), consumed: 0, earlier: [date(day: 14, hour: 11), date(day: 14, hour: 16)]))
+    }
+
+    @Test func needsFourHoursBetweenTwo() {
+        let first = date(hour: 11)
+        #expect(!fires(at: date(hour: 14, minute: 59), consumed: 0, earlier: [first]))
+        #expect(fires(at: date(hour: 15), consumed: 0, earlier: [first]))
+    }
+
+    @Test func blockedByUnansweredOrImminentReminder() {
+        #expect(!fires(at: date(hour: 14), consumed: 0, unanswered: true))
+        #expect(!fires(at: date(hour: 14), consumed: 0, imminent: true))
+    }
+
+    @Test func noIdealNoSlot() {
+        #expect(!fires(at: date(hour: 14), consumed: 0, ideal: 0))
+    }
+}

@@ -33,6 +33,10 @@ struct PendingSlot: Codable, Equatable {
     /// through — so the policy only learns from slots the rule didn't hold back.
     /// nil for slots the policy didn't decide (snoozes, older builds): they send.
     var skip: Bool? = nil
+    /// true = created by `NotificationScheduler.scheduleDynamicSlotIfNeeded` because the
+    /// tester was behind pace (not part of the fixed grid or the policy). Counted to
+    /// enforce the per-day cap and the minimum interval between dynamic slots.
+    var dynamic: Bool? = nil
 
     var isSkip: Bool { skip == true }
 }
@@ -463,6 +467,89 @@ final class NotificationScheduler {
         return parts.hour == Constants.notificationFixedHours.min() && parts.minute == 0 && parts.second == 0
     }
 
+    // MARK: - Dynamic slots
+
+    /// If the tester is behind pace right now (see `shouldFireDynamicSlot`), adds a slot a
+    /// few seconds out and arms it. iOS can't evaluate a condition at fire time, so this
+    /// runs from `tick` (foreground timer and background refresh) and the notification
+    /// itself is queued for "now". Goes through `armNextSlotIfClear` like any other slot,
+    /// so the one-reminder-at-a-time rule still holds.
+    private func scheduleDynamicSlotIfNeeded() async {
+        guard await isAuthorizedForNotifications(),
+              let state = await currentHydrationState() else { return }
+        let now = Date.now
+        let slots = loadPendingSlots()
+        let delivered = await deliveredHydrationReminders()
+        let firesAt = now.addingTimeInterval(Constants.dynamicSlotLeadSeconds)
+
+        // The ideal is the line on the history chart (`HydrationPlanner`), so the
+        // reminder and what the tester sees there agree. No plan (no policy params
+        // yet) means no dynamic slot.
+        let context = PersistenceController.context
+        guard let profile = try? context.fetch(FetchDescriptor<UserProfile>()).first,
+              let plan = HydrationPlanner.idealDayCurve(
+                  profile: profile,
+                  effectiveGoalML: state.goalML,
+                  weather: WeatherContextService.shared.cachedContext,
+                  day: now
+              ) else { return }
+        let parts = Calendar.current.dateComponents([.hour, .minute], from: now)
+        let idealML = HydrationPlanner.idealML(atHour: Double(parts.hour ?? 0) + Double(parts.minute ?? 0) / 60, plan: plan)
+
+        guard Self.shouldFireDynamicSlot(
+            now: now,
+            consumedML: state.consumidoHojeML,
+            idealML: idealML,
+            earlierDynamicSlots: slots.filter { $0.dynamic == true }.map(\.firesAt),
+            hasUnanswered: Self.hasUnansweredReminder(delivered, now: now),
+            hasQueuedSlotImminent: slots.contains { $0.armedAt != nil && !$0.isSkip && $0.firesAt > now && $0.firesAt <= firesAt },
+        ) else { return }
+
+        let variant = provisionalVariant(firesAt: firesAt)
+        var updated = loadPendingSlots()
+        updated.append(PendingSlot(id: UUID(), firesAt: firesAt, captured: false, variant: variant.rawValue, dynamic: true))
+        savePendingSlots(updated)
+        await armNextSlotIfClear()
+    }
+
+    /// Whether a reminder from the current reminder day is still unanswered.
+    nonisolated static func hasUnansweredReminder(_ delivered: [DeliveredReminder], now: Date, calendar: Calendar = .current) -> Bool {
+        let dayStart = reminderDayStart(containing: now, calendar: calendar)
+        return delivered.contains { $0.date >= dayStart }
+    }
+
+    /// The dynamic-slot rule, pure for tests. All must hold:
+    /// - `now` and the slot's fire time are within `dynamicSlotStartHour`…`dynamicSlotEndHour`
+    ///   (the end is exclusive: nothing at or after 22h);
+    /// - intake is below `dynamicSlotPaceThreshold` (60%) of `idealML`, the ideal day's
+    ///   total by now (the dotted line in the history chart);
+    /// - fewer than `dynamicSlotMaxPerDay` dynamic slots already exist today, and the
+    ///   latest is at least `dynamicSlotMinIntervalHours` old;
+    /// - no reminder sits unanswered (and none is about to fire).
+    nonisolated static func shouldFireDynamicSlot(
+        now: Date,
+        consumedML: Int,
+        idealML: Double,
+        earlierDynamicSlots: [Date],
+        hasUnanswered: Bool,
+        hasQueuedSlotImminent: Bool = false,
+        calendar: Calendar = .current
+    ) -> Bool {
+        guard idealML > 0, !hasUnanswered, !hasQueuedSlotImminent else { return false }
+
+        let firesAt = now.addingTimeInterval(Constants.dynamicSlotLeadSeconds)
+        guard calendar.isDate(firesAt, inSameDayAs: now),
+              QuietHours.minuteOfDay(now, calendar: calendar) >= Constants.dynamicSlotStartHour * 60,
+              QuietHours.minuteOfDay(firesAt, calendar: calendar) < Constants.dynamicSlotEndHour * 60 else { return false }
+
+        let today = earlierDynamicSlots.filter { calendar.isDate($0, inSameDayAs: now) }
+        guard today.count < Constants.dynamicSlotMaxPerDay else { return false }
+        if let last = today.max(),
+           now.timeIntervalSince(last) < Double(Constants.dynamicSlotMinIntervalHours) * 3600 { return false }
+
+        return Double(consumedML) < idealML * Constants.dynamicSlotPaceThreshold
+    }
+
     /// Called periodically while the app is foregrounded: keeps the delivery rule
     /// (see `armNextSlotIfClear`), captures context for an imminent slot, resolves any
     /// `NotificationEvent` that's timed out unanswered, and keeps the weather cache warm
@@ -473,6 +560,7 @@ final class NotificationScheduler {
         // Also catches reminders cleared without a response callback (e.g. "Clear All"
         // in Notification Center), which unblocks the next one.
         await armNextSlotIfClear()
+        await scheduleDynamicSlotIfNeeded()
         await captureImminentSlots(context: context)
         closePolicyDecisions(context: context)
         // Before the timeout pass, so a dismissal keeps its real `tempoAteAgirMin`

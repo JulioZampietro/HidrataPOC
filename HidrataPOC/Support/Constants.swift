@@ -42,6 +42,20 @@ enum Constants {
     /// `NotificationScheduler.armNextSlotIfClear`.
     static let notificationFixedHours = [8, 10, 12, 14, 16, 18, 20]
 
+    /// Dynamic slots: an extra reminder, outside the fixed grid, sent when the tester is
+    /// behind pace — intake below `dynamicSlotPaceThreshold` of the ideal
+    /// day's total by now (the dotted "Ideal" line in the history chart, `HydrationPlanner`).
+    /// At most `dynamicSlotMaxPerDay` a day, at least `dynamicSlotMinIntervalHours`
+    /// apart, only from `dynamicSlotStartHour`h and never at/after `dynamicSlotEndHour`h.
+    /// See `NotificationScheduler.shouldFireDynamicSlot`.
+    static let dynamicSlotPaceThreshold = 0.6
+    static let dynamicSlotMaxPerDay = 2
+    static let dynamicSlotMinIntervalHours = 4
+    static let dynamicSlotStartHour = 10
+    static let dynamicSlotEndHour = 22
+    /// How far ahead of "now" the slot is set: just enough for the system to accept it.
+    static let dynamicSlotLeadSeconds: TimeInterval = 10
+
     /// Thresholds for `hot_day`/`cold_day` notification persona variants — based on
     /// `WeatherContext.temperaturaC` (current reading), not the forecast high used for
     /// `baselineMaxTempC`. Adjust to match your region's typical climate.
