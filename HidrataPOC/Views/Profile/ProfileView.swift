@@ -74,15 +74,12 @@ struct ProfileView: View {
         ScrollView {
             VStack(spacing: 16) {
                 goalCard
-                liveActivitiesRow
-                siriRow
-                healthRow
-                soundSettingsRow
-                #if DEBUG
-                debugNotificationRow
-                debugRandomCopyRow
-                debugWeatherCard
-                #endif
+                settingsOptionsSection
+//                #if DEBUG
+//                debugNotificationRow
+//                debugRandomCopyRow
+//                debugWeatherCard
+//                #endif
                 personalDataSection
                 weatherDataFootnote
             }
@@ -249,129 +246,66 @@ struct ProfileView: View {
         )
     }
 
-    // MARK: - Live Activities Row
+    // MARK: - Opções (botão de ação, Siri, Saúde, Sons e vibração)
 
-    private var liveActivitiesRow: some View {
-        Button {
-            Haptic.tap.play()
-            showLiveActivities = true
-        } label: {
-            HStack {
-                Text("Como usar o botão de ação")
-                    .font(AppFont.calloutStrong)
-                    .foregroundStyle(.primary)
-
-                Spacer()
-
-                Image(systemName: "chevron.right")
-                    .font(.system(.subheadline, weight: .semibold))
-                    .foregroundStyle(Color.appChevron)
+    private var settingsOptionsSection: some View {
+        VStack(spacing: 0) {
+            optionRow(title: "Como usar o botão de ação") {
+                Haptic.tap.play()
+                showLiveActivities = true
             }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 16)
-            .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color(UIColor.secondarySystemBackground))
-                .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4))
-            .contentShape(Rectangle())
+            Divider().padding(.leading, 18)
+            optionRow(title: "Como usar a Siri") {
+                Haptic.tap.play()
+                showSiriTutorial = true
+            }
+            Divider().padding(.leading, 18)
+            optionRow(title: "Conectar ao Saúde") {
+                Haptic.tap.play()
+                InteractionTracker.log("health_connect_row_tap", screen: .profile, userID: profile.userID, context: modelContext)
+                showHealthConnect = true
+            }
+            Divider().padding(.leading, 18)
+            optionRow(title: "Sons e vibração") {
+                Haptic.tap.play()
+                showSoundSettings = true
+            }
         }
-        .buttonStyle(.plain)
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
+            .fill(Color.appCardSurface))
+        .cardSurfaceEffect(cornerRadius: 16)
         .sheet(isPresented: $showLiveActivities) {
             ActionButtonTutorialView()
                 .trackSheetLifecycle(.actionButtonTutorial, screen: .profile, userID: profile.userID)
         }
-    }
-
-    // MARK: - Siri Row
-
-    private var siriRow: some View {
-        Button {
-            Haptic.tap.play()
-            showSiriTutorial = true
-        } label: {
-            HStack {
-                Text("Como usar a Siri")
-                    .font(AppFont.calloutStrong)
-                    .foregroundStyle(.primary)
-
-                Spacer()
-
-                Image(systemName: "chevron.right")
-                    .font(.system(.subheadline, weight: .semibold))
-                    .foregroundStyle(Color.appChevron)
-            }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 16)
-            .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color(UIColor.secondarySystemBackground))
-                .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4))
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
         .sheet(isPresented: $showSiriTutorial) {
             SiriTutorialView()
                 .trackSheetLifecycle(.siriTutorial, screen: .profile, userID: profile.userID)
         }
-    }
-
-    // MARK: - Health Row
-
-    private var healthRow: some View {
-        Button {
-            Haptic.tap.play()
-            InteractionTracker.log("health_connect_row_tap", screen: .profile, userID: profile.userID, context: modelContext)
-            showHealthConnect = true
-        } label: {
-            HStack {
-                Text("Conectar ao Saúde")
-                    .font(AppFont.calloutStrong)
-                    .foregroundStyle(.primary)
-
-                Spacer()
-
-                Image(systemName: "chevron.right")
-                    .font(.system(.subheadline, weight: .semibold))
-                    .foregroundStyle(Color.appChevron)
-            }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 16)
-            .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color(UIColor.secondarySystemBackground))
-                .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4))
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-    }
-
-    // MARK: - Sons e vibração
-
-    private var soundSettingsRow: some View {
-        Button {
-            Haptic.tap.play()
-            showSoundSettings = true
-        } label: {
-            HStack {
-                Text("Sons e vibração")
-                    .font(AppFont.calloutStrong)
-                    .foregroundStyle(.primary)
-
-                Spacer()
-
-                Image(systemName: "chevron.right")
-                    .font(.system(.subheadline, weight: .semibold))
-                    .foregroundStyle(Color.appChevron)
-            }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 16)
-            .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color(UIColor.secondarySystemBackground))
-                .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4))
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
         .sheet(isPresented: $showSoundSettings) {
             SoundSettingsView()
                 .trackSheetLifecycle(.soundSettings, screen: .profile, userID: profile.userID)
         }
+    }
+
+    private func optionRow(title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack {
+                Text(title)
+                    .font(AppFont.calloutStrong)
+                    .foregroundStyle(.primary)
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(.subheadline, weight: .semibold))
+                    .foregroundStyle(Color.appChevron)
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 16)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Debug Row
@@ -399,8 +333,8 @@ struct ProfileView: View {
                 .padding(.horizontal, 18)
                 .padding(.vertical, 16)
                 .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(Color(UIColor.secondarySystemBackground))
-                    .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4))
+                    .fill(Color.appCardSurface))
+                .cardSurfaceEffect(cornerRadius: 16)
             }
             .buttonStyle(.plain)
 
@@ -437,8 +371,8 @@ struct ProfileView: View {
                 .padding(.horizontal, 18)
                 .padding(.vertical, 16)
                 .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(Color(UIColor.secondarySystemBackground))
-                    .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4))
+                    .fill(Color.appCardSurface))
+                .cardSurfaceEffect(cornerRadius: 16)
             }
             .buttonStyle(.plain)
 
@@ -484,8 +418,8 @@ struct ProfileView: View {
         }
         .padding(.bottom, 14)
         .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
-            .fill(Color(UIColor.secondarySystemBackground))
-            .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4))
+            .fill(Color.appCardSurface))
+        .cardSurfaceEffect(cornerRadius: 16)
     }
 
     private func debugRow(label: String, value: String, highlight: Bool = false) -> some View {
@@ -534,7 +468,7 @@ struct ProfileView: View {
                 dataRow(label: "Peso", value: "\(Int(profile.pesoKg)) kg", isLast: false)
                 dataRow(label: "Altura", value: alturaFormatted, isLast: true)
             }
-            .panelBackground(cornerRadius: 18)
+            .panelBackground(cornerRadius: 18, strongDarkSurface: true)
         }
     }
 
@@ -704,7 +638,7 @@ private struct GoalExplainerView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 22)
-        .panelBackground()
+        .panelBackground(strongDarkOutline: true)
     }
 }
 
@@ -737,7 +671,7 @@ private struct SoundSettingsView: View {
                         isOn: $soundEffectsEnabled
                     )
                 }
-                .panelBackground()
+                .panelBackground(strongDarkSurface: true)
                 .padding(.horizontal, 20)
             }
             .padding(.bottom, 40)

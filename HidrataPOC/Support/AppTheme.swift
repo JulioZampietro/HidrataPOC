@@ -7,7 +7,7 @@ import SwiftUI
 enum AppTheme {
     // As cores do app ficam em `Color.app*` (abaixo) — trocar uma cor é mexer só ali.
     static let screenBackgroundLight = Color(red: 0.90, green: 0.94, blue: 0.98)
-    static let screenBackgroundDark = Color(red: 0.06, green: 0.08, blue: 0.13)
+    static let screenBackgroundDark = Color(red: 0.12, green: 0.17, blue: 0.27)
 
     static func screenBackground(for colorScheme: ColorScheme) -> Color {
         colorScheme == .dark ? screenBackgroundDark : screenBackgroundLight
@@ -56,7 +56,10 @@ private struct AppScreenBackgroundModifier: ViewModifier {
     @Environment(\.colorScheme) private var colorScheme
 
     func body(content: Content) -> some View {
-        content.background(AppTheme.screenBackground(for: colorScheme).ignoresSafeArea())
+        content.background(
+            AppTheme.screenBackground(for: colorScheme)
+                .ignoresSafeArea()
+        )
     }
 }
 
@@ -279,6 +282,22 @@ extension Color {
         dark: Color(red: 1.0, green: 0.51, blue: 0.47)
     )
 
+    /// Superfície dos cartões/botões sobre `appScreenBackground()` (jogos, ações de
+    /// registro rápido, calendário). No claro é o mesmo `secondarySystemBackground` de
+    /// antes (não mexer); no escuro é o tom da trilha da barra de progresso de água
+    /// (`progressTrack`), pra ficar mais escura que o fundo em vez de mais clara.
+    static let appCardSurface = adaptive(
+        light: Color(UIColor.secondarySystemBackground),
+        dark: Color(red: 0.10, green: 0.13, blue: 0.20)
+    )
+
+    /// Fundo dos cartões de registro rápido (Copo/Garrafa/Gole/Custom): o mesmo tom de
+    /// `appCardSurface`.
+    static let appIntakeCardSurface = adaptive(
+        light: Color(UIColor.secondarySystemBackground),
+        dark: Color(red: 0.10, green: 0.13, blue: 0.20)
+    )
+
     /// Bolinhas de página inativas e contornos de controles: precisam de ≥ 3:1 contra o
     /// fundo (elemento gráfico, WCAG 1.4.11) — o `.secondary` a 30% dava ~1,5:1.
     static let appControlOutline = appSecondary.opacity(0.7)
@@ -362,18 +381,55 @@ extension ButtonStyle where Self == GradientProminentButtonStyle {
 // MARK: - Cartões
 
 extension View {
-    /// Cartão "molhado": fundo azul bem claro com contorno fino, em vez de sombra —
-    /// usado nas telas de marca forte (`TankHeader`) pra combinar com o gradiente do
-    /// cabeçalho em vez do cartão neutro padrão do resto do app.
-    func panelBackground(cornerRadius: CGFloat = 20, isVisible: Bool = true) -> some View {
+    /// `strongDarkSurface`: no escuro, troca o tingimento leve de sempre (fundo E
+    /// contorno) pelo mesmo tom/contorno dos outros cartões do app
+    /// (`appCardSurface`/`appControlOutline`) — usado só nos cartões citados
+    /// explicitamente (Siri, Saúde, Sons e vibração), onde o tingimento claro de
+    /// `appAccent` ficava com contraste baixo demais.
+    /// `strongDarkOutline`: só o contorno vira `appControlOutline` no escuro; o
+    /// fundo continua o tingimento leve de sempre nos dois modos.
+    /// No claro nenhum dos dois muda nada.
+    func panelBackground(cornerRadius: CGFloat = 20, isVisible: Bool = true, strongDarkSurface: Bool = false, strongDarkOutline: Bool = false) -> some View {
         background(
             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .fill(Color.appAccent.opacity(0.06))
+                .fill(strongDarkSurface ? Color.adaptive(light: Color.appAccent.opacity(0.06), dark: Color.appCardSurface) : Color.appAccent.opacity(0.06))
                 .overlay(
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .strokeBorder(Color.appAccent.opacity(0.16), lineWidth: 1)
+                        .strokeBorder((strongDarkSurface || strongDarkOutline) ? Color.adaptive(light: Color.appAccent.opacity(0.16), dark: Color.appControlOutline) : Color.appAccent.opacity(0.16), lineWidth: 1)
                 )
                 .opacity(isVisible ? 1 : 0)
         )
+    }
+}
+
+
+/// Acabamento padrão dos cartões/botões sobre `appScreenBackground()` — jogos, linhas
+/// de configuração, calendário, selos. É a mesma elevação que a trilha da barra de
+/// progresso de água já usa (`homeCardShadow` em HomeView): sombra preta suave e, só
+/// no escuro, um contorno — uma sombra mais forte (ou nenhuma) fazia o cartão destoar
+/// visualmente da barra mesmo com o preenchimento idêntico.
+private struct CardSurfaceModifier<S: InsettableShape>: ViewModifier {
+    @Environment(\.colorScheme) private var colorScheme
+    var shape: S
+    var showsOutline: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .overlay {
+                if colorScheme == .dark && showsOutline {
+                    shape.strokeBorder(Color.appControlOutline, lineWidth: 1)
+                }
+            }
+            .shadow(color: .black.opacity(0.18), radius: 8, x: 0, y: 4)
+    }
+}
+
+extension View {
+    func cardSurfaceEffect(cornerRadius: CGFloat = 16, showsOutline: Bool = true) -> some View {
+        modifier(CardSurfaceModifier(shape: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous), showsOutline: showsOutline))
+    }
+
+    func cardSurfaceEffect<S: InsettableShape>(shape: S, showsOutline: Bool = true) -> some View {
+        modifier(CardSurfaceModifier(shape: shape, showsOutline: showsOutline))
     }
 }
