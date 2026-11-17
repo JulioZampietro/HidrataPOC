@@ -87,6 +87,24 @@ enum HydrationPlanner {
         return points
     }
 
+    /// How much an ideal day would have drunk by `hour` (fractional, 17h42 → 17.7), read
+    /// off the same line the history chart draws: 0 mL one hour before the plan's first
+    /// point, straight segments between points, flat at the last value afterwards.
+    static func idealML(atHour hour: Double, plan: [HydrationPlanPoint]) -> Double {
+        guard let first = plan.first, let last = plan.last else { return 0 }
+        var previous = (hour: Double(first.hour - 1), ml: 0.0)
+        if hour <= previous.hour { return 0 }
+        for point in plan {
+            let current = (hour: Double(point.hour), ml: Double(point.idealCumulativeML))
+            if hour <= current.hour {
+                let span = current.hour - previous.hour
+                return span > 0 ? previous.ml + (current.ml - previous.ml) * (hour - previous.hour) / span : current.ml
+            }
+            previous = current
+        }
+        return Double(last.idealCumulativeML)
+    }
+
     private static func seed(for day: Date) -> UInt64 {
         UInt64(bitPattern: Int64(day.timeIntervalSinceReferenceDate)) &+ 1
     }

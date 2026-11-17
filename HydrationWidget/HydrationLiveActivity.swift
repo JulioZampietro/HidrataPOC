@@ -18,11 +18,11 @@ struct HydrationLiveActivity: Widget {
                 .activitySystemActionForegroundColor(.white)
         } dynamicIsland: { context in
             DynamicIsland {
-                // Só os botões, sobre o mesmo gradiente e com o mesmo raio de canto do cartão.
+                // Só os botões: fundo preto da ilha, com inset uniforme pra nada tocar a borda
+                // curva, e botões em pílula com o gradiente azul do app.
                 DynamicIslandExpandedRegion(.bottom) {
-                    IntakeButtonRow(customAmountML: context.state.customAmountML)
-                        .padding(LockScreenPalette.padding)
-                        .background(LockScreenPalette.gradient, in: RoundedRectangle(cornerRadius: LockScreenPalette.cornerRadius, style: .continuous))
+                    IntakeButtonRow(customAmountML: context.state.customAmountML, style: .island)
+                        .padding(14)
                 }
             } compactLeading: {
                 Image(systemName: "drop.fill")
@@ -91,6 +91,13 @@ private enum LockScreenPalette {
         return LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing)
     }
 
+    /// Gradiente dos botões da Dynamic Island, sobre o fundo preto.
+    static let islandButtonGradient = LinearGradient(
+        colors: [Color(red: 0.30, green: 0.64, blue: 1.0), Color(red: 0.12, green: 0.42, blue: 1.0), Color(red: 0.08, green: 0.28, blue: 0.84)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+
     /// Botões mais escuros que o cartão.
     static var buttonFill: Color {
         LockScreenAppearance.isDark
@@ -99,20 +106,26 @@ private enum LockScreenPalette {
     }
 }
 
+private enum IntakeButtonStyle {
+    case card, island
+}
+
 private struct IntakeButtonRow: View {
     let customAmountML: Int
+    var style: IntakeButtonStyle = .card
 
     var body: some View {
-        HStack(spacing: 8) {
-            IntakeButton(amountML: 250)
-            IntakeButton(amountML: 500)
-            IntakeButton(amountML: customAmountML)
+        HStack(spacing: style == .island ? 10 : 8) {
+            IntakeButton(amountML: 250, style: style)
+            IntakeButton(amountML: 500, style: style)
+            IntakeButton(amountML: customAmountML, style: style)
         }
     }
 }
 
 private struct IntakeButton: View {
     let amountML: Int
+    let style: IntakeButtonStyle
 
     var body: some View {
         Button(intent: LogIntakeIntent(amountML: amountML)) {
@@ -127,11 +140,21 @@ private struct IntakeButton: View {
             }
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity)
-            .frame(height: 62)
-            .background(LockScreenPalette.buttonFill, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(.white.opacity(0.14), lineWidth: 1))
+            .frame(height: style == .island ? 70 : 62)
+            .background { background }
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Registrar \(amountML) mililitros")
+    }
+
+    @ViewBuilder
+    private var background: some View {
+        switch style {
+        case .card:
+            RoundedRectangle(cornerRadius: 18, style: .continuous).fill(LockScreenPalette.buttonFill)
+                .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(.white.opacity(0.14), lineWidth: 1))
+        case .island:
+            RoundedRectangle(cornerRadius: 28, style: .continuous).fill(LockScreenPalette.islandButtonGradient)
+        }
     }
 }
