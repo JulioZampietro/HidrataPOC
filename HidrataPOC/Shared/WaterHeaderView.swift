@@ -77,8 +77,6 @@ struct WaterHeaderView: View {
     /// Fala temporária (cutucão, reação a um gole) que se sobrepõe à `idlePhrase`.
     @State private var overridePhrase: String? = nil
     @State private var overridePhraseReset: Task<Void, Never>?
-    @GestureState private var mascotDragOffset: CGSize = .zero
-    @State private var lastMascotDragTranslation: CGSize = .zero
     @State private var waterMotion = WaterMotion()
     @State private var explodingMascot: String? = nil
     /// Mascote do estágio anterior, só enquanto a transição de bolhas (estilo
@@ -482,47 +480,19 @@ struct WaterHeaderView: View {
                     mascotAssemblyStarted = false
                 }
             } else if let mascot = AppTheme.mascotImageName(for: progress), !newMascotHidden {
-                Image(mascot)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(height: height)
-                    // Slot de layout com largura e altura fixas, iguais para todos os
-                    // mascotes: sem isso, cada imagem (recortada no seu próprio contorno,
-                    // com proporção diferente) mudava o tamanho da ZStack e fazia o
-                    // mascote "saltar" de posição ao trocar de estágio.
-                    .frame(width: height * 1.55, height: height, alignment: .center)
-                    .scaleEffect(
-                        x: AppTheme.mascotSizeCorrection(for: mascot) * (isPoking ? 1.18 : 1.0),
-                        y: AppTheme.mascotSizeCorrection(for: mascot) * (isPoking ? 0.82 : 1.0),
-                        anchor: .center
-                    )
-                    // Precisa ser explícita (igual à de `mascotDragOffset` abaixo): o
-                    // `.transaction { animation = nil }` no ZStack pai (pra trocar de
-                    // mascote sem crossfade) zera a animação ambiente de toda a
-                    // subárvore, incluindo o `withAnimation` do toque em `pokeMascot()`
-                    // — sem essa linha, o "cutucão" ficava instantâneo (travado).
-                    .animation(.interpolatingSpring(stiffness: 350, damping: 10), value: isPoking)
-                    .modifier(MascotFloating())
-                    .offset(mascotDragOffset)
-                    .animation(.interactiveSpring(response: 0.28, dampingFraction: 0.55), value: mascotDragOffset)
-                    // Área de toque maior que o desenho: o `scaleEffect` acima encolhe
-                    // a imagem (e o toque junto) pra ~55–65% do slot; aqui o toque
-                    // volta a valer em 85% do slot, com folga em volta do mascote.
-                    .contentShape(Rectangle().scale(0.85))
-                    .onTapGesture { pokeMascot() }
-                    .simultaneousGesture(mascotDragGesture)
-
-                // Vazio só no primeiro quadro, antes do `onAppear` sortear a fala.
-                if let phrase = overridePhrase ?? (idlePhrase.isEmpty ? nil : idlePhrase) {
-                    MascotSpeechBubble(text: phrase)
-                        .offset(x: 8 + mascotDragOffset.width, y: -38 + mascotDragOffset.height)
-                        .animation(.interactiveSpring(response: 0.28, dampingFraction: 0.55), value: mascotDragOffset)
-                        // Mesmo motivo do `.animation(value: isPoking)` no mascote: precisa
-                        // ser explícita pra sobreviver ao `.transaction` do ZStack pai.
-                        .animation(.easeInOut(duration: 0.3), value: phrase)
-                        .transition(.scale(scale: 0.8, anchor: .bottomLeading).combined(with: .opacity))
-                        .allowsHitTesting(false)
-                }
+                // Em view própria: o estado do arrasto mora lá dentro, então cada toque do
+                // arrasto só refaz o mascote e o balão — não o `body` inteiro desta view
+                // (GeometryReader, overlays, minijogos e o `progress`, que filtra `allLogs`
+                // a cada leitura), o que deixava o mascote com lag ao arrastar.
+                DraggableMascot(
+                    imageName: mascot,
+                    height: height,
+                    isPoking: isPoking,
+                    // Vazio só no primeiro quadro, antes do `onAppear` sortear a fala.
+                    phrase: overridePhrase ?? (idlePhrase.isEmpty ? nil : idlePhrase),
+                    waterMotion: waterMotion,
+                    onPoke: pokeMascot
+                )
             } else if let exploding = explodingMascot {
                 // Mascote1 "quebrando": racha em pedaços que voam pra fora e caem, no
                 // instante em que nasce em pedrinhas na água (`waterMotion.explodeIntoStones`).
@@ -815,31 +785,92 @@ struct WaterHeaderView: View {
         }
     }
 
+}
+
+/// O mascote vivo (com o balão de fala), que dá pra cutucar e arrastar. O estado do
+/// arrasto fica aqui dentro, e não na `WaterHeaderView`, pra que cada toque do arrasto
+/// só redesenhe esta view pequena.
+private struct DraggableMascot: View {
+    let imageName: String
+    let height: CGFloat
+    let isPoking: Bool
+    let phrase: String?
+    let waterMotion: WaterMotion
+    let onPoke: () -> Void
+
+    @GestureState private var dragOffset: CGSize = .zero
+    @State private var lastDragTranslation: CGSize = .zero
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            Image(imageName)
+                .resizable()
+                .scaledToFit()
+                .frame(height: height)
+                // Slot de layout com largura e altura fixas, iguais para todos os
+                // mascotes: sem isso, cada imagem (recortada no seu próprio contorno,
+                // com proporção diferente) mudava o tamanho da ZStack e fazia o
+                // mascote "saltar" de posição ao trocar de estágio.
+                .frame(width: height * 1.55, height: height, alignment: .center)
+                .scaleEffect(
+                    x: AppTheme.mascotSizeCorrection(for: imageName) * (isPoking ? 1.18 : 1.0),
+                    y: AppTheme.mascotSizeCorrection(for: imageName) * (isPoking ? 0.82 : 1.0),
+                    anchor: .center
+                )
+                // Precisa ser explícita (igual à de `dragOffset` abaixo): o
+                // `.transaction { animation = nil }` no ZStack pai (pra trocar de
+                // mascote sem crossfade) zera a animação ambiente de toda a
+                // subárvore, incluindo o `withAnimation` do toque em `pokeMascot()`
+                // — sem essa linha, o "cutucão" ficava instantâneo (travado).
+                .animation(.interpolatingSpring(stiffness: 350, damping: 10), value: isPoking)
+                .modifier(MascotFloating())
+                .offset(dragOffset)
+                .animation(.interactiveSpring(response: 0.28, dampingFraction: 0.55), value: dragOffset)
+                // Área de toque maior que o desenho: o `scaleEffect` acima encolhe
+                // a imagem (e o toque junto) pra ~55–65% do slot; aqui o toque
+                // volta a valer em 85% do slot, com folga em volta do mascote.
+                .contentShape(Rectangle().scale(0.85))
+                .onTapGesture { onPoke() }
+                .simultaneousGesture(dragGesture)
+
+            if let phrase {
+                MascotSpeechBubble(text: phrase)
+                    .offset(x: 8 + dragOffset.width, y: -38 + dragOffset.height)
+                    .animation(.interactiveSpring(response: 0.28, dampingFraction: 0.55), value: dragOffset)
+                    // Mesmo motivo do `.animation(value: isPoking)` no mascote: precisa
+                    // ser explícita pra sobreviver ao `.transaction` do ZStack pai.
+                    .animation(.easeInOut(duration: 0.3), value: phrase)
+                    .transition(.scale(scale: 0.8, anchor: .bottomLeading).combined(with: .opacity))
+                    .allowsHitTesting(false)
+            }
+        }
+    }
+
     /// Arrastar o mascote: ele acompanha o dedo dentro de um raio curto e, ao soltar,
     /// a mola o traz de volta à posição original — sempre dentro do recipiente. O
     /// movimento também empurra a superfície da água (mesmo `WaterMotion` do
     /// `waterContainer`), como se o mascote estivesse mergulhado nela.
-    private var mascotDragGesture: some Gesture {
+    private var dragGesture: some Gesture {
         DragGesture(minimumDistance: 0)
-            .updating($mascotDragOffset) { value, state, _ in
+            .updating($dragOffset) { value, state, _ in
                 state = CGSize(
                     width: clampedDrag(value.translation.width, limit: 110),
                     height: clampedDrag(value.translation.height, limit: 45)
                 )
             }
             .onChanged { value in
-                let deltaX = value.translation.width - lastMascotDragTranslation.width
-                let deltaY = value.translation.height - lastMascotDragTranslation.height
-                lastMascotDragTranslation = value.translation
-                disturbWaterFromDrag(deltaX: deltaX, deltaY: deltaY)
+                let deltaX = value.translation.width - lastDragTranslation.width
+                let deltaY = value.translation.height - lastDragTranslation.height
+                lastDragTranslation = value.translation
+                disturbWater(deltaX: deltaX, deltaY: deltaY)
             }
             .onEnded { value in
                 // Soltar "chacoalha" a água com força proporcional a quão longe o
                 // mascote tinha ido, na direção em que ele está voltando para o centro.
-                disturbWaterFromDrag(deltaX: -value.translation.width * 0.6, deltaY: -value.translation.height * 0.6)
+                disturbWater(deltaX: -value.translation.width * 0.6, deltaY: -value.translation.height * 0.6)
                 // Só arrasto de verdade solta a "marola"; o toque simples já vibra em `pokeMascot()`.
                 if hypot(value.translation.width, value.translation.height) > 12 { Haptic.ripple.play() }
-                lastMascotDragTranslation = .zero
+                lastDragTranslation = .zero
             }
     }
 
@@ -847,7 +878,7 @@ struct WaterHeaderView: View {
         max(-limit, min(limit, translation))
     }
 
-    private func disturbWaterFromDrag(deltaX: CGFloat, deltaY: CGFloat) {
+    private func disturbWater(deltaX: CGFloat, deltaY: CGFloat) {
         let magnitude = (deltaX * deltaX + deltaY * deltaY).squareRoot()
         guard magnitude > 0.01 else { return }
         let sign: CGFloat = deltaY >= 0 ? 1 : -1
