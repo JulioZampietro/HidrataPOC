@@ -23,6 +23,7 @@ enum DrinkQuantity: Int, AppEnum, CaseIterable {
 
 struct LogGoleIntent: AppIntent {
     static var title: LocalizedStringResource { "Registrar Gole" }
+    static var description: IntentDescription { "Registra no Gole que o usuário bebeu um ou mais goles de água." }
     static var openAppWhenRun: Bool { false }
 
     @Parameter(title: "Quantidade", default: DrinkQuantity.one)
@@ -48,6 +49,7 @@ struct LogGoleIntent: AppIntent {
 
 struct LogGlassIntent: AppIntent {
     static var title: LocalizedStringResource { "Registrar Copo" }
+    static var description: IntentDescription { "Registra no Gole que o usuário bebeu um ou mais copos de água." }
     static var openAppWhenRun: Bool { false }
 
     @Parameter(title: "Quantidade", default: DrinkQuantity.one)
@@ -73,6 +75,7 @@ struct LogGlassIntent: AppIntent {
 
 struct LogBottleIntent: AppIntent {
     static var title: LocalizedStringResource { "Registrar Garrafa" }
+    static var description: IntentDescription { "Registra no Gole que o usuário bebeu uma ou mais garrafas de água." }
     static var openAppWhenRun: Bool { false }
 
     @Parameter(title: "Quantidade", default: DrinkQuantity.one)
@@ -98,6 +101,7 @@ struct LogBottleIntent: AppIntent {
 
 struct LogCustomIntent: AppIntent {
     static var title: LocalizedStringResource { "Registrar Quantidade Personalizada" }
+    static var description: IntentDescription { "Registra no Gole a quantidade de água personalizada que o usuário definiu no app." }
     static var openAppWhenRun: Bool { false }
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
@@ -126,6 +130,18 @@ struct LogCustomIntent: AppIntent {
     }
 }
 
+/// Diagnóstico da Siri do iOS 27.2: não toca em dados nem em serviços, só responde.
+/// Se nem este atalho roda pela Siri, a falha está antes do app ser chamado.
+struct SiriTestIntent: AppIntent {
+    static var title: LocalizedStringResource { "Testar Siri" }
+    static var description: IntentDescription { "Confirma que a Siri consegue executar ações do Gole." }
+    static var openAppWhenRun: Bool { false }
+
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        .result(dialog: "A Siri está funcionando com o Gole!")
+    }
+}
+
 // MARK: - Shortcuts Siri
 
 struct HidrataPOCShortcuts: AppShortcutsProvider {
@@ -150,6 +166,10 @@ struct HidrataPOCShortcuts: AppShortcutsProvider {
                 "Bebi um gole de \(.applicationName)",
                 "Tomei um gole de \(.applicationName)",
                 "Dei um gole de \(.applicationName)",
+                "Bebi \(\.$quantity) goles no \(.applicationName)",
+                "Tomei \(\.$quantity) goles no \(.applicationName)",
+                "Bebi um gole no \(.applicationName)",
+                "Tomei um gole no \(.applicationName)",
             ],
             shortTitle: "Registrar Gole",
             systemImageName: "drop.fill"
@@ -166,6 +186,9 @@ struct HidrataPOCShortcuts: AppShortcutsProvider {
                 "Bebi um copo de água no \(.applicationName)",
                 "Tomei um copo de água no \(.applicationName)",
                 "Bebi um copo no \(.applicationName)",
+                "Tomei um copo no \(.applicationName)",
+                "Bebi \(\.$quantity) copos no \(.applicationName)",
+                "Tomei \(\.$quantity) copos no \(.applicationName)",
             ],
             shortTitle: "Registrar Copo",
             systemImageName: "mug.fill"
@@ -181,9 +204,22 @@ struct HidrataPOCShortcuts: AppShortcutsProvider {
                 "Terminei uma garrafa de \(.applicationName)",
                 "Registra uma garrafa no \(.applicationName)",
                 "Bebi uma garrafa de água no \(.applicationName)",
+                "Bebi uma garrafa no \(.applicationName)",
+                "Tomei uma garrafa no \(.applicationName)",
+                "Bebi \(\.$quantity) garrafas no \(.applicationName)",
+                "Tomei \(\.$quantity) garrafas no \(.applicationName)",
             ],
             shortTitle: "Registrar Garrafa",
             systemImageName: "waterbottle.fill"
+        )
+        AppShortcut(
+            intent: SiriTestIntent(),
+            phrases: [
+                "Testar Siri no \(.applicationName)",
+                "Teste do \(.applicationName)",
+            ],
+            shortTitle: "Testar Siri",
+            systemImageName: "checkmark.circle"
         )
     }
 }
