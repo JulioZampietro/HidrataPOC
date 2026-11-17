@@ -220,8 +220,8 @@ struct HistoricoView: View {
         .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
         .frame(height: height)
         .background(RoundedRectangle(cornerRadius: 24, style: .continuous)
-            .fill(Color(UIColor.secondarySystemBackground))
-            .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4))
+            .fill(Color.appCardSurface))
+        .cardSurfaceEffect(cornerRadius: 24)
     }
 
     private func calendarPageContent(_ month: MonthSummary) -> some View {
@@ -851,13 +851,14 @@ struct DayDetailSheet: View {
                         .foregroundStyle(Color.appSecondary)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 8)
-                        .background(Color(.secondarySystemBackground), in: Capsule())
+                        .background(Color.appCardSurface, in: Capsule())
+                        .cardSurfaceEffect(shape: Capsule())
                 }
             }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
-        .panelBackground(cornerRadius: 22)
+        .panelBackground(cornerRadius: 22, strongDarkSurface: true)
     }
 
     private var chartLegend: some View {
@@ -909,7 +910,7 @@ struct DayDetailSheet: View {
                     }
                 }
             }
-            .panelBackground(cornerRadius: 22)
+            .panelBackground(cornerRadius: 22, strongDarkSurface: true)
         }
     }
 

@@ -152,7 +152,7 @@ struct HealthConnectView: View {
                 }
             }
         }
-        .panelBackground()
+        .panelBackground(strongDarkSurface: true)
     }
 
     // MARK: - Actions

@@ -672,8 +672,8 @@ struct IntakeCardContent: View {
             }
             .background(
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(isHighlighted ? AnyShapeStyle(LinearGradient.waterHeader) : AnyShapeStyle(Color(UIColor.secondarySystemBackground)))
-                    .homeCardShadow()
+                    .fill(isHighlighted ? AnyShapeStyle(LinearGradient.waterHeader) : AnyShapeStyle(Color.appIntakeCardSurface))
+                    .cardSurfaceEffect(cornerRadius: 18)
             )
             .contentShape(RoundedRectangle(cornerRadius: 18))
             .dynamicTypeSize(...DynamicTypeSize.xxxLarge) // o cartão tem altura fixa; o texto não passa dela

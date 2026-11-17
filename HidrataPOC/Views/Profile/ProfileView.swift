@@ -74,16 +74,14 @@ struct ProfileView: View {
         ScrollView {
             VStack(spacing: 16) {
                 goalCard
-                liveActivitiesRow
-                siriRow
-                healthRow
-                soundSettingsRow
-                #if DEBUG
-                debugNotificationRow
-                debugRandomCopyRow
-                debugWeatherCard
-                #endif
+                settingsOptionsSection
+//                #if DEBUG
+//                debugNotificationRow
+//                debugRandomCopyRow
+//                debugWeatherCard
+//                #endif
                 personalDataSection
+                weatherDataFootnote
             }
             .padding(.horizontal, 20)
             .padding(.top, 16)
@@ -248,129 +246,66 @@ struct ProfileView: View {
         )
     }
 
-    // MARK: - Live Activities Row
+    // MARK: - Opções (botão de ação, Siri, Saúde, Sons e vibração)
 
-    private var liveActivitiesRow: some View {
-        Button {
-            Haptic.tap.play()
-            showLiveActivities = true
-        } label: {
-            HStack {
-                Text("Como usar o botão de ação")
-                    .font(AppFont.calloutStrong)
-                    .foregroundStyle(.primary)
-
-                Spacer()
-
-                Image(systemName: "chevron.right")
-                    .font(.system(.subheadline, weight: .semibold))
-                    .foregroundStyle(Color.appChevron)
+    private var settingsOptionsSection: some View {
+        VStack(spacing: 0) {
+            optionRow(title: "Como usar o botão de ação") {
+                Haptic.tap.play()
+                showLiveActivities = true
             }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 16)
-            .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color(UIColor.secondarySystemBackground))
-                .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4))
-            .contentShape(Rectangle())
+            Divider().padding(.leading, 18)
+            optionRow(title: "Como usar a Siri") {
+                Haptic.tap.play()
+                showSiriTutorial = true
+            }
+            Divider().padding(.leading, 18)
+            optionRow(title: "Conectar ao Saúde") {
+                Haptic.tap.play()
+                InteractionTracker.log("health_connect_row_tap", screen: .profile, userID: profile.userID, context: modelContext)
+                showHealthConnect = true
+            }
+            Divider().padding(.leading, 18)
+            optionRow(title: "Sons e vibração") {
+                Haptic.tap.play()
+                showSoundSettings = true
+            }
         }
-        .buttonStyle(.plain)
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
+            .fill(Color.appCardSurface))
+        .cardSurfaceEffect(cornerRadius: 16)
         .sheet(isPresented: $showLiveActivities) {
             ActionButtonTutorialView()
                 .trackSheetLifecycle(.actionButtonTutorial, screen: .profile, userID: profile.userID)
         }
-    }
-
-    // MARK: - Siri Row
-
-    private var siriRow: some View {
-        Button {
-            Haptic.tap.play()
-            showSiriTutorial = true
-        } label: {
-            HStack {
-                Text("Como usar a Siri")
-                    .font(AppFont.calloutStrong)
-                    .foregroundStyle(.primary)
-
-                Spacer()
-
-                Image(systemName: "chevron.right")
-                    .font(.system(.subheadline, weight: .semibold))
-                    .foregroundStyle(Color.appChevron)
-            }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 16)
-            .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color(UIColor.secondarySystemBackground))
-                .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4))
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
         .sheet(isPresented: $showSiriTutorial) {
             SiriTutorialView()
                 .trackSheetLifecycle(.siriTutorial, screen: .profile, userID: profile.userID)
         }
-    }
-
-    // MARK: - Health Row
-
-    private var healthRow: some View {
-        Button {
-            Haptic.tap.play()
-            InteractionTracker.log("health_connect_row_tap", screen: .profile, userID: profile.userID, context: modelContext)
-            showHealthConnect = true
-        } label: {
-            HStack {
-                Text("Conectar ao Saúde")
-                    .font(AppFont.calloutStrong)
-                    .foregroundStyle(.primary)
-
-                Spacer()
-
-                Image(systemName: "chevron.right")
-                    .font(.system(.subheadline, weight: .semibold))
-                    .foregroundStyle(Color.appChevron)
-            }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 16)
-            .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color(UIColor.secondarySystemBackground))
-                .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4))
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-    }
-
-    // MARK: - Sons e vibração
-
-    private var soundSettingsRow: some View {
-        Button {
-            Haptic.tap.play()
-            showSoundSettings = true
-        } label: {
-            HStack {
-                Text("Sons e vibração")
-                    .font(AppFont.calloutStrong)
-                    .foregroundStyle(.primary)
-
-                Spacer()
-
-                Image(systemName: "chevron.right")
-                    .font(.system(.subheadline, weight: .semibold))
-                    .foregroundStyle(Color.appChevron)
-            }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 16)
-            .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color(UIColor.secondarySystemBackground))
-                .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4))
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
         .sheet(isPresented: $showSoundSettings) {
             SoundSettingsView()
                 .trackSheetLifecycle(.soundSettings, screen: .profile, userID: profile.userID)
         }
+    }
+
+    private func optionRow(title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack {
+                Text(title)
+                    .font(AppFont.calloutStrong)
+                    .foregroundStyle(.primary)
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(.subheadline, weight: .semibold))
+                    .foregroundStyle(Color.appChevron)
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 16)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Debug Row
@@ -398,8 +333,8 @@ struct ProfileView: View {
                 .padding(.horizontal, 18)
                 .padding(.vertical, 16)
                 .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(Color(UIColor.secondarySystemBackground))
-                    .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4))
+                    .fill(Color.appCardSurface))
+                .cardSurfaceEffect(cornerRadius: 16)
             }
             .buttonStyle(.plain)
 
@@ -436,8 +371,8 @@ struct ProfileView: View {
                 .padding(.horizontal, 18)
                 .padding(.vertical, 16)
                 .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(Color(UIColor.secondarySystemBackground))
-                    .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4))
+                    .fill(Color.appCardSurface))
+                .cardSurfaceEffect(cornerRadius: 16)
             }
             .buttonStyle(.plain)
 
@@ -483,8 +418,8 @@ struct ProfileView: View {
         }
         .padding(.bottom, 14)
         .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
-            .fill(Color(UIColor.secondarySystemBackground))
-            .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4))
+            .fill(Color.appCardSurface))
+        .cardSurfaceEffect(cornerRadius: 16)
     }
 
     private func debugRow(label: String, value: String, highlight: Bool = false) -> some View {
@@ -533,8 +468,24 @@ struct ProfileView: View {
                 dataRow(label: "Peso", value: "\(Int(profile.pesoKg)) kg", isLast: false)
                 dataRow(label: "Altura", value: alturaFormatted, isLast: true)
             }
-            .panelBackground(cornerRadius: 18)
+            .panelBackground(cornerRadius: 18, strongDarkSurface: true)
         }
+    }
+
+    /// Letras miúdas exigidas pela Apple perto de onde o app usa dado climático
+    /// (guideline 5.2.5): link para a página oficial de atribuição do WeatherKit.
+    private var weatherDataFootnote: some View {
+        let fullText = "Saiba mais sobre dados climáticos"
+        var attributed = AttributedString(fullText)
+        if let range = attributed.range(of: "dados climáticos") {
+            attributed[range].underlineStyle = .single
+            attributed[range].link = URL(string: "https://support.apple.com/en-gb/105038")
+        }
+        return Text(attributed)
+            .font(AppFont.caption)
+            .foregroundStyle(Color.appSecondary)
+            .frame(maxWidth: .infinity, alignment: .center)
+            .padding(.top, 8)
     }
 
     private func dataRow(label: String, value: String, isLast: Bool) -> some View {
@@ -627,28 +578,44 @@ private struct GoalExplainerView: View {
 
     var body: some View {
         TankSheet {
-            VStack(spacing: 20) {
-                CurrentMascotTankHeader(
-                    title: "Sua meta diária",
-                    subtitle: isManual ? "Definida por você manualmente." : "Calculada com base no seu perfil."
-                )
-
-                VStack(spacing: 16) {
-                    goalStat
-
-                    Text(
-                        isManual
-                            ? "Esta meta foi definida por você manualmente. Se editar seus dados pessoais (peso, altura, idade ou sexo), ela será recalculada automaticamente."
-                            : "A quantidade ideal de água depende do seu peso, altura, idade, gênero e temperatura no dia. Você pode ajustar seus dados no perfil para recalcular a meta."
-                    )
-                    .font(AppFont.subheadline)
-                    .foregroundStyle(Color.appSecondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .padding(.horizontal, 20)
+            if !isManual {
+                sheetContent
+                    .containerRelativeFrame(.vertical, alignment: .top)
+            } else {
+                sheetContent
             }
-            .padding(.bottom, 40)
         }
+    }
+
+    private var sheetContent: some View {
+        VStack(spacing: 20) {
+            CurrentMascotTankHeader(
+                title: "Sua meta diária",
+                subtitle: isManual ? "Definida por você manualmente." : "Calculada com base no seu perfil."
+            )
+
+            VStack(spacing: 16) {
+                goalStat
+
+                Text(
+                    isManual
+                        ? "Esta meta foi definida por você manualmente. Se editar seus dados pessoais (peso, altura, idade ou sexo), ela será recalculada automaticamente."
+                        : "A quantidade ideal de água depende do seu peso, altura, idade, gênero e temperatura no dia. Você pode ajustar seus dados no perfil para recalcular a meta."
+                )
+                .font(AppFont.subheadline)
+                .foregroundStyle(Color.appSecondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(.horizontal, 20)
+
+            if !isManual {
+                Spacer(minLength: 20)
+
+                WeatherAttributionView()
+                    .padding(.horizontal, 20)
+            }
+        }
+        .padding(.bottom, 40)
     }
 
     private var goalStat: some View {
@@ -671,7 +638,7 @@ private struct GoalExplainerView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 22)
-        .panelBackground()
+        .panelBackground(strongDarkOutline: true)
     }
 }
 
@@ -704,7 +671,7 @@ private struct SoundSettingsView: View {
                         isOn: $soundEffectsEnabled
                     )
                 }
-                .panelBackground()
+                .panelBackground(strongDarkSurface: true)
                 .padding(.horizontal, 20)
             }
             .padding(.bottom, 40)

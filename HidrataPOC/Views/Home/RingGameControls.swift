@@ -74,8 +74,8 @@ struct GameHoldButton: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(isPressed ? AnyShapeStyle(RingGameButtonIcon.buttonGradient) : AnyShapeStyle(Color(UIColor.secondarySystemBackground)))
-                    .shadow(color: .black.opacity(0.18), radius: 8, x: 0, y: 4)
+                    .fill(isPressed ? AnyShapeStyle(RingGameButtonIcon.buttonGradient) : AnyShapeStyle(Color.appCardSurface))
+                    .cardSurfaceEffect(cornerRadius: 18)
             )
         .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .scaleEffect(isPressed ? 0.97 : 1)
@@ -208,8 +208,8 @@ struct GameJoystick: View {
         }
         .background(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color(UIColor.secondarySystemBackground))
-                .shadow(color: .black.opacity(0.18), radius: 8, x: 0, y: 4)
+                .fill(Color.appCardSurface)
+                .cardSurfaceEffect(cornerRadius: 18)
         )
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityLabel)

@@ -29,6 +29,7 @@
 		267A40DE9CF3539833AEA14D /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9EDD10460D867692F1B0943 /* HomeView.swift */; };
 		2A1D8B0D2B76B6F3EA0A6273 /* WaterIntakeCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD611C7BACD349B4B8CBC129 /* WaterIntakeCalculator.swift */; };
 		322E3A00D8FD3C5C771E2221 /* WeatherContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3BCAACF78A9164EF7C57D86 /* WeatherContext.swift */; };
+		7A1E2D3C4B5A69788796A5B4 /* WeatherAttributionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F2E3D4C5B6A79887796A5C3 /* WeatherAttributionView.swift */; };
 		38B4362730654D550041595B /* Water.metal in Sources */ = {isa = PBXBuildFile; fileRef = 38B4362630654D550041595B /* Water.metal */; };
 		38B4362830654D550041595B /* Water.metal in Sources */ = {isa = PBXBuildFile; fileRef = 38B4362630654D550041595B /* Water.metal */; };
 		38B4362930654D550041595B /* Water.metal in Sources */ = {isa = PBXBuildFile; fileRef = 38B4362630654D550041595B /* Water.metal */; };
@@ -293,6 +294,7 @@
 		193F328347B94E9A8C7434A3 /* MiniGameBackdrop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniGameBackdrop.swift; sourceTree = "<group>"; };
 		1A0B0C0D0E0F1011121B0002 /* RunnerGameSimulation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerGameSimulation.swift; sourceTree = "<group>"; };
 		C3BCAACF78A9164EF7C57D86 /* WeatherContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherContext.swift; sourceTree = "<group>"; };
+		1F2E3D4C5B6A79887796A5C3 /* WeatherAttributionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherAttributionView.swift; sourceTree = "<group>"; };
 		C7A5DA61EDA45323AB04B6E6 /* HydrationWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HydrationWidgetBundle.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F6A7B8C9D0E1F2 /* LockScreenProgressWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LockScreenProgressWidget.swift; sourceTree = "<group>"; };
 		CD611C7BACD349B4B8CBC129 /* WaterIntakeCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaterIntakeCalculator.swift; sourceTree = "<group>"; };
@@ -463,6 +465,7 @@
 				A5EDE7E1D9A01E7CB6759B0F /* SyncedFetch.swift */,
 				71633D4942F7FC63BE4A16CC /* ModelContextSaving.swift */,
 				C3BCAACF78A9164EF7C57D86 /* WeatherContext.swift */,
+				1F2E3D4C5B6A79887796A5C3 /* WeatherAttributionView.swift */,
 				9D4758DA97785CE3AE8FB879 /* LiquidBubbleView.swift */,
 				2D3E4F5A6B7C8D9E0F1A2B3C /* MascotSpeechBubble.swift */,
 				C5C72FA5CB85218BE6733973 /* TankHeader.swift */,
@@ -931,6 +934,7 @@
 				D6A1B2C3D4E5F60718293A4C /* DailyGoal.swift in Sources */,
 				50D08C3D5EA73F9F85F1EA6A /* WaterIntakeCalculator.swift in Sources */,
 				322E3A00D8FD3C5C771E2221 /* WeatherContext.swift in Sources */,
+				7A1E2D3C4B5A69788796A5B4 /* WeatherAttributionView.swift in Sources */,
 				044AFD6D58D9A11B3600EC06 /* WeatherContextService.swift in Sources */,
 				953A56756B889D9D4A320FDC /* LogIntakeIntent.swift in Sources */,
 				1296A932E1117A61AB227D6C /* LogIntakeControlIntent.swift in Sources */,

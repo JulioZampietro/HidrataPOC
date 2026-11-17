@@ -202,8 +202,8 @@ struct MinesModeCard: View {
             .frame(height: height)
             .background(
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(isFlagging ? AnyShapeStyle(LinearGradient.waterHeader) : AnyShapeStyle(Color(UIColor.secondarySystemBackground)))
-                    .shadow(color: .black.opacity(0.18), radius: 8, x: 0, y: 4)
+                    .fill(isFlagging ? AnyShapeStyle(LinearGradient.waterHeader) : AnyShapeStyle(Color.appCardSurface))
+                    .cardSurfaceEffect(cornerRadius: 18)
             )
             .contentShape(RoundedRectangle(cornerRadius: 18))
         }

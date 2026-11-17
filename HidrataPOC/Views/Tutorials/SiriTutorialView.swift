@@ -92,7 +92,7 @@ struct SiriStepsContent: View {
                 }
             }
         }
-        .panelBackground()
+        .panelBackground(strongDarkSurface: true)
     }
 
     private func phraseRow(text: String, result: String, isLast: Bool) -> some View {
@@ -139,7 +139,7 @@ struct SiriStepsContent: View {
             tipRow(text: "Não precisa de frase exata — fale naturalmente.", isLast: false)
             tipRow(text: "Funciona com números: \"3 copos\", \"dois goles\".", isLast: true)
         }
-        .panelBackground()
+        .panelBackground(strongDarkSurface: true)
     }
 
     private func tipRow(text: LocalizedStringKey, isLast: Bool) -> some View {

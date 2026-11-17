@@ -211,9 +211,9 @@ struct GameHintCard: View {
         .frame(height: height)
         .background(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color(UIColor.secondarySystemBackground))
-                .shadow(color: .black.opacity(0.18), radius: 8, x: 0, y: 4)
+                .fill(Color.appCardSurface)
         )
+        .cardSurfaceEffect(cornerRadius: 18)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(title). \(subtitle).")
     }
