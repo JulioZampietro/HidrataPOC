@@ -92,4 +92,28 @@ struct HydrationMathTests {
         )
         #expect(streak == 5)
     }
+
+    /// A maior sequência é a que libera os minijogos pra sempre: tem de achar uma sequência
+    /// antiga, já quebrada, mesmo que a atual seja menor.
+    @Test func longestStreakAchaSequenciaAntigaJaQuebrada() throws {
+        let today = calendar.startOfDay(for: .now)
+        // Bateu a meta há 10…6 dias (5 seguidos), falhou há 5 e 4 (um pouco abaixo da meta),
+        // e bateu de novo há 3…1 (3 seguidos). Hoje ainda não bateu.
+        var logs: [IntakeLog] = []
+        for offset in 1...10 {
+            let day = try #require(calendar.date(byAdding: .day, value: -offset, to: today))
+            logs.append(log(day, hour: 10, ml: (offset == 4 || offset == 5) ? 1500 : 2000))
+        }
+        let totals = HydrationMath.totalsByDay(logs, calendar: calendar)
+        let goal: (Date) -> Int = { _ in 2000 }
+
+        #expect(HydrationMath.currentStreak(totalsByDay: totals, goalML: goal, calendar: calendar, now: today) == 3)
+        #expect(HydrationMath.longestStreak(totalsByDay: totals, goalML: goal, calendar: calendar) == 5)
+    }
+
+    @Test func longestStreakSemMetaBatidaEZero() {
+        let today = calendar.startOfDay(for: .now)
+        let totals = HydrationMath.totalsByDay([log(today, hour: 10, ml: 500)], calendar: calendar)
+        #expect(HydrationMath.longestStreak(totalsByDay: totals, goalML: { _ in 2000 }, calendar: calendar) == 0)
+    }
 }

@@ -2,11 +2,12 @@ import AVFoundation
 import SwiftUI
 
 /// Minijogos que rodam no aquário da Home. Cada um é desbloqueado ao alcançar
-/// `requiredStreak` dias de streak; só um fica ativo por vez (ou nenhum, com `.noGame`:
-/// o aquário fica só com as pedrinhas), escolhido na aba de minijogos (`MiniGamesView`) e
+/// `requiredStreak` dias de streak e fica liberado pra sempre, mesmo que a streak zere
+/// depois (o desbloqueio olha a maior streak já alcançada, `bestStreakStorageKey`). Só um
+/// fica ativo por vez (ou nenhum, com `.noGame`: o aquário fica só com as pedrinhas), escolhido na aba de minijogos (`MiniGamesView`) e
 /// lembrado entre aberturas do app (`@AppStorage(MiniGame.selectedStorageKey)`). O escolhido
-/// entra sozinho quando a meta do dia é batida, e com pelo menos `minimumStreakToPlay` dias
-/// de streak dá pra jogar a qualquer hora tocando nele na aba.
+/// entra sozinho quando a meta do dia é batida, e tendo alcançado pelo menos
+/// `minimumStreakToPlay` dias de streak dá pra jogar a qualquer hora tocando nele na aba.
 ///
 /// Pra criar um jogo novo: adicione o `case` aqui (com título e ícone), na posição da fila de
 /// desbloqueio em que ele deve entrar, e trate o `case` na Home (`HomeView`), onde o jogo é
@@ -83,7 +84,9 @@ enum MiniGame: String, CaseIterable, Identifiable {
     /// `false` só pro `.noGame`, que é a opção de não jogar nada.
     var isPlayable: Bool { self != .noGame }
 
-    func isUnlocked(streak: Int) -> Bool { streak >= requiredStreak }
+    /// `bestStreak`: a maior streak já alcançada (não a atual), pra o jogo continuar liberado
+    /// depois de a streak zerar.
+    func isUnlocked(bestStreak: Int) -> Bool { bestStreak >= requiredStreak }
 
     var tint: Color {
         switch self {
@@ -105,6 +108,9 @@ enum MiniGame: String, CaseIterable, Identifiable {
     /// Chave do `@AppStorage` com os jogos (separados por vírgula) cujo desbloqueio já foi
     /// anunciado — o aviso de "novo minijogo" aparece só uma vez por jogo.
     static let announcedStorageKey = "minigame.announced"
+    /// Chave do `@AppStorage` com a maior streak já alcançada: é ela que libera os jogos, então
+    /// um jogo liberado continua liberado mesmo depois de a streak zerar.
+    static let bestStreakStorageKey = "minigame.bestStreak"
     /// Chave do `@AppStorage` com o recorde da Gota Saltitante.
     static let jumpBestStorageKey = "minigame.jump.best"
     /// Chave do `@AppStorage` com o recorde das Pedras Coloridas.
@@ -123,19 +129,19 @@ enum MiniGame: String, CaseIterable, Identifiable {
     /// Chave do `@AppStorage` com o recorde da Gota Surfista.
     static let runnerBestStorageKey = "minigame.runner.best"
 
-    /// Streak mínima pra jogar fora da meta batida (tocando no jogo na aba de minijogos).
+    /// Streak mínima (a maior já alcançada) pra jogar fora da meta batida (tocando no jogo na aba de minijogos).
     static let minimumStreakToPlay = 1
 
-    /// Jogos de verdade (sem o `.noGame`) já liberados pela streak, na ordem de desbloqueio.
-    static func unlocked(streak: Int) -> [MiniGame] {
-        allCases.filter { $0.isPlayable && $0.isUnlocked(streak: streak) }
+    /// Jogos de verdade (sem o `.noGame`) já liberados pela maior streak, na ordem de desbloqueio.
+    static func unlocked(bestStreak: Int) -> [MiniGame] {
+        allCases.filter { $0.isPlayable && $0.isUnlocked(bestStreak: bestStreak) }
     }
 
     /// Opção escolhida pra quando bater a meta: a do usuário, se ainda estiver liberada;
-    /// senão o último jogo liberado; `.noGame` se a streak ainda não liberou nenhum.
-    static func active(selected rawValue: String, streak: Int) -> MiniGame {
-        if let selected = MiniGame(rawValue: rawValue), selected.isUnlocked(streak: streak) { return selected }
-        return unlocked(streak: streak).last ?? .noGame
+    /// senão o último jogo liberado; `.noGame` se nenhuma streak liberou jogo ainda.
+    static func active(selected rawValue: String, bestStreak: Int) -> MiniGame {
+        if let selected = MiniGame(rawValue: rawValue), selected.isUnlocked(bestStreak: bestStreak) { return selected }
+        return unlocked(bestStreak: bestStreak).last ?? .noGame
     }
 }
 
@@ -200,20 +206,21 @@ final class MiniGameController {
 
 /// Aba aberta pelo botão de minijogos no aquário: lista os jogos e, com um toque, escolhe
 /// qual aparece quando a meta do dia for batida e já começa a jogá-lo no aquário (com pelo
-/// menos `MiniGame.minimumStreakToPlay` dias de streak). Jogos ainda bloqueados (streak abaixo
-/// de `MiniGame.requiredStreak`) aparecem com cadeado e não respondem ao toque.
+/// menos `MiniGame.minimumStreakToPlay` dias de streak já alcançados). Jogos ainda bloqueados
+/// (maior streak abaixo de `MiniGame.requiredStreak`) aparecem com cadeado e não respondem ao toque.
 struct MiniGamesView: View {
-    let streak: Int
+    /// Maior streak já alcançada (ver `MiniGame.bestStreakStorageKey`), não a atual.
+    let bestStreak: Int
 
     @Environment(\.dismiss) private var dismiss
     @Environment(MiniGameController.self) private var miniGames
     @AppStorage(MiniGame.selectedStorageKey) private var selectedRaw = ""
 
-    private var canPlay: Bool { streak >= MiniGame.minimumStreakToPlay }
+    private var canPlay: Bool { bestStreak >= MiniGame.minimumStreakToPlay }
 
     private let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
 
-    private var activeGame: MiniGame { MiniGame.active(selected: selectedRaw, streak: streak) }
+    private var activeGame: MiniGame { MiniGame.active(selected: selectedRaw, bestStreak: bestStreak) }
 
     var body: some View {
         NavigationStack {
@@ -244,7 +251,7 @@ struct MiniGamesView: View {
                     ForEach(MiniGame.allCases) { game in
                         MiniGameItemButton(
                             game: game,
-                            isUnlocked: game.isUnlocked(streak: streak),
+                            isUnlocked: game.isUnlocked(bestStreak: bestStreak),
                             isSelected: activeGame == game,
                             canPlay: canPlay
                         ) {
@@ -702,6 +709,6 @@ struct MiniGameUnlockedBanner: View {
 }
 
 #Preview {
-    MiniGamesView(streak: 0)
+    MiniGamesView(bestStreak: 0)
         .environment(MiniGameController())
 }
