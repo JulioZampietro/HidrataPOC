@@ -23,13 +23,9 @@ enum DrinkQuantity: Int, AppEnum, CaseIterable {
 
 struct LogGoleIntent: AppIntent {
     static var title: LocalizedStringResource { "Registrar Gole" }
-<<<<<<< HEAD
     static var description: IntentDescription {
         IntentDescription("Registra um ou mais goles de água no Gole.")
     }
-=======
-    static var description: IntentDescription { "Registra no Gole que o usuário bebeu um ou mais goles de água." }
->>>>>>> 9e96194f614fb7a8b3a65eff8be913cb76a001ca
     static var openAppWhenRun: Bool { false }
 
     @Parameter(title: "Quantidade", default: DrinkQuantity.one)
@@ -55,13 +51,9 @@ struct LogGoleIntent: AppIntent {
 
 struct LogGlassIntent: AppIntent {
     static var title: LocalizedStringResource { "Registrar Copo" }
-<<<<<<< HEAD
     static var description: IntentDescription {
         IntentDescription("Registra um ou mais copos de água no Gole.")
     }
-=======
-    static var description: IntentDescription { "Registra no Gole que o usuário bebeu um ou mais copos de água." }
->>>>>>> 9e96194f614fb7a8b3a65eff8be913cb76a001ca
     static var openAppWhenRun: Bool { false }
 
     @Parameter(title: "Quantidade", default: DrinkQuantity.one)
@@ -87,13 +79,9 @@ struct LogGlassIntent: AppIntent {
 
 struct LogBottleIntent: AppIntent {
     static var title: LocalizedStringResource { "Registrar Garrafa" }
-<<<<<<< HEAD
     static var description: IntentDescription {
         IntentDescription("Registra uma ou mais garrafas de água no Gole.")
     }
-=======
-    static var description: IntentDescription { "Registra no Gole que o usuário bebeu uma ou mais garrafas de água." }
->>>>>>> 9e96194f614fb7a8b3a65eff8be913cb76a001ca
     static var openAppWhenRun: Bool { false }
 
     @Parameter(title: "Quantidade", default: DrinkQuantity.one)
@@ -119,13 +107,9 @@ struct LogBottleIntent: AppIntent {
 
 struct LogCustomIntent: AppIntent {
     static var title: LocalizedStringResource { "Registrar Quantidade Personalizada" }
-<<<<<<< HEAD
     static var description: IntentDescription {
         IntentDescription("Registra sua quantidade personalizada de água no Gole.")
     }
-=======
-    static var description: IntentDescription { "Registra no Gole a quantidade de água personalizada que o usuário definiu no app." }
->>>>>>> 9e96194f614fb7a8b3a65eff8be913cb76a001ca
     static var openAppWhenRun: Bool { false }
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
@@ -157,12 +141,12 @@ struct LogCustomIntent: AppIntent {
 /// Diagnóstico da Siri do iOS 27.2: não toca em dados nem em serviços, só responde.
 /// Se nem este atalho roda pela Siri, a falha está antes do app ser chamado.
 struct SiriTestIntent: AppIntent {
-    static var title: LocalizedStringResource { "Testar Siri" }
-    static var description: IntentDescription { "Confirma que a Siri consegue executar ações do Gole." }
+    static var title: LocalizedStringResource { "Testar Atalho" }
+    static var description: IntentDescription { "Confirma que os atalhos de voz conseguem executar ações do Gole." }
     static var openAppWhenRun: Bool { false }
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        .result(dialog: "A Siri está funcionando com o Gole!")
+        .result(dialog: "Os atalhos de voz estão funcionando com o Gole!")
     }
 }
 
@@ -239,10 +223,10 @@ struct HidrataPOCShortcuts: AppShortcutsProvider {
         AppShortcut(
             intent: SiriTestIntent(),
             phrases: [
-                "Testar Siri no \(.applicationName)",
+                "Testar atalho no \(.applicationName)",
                 "Teste do \(.applicationName)",
             ],
-            shortTitle: "Testar Siri",
+            shortTitle: "Testar Atalho",
             systemImageName: "checkmark.circle"
         )
     }
