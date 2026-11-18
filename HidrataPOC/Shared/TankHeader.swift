@@ -17,8 +17,9 @@ private var currentTopSafeAreaInset: CGFloat {
     // A notch/Dynamic Island do iPhone (44–59pt) por si só já cobre quase toda a
     // altura da toolbar inline (44pt), então o erro passava despercebido. A status
     // bar do iPad é bem mais baixa (~24pt) e sem esse complemento o título ficava
-    // por baixo do "X" nativo da toolbar.
-    return deviceInset + 44
+    // por baixo do "X" nativo da toolbar. +16 (em vez da altura cheia da toolbar)
+    // já limpa o botão sem deixar o título longe demais dele.
+    return deviceInset + 16
 }
 
 /// Cabeçalho de marca para telas de ensino/configuração (tutoriais do Botão de Ação
