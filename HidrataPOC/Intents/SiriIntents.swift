@@ -23,6 +23,9 @@ enum DrinkQuantity: Int, AppEnum, CaseIterable {
 
 struct LogGoleIntent: AppIntent {
     static var title: LocalizedStringResource { "Registrar Gole" }
+    static var description: IntentDescription {
+        IntentDescription("Registra um ou mais goles de água no Gole.")
+    }
     static var openAppWhenRun: Bool { false }
 
     @Parameter(title: "Quantidade", default: DrinkQuantity.one)
@@ -48,6 +51,9 @@ struct LogGoleIntent: AppIntent {
 
 struct LogGlassIntent: AppIntent {
     static var title: LocalizedStringResource { "Registrar Copo" }
+    static var description: IntentDescription {
+        IntentDescription("Registra um ou mais copos de água no Gole.")
+    }
     static var openAppWhenRun: Bool { false }
 
     @Parameter(title: "Quantidade", default: DrinkQuantity.one)
@@ -73,6 +79,9 @@ struct LogGlassIntent: AppIntent {
 
 struct LogBottleIntent: AppIntent {
     static var title: LocalizedStringResource { "Registrar Garrafa" }
+    static var description: IntentDescription {
+        IntentDescription("Registra uma ou mais garrafas de água no Gole.")
+    }
     static var openAppWhenRun: Bool { false }
 
     @Parameter(title: "Quantidade", default: DrinkQuantity.one)
@@ -98,6 +107,9 @@ struct LogBottleIntent: AppIntent {
 
 struct LogCustomIntent: AppIntent {
     static var title: LocalizedStringResource { "Registrar Quantidade Personalizada" }
+    static var description: IntentDescription {
+        IntentDescription("Registra sua quantidade personalizada de água no Gole.")
+    }
     static var openAppWhenRun: Bool { false }
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
