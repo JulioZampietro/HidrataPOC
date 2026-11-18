@@ -125,6 +125,25 @@ enum HydrationMath {
         return count
     }
 
+    /// Maior sequência de dias seguidos batendo a meta (de cada dia, como em
+    /// `currentStreak`) em qualquer ponto de `totals` — não só a que termina hoje.
+    static func longestStreak(totalsByDay totals: [Date: Int], goalML: (Date) -> Int, calendar: Calendar = .current) -> Int {
+        let metDays = totals.keys.filter { metGoal(totals, on: $0, goalML: goalML) }.sorted()
+        var longest = 0
+        var run = 0
+        var previous: Date?
+        for day in metDays {
+            // Mesmo cuidado de `currentStreak` com o horário de verão: compara inícios de dia.
+            let isNextDay = previous
+                .flatMap { calendar.date(byAdding: .day, value: 1, to: $0) }
+                .map { calendar.startOfDay(for: $0) == day } ?? false
+            run = isNextDay ? run + 1 : 1
+            longest = max(longest, run)
+            previous = day
+        }
+        return longest
+    }
+
     /// Há uma sequência ativa vinda de antes de hoje (`currentStreak` contando só até
     /// ontem é > 0) e hoje ainda não bateu a meta — ou seja, ela quebra se o dia acabar
     /// assim. Usa `firesAt` (não `.now`) pra ser puro e testável com qualquer horário.

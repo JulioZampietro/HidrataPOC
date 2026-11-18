@@ -6,34 +6,6 @@
 	<array>
 		<string>com.hidratapoc.refresh</string>
 	</array>
-	<key>CFBundleDevelopmentRegion</key>
-	<string>$(DEVELOPMENT_LANGUAGE)</string>
-	<key>CFBundleExecutable</key>
-	<string>$(EXECUTABLE_NAME)</string>
-	<key>CFBundleIdentifier</key>
-	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
-	<key>CFBundleInfoDictionaryVersion</key>
-	<string>6.0</string>
-	<key>CFBundleName</key>
-	<string>$(PRODUCT_NAME)</string>
-	<key>CFBundlePackageType</key>
-	<string>APPL</string>
-	<key>CFBundleShortVersionString</key>
-	<string>1.0</string>
-	<key>CFBundleVersion</key>
-	<string>1</string>
-	<key>ITSAppUsesNonExemptEncryption</key>
-	<false/>
-	<key>NSHealthShareUsageDescription</key>
-	<string>Lemos seus registros de água do app Saúde para mostrá-los no seu histórico e, quando você pede, seu sexo, data de nascimento, peso e altura para preencher seu perfil.</string>
-	<key>NSHealthUpdateUsageDescription</key>
-	<string>Salvamos cada gole registrado aqui diretamente no app Saúde, para que seu histórico fique centralizado.</string>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Salvamos a imagem do seu progresso do dia na sua galeria.</string>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Usamos sua localização para consultar a temperatura e umidade no momento dos lembretes de hidratação.</string>
-	<key>NSSupportsLiveActivities</key>
-	<true/>
 	<key>NSUserActivityTypes</key>
 	<array>
 		<string>INSendMessageIntent</string>
@@ -49,9 +21,5 @@
 	</array>
 	<key>UILaunchScreen</key>
 	<dict/>
-	<key>UISupportedInterfaceOrientations</key>
-	<array>
-		<string>UIInterfaceOrientationPortrait</string>
-	</array>
 </dict>
 </plist>

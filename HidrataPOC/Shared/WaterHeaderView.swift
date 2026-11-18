@@ -187,10 +187,19 @@ struct WaterHeaderView: View {
     /// entre Home e Histórico, o mesmo motivo que levou `TodayIntake` e
     /// `MonthSummary` a serem calculados uma vez por atualização.
     @State private var streak = 0
+    /// Maior streak já alcançada, que é o que libera os minijogos: um jogo liberado
+    /// continua liberado mesmo depois de a streak zerar. Guardada (não só calculada)
+    /// porque o histórico carregado aqui cobre só 366 dias e registros podem ser excluídos.
+    @AppStorage(MiniGame.bestStreakStorageKey) private var bestStreak = 0
 
     private func recomputeStreak() {
         let totals = HydrationMath.totalsByDay(allLogs.filter { $0.userID == profile.userID })
         streak = HydrationMath.currentStreak(totalsByDay: totals, goalML: goalResolver.goalML(on:))
+        // A maior sequência do histórico cobre quem reinstalou o app ou trocou de aparelho
+        // (o histórico volta pelo CloudKit, o `@AppStorage` não).
+        let longest = HydrationMath.longestStreak(totalsByDay: totals, goalML: goalResolver.goalML(on:))
+        let best = max(bestStreak, streak, longest)
+        if best != bestStreak { bestStreak = best }
     }
 
     var body: some View {
@@ -205,7 +214,7 @@ struct WaterHeaderView: View {
             ShareProgressView(snapshot: ShareProgressSnapshot(consumedML: consumedToday, goalML: effectiveGoalML, streakDias: streak))
                 .trackSheetLifecycle(.shareProgress, screen: screen, userID: profile.userID)
         }
-        .sheet(isPresented: $showMiniGames) { MiniGamesView(streak: streak) }
+        .sheet(isPresented: $showMiniGames) { MiniGamesView(bestStreak: bestStreak) }
         .onChange(of: runningGame, initial: true) { oldGame, newGame in
             miniGames.runningGame = newGame
             handleMiniGame(from: oldGame, to: newGame, isLiveTransition: oldGame != newGame)
@@ -230,8 +239,8 @@ struct WaterHeaderView: View {
         .onChange(of: isMascotAnimating, initial: true) { _, isAnimating in
             miniGames.isMascotAnimating = isAnimating
         }
-        .onChange(of: streak, initial: true) { _, newStreak in
-            announceNewlyUnlockedGames(streak: newStreak)
+        .onChange(of: bestStreak, initial: true) { _, newBest in
+            announceNewlyUnlockedGames(bestStreak: newBest)
         }
         // Entradas da sequência: registros do usuário (incluídos/excluídos, aqui ou em
         // outra tela) e a meta do dia, que muda quando a previsão do clima chega.
@@ -312,15 +321,15 @@ struct WaterHeaderView: View {
 
     private var goalReached: Bool { progress >= 1 }
 
-    /// Opção escolhida na aba de minijogos, entre as que a streak já liberou. Batendo a meta,
+    /// Opção escolhida na aba de minijogos, entre as que a maior streak já liberou. Batendo a meta,
     /// a streak de hoje já conta, então um jogo liberado agora entra na mesma hora.
-    private var activeGame: MiniGame { MiniGame.active(selected: selectedGameRaw, streak: streak) }
+    private var activeGame: MiniGame { MiniGame.active(selected: selectedGameRaw, bestStreak: bestStreak) }
 
     /// Jogo rodando agora no aquário: com a meta batida (depois da comemoração, ver
     /// `showsGoalReached`), ou quando o usuário escolheu jogar pela aba de minijogos (com a
     /// streak mínima); nunca o `.noGame`.
     private var runningGame: MiniGame? {
-        let playsNow = (goalReached && showsGoalReached) || (miniGames.playsOnDemand && streak >= MiniGame.minimumStreakToPlay)
+        let playsNow = (goalReached && showsGoalReached) || (miniGames.playsOnDemand && bestStreak >= MiniGame.minimumStreakToPlay)
         return playsNow && activeGame.isPlayable ? activeGame : nil
     }
 
@@ -744,12 +753,12 @@ struct WaterHeaderView: View {
         }
     }
 
-    /// Streak subiu e liberou jogo(s) que o usuário ainda não viu: o mais novo passa a ser o
+    /// A maior streak subiu e liberou jogo(s) que o usuário ainda não viu: o mais novo passa a ser o
     /// escolhido (é ele que entra ao bater a meta) e aparece o aviso no topo do aquário.
     /// Cada jogo é anunciado uma vez só, mesmo que a streak zere e volte a liberá-lo.
-    private func announceNewlyUnlockedGames(streak: Int) {
+    private func announceNewlyUnlockedGames(bestStreak: Int) {
         let announced = Set(announcedGamesRaw.split(separator: ",").map(String.init))
-        let fresh = MiniGame.unlocked(streak: streak).filter { !announced.contains($0.rawValue) }
+        let fresh = MiniGame.unlocked(bestStreak: bestStreak).filter { !announced.contains($0.rawValue) }
         guard let newest = fresh.last else { return }
         announcedGamesRaw = announced.union(fresh.map(\.rawValue)).sorted().joined(separator: ",")
         selectedGameRaw = newest.rawValue
